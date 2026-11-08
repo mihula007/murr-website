@@ -18,7 +18,7 @@ npm run clean-install
 npm run dev
 ```
 
-`npm run clean-install` выполняет `npm ci`: удаляет `node_modules` и
+`npm run clean-install` выполняет `npm clean-install`: удаляет `node_modules` и
 устанавливает зависимости строго по lockfile. Перед запуском остановите
 серверы разработки и другие процессы проекта.
 

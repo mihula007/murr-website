@@ -26,7 +26,7 @@ jobs:
           cache: npm
       - name: Use the pinned npm version
         run: npm install --global npm@12.2.2
-      - run: npm ci
+      - run: npm clean-install
       - name: Check and build using public configuration only
         run: npm run check
         env:

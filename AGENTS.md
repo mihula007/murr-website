@@ -110,7 +110,7 @@ Next.js и TanStack Start в выбранную основу не входят.
 
 - Node.js 24 LTS; версия npm зафиксирована в `packageManager`.
 - Все версии прямых npm-зависимостей точные; `package-lock.json` хранится
-  в Git. Для воспроизводимой установки использовать `npm ci`.
+  в Git. Для воспроизводимой установки использовать `npm clean-install`.
 - TypeScript strict с отдельными конфигурациями клиента, инструментов
   Node.js и тестов. Типы Node не добавлять в клиентскую конфигурацию.
 - Vitest и React Testing Library — тесты клиентской основы; Playwright
@@ -204,7 +204,7 @@ Next.js и TanStack Start в выбранную основу не входят.
 
 ## Команды и проверки
 
-- `npm ci` — установка зависимостей по lockfile.
+- `npm clean-install` — установка зависимостей по lockfile.
 - `npm run dev` — локальная разработка, `http://127.0.0.1:5173`.
 - `npm run check` — защита секретов, форматирование, lint, types, Vitest,
   production build и повторная проверка артефактов на известные секреты.
