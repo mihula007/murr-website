@@ -33,7 +33,8 @@
     "build-storybook": "storybook build",
     "supabase:types": "supabase gen types typescript --schema app > supabase/functions/_shared/db/database.types.ts && prettier --write supabase/functions/_shared/db/database.types.ts",
     "supabase:test": "supabase test db",
-    "test:server": "vitest run --config vitest.server.config.ts"
+    "test:server": "vitest run --config vitest.server.config.ts",
+    "admin:bootstrap": "node --env-file-if-exists=.env scripts/admin-bootstrap.ts"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "1.2.1",
