@@ -1,14 +1,24 @@
-import { createHashHistory, createRouter } from '@tanstack/react-router'
+import {
+  createHashHistory,
+  createRouter,
+  type RouterHistory,
+} from '@tanstack/react-router'
 import { rootRoute } from '@/routes/root'
 import { indexRoute } from '@/routes/index'
 import { accountRoute } from '@/routes/account'
+import { sectionRoutes } from '@/routes/sections'
 
-const routeTree = rootRoute.addChildren([indexRoute, accountRoute])
+export const routeTree = rootRoute.addChildren([
+  indexRoute,
+  accountRoute,
+  ...sectionRoutes,
+])
 
-export function createAppRouter() {
+/** `history` подменяется в тестах на историю в памяти. */
+export function createAppRouter(history: RouterHistory = createHashHistory()) {
   return createRouter({
     routeTree,
-    history: createHashHistory(),
+    history,
     defaultPreload: 'intent',
     scrollRestoration: true,
   })

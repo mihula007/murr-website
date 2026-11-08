@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 
-type NavBadgeProps = { count?: number; className?: string }
+type NavBadgeProps = { count?: number | undefined; className?: string }
 
 /** Счётчик новых записей в пункте меню; при 0 или без данных не рендерится. */
 export function NavBadge({ count, className }: NavBadgeProps) {

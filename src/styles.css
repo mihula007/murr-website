@@ -588,3 +588,227 @@
     animation: none !important;
   }
 }
+
+/* Кнопка аккаунта уточняет неслоёную .guild-button, поэтому вне слоя. */
+.shell-account.guild-button {
+  padding: 9px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Оболочка по прототипу: шапка, меню категорий, мобильная панель, подвал. */
+@layer components {
+  .shell-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    border-bottom: 1px solid var(--border-strong);
+    background: color-mix(in srgb, var(--surface-header) 93%, transparent);
+    backdrop-filter: blur(14px);
+  }
+  .shell-header-inner {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    width: 100%;
+    max-width: 1240px;
+    height: 76px;
+    margin: 0 auto;
+    padding: 0 22px;
+  }
+  .shell-brand {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    color: var(--foreground);
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.13em;
+    text-decoration: none;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .shell-brand img {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+  }
+  .shell-brand > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .shell-brand small {
+    display: block;
+    color: var(--muted-foreground);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+  }
+  .shell-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .shell-actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    margin-left: auto;
+  }
+  @media (min-width: 1024px) {
+    .shell-nav ~ .shell-actions {
+      margin-left: 0;
+    }
+  }
+  .shell-nav-link {
+    position: relative;
+    border: 0;
+    border-radius: 9px;
+    padding: 10px 13px;
+    background: transparent;
+    color: var(--muted-foreground);
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .shell-nav-link::before {
+    content: '';
+    position: absolute;
+    inset: auto 13px 3px;
+    height: 2px;
+    border-radius: 4px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--highlight-line),
+      transparent
+    );
+    filter: drop-shadow(
+      0 0 4px color-mix(in srgb, var(--highlight-line) 53%, transparent)
+    );
+    opacity: 0;
+    transform: scaleX(0.45);
+    transition:
+      opacity 0.2s,
+      transform 0.2s;
+  }
+  .shell-nav-link:hover,
+  .shell-nav-link[data-state='open'],
+  .shell-nav-link[data-active],
+  .shell-nav-link[aria-current='page'] {
+    color: var(--highlight);
+  }
+  .shell-nav-link[data-active]::before,
+  .shell-nav-link[aria-current='page']::before,
+  .shell-nav-link[data-state='open']::before {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  .shell-burger {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    margin-left: -8px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--foreground);
+    cursor: pointer;
+  }
+  .shell-burger:hover,
+  .shell-burger[data-state='open'] {
+    border-color: var(--border-strong);
+    background: var(--secondary);
+    color: var(--highlight);
+  }
+  .shell-sheet-category {
+    position: relative;
+    margin: 0;
+    padding: 4px 12px;
+    color: var(--muted-foreground);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .shell-sheet-category[data-active] {
+    color: var(--primary);
+  }
+  .shell-sheet-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-height: 44px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: var(--foreground);
+    font-size: 16px;
+    text-decoration: none;
+  }
+  .shell-sheet-link:hover,
+  .shell-sheet-link[aria-current='page'] {
+    background: var(--secondary);
+    color: var(--highlight);
+  }
+  .shell-sheet-link[aria-current='page'] {
+    box-shadow: inset 2px 0 0 var(--highlight-line);
+  }
+  .shell-footer {
+    border-top: 1px solid var(--border);
+    padding: 25px 0;
+    color: var(--muted-foreground);
+    font-size: 12px;
+  }
+  .dev-role-switcher {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    border: 1px dashed var(--border-accent);
+    border-radius: 10px;
+    padding: 6px 8px;
+    background: var(--surface-menu);
+    color: var(--muted-foreground);
+    font-size: 12px;
+    box-shadow: 0 8px 24px var(--shadow-soft);
+  }
+  .dev-role-switcher select {
+    border: 1px solid var(--input);
+    border-radius: 6px;
+    padding: 2px 4px;
+    background: var(--background);
+    color: var(--foreground);
+  }
+  @media (max-width: 1023px) {
+    .shell-header-inner {
+      gap: 10px;
+    }
+  }
+  @media (max-width: 560px) {
+    .shell-header-inner {
+      height: 66px;
+      padding: 0 14px;
+    }
+    .shell-brand {
+      gap: 10px;
+    }
+    .shell-brand img {
+      width: 34px;
+      height: 34px;
+    }
+  }
+}

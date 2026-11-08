@@ -16,10 +16,13 @@ export type NavSection = {
   roles: readonly AccessRole[]
 }
 
+export type NavSectionConfig = (typeof NAV_SECTIONS)[number]
+export type NavSectionId = NavSectionConfig['id']
+
 export type NavCategory = {
   id: NavCategoryId
   label: string
-  sections: NavSection[]
+  sections: NavSectionConfig[]
 }
 
 export const NAV_CATEGORIES: readonly { id: NavCategoryId; label: string }[] = [
@@ -112,7 +115,7 @@ export function visibleNavigation(role: AccessRole): NavCategory[] {
   })).filter((category) => category.sections.length > 0)
 }
 
-export function findSectionByPath(path: string): NavSection | undefined {
+export function findSectionByPath(path: string): NavSectionConfig | undefined {
   return NAV_SECTIONS.find(
     (section) => path === section.path || path.startsWith(`${section.path}/`),
   )
