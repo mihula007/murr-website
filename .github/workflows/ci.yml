@@ -28,5 +28,41 @@ jobs:
         run: npm install --global npm@12.2.2
       - run: npm clean-install
       - run: npm run check
+
+  # Тесты схемы, сервисов, Edge Functions и браузерные сценарии на локальном
+  # Supabase в Docker. Ключи локального стека скрипты берут из `supabase status`;
+  # вывод `supabase start` с ключами в лог не пишется.
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Use the pinned npm version
+        run: npm install --global npm@12.2.2
+      - run: npm clean-install
+      - name: Start local Supabase
+        run: npx supabase start -x studio,imgproxy,vector > /dev/null
+      - name: Database schema tests
+        run: npm run supabase:test
+      - name: Service and Edge Function tests
+        run: npm run test:server
       - run: npx playwright install --with-deps chromium
+      - name: Build against local Supabase
+        run: npm run build:e2e
+      - name: Serve Edge Functions
+        run: |
+          npx supabase functions serve > functions.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            curl -sf -X POST http://127.0.0.1:54321/functions/v1/api/catalog/classes > /dev/null && break
+            sleep 2
+          done
       - run: npm run test:e2e
+      - name: Stop local Supabase
+        if: always()
+        run: npx supabase stop --no-backup > /dev/null
