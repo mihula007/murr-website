@@ -10,18 +10,19 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** Измените поле и нажмите «На главную»: появится подтверждение ухода. */
-export const Demo: Story = {
-  name: 'Демо-форма',
-  render: () => (
+function DemoExample() {
+  return (
     <>
       <UnsavedDemoPage />
       <Toaster />
     </>
-  ),
+  )
 }
+
+/** Измените поле и нажмите «На главную»: появится подтверждение ухода. */
+export const Demo: Story = { name: 'Демо-форма', render: DemoExample }
 export const DemoNarrow: Story = {
   name: 'Демо-форма — узкий экран',
-  render: Demo.render,
+  render: DemoExample,
   globals: { viewport: { value: 'mobile1', isRotated: false } },
 }
