@@ -1,4 +1,9 @@
 import { expect, test } from '@playwright/test'
+import { hasHorizontalScroll, skipSplash } from './helpers'
+
+test.beforeEach(async ({ page }) => {
+  await skipSplash(page)
+})
 
 test('opens the static shell without backend configuration', async ({
   page,
@@ -13,16 +18,13 @@ test('opens the static shell without backend configuration', async ({
   })
 
   await page.goto('./#/')
+  await expect(page).toHaveTitle('Murr клан')
   await expect(
     page.getByRole('heading', { name: 'Легенда продолжается Вместе с Murr' }),
   ).toBeVisible()
   expect(errors).toEqual([])
   expect(backendRequests).toEqual([])
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true)
+  expect(await hasHorizontalScroll(page)).toBe(false)
 })
 
 test('handles a direct unknown hash link and returns home after reload', async ({
