@@ -14,9 +14,13 @@ shadcn/ui, Tailwind CSS 4. Backend — Supabase Free, frontend — GitHub Pages
 версия npm указана в `packageManager`; CI использует именно её.
 
 ```sh
-npm ci
+npm run clean-install
 npm run dev
 ```
+
+`npm run clean-install` выполняет `npm ci`: удаляет `node_modules` и
+устанавливает зависимости строго по lockfile. Перед запуском остановите
+серверы разработки и другие процессы проекта.
 
 Адрес: `http://127.0.0.1:5173/#/`. Для старта не требуется `.env`, аккаунт
 Supabase или Docker. Сайт пока использует временное нейтральное оформление.
