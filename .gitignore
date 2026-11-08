@@ -4,7 +4,8 @@
 *.env
 *.env.*
 
-# The tracked template is .enc.example and must never contain real secrets.
+# Track only the empty template; local env files remain ignored.
+!.env.example
 
 # Dependencies, build output, local tools, and test artifacts.
 node_modules/

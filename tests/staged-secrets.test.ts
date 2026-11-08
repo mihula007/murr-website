@@ -22,7 +22,7 @@ function createFixture() {
     })
   git('init', '--quiet')
   writeFileSync(join(directory, '.gitignore'), '.env\n.env.*\n*.env\n*.env.*\n')
-  writeFileSync(join(directory, '.enc.example'), 'TELEGRAM_BOT_TOKEN=\n')
+  writeFileSync(join(directory, '.env.example'), 'TELEGRAM_BOT_TOKEN=\n')
   return { directory, git }
 }
 
@@ -56,9 +56,9 @@ it('rejects a staged secret even after the working copy is cleaned', () => {
 
 it('rejects a staged populated template even if the working template is empty', () => {
   const { directory, git } = createFixture()
-  const path = join(directory, '.enc.example')
+  const path = join(directory, '.env.example')
   writeFileSync(path, 'TELEGRAM_BOT_TOKEN=synthetic-private-value\n')
-  git('add', '.enc.example')
+  git('add', '.env.example')
   writeFileSync(path, 'TELEGRAM_BOT_TOKEN=\n')
 
   const result = spawnSync(process.execPath, [script], {

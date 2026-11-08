@@ -21,7 +21,9 @@ const files = git(
   .split('\0')
   .filter(Boolean)
 const findings = []
-const isEnvFile = (path) => /(?:^|\.)env(?:\.|$)/.test(basename(path))
+const isEnvTemplate = (path) => path === '.env.example'
+const isEnvFile = (path) =>
+  !isEnvTemplate(path) && /(?:^|\.)env(?:\.|$)/.test(basename(path))
 
 for (const path of tracked.filter(isEnvFile)) {
   findings.push(`${path}: env-файл не должен отслеживаться Git`)
@@ -42,13 +44,13 @@ for (const path of envProbes) {
     findings.push(`${path}: отсутствует правило gitignore`)
 }
 
-const templatePath = join(root, '.enc.example')
+const templatePath = join(root, '.env.example')
 if (!existsSync(templatePath)) {
-  findings.push('Отсутствует обязательный .enc.example')
+  findings.push('Отсутствует обязательный .env.example')
 } else {
   findings.push(
     ...inspectTemplate(readFileSync(templatePath, 'utf8')).map(
-      (finding) => `.enc.example: ${finding}`,
+      (finding) => `.env.example: ${finding}`,
     ),
   )
 }
@@ -80,7 +82,7 @@ for (const path of staged) {
   findings.push(
     ...inspectContent(content).map((finding) => `index:${path}: ${finding}`),
   )
-  if (path === '.enc.example') {
+  if (isEnvTemplate(path)) {
     findings.push(
       ...inspectTemplate(content).map((finding) => `index:${path}: ${finding}`),
     )
