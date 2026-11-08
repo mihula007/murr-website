@@ -38,6 +38,12 @@ port = 54324
 enabled = true
 file_size_limit = "50MiB"
 
+# Приватные аватары (Q-11): доступ только через подписанные ссылки Edge Functions.
+[storage.buckets.avatars]
+public = false
+file_size_limit = "500KiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
+
 [storage.analytics]
 enabled = false
 
@@ -48,9 +54,52 @@ enabled = false
 enabled = true
 site_url = "http://127.0.0.1:5173"
 additional_redirect_urls = ["http://localhost:5173", "http://127.0.0.1:4173"]
+enable_signup = true
+minimum_password_length = 8
+
+# Локальные лимиты повышены для тестов; облачные настраиваются на этапе 12.
+[auth.rate_limit]
+email_sent = 1000
+sign_in_sign_ups = 1000
+token_verifications = 1000
+
+[auth.email]
+# Адрес подтверждается шестизначным кодом из письма (Q-10), а не ссылкой.
+enable_confirmations = true
+secure_password_change = false
+max_frequency = "1s"
+otp_length = 6
+otp_expiry = 3600
+
+[auth.email.template.confirmation]
+subject = "Код подтверждения Murr клан"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Код для смены пароля Murr клан"
+content_path = "./supabase/templates/recovery.html"
+
+# Resend SMTP для писем Auth. Локально выключен: письма попадают в Mailpit
+# (http://127.0.0.1:54324). Чтобы проверить Resend локально, заполните
+# переменные AUTH_SMTP_* в .env и поставьте enabled = true, не коммитя это
+# изменение. В облаке SMTP задаётся в настройках проекта (этап 12).
+[auth.email.smtp]
+enabled = false
+host = "env(AUTH_SMTP_HOST)"
+port = 465
+user = "env(AUTH_SMTP_USER)"
+pass = "env(AUTH_SMTP_PASS)"
+admin_email = "env(AUTH_SMTP_ADMIN_EMAIL)"
+sender_name = "env(AUTH_SMTP_SENDER_NAME)"
 
 [edge_runtime]
 enabled = true
+deno_version = 2
+
+# Единая функция прикладного API: JWT проверяет сам обработчик, потому что
+# часть операций (справочник классов, проверка ника) доступна гостю.
+[functions.api]
+verify_jwt = false
 
 [analytics]
 enabled = false
