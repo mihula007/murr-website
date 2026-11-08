@@ -5,14 +5,17 @@ import {
   type ErrorComponentProps,
 } from '@tanstack/react-router'
 import { AppShell } from '@/app/shell/app-shell'
+import { SplashGate } from '@/app/splash/splash'
 import { ErrorState } from '@/components/states/error-state'
 import { Button } from '@/components/ui/button'
 
 function RootLayout() {
   return (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <SplashGate>
+      <AppShell>
+        <Outlet />
+      </AppShell>
+    </SplashGate>
   )
 }
 function NotFoundPage() {

@@ -2,12 +2,19 @@ import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { render } from '@testing-library/react'
 import { AccessProvider, type AccessRole } from '@/app/access'
 import { createAppRouter } from '@/app/router'
+import { writeLastActivity } from '@/app/splash/splash-timing'
 
-/** Рендерит всё приложение с ролью `role` на адресе `path`. */
+/**
+ * Рендерит всё приложение с ролью `role` на адресе `path`. Свежая метка
+ * активности отключает заставку, если не передан `splash: true`.
+ */
 export async function renderApp({
   role = 'guest',
   path = '/',
-}: { role?: AccessRole; path?: string } = {}) {
+  splash = false,
+}: { role?: AccessRole; path?: string; splash?: boolean } = {}) {
+  localStorage.clear()
+  if (!splash) writeLastActivity(Date.now())
   const router = createAppRouter(
     createMemoryHistory({ initialEntries: [path] }),
   )
