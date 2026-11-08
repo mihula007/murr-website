@@ -19,7 +19,10 @@
     "exactOptionalPropertyTypes": true,
     "skipLibCheck": true,
     "types": ["vite/client", "@testing-library/jest-dom"],
-    "paths": { "@/*": ["./src/*"] }
+    "paths": {
+      "@/*": ["./src/*"],
+      "@contracts/*": ["./supabase/functions/_shared/contracts/*"]
+    }
   },
   "include": ["src"]
 }

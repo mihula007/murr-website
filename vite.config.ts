@@ -12,7 +12,13 @@ export default defineConfig(({ mode }) => {
     base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
-      alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+        // zod-контракты, общие с Edge Functions.
+        '@contracts': fileURLToPath(
+          new URL('./supabase/functions/_shared/contracts', import.meta.url),
+        ),
+      },
     },
     build: { sourcemap: false },
   }

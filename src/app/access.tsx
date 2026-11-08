@@ -2,9 +2,10 @@ import {
   createContext,
   useContext,
   useMemo,
-  useState,
   type PropsWithChildren,
 } from 'react'
+import { useSession } from '@/features/auth/session'
+import { useMe } from '@/features/auth/use-me'
 
 export type AccessRole =
   'guest' | 'applicant' | 'reader' | 'member' | 'officer' | 'admin'
@@ -38,64 +39,64 @@ export function hasRole(role: AccessRole, roles: readonly AccessRole[]) {
   return roles.includes(role)
 }
 
+/**
+ * `loading` — сессия или профиль ещё загружаются; `incomplete` — вошёл, но
+ * регистрация не завершена (права гостя); `error` — профиль не загрузился.
+ */
+export type AccessStatus =
+  'loading' | 'guest' | 'incomplete' | 'ready' | 'error'
+
 type AccessContextValue = {
   role: AccessRole
-  /** Есть только в dev-режиме: смена роли из переключателя «Смотреть как…». */
-  setRole?: (role: AccessRole) => void
+  status: AccessStatus
+  retry?: () => void
 }
 
-const AccessContext = createContext<AccessContextValue>({ role: 'guest' })
-
-function isAccessRole(value: unknown): value is AccessRole {
-  return ACCESS_ROLES.includes(value as AccessRole)
-}
-
-function readDevRole(): AccessRole {
-  try {
-    const stored = window.localStorage.getItem('murr-dev-role')
-    return isAccessRole(stored) ? stored : 'guest'
-  } catch {
-    return 'guest'
-  }
-}
-
-function writeDevRole(role: AccessRole) {
-  try {
-    window.localStorage.setItem('murr-dev-role', role)
-  } catch {
-    // Хранилище недоступно: роль действует до перезагрузки.
-  }
-}
+const AccessContext = createContext<AccessContextValue>({
+  role: 'guest',
+  status: 'guest',
+})
 
 type AccessProviderProps = PropsWithChildren<{
   /** Фиксированная роль для тестов и историй. */
   role?: AccessRole
 }>
 
-/**
- * Текущая роль. В production до этапа 3 всегда `guest`; в dev-режиме роль
- * выбирается переключателем и хранится в localStorage. Ветка dev вырезается
- * из production-сборки, потому что `import.meta.env.DEV` — константа.
- */
-export function AccessProvider({
-  role: fixedRole,
-  children,
-}: AccessProviderProps) {
-  const [devRole, setDevRole] = useState<AccessRole>(() =>
-    import.meta.env.DEV ? readDevRole() : 'guest',
-  )
+function SessionAccess({ children }: PropsWithChildren) {
+  const session = useSession()
+  const me = useMe()
   const value = useMemo<AccessContextValue>(() => {
-    if (fixedRole) return { role: fixedRole }
-    if (!import.meta.env.DEV) return { role: 'guest' }
-    return {
-      role: devRole,
-      setRole: (role) => {
-        writeDevRole(role)
-        setDevRole(role)
-      },
+    if (session.status === 'loading')
+      return { role: 'guest', status: 'loading' }
+    if (session.status !== 'signedIn') return { role: 'guest', status: 'guest' }
+    if (me.isPending) return { role: 'guest', status: 'loading' }
+    if (me.isError || !me.data) {
+      return { role: 'guest', status: 'error', retry: () => void me.refetch() }
     }
-  }, [fixedRole, devRole])
+    if (me.data.state === 'incomplete') {
+      return { role: 'guest', status: 'incomplete' }
+    }
+    return { role: me.data.profile.role, status: 'ready' }
+  }, [session.status, me])
   return <AccessContext value={value}>{children}</AccessContext>
+}
+
+/**
+ * Текущая роль. Источник — профиль с сервера (`account/me`), а не JWT или
+ * Auth metadata. Это клиентская проверка для меню и маршрутов; права данных
+ * проверяют сервисы Edge Functions.
+ */
+export function AccessProvider({ role, children }: AccessProviderProps) {
+  if (role) {
+    return (
+      <AccessContext
+        value={{ role, status: role === 'guest' ? 'guest' : 'ready' }}
+      >
+        {children}
+      </AccessContext>
+    )
+  }
+  return <SessionAccess>{children}</SessionAccess>
 }
 
 export function useAccess() {

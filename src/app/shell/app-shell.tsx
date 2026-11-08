@@ -1,10 +1,5 @@
-import { lazy, Suspense, type PropsWithChildren } from 'react'
+import type { PropsWithChildren } from 'react'
 import { Header } from './header'
-
-// import() внутри условия по константе DEV не попадает в production-сборку.
-const DevRoleSwitcher = import.meta.env.DEV
-  ? lazy(() => import('./dev-role-switcher'))
-  : null
 
 export function AppShell({ children }: PropsWithChildren) {
   return (
@@ -33,11 +28,6 @@ export function AppShell({ children }: PropsWithChildren) {
           <span>Место, где собирается гильдия.</span>
         </div>
       </footer>
-      {DevRoleSwitcher ? (
-        <Suspense fallback={null}>
-          <DevRoleSwitcher />
-        </Suspense>
-      ) : null}
     </div>
   )
 }
