@@ -27,7 +27,7 @@ function RootLayout() {
               ✦
             </span>
             <span>
-              MURRCLAN
+              Murr клан
               <small className="block text-[10px] font-semibold tracking-[.22em] text-muted-foreground">
                 СИЛА В ЕДИНСТВЕ
               </small>
