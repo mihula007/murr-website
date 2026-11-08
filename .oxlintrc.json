@@ -6,7 +6,13 @@
   },
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/exhaustive-deps": "warn"
+    "react/exhaustive-deps": "warn",
+    "vitest/expect-expect": [
+      "error",
+      {
+        "assertFunctionNames": ["expect", "rejects"]
+      }
+    ]
   },
   "ignorePatterns": [
     "node_modules/**",

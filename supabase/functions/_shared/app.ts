@@ -1,3 +1,10 @@
+import {
+  checkNickname,
+  completeRegistration,
+  createAvatarUpload,
+  getMe,
+  updateProfile,
+} from './account/service.ts'
 import { GUEST, loadActor } from './auth/actor.ts'
 import {
   bearerToken,
@@ -21,6 +28,14 @@ export type AppDeps = { db: Db; storage: StorageGateway; now: () => Date }
 export function createRoutes(deps: AppDeps): Record<string, Route> {
   return {
     'catalog/classes': () => listClasses(deps.db),
+    'account/check-nickname': ({ body }) => checkNickname(deps, body),
+    'account/me': ({ actor }) => getMe(deps, actor),
+    'account/avatar-upload': ({ actor, body }) =>
+      createAvatarUpload(deps, actor, body),
+    'account/complete-registration': ({ actor, body }) =>
+      completeRegistration(deps, actor, body),
+    'account/update-profile': ({ actor, body }) =>
+      updateProfile(deps, actor, body),
   }
 }
 

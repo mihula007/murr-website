@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { sql } from 'kysely'
+import type { AppDeps } from '../../supabase/functions/_shared/app.ts'
+import { loadActor } from '../../supabase/functions/_shared/auth/actor.ts'
+import { createStorageGateway } from '../../supabase/functions/_shared/storage/gateway.ts'
 import {
   createDb,
   type Db,
@@ -74,3 +77,60 @@ export async function signIn(email: string, password = TEST_PASSWORD) {
   if (error || !data.session) throw error ?? new Error('Нет сессии')
   return data.session.access_token
 }
+
+export function testDeps(db: Db): AppDeps {
+  return {
+    db,
+    storage: createStorageGateway(env('API_URL'), env('SERVICE_ROLE_KEY')),
+    now: () => new Date(),
+  }
+}
+
+/** PNG 1×1 — минимальное корректное изображение. */
+export const PNG_BYTES = Uint8Array.from(
+  Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64',
+  ),
+)
+
+/** Загружает файл в папку пользователя тем же путём, что и браузер. */
+export async function uploadAvatar(
+  deps: AppDeps,
+  userId: string,
+  bytes: Uint8Array = PNG_BYTES,
+  contentType = 'image/png',
+) {
+  const path = `${userId}/${randomUUID()}.png`
+  const { token } = await deps.storage.createUploadUrl('avatars', path)
+  const client = createClient(env('API_URL'), env('ANON_KEY'), {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  const { error } = await client.storage
+    .from('avatars')
+    .uploadToSignedUrl(
+      path,
+      token,
+      new Blob([bytes as BlobPart], { type: contentType }),
+      {
+        contentType,
+      },
+    )
+  if (error) throw error
+  return path
+}
+
+export function actorOf(db: Db, userId: string) {
+  return loadActor(db, userId)
+}
+
+export const registration = (overrides: Record<string, unknown> = {}) => ({
+  displayName: 'Анна',
+  gameNickname: `n${randomUUID().slice(0, 6)}`,
+  city: 'Москва',
+  birthDate: '1995-04-12',
+  classId: 1,
+  about: 'Играю давно, хочу в клан.',
+  equipmentLinks: ['https://example.com/gear.png'],
+  ...overrides,
+})

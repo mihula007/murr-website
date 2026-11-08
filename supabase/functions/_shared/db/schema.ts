@@ -31,4 +31,4 @@ export type DB = {
 }
 
 export type ProfileRow = Database['app']['Tables']['profiles']['Row']
-export type AccessRole = ProfileRow['access_role']
+export type { AccessRole } from '../contracts/account.ts'

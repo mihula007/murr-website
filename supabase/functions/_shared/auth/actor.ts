@@ -59,6 +59,8 @@ export function requireRole(
   roles: readonly AccessRole[],
 ): ProfiledActor {
   const user = requireProfile(actor)
-  if (!roles.includes(user.profile.access_role)) throw new ApiError('forbidden')
+  if (!roles.includes(user.profile.access_role as AccessRole)) {
+    throw new ApiError('forbidden')
+  }
   return user
 }

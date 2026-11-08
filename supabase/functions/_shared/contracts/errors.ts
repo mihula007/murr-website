@@ -4,7 +4,6 @@ export const API_ERRORS = {
   email_not_confirmed: 403,
   forbidden: 403,
   not_found: 404,
-  nickname_taken: 409,
   registration_incomplete: 409,
   already_bootstrapped: 409,
   validation_failed: 422,
