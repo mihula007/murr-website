@@ -5,6 +5,7 @@ import {
   NAV_SECTIONS,
   type NavSectionConfig,
 } from '@/app/navigation'
+import { RouteGate } from '@/components/route-gate'
 import { EmptyState } from '@/components/states/empty-state'
 import { PageHeader } from '@/components/states/page-header'
 import { rootRoute } from './root'
@@ -29,7 +30,11 @@ function createSectionRoute<const TSection extends NavSectionConfig>(
   return createRoute({
     getParentRoute: () => rootRoute,
     path: section.path,
-    component: () => <SectionPlaceholder section={section} />,
+    component: () => (
+      <RouteGate roles={section.roles}>
+        <SectionPlaceholder section={section} />
+      </RouteGate>
+    ),
   })
 }
 

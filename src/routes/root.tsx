@@ -1,5 +1,11 @@
-import { createRootRoute, Link, Outlet } from '@tanstack/react-router'
+import {
+  createRootRoute,
+  Link,
+  Outlet,
+  type ErrorComponentProps,
+} from '@tanstack/react-router'
 import { AppShell } from '@/app/shell/app-shell'
+import { ErrorState } from '@/components/states/error-state'
 import { Button } from '@/components/ui/button'
 
 function RootLayout() {
@@ -22,6 +28,11 @@ function NotFoundPage() {
       </Button>
     </section>
   )
+}
+/** Ошибка маршрута без технических подробностей; детали — в консоли. */
+export function RouteError({ error, reset }: ErrorComponentProps) {
+  console.error(error)
+  return <ErrorState onRetry={reset} />
 }
 export const rootRoute = createRootRoute({
   component: RootLayout,
