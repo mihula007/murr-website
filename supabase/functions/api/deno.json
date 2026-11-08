@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.119.0",
+    "kysely": "npm:kysely@0.29.7",
+    "kysely-postgres-js": "npm:kysely-postgres-js@5.0.1",
+    "postgres": "npm:postgres@3.4.9",
+    "zod": "npm:zod@4.6.7"
+  }
+}

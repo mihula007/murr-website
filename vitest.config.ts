@@ -11,6 +11,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}', 'tests/**/*.test.{ts,tsx}'],
+    // Тесты по локальному Supabase запускаются отдельно: npm run test:server.
+    exclude: ['tests/server/**', 'node_modules/**'],
     restoreMocks: true,
     clearMocks: true,
   },

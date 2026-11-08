@@ -1,0 +1,74 @@
+import type { Executor } from '../db/client.ts'
+import type { AccessRole } from '../db/schema.ts'
+import { auditRepository } from './repository.ts'
+
+export type AuditCategory =
+  | 'applications'
+  | 'participants'
+  | 'profiles'
+  | 'events'
+  | 'votes'
+  | 'publications'
+  | 'market'
+  | 'broadcast'
+
+/** Разрешённые ключи details: без паролей, кодов, токенов и текстов анкеты. */
+const DETAIL_KEYS = new Set([
+  'profile_id',
+  'application_id',
+  'changed_fields',
+  'role',
+])
+
+type DetailValue = string | number | boolean | null | string[]
+
+export type AuditPerson = {
+  id: string
+  role?: AccessRole | null
+  nickname: string | null
+  email: string | null
+}
+
+export type AuditEvent = {
+  category: AuditCategory
+  action: string
+  summary: string
+  actor: AuditPerson | null
+  target?: { kind: string; id: string; user?: AuditPerson }
+  details?: Record<string, DetailValue>
+}
+
+export function assertAuditDetails(details: Record<string, DetailValue>) {
+  for (const key of Object.keys(details)) {
+    if (!DETAIL_KEYS.has(key)) {
+      throw new Error(`Ключ details аудита не разрешён: ${key}`)
+    }
+  }
+}
+
+/**
+ * Единая точка записи аудита (ADM-11). Вызывается внутри транзакции операции,
+ * поэтому событие фиксируется или откатывается вместе с изменением.
+ */
+export async function writeAudit(tx: Executor, event: AuditEvent) {
+  const details = event.details ?? {}
+  assertAuditDetails(details)
+  await auditRepository.lock(tx)
+  const row = await auditRepository.insert(tx, {
+    category: event.category,
+    action: event.action,
+    summary: event.summary,
+    actor_id: event.actor?.id ?? null,
+    actor_role: event.actor?.role ?? null,
+    actor_nickname: event.actor?.nickname ?? null,
+    actor_email: event.actor?.email ?? null,
+    target_kind: event.target?.kind ?? null,
+    target_id: event.target?.id ?? null,
+    target_user_id: event.target?.user?.id ?? null,
+    target_nickname: event.target?.user?.nickname ?? null,
+    target_email: event.target?.user?.email ?? null,
+    details,
+  })
+  await auditRepository.trimToLatest(tx)
+  return row.id
+}

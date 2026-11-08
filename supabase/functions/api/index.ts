@@ -1,2 +1,17 @@
-// Точка входа прикладного API; маршруты добавляются вместе с сервисами.
-Deno.serve(() => Response.json({ error: 'not_found' }, { status: 404 }))
+import { createApp } from '../_shared/app.ts'
+
+function requireEnv(name: string) {
+  const value = Deno.env.get(name)
+  if (!value) throw new Error(`Не задана переменная окружения ${name}`)
+  return value
+}
+
+// Переменные предоставляет платформа Supabase; секреты не хранятся в коде.
+const { handler } = createApp({
+  dbUrl: requireEnv('SUPABASE_DB_URL'),
+  supabaseUrl: requireEnv('SUPABASE_URL'),
+  apiKey: requireEnv('SUPABASE_ANON_KEY'),
+  serviceKey: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
+})
+
+Deno.serve(handler)
