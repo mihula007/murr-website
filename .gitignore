@@ -1,0 +1,25 @@
+# Local environment files and their environment-specific copies, at any depth.
+.env
+.env.*
+*.env
+*.env.*
+
+# The tracked template is .enc.example and must never contain real secrets.
+
+# Dependencies, build output, local tools, and test artifacts.
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.tools/
+.superpowers/
+.tanstack/
+.supabase/
+.worktrees/
+supabase/.temp/
+supabase/.branches/
+*.tsbuildinfo
+*.local
+*.log
+.DS_Store

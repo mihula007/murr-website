@@ -1,0 +1,21 @@
+# Plain-text template. Copy to .env locally; never commit the filled .env.
+# Keep every expected variable documented here with an empty value.
+# The static shell starts without any of these variables.
+
+# Public browser configuration. These values will be visible in the built site.
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
+
+# Optional public deployment setting. Hostname only, without https:// or a path.
+# In GitHub Actions set this as a repository Variable, not a frontend secret.
+PAGES_CUSTOM_DOMAIN=
+
+# Server-only secrets for future bot integrations; not required for initial setup.
+# Keep these out of VITE_* and browser code. Set production values in Supabase Secrets.
+TELEGRAM_BOT_TOKEN=
+MAX_BOT_TOKEN=
+VK_BOT_TOKEN=
+
+# Document any additional credentials and webhook secrets here when introduced.
+# Supabase-provided runtime variables are managed by the platform; never copy
+# real runtime credentials into this template or into frontend configuration.
