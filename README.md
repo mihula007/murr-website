@@ -96,27 +96,39 @@ GitHub Actions Secrets использовать для будущих защищ
 
 ## Команды
 
-| Команда                  | Назначение                                           |
-| ------------------------ | ---------------------------------------------------- |
-| `npm run dev`            | Vite dev server                                      |
-| `npm run build`          | Проверка типов, production build и проверка секретов |
-| `npm run preview`        | Просмотр собранного сайта                            |
-| `npm run check`          | Все проверки, кроме браузерных                       |
-| `npm test`               | Vitest однократно                                    |
-| `npm run test:watch`     | Vitest в режиме наблюдения                           |
-| `npm run typecheck`      | Проверка TypeScript                                  |
-| `npm run lint`           | Oxlint без допустимых предупреждений                 |
-| `npm run format`         | Форматирование Prettier                              |
-| `npm run format:check`   | Проверка форматирования                              |
-| `npm run security:check` | Проверки секретов и `.env`                           |
+| Команда                   | Назначение                                           |
+| ------------------------- | ---------------------------------------------------- |
+| `npm run dev`             | Vite dev server                                      |
+| `npm run build`           | Проверка типов, production build и проверка секретов |
+| `npm run preview`         | Просмотр собранного сайта                            |
+| `npm run check`           | Все проверки, кроме браузерных                       |
+| `npm test`                | Vitest однократно                                    |
+| `npm run test:watch`      | Vitest в режиме наблюдения                           |
+| `npm run typecheck`       | Проверка TypeScript                                  |
+| `npm run lint`            | Oxlint без допустимых предупреждений                 |
+| `npm run format`          | Форматирование Prettier                              |
+| `npm run format:check`    | Проверка форматирования                              |
+| `npm run security:check`  | Проверки секретов и `.env`                           |
+| `npm run supabase:test`   | pgTAP-тесты схемы на локальном Supabase              |
+| `npm run test:server`     | Тесты сервисов и функции `api` на локальном Supabase |
+| `npm run supabase:env`    | Публичная конфигурация локального стека для `dev`    |
+| `npm run build:e2e`       | Сборка для Playwright с локальным Supabase           |
+| `npm run admin:bootstrap` | Назначение первого администратора                    |
 
-Браузерные тесты работают по production build, на desktop и mobile:
+Браузерные тесты работают по сборке, подключённой к локальному Supabase, на
+desktop и mobile; коды из писем берутся из Mailpit:
 
 ```sh
+npm run supabase:start
 npx playwright install chromium
-npm run build
+npm run build:e2e
+npx supabase functions serve
 npm run test:e2e
 ```
+
+`npx supabase functions serve` держать запущенным в отдельном терминале.
+Для ручной проверки входа в `npm run dev` сначала выполнить
+`npm run supabase:env`.
 
 На Linux для первоначальной установки браузерных системных зависимостей
 может потребоваться `npx playwright install --with-deps chromium`.

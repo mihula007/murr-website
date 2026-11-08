@@ -58,13 +58,24 @@ npm run supabase:functions
   аудит) и `<модуль>/repository.ts` (единственное место с SQL);
 - `functions/<имя>/index.ts` — тонкий HTTP-обработчик, вызывающий сервисы.
 
-После появления схемы генерировать TypeScript-типы БД через CLI и хранить
-результат в Git. Сейчас типы не выдумываются.
+Сейчас одна функция `api` (`verify_jwt = false`, JWT проверяет обработчик):
+маршруты `POST /functions/v1/api/<модуль>/<операция>` — `catalog/classes`,
+`account/check-nickname` (гостю), `account/me`, `account/avatar-upload`,
+`account/complete-registration`, `account/update-profile`. Импорты Deno —
+`functions/api/deno.json` с теми же точными версиями, что в `package.json`.
+Auth и Storage вызываются через `fetch`, без `@supabase/supabase-js`, ради
+быстрого холодного старта.
 
-Способ входа, callback для PKCE с hash-router, матрицу ролей, доставку
-уведомлений и правила приложений согласуем при разработке соответствующих
-функций. Автоматическая обработка Auth redirect в браузерном клиенте пока
-отключена, чтобы не конфликтовать с hash-навигацией.
+Тесты: `npm run supabase:test` (pgTAP в `tests/database/`) и
+`npm run test:server` (Vitest по локальному стеку, `tests/server/`).
+
+Типы БД генерируются `npm run supabase:types` в
+`functions/_shared/db/database.types.ts` и хранятся в Git; типы Kysely
+выводятся из них в `functions/_shared/db/schema.ts`.
+
+Вход — email и пароль; адрес и сброс пароля подтверждаются кодом из письма
+(шаблоны в `templates/`, локально — Mailpit), поэтому автоматическая обработка
+Auth redirect в браузере выключена. Сессия бессрочная до выхода (Q-35).
 
 Использовать только возможности и объёмы Supabase Free. Не включать платные
 опции или долгоживущие фоновые процессы. Учитывать повторы webhook,
