@@ -24,3 +24,5 @@ supabase/.branches/
 *.local
 *.log
 .DS_Store
+
+storybook-static/

@@ -21,7 +21,10 @@ function createFixture() {
       stdio: 'ignore',
     })
   git('init', '--quiet')
-  writeFileSync(join(directory, '.gitignore'), '.env\n.env.*\n*.env\n*.env.*\n')
+  writeFileSync(
+    join(directory, '.gitignore'),
+    '.env\n.env.*\n*.env\n*.env.*\n!.env.example\n',
+  )
   writeFileSync(join(directory, '.env.example'), 'TELEGRAM_BOT_TOKEN=\n')
   return { directory, git }
 }

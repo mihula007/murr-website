@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 
 function RootLayout() {
   return (
-    <div className="flex min-h-svh flex-col">
+    <div className="site-shell flex min-h-svh flex-col">
       <a
         href="#main-content"
         onClick={(event) => {
@@ -14,37 +14,45 @@ function RootLayout() {
       >
         Перейти к содержимому
       </a>
-      <header className="border-b border-border">
+      <header className="border-b border-[#665337] bg-[#0b0a08ed]">
         <nav
           aria-label="Основная навигация"
-          className="mx-auto flex h-18 w-full max-w-5xl items-center px-6"
+          className="mx-auto flex h-19 w-full max-w-[1240px] items-center px-[22px] max-sm:h-16 max-sm:px-[14px]"
         >
-          <Link to="/" className="text-lg font-semibold tracking-tight">
-            Гильдия
+          <Link
+            to="/"
+            className="flex items-center gap-3 font-black tracking-[.13em] text-foreground no-underline"
+          >
+            <span aria-hidden="true" className="text-2xl text-primary">
+              ✦
+            </span>
+            <span>
+              MURRCLAN
+              <small className="block text-[10px] font-semibold tracking-[.22em] text-muted-foreground">
+                СИЛА В ЕДИНСТВЕ
+              </small>
+            </span>
           </Link>
         </nav>
       </header>
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto flex w-full max-w-5xl flex-1 items-center px-6 py-20 outline-none"
+        className="mx-auto w-full max-w-[1240px] flex-1 px-[22px] py-14 outline-none max-sm:px-[14px] max-sm:py-9"
       >
         <Outlet />
       </main>
-      <footer className="border-t border-border px-6 py-6 text-center text-sm text-muted-foreground">
+      <footer className="border-t border-border px-6 py-6 text-center text-xs text-muted-foreground">
         Место, где собирается гильдия.
       </footer>
     </div>
   )
 }
-
 function NotFoundPage() {
   return (
     <section className="max-w-xl space-y-6">
-      <p className="text-sm font-medium text-muted-foreground">404</p>
-      <h1 className="text-4xl font-semibold tracking-tight">
-        Страница не найдена
-      </h1>
+      <p className="text-sm text-primary">404</p>
+      <h1 className="text-4xl font-bold">Страница не найдена</h1>
       <p className="text-muted-foreground">
         Проверьте адрес или вернитесь на главную страницу.
       </p>
@@ -54,7 +62,6 @@ function NotFoundPage() {
     </section>
   )
 }
-
 export const rootRoute = createRootRoute({
   component: RootLayout,
   notFoundComponent: NotFoundPage,

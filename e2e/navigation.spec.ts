@@ -14,7 +14,7 @@ test('opens the static shell without backend configuration', async ({
 
   await page.goto('./#/')
   await expect(
-    page.getByRole('heading', { name: 'Сайт нашей гильдии' }),
+    page.getByRole('heading', { name: 'Легенда продолжается Вместе с Murr' }),
   ).toBeVisible()
   expect(errors).toEqual([])
   expect(backendRequests).toEqual([])
@@ -37,6 +37,6 @@ test('handles a direct unknown hash link and returns home after reload', async (
   await expect(page).toHaveURL(/#\/$/)
   await page.reload()
   await expect(
-    page.getByRole('heading', { name: 'Сайт нашей гильдии' }),
+    page.getByRole('heading', { name: 'Легенда продолжается Вместе с Murr' }),
   ).toBeVisible()
 })

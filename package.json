@@ -28,9 +28,12 @@
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
     "supabase:reset": "supabase db reset",
-    "supabase:functions": "supabase functions serve --env-file .env"
+    "supabase:functions": "supabase functions serve --env-file .env",
+    "storybook": "storybook dev -p 6006 --no-open",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
+    "@radix-ui/react-select": "2.4.1",
     "@radix-ui/react-slot": "1.5.0",
     "@supabase/supabase-js": "2.119.0",
     "@tanstack/react-query": "5.107.1",
@@ -45,6 +48,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.65.0",
+    "@storybook/react-vite": "10.6.6",
     "@tailwindcss/vite": "4.3.5",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
@@ -55,6 +59,7 @@
     "jsdom": "31.0.0",
     "oxlint": "1.92.0",
     "prettier": "3.9.10",
+    "storybook": "10.6.6",
     "supabase": "3.0.0",
     "tailwindcss": "4.3.5",
     "typescript": "7.0.2",
