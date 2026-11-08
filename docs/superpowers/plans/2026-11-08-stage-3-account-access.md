@@ -209,10 +209,10 @@
 
 ## Задача 13. Итоговая проверка
 
-- [ ] `npm run check`, `npm run supabase:test`, `npm run test:server`, `npm run build:e2e && npm run test:e2e` — зелёные.
-- [ ] Ручная проверка на 375 / 768 / 1240 px: все экраны этапа, клавиатура, сравнение с прототипом (`prototype/index.html`: вход, регистрация, кабинет); исправляются только визуальные ошибки и UX.
-- [ ] Журнал `docs/superpowers/plans/2026-11-08-stage-3-verification.md`: что проверено, отличия от плана, что не проверено.
-- [ ] `git status`: нет посторонних файлов и секретов (`npm run security:check`).
+- [x] `npm run check`, `npm run supabase:test`, `npm run test:server`, `npm run build:e2e && npm run test:e2e` — зелёные.
+- [x] Ручная проверка на 375 / 768 / 1240 px: все экраны этапа, клавиатура, сравнение с прототипом (`prototype/index.html`: вход, регистрация, кабинет); исправляются только визуальные ошибки и UX.
+- [x] Журнал `docs/superpowers/plans/2026-11-08-stage-3-verification.md`: что проверено, отличия от плана, что не проверено.
+- [x] `git status`: нет посторонних файлов и секретов (`npm run security:check`).
 
 ## Аудит действий этапа (ADM-14)
 

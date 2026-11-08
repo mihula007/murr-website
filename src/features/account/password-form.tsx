@@ -94,7 +94,7 @@ export function PasswordForm({
           Для защиты аккаунта сначала подтверди текущий пароль.
         </p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3">
         <FormField
           id="password-current"
           label="Текущий пароль"
