@@ -38,10 +38,11 @@ function Dashboard({ me }: { me: ReadyMe }) {
       ? APPLICATION_STATUS[application.status].notice
       : null
 
+  // Сначала уходим на главную: иначе кабинет сам перенаправит гостя ко входу (ACC-12).
   async function signOut() {
     clearDraft()
-    await requireSupabase().auth.signOut()
     await navigate({ to: '/' })
+    await requireSupabase().auth.signOut()
   }
 
   return (

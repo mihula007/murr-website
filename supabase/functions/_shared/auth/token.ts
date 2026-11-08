@@ -1,22 +1,23 @@
-import { createClient } from '@supabase/supabase-js'
-
 export type TokenVerifier = (token: string) => Promise<string | null>
 
-/** Проверяет JWT пользователя через Supabase Auth и возвращает его id. */
+/**
+ * Проверяет JWT пользователя запросом к Supabase Auth (`/auth/v1/user`) и
+ * возвращает его id. Запрос учитывает и отозванные сессии. Без supabase-js,
+ * чтобы холодный старт функции оставался лёгким.
+ */
 export function createTokenVerifier(
   supabaseUrl: string,
   apiKey: string,
 ): TokenVerifier {
-  const client = createClient(supabaseUrl, apiKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
   return async (token) => {
     // Ключ проекта (не JWT) приходит от гостя: это не ошибка, а отсутствие сессии.
     if (token.split('.').length !== 3) return null
-    const { data, error } = await client.auth.getClaims(token)
-    if (error || !data) return null
-    const sub = data.claims.sub
-    return typeof sub === 'string' && sub ? sub : null
+    const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { apikey: apiKey, Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) return null
+    const user = (await response.json()) as { id?: unknown }
+    return typeof user.id === 'string' && user.id ? user.id : null
   }
 }
 

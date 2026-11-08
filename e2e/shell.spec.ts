@@ -32,8 +32,10 @@ test('прямая ссылка на закрытый раздел показы�
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Нет доступа' })).toBeVisible()
   await page.getByRole('link', { name: 'Войти' }).click()
-  await expect(page).toHaveURL(/#\/account$/)
-  await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible()
+  await expect(page).toHaveURL(/#\/login$/)
+  await expect(
+    page.getByRole('heading', { name: 'Вход в Murr клан' }),
+  ).toBeVisible()
 })
 
 test('неизвестный адрес показывает 404', async ({ page }) => {
@@ -46,7 +48,14 @@ test('неизвестный адрес показывает 404', async ({ page
 test('нет горизонтальной прокрутки на главной, закрытом разделе и 404', async ({
   page,
 }) => {
-  for (const path of ['./#/', './#/votes', './#/unknown', './#/account']) {
+  for (const path of [
+    './#/',
+    './#/votes',
+    './#/unknown',
+    './#/login',
+    './#/register',
+    './#/reset-password',
+  ]) {
     await page.goto(path)
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
     expect(await hasHorizontalScroll(page), path).toBe(false)

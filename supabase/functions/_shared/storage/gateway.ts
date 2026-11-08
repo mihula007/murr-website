@@ -1,5 +1,3 @@
-import { createClient } from '@supabase/supabase-js'
-
 export type StoredFile = { size: number; head: Uint8Array }
 
 /** Операции Storage, которые сервисы выполняют от имени сервера. */
@@ -18,44 +16,88 @@ export type StorageGateway = {
   ): Promise<string | null>
 }
 
+const encodePath = (path: string) =>
+  path.split('/').map(encodeURIComponent).join('/')
+
+/** Storage REST API с серверным ключом; без supabase-js ради лёгкого старта функции. */
 export function createStorageGateway(
   supabaseUrl: string,
   serviceKey: string,
 ): StorageGateway {
-  const client = createClient(supabaseUrl, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
+  const base = `${supabaseUrl}/storage/v1`
+  const headers = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+  }
+  async function call(path: string, init: RequestInit = {}) {
+    const response = await fetch(`${base}${path}`, {
+      ...init,
+      headers: { ...headers, ...init.headers },
+    })
+    if (!response.ok) {
+      throw new Error(`Storage ${init.method ?? 'GET'} ${response.status}`)
+    }
+    return response
+  }
+  const json = (body: unknown) => ({
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   })
+
   return {
     async createUploadUrl(bucket, path) {
-      const { data, error } = await client.storage
-        .from(bucket)
-        .createSignedUploadUrl(path)
-      if (error || !data) throw error ?? new Error('Нет ссылки загрузки')
-      return { path: data.path, token: data.token }
+      const response = await call(
+        `/object/upload/sign/${bucket}/${encodePath(path)}`,
+        { method: 'POST' },
+      )
+      const { url } = (await response.json()) as { url: string }
+      const token = new URL(url, base).searchParams.get('token')
+      if (!token) throw new Error('Нет токена загрузки')
+      return { path, token }
     },
     async read(bucket, path) {
-      const { data, error } = await client.storage.from(bucket).download(path)
-      if (error || !data) return null
-      const bytes = new Uint8Array(await data.arrayBuffer())
+      const response = await fetch(
+        `${base}/object/${bucket}/${encodePath(path)}`,
+        { headers },
+      )
+      if (!response.ok) return null
+      const bytes = new Uint8Array(await response.arrayBuffer())
       return { size: bytes.byteLength, head: bytes.slice(0, 16) }
     },
     async list(bucket, folder) {
-      const { data, error } = await client.storage
-        .from(bucket)
-        .list(folder, { limit: 100 })
-      if (error) throw error
-      return (data ?? []).map((item) => `${folder}/${item.name}`)
+      const response = await call(
+        `/object/list/${bucket}`,
+        json({ prefix: folder, limit: 100, offset: 0 }),
+      )
+      const items = (await response.json()) as {
+        name: string
+        id: string | null
+      }[]
+      // Элементы без id — вложенные папки, а не файлы.
+      return items
+        .filter((item) => item.id)
+        .map((item) => `${folder}/${item.name}`)
     },
     async remove(bucket, paths) {
       if (paths.length === 0) return
-      const { error } = await client.storage.from(bucket).remove(paths)
-      if (error) throw error
+      await call(`/object/${bucket}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefixes: paths }),
+      })
     },
     async signedUrl(bucket, path, expiresInSeconds) {
-      const { data, error } = await client.storage
-        .from(bucket)
-        .createSignedUrl(path, expiresInSeconds)
-      return error || !data ? null : data.signedUrl
+      try {
+        const response = await call(
+          `/object/sign/${bucket}/${encodePath(path)}`,
+          json({ expiresIn: expiresInSeconds }),
+        )
+        const { signedURL } = (await response.json()) as { signedURL: string }
+        return `${base}${signedURL}`
+      } catch {
+        return null
+      }
     },
   }
 }

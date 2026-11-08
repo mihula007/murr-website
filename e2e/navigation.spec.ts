@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
   await skipSplash(page)
 })
 
-test('opens the static shell without backend configuration', async ({
+test('opens the shell without page errors or cloud requests', async ({
   page,
 }) => {
   const errors: string[] = []
