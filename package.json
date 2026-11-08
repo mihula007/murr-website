@@ -30,7 +30,9 @@
     "supabase:reset": "supabase db reset",
     "supabase:functions": "supabase functions serve --env-file .env",
     "storybook": "storybook dev -p 6006 --no-open",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "supabase:types": "supabase gen types typescript --schema app > supabase/functions/_shared/db/database.types.ts && prettier --write supabase/functions/_shared/db/database.types.ts",
+    "supabase:test": "supabase test db"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "1.2.1",
