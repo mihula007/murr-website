@@ -8,6 +8,7 @@ import {
 import { RouteError, rootRoute } from '@/routes/root'
 import { indexRoute } from '@/routes/index'
 import { accountRoute } from '@/routes/account'
+import { authRoutes } from '@/routes/auth'
 import { sectionRoutes } from '@/routes/sections'
 
 // Демо защиты от потери данных: условие по константе DEV вырезает маршрут
@@ -27,6 +28,7 @@ const devRoutes = import.meta.env.DEV
 export const routeTree = rootRoute.addChildren([
   indexRoute,
   accountRoute,
+  ...authRoutes,
   ...sectionRoutes,
   ...devRoutes,
 ])

@@ -24,6 +24,7 @@
     ".superpowers/**",
     ".agents/**",
     ".supabase/**",
-    "prototype/**"
+    "prototype/**",
+    ".playwright-mcp/**"
   ]
 }

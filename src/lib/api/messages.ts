@@ -24,6 +24,10 @@ const FIELD_MESSAGES: Record<string, string> = {
   nickname_taken: 'Этот ник уже занят',
   profile_exists: 'Профиль уже существует',
   avatar_invalid: 'Нужен JPEG, PNG или WebP до 500 КБ',
+  invalid_email: 'Укажите корректный email',
+  password_short: 'Нужно не менее 8 символов',
+  password_mismatch: 'Пароли не совпадают',
+  invalid_code: 'Код — 6 цифр из письма',
 }
 
 export function errorMessage(code: ClientErrorCode) {

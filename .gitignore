@@ -26,3 +26,4 @@ supabase/.branches/
 .DS_Store
 
 storybook-static/
+.playwright-mcp/

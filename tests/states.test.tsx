@@ -57,13 +57,14 @@ describe('общие состояния страницы', () => {
   it('ForbiddenState предлагает гостю войти', async () => {
     await renderWithRouter(<ForbiddenState accessRole="guest" />, {
       path: '/votes',
+      extraPaths: ['/login'],
     })
     expect(
       await screen.findByRole('heading', { name: 'Нет доступа' }),
     ).toBeVisible()
     expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute(
       'href',
-      '/account',
+      '/login',
     )
   })
 

@@ -60,13 +60,13 @@ describe('контроль доступа к маршрутам', () => {
     },
   )
 
-  it('кабинет доступен всем ролям', async () => {
+  it('кабинет открыт всем вошедшим ролям, гостя ведёт ко входу', async () => {
     for (const role of ACCESS_ROLES) {
       const view = await renderApp({ role, path: '/account' })
       expect(
         await screen.findByRole('heading', {
           level: 1,
-          name: role === 'guest' ? 'Вход' : 'Личный кабинет',
+          name: role === 'guest' ? 'Вход в Murr клан' : 'Личный кабинет',
         }),
       ).toBeVisible()
       view.unmount()

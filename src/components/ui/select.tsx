@@ -10,6 +10,8 @@ type SelectProps = ComponentProps<typeof SelectPrimitive.Root> & {
   id?: string
   'aria-label'?: string
   'aria-labelledby'?: string
+  'aria-describedby'?: string | undefined
+  'aria-invalid'?: boolean | undefined
   className?: string
 }
 
@@ -20,6 +22,8 @@ export function Select({
   className,
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledby,
+  'aria-describedby': ariaDescribedby,
+  'aria-invalid': ariaInvalid,
   ...props
 }: SelectProps) {
   return (
@@ -28,6 +32,8 @@ export function Select({
         id={id}
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledby}
+        aria-describedby={ariaDescribedby}
+        aria-invalid={ariaInvalid}
         className={cn('guild-select-trigger', className)}
       >
         <SelectPrimitive.Value placeholder={placeholder} />

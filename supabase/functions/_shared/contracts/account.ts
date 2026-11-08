@@ -60,9 +60,11 @@ export const registrationFieldsSchema = z.object({
   birthDate: birthDateSchema,
   classId: classIdSchema,
   about: required(LIMITS.about),
+  // Пустые строки формы не считаются ссылками.
   equipmentLinks: z
-    .array(equipmentLinkSchema)
-    .max(LIMITS.equipmentLinks, 'too_many'),
+    .array(z.string())
+    .transform((links) => links.filter((link) => link.trim() !== ''))
+    .pipe(z.array(equipmentLinkSchema).max(LIMITS.equipmentLinks, 'too_many')),
 })
 export type RegistrationFields = z.infer<typeof registrationFieldsSchema>
 

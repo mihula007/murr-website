@@ -1,5 +1,6 @@
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { render } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AccessProvider, type AccessRole } from '@/app/access'
 import { createAppRouter } from '@/app/router'
 import { writeLastActivity } from '@/app/splash/splash-timing'
@@ -19,9 +20,11 @@ export async function renderApp({
     createMemoryHistory({ initialEntries: [path] }),
   )
   const result = render(
-    <AccessProvider role={role}>
-      <RouterProvider router={router} />
-    </AccessProvider>,
+    <QueryClientProvider client={new QueryClient()}>
+      <AccessProvider role={role}>
+        <RouterProvider router={router} />
+      </AccessProvider>
+    </QueryClientProvider>,
   )
   await router.load()
   return { ...result, router }

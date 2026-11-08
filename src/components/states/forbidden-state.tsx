@@ -25,7 +25,7 @@ export function ForbiddenState({ accessRole }: ForbiddenStateProps) {
       </p>
       <Button asChild className="mt-2">
         {isGuest ? (
-          <Link to="/account">Войти</Link>
+          <Link to="/login">Войти</Link>
         ) : (
           <Link to="/">На главную</Link>
         )}

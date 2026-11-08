@@ -14,3 +14,4 @@ supabase/.temp/
 .env.*
 *.env
 *.env.*
+.playwright-mcp/

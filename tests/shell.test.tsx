@@ -13,9 +13,10 @@ function categoryButtons() {
 describe('оболочка приложения', () => {
   it('гость видит «Вход» и ни одной категории', async () => {
     await renderApp({ role: 'guest' })
-    expect(await screen.findByRole('link', { name: 'Вход' })).toHaveAttribute(
+    const banner = await screen.findByRole('banner')
+    expect(within(banner).getByRole('link', { name: 'Вход' })).toHaveAttribute(
       'href',
-      '/account',
+      '/login',
     )
     expect(categoryButtons()).toHaveLength(0)
     expect(
