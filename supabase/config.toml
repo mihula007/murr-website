@@ -56,6 +56,12 @@ site_url = "http://127.0.0.1:5173"
 additional_redirect_urls = ["http://localhost:5173", "http://127.0.0.1:4173"]
 enable_signup = true
 minimum_password_length = 8
+# Сессия в браузере бессрочная (Q-35): access token живёт час и обновляется
+# refresh token без срока действия. Ограничения [auth.sessions] (timebox,
+# inactivity_timeout) намеренно не задаются.
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
 
 # Локальные лимиты повышены для тестов; облачные настраиваются на этапе 12.
 [auth.rate_limit]

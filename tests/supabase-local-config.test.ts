@@ -49,3 +49,12 @@ describe('local Supabase configuration', () => {
     expect(section('api')).toMatch(/^schemas = \["public"\]$/m)
   })
 })
+
+describe('browser session lifetime (Q-35)', () => {
+  it('refreshes sessions without a time box or inactivity timeout', () => {
+    const auth = section('auth')
+    expect(auth).toMatch(/^enable_refresh_token_rotation = true$/m)
+    expect(config).not.toMatch(/^\[auth\.sessions\]/m)
+    expect(config).not.toMatch(/^(timebox|inactivity_timeout) =/m)
+  })
+})
