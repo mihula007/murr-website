@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ACCESS_ROLES } from '@/app/access'
 import { NAV_SECTIONS } from '@/app/navigation'
@@ -60,15 +60,14 @@ describe('контроль доступа к маршрутам', () => {
     },
   )
 
-  it('кабинет открыт всем вошедшим ролям, гостя ведёт ко входу', async () => {
+  it('кабинет ведёт гостя ко входу, а вошедших оставляет в кабинете', async () => {
     for (const role of ACCESS_ROLES) {
       const view = await renderApp({ role, path: '/account' })
-      expect(
-        await screen.findByRole('heading', {
-          level: 1,
-          name: role === 'guest' ? 'Вход в Murr клан' : 'Личный кабинет',
-        }),
-      ).toBeVisible()
+      await waitFor(() =>
+        expect(view.router.state.location.pathname).toBe(
+          role === 'guest' ? '/login' : '/account',
+        ),
+      )
       view.unmount()
     }
   })
