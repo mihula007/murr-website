@@ -93,12 +93,12 @@
 
 **Файлы:** `supabase/migrations/<ts>_stage4_applications.sql`, `supabase/tests/database/stage4_applications.test.sql`, `supabase/functions/_shared/db/database.types.ts`.
 
-- [ ] `app.join_applications`: CHECK согласованности — решённые статусы (`officer_*`, `admin_*`) имеют `decided_at`, активные — нет. Колонки `decided_by`, `decision_note`, `decided_at` уже есть с этапа 3.
-- [ ] `app.user_notifications` по [проекту схемы](../../architecture/database-schema-proposal.md): `id uuid PK`; `recipient_id` FK `profiles ON DELETE CASCADE` (принадлежит пользователю, Q-33); `actor_id` FK `ON DELETE SET NULL`; `kind` CHECK (`application_accepted`, `application_rejected`); `title` (1–120), `body` (≤ 500); `target_kind`, `target_id`; `source_kind`, `source_id`; `created_at`, `read_at null`; `UNIQUE (recipient_id, source_kind, source_id, kind)` — повтор не дублирует; индексы `(recipient_id, created_at desc)` и частичный по непрочитанным.
-- [ ] RLS включён без политик; прав браузерным ролям нет (default privileges этапа 3 это обеспечивают — проверяется тестом).
-- [ ] pgTAP: новая таблица с RLS и без прав `anon` / `authenticated`; дубликат уведомления отклоняется; решённая заявка без `decided_at` отклоняется; удаление профиля-исполнителя очищает `actor_id`.
-- [ ] `npm run supabase:reset`, `npm run supabase:types`, `npm run supabase:test`.
-- [ ] Коммит: `feat: add notifications table and application decision checks`.
+- [x] `app.join_applications`: CHECK согласованности — решённые статусы (`officer_*`, `admin_*`) имеют `decided_at`, активные — нет. Колонки `decided_by`, `decision_note`, `decided_at` уже есть с этапа 3.
+- [x] `app.user_notifications` по [проекту схемы](../../architecture/database-schema-proposal.md): `id uuid PK`; `recipient_id` FK `profiles ON DELETE CASCADE` (принадлежит пользователю, Q-33); `actor_id` FK `ON DELETE SET NULL`; `kind` CHECK (`application_accepted`, `application_rejected`); `title` (1–120), `body` (≤ 500); `target_kind`, `target_id`; `source_kind`, `source_id`; `created_at`, `read_at null`; `UNIQUE (recipient_id, source_kind, source_id, kind)` — повтор не дублирует; индексы `(recipient_id, created_at desc)` и частичный по непрочитанным.
+- [x] RLS включён без политик; прав браузерным ролям нет (default privileges этапа 3 это обеспечивают — проверяется тестом).
+- [x] pgTAP: новая таблица с RLS и без прав `anon` / `authenticated`; дубликат уведомления отклоняется; решённая заявка без `decided_at` отклоняется; удаление профиля-исполнителя очищает `actor_id`.
+- [x] `npm run supabase:types`, `npm run supabase:test`. Локально миграция применена `supabase migration up`, без сброса данных стека; применение с нуля — `supabase db reset` в CI.
+- [x] Коммит: `feat: add notifications table and application decision checks`.
 
 ## Задача 3. Общие правила членства и уведомления
 

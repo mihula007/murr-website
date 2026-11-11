@@ -246,6 +246,67 @@ export type Database = {
           },
         ]
       }
+      user_notifications: {
+        Row: {
+          actor_id: string | null
+          body: string
+          created_at: string
+          id: string
+          kind: string
+          read_at: string | null
+          recipient_id: string
+          source_id: string
+          source_kind: string
+          target_id: string | null
+          target_kind: string | null
+          title: string
+        }
+        ComputedFields: never
+        Insert: {
+          actor_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          kind: string
+          read_at?: string | null
+          recipient_id: string
+          source_id: string
+          source_kind: string
+          target_id?: string | null
+          target_kind?: string | null
+          title: string
+        }
+        Update: {
+          actor_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          read_at?: string | null
+          recipient_id?: string
+          source_id?: string
+          source_kind?: string
+          target_id?: string | null
+          target_kind?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'user_notifications_actor_id_fkey'
+            columns: ['actor_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'user_notifications_recipient_id_fkey'
+            columns: ['recipient_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

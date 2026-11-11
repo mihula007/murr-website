@@ -94,8 +94,8 @@ select throws_ok(
 );
 
 select lives_ok(
-  $$insert into app.join_applications (applicant_id, status)
-    values ('00000000-0000-0000-0000-000000000001', 'officer_rejected')$$,
+  $$insert into app.join_applications (applicant_id, status, decided_at)
+    values ('00000000-0000-0000-0000-000000000001', 'officer_rejected', now())$$,
   'завершённые заявки не ограничены'
 );
 
