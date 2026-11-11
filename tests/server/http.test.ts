@@ -48,12 +48,28 @@ describe('api function over HTTP', () => {
       'account/avatar-upload',
       'account/complete-registration',
       'account/update-profile',
+      'applications/list',
+      'applications/get',
+      'applications/decide',
+      'applications/resubmit',
+      'roster/list',
+      'roster/readers',
+      'accounts/list',
+      'accounts/set-role',
+      'accounts/restore-reader',
     ]) {
       expect(await call(route)).toEqual({
         status: 401,
         body: { error: 'not_authenticated' },
       })
     }
+  })
+
+  it('serves the roster count to a guest', async () => {
+    expect(await call('roster/count')).toEqual({
+      status: 200,
+      body: { count: 0 },
+    })
   })
 
   it('returns 404 for an unknown route', async () => {
@@ -133,6 +149,22 @@ describe('direct access around the api', () => {
       )
       expect(response.ok).toBe(false)
     }
+  })
+
+  it('does not expose user notifications through the Data API', async () => {
+    const user = await createAuthUser()
+    const token = await signIn(user.email)
+    const response = await fetch(
+      `${env('API_URL')}/rest/v1/user_notifications?select=*`,
+      {
+        headers: {
+          apikey: env('ANON_KEY'),
+          Authorization: `Bearer ${token}`,
+          'Accept-Profile': 'app',
+        },
+      },
+    )
+    expect(response.ok).toBe(false)
   })
 
   it('does not let a user read or list avatars directly from Storage', async () => {

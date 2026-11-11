@@ -2,8 +2,8 @@ import { avatarUrl, avatarUrls } from '../account/avatars.ts'
 import { profileRepository } from '../account/repository.ts'
 import { buildMe } from '../account/service.ts'
 import type { AppDeps } from '../app.ts'
-import { writeAudit, type AuditPerson } from '../audit/service.ts'
-import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
+import { auditPerson, writeAudit } from '../audit/service.ts'
+import { requireRole, type Actor } from '../auth/actor.ts'
 import { userRepository } from '../auth/repository.ts'
 import type {
   AccessRole,
@@ -58,15 +58,6 @@ const DECISIONS = {
     },
   },
 } as const
-
-function auditPerson(actor: ProfiledActor): AuditPerson {
-  return {
-    id: actor.userId,
-    role: actor.profile.access_role as AccessRole,
-    nickname: actor.profile.game_nickname,
-    email: actor.email,
-  }
-}
 
 export async function listApplications(
   deps: AppDeps,

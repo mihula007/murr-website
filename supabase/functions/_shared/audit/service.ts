@@ -1,3 +1,4 @@
+import type { ProfiledActor } from '../auth/actor.ts'
 import type { Executor } from '../db/client.ts'
 import type { AccessRole } from '../db/schema.ts'
 import { auditRepository } from './repository.ts'
@@ -39,6 +40,16 @@ export type AuditEvent = {
   actor: AuditPerson | null
   target?: { kind: string; id: string; user?: AuditPerson }
   details?: Record<string, DetailValue>
+}
+
+/** Исполнитель операции для записи аудита. */
+export function auditPerson(actor: ProfiledActor): AuditPerson {
+  return {
+    id: actor.userId,
+    role: actor.profile.access_role as AccessRole,
+    nickname: actor.profile.game_nickname,
+    email: actor.email,
+  }
 }
 
 export function assertAuditDetails(details: Record<string, DetailValue>) {

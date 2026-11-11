@@ -127,11 +127,11 @@
 
 **Файлы:** `_shared/{roster,accounts}/*`, `_shared/contracts/{roster,accounts}.ts`, `_shared/app.ts`, `tests/server/{roster,accounts}.test.ts`, `tests/server/http.test.ts`.
 
-- [ ] `roster/count`, `roster/list` (сортировка по нику, статистика по всем классам справочника, включая нулевые), `roster/readers`.
-- [ ] `accounts/list`, `accounts/set-role`, `accounts/restore-reader` с правилами из раздела решений исполнителя.
-- [ ] Тесты: состав содержит только member/officer/admin (ROS-01) и не содержит закрытых полей (ROS-03); чтец, кандидат и гость получают `forbidden` / `not_authenticated` на `roster/list` (ACL-09); офицер не меняет роли (ACL-03) и не блокирует (ADM-09), но восстанавливает чтеца; восстановление не-чтеца — `state_conflict`; основной администратор не понижается; последний администратор не понижается, в том числе двумя параллельными запросами; смена роли кандидата с активной заявкой — `application_pending`; аудит каждой операции с прежней и новой ролью; заблокированный сразу теряет доступ к внутренним операциям (следующий запрос — `forbidden`).
-- [ ] HTTP-тест: новые маршруты без токена → 401 (кроме `roster/count`); `user_notifications` недоступна через PostgREST.
-- [ ] Коммит: `feat: add roster and account role services`.
+- [x] `roster/count`, `roster/list` (сортировка по нику, статистика по всем классам справочника, включая нулевые), `roster/readers`.
+- [x] `accounts/list`, `accounts/set-role`, `accounts/restore-reader` с правилами из раздела решений исполнителя.
+- [x] Тесты: состав содержит только member/officer/admin (ROS-01) и не содержит закрытых полей (ROS-03); чтец, кандидат и гость получают `forbidden` / `not_authenticated` на `roster/list` (ACL-09); офицер не меняет роли (ACL-03) и не блокирует (ADM-09), но восстанавливает чтеца; восстановление не-чтеца — `state_conflict`; основной администратор не понижается; последний администратор не понижается, в том числе двумя параллельными запросами; смена роли кандидата с активной заявкой — `application_pending`; аудит каждой операции с прежней и новой ролью; заблокированный сразу теряет доступ к внутренним операциям (следующий запрос — `forbidden`).
+- [x] HTTP-тест: новые маршруты без токена → 401 (кроме `roster/count`); `user_notifications` недоступна через PostgREST.
+- [x] Коммит: `feat: add roster and account role services`.
 
 ## Задача 6. Клиент: заявки
 
