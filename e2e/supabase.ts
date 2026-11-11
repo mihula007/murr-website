@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { expect, type Page } from '@playwright/test'
@@ -16,7 +16,8 @@ let cached: Status | undefined
 /** Адреса и ключи локального стека — из `supabase status`, не из Git. */
 export function localStack(): Status {
   cached ??= JSON.parse(
-    execFileSync('npx', ['supabase', 'status', '-o', 'json'], {
+    // Через оболочку: на Windows npx — это npx.cmd.
+    execSync('npx supabase status -o json', {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     }),

@@ -2,7 +2,7 @@
 // env-файл Vite (по умолчанию .env.development.local). Только публичные
 // значения; ключи стека не попадают в Git.
 // Использование: node scripts/supabase-env.ts [.env.e2e.local]
-import { execFileSync } from 'node:child_process'
+import { execSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 
 const target = process.argv[2] ?? '.env.development.local'
@@ -11,7 +11,8 @@ if (!/^\.env\.[a-z0-9]+\.local$/.test(target)) {
 }
 
 const status = JSON.parse(
-  execFileSync('npx', ['supabase', 'status', '-o', 'json'], {
+  // Через оболочку: на Windows npx — это npx.cmd.
+  execSync('npx supabase status -o json', {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
   }),

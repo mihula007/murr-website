@@ -1,4 +1,9 @@
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
+import {
+  execFileSync,
+  execSync,
+  spawn,
+  type ChildProcess,
+} from 'node:child_process'
 
 const NAMES = [
   'DB_URL',
@@ -25,7 +30,8 @@ async function functionsReady(apiUrl: string, key: string) {
  * Если функции ещё не обслуживаются, запускает `supabase functions serve`.
  */
 export default async function setup() {
-  const output = execFileSync('npx', ['supabase', 'status', '-o', 'json'], {
+  // Через оболочку: на Windows npx — это npx.cmd.
+  const output = execSync('npx supabase status -o json', {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
   })
@@ -40,9 +46,10 @@ export default async function setup() {
   const key = status.ANON_KEY as string
   let serve: ChildProcess | undefined
   if (!(await functionsReady(apiUrl, key))) {
-    serve = spawn('npx', ['supabase', 'functions', 'serve'], {
+    serve = spawn('npx supabase functions serve', {
       stdio: 'ignore',
       detached: true,
+      shell: true,
     })
     const deadline = Date.now() + 90_000
     while (!(await functionsReady(apiUrl, key))) {
@@ -52,6 +59,14 @@ export default async function setup() {
     }
   }
   return () => {
-    if (serve?.pid) process.kill(-serve.pid)
+    if (!serve?.pid) return
+    // Группу процессов на Windows останавливает только taskkill.
+    if (process.platform === 'win32') {
+      execFileSync('taskkill', ['/pid', String(serve.pid), '/T', '/F'], {
+        stdio: 'ignore',
+      })
+    } else {
+      process.kill(-serve.pid)
+    }
   }
 }

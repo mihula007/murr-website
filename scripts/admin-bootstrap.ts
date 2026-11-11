@@ -2,7 +2,7 @@
 // Запуск: npm run admin:bootstrap -- --email … --nickname … --name … --class …
 // Облачная БД: строка подключения в ADMIN_DATABASE_URL (секрет, только в .env).
 // Без неё используется локальный Supabase из `supabase status`.
-import { execFileSync } from 'node:child_process'
+import { execSync } from 'node:child_process'
 import { parseArgs } from 'node:util'
 import { bootstrapFirstAdmin } from '../supabase/functions/_shared/account/service.ts'
 import { createDb } from '../supabase/functions/_shared/db/client.ts'
@@ -18,7 +18,8 @@ const MESSAGES: Record<string, string> = {
 }
 
 function localDbUrl() {
-  const output = execFileSync('npx', ['supabase', 'status', '-o', 'json'], {
+  // Через оболочку: на Windows npx — это npx.cmd.
+  const output = execSync('npx supabase status -o json', {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
   })
