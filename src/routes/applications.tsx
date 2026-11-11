@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { createRoute } from '@tanstack/react-router'
-import { NAV_SECTIONS } from '@/app/navigation'
+import { sectionRoles } from '@/app/navigation'
 import { RouteGate } from '@/components/route-gate'
 import { ApplicationPage } from '@/features/applications/application-page'
 import {
@@ -9,9 +9,7 @@ import {
 } from '@/features/applications/applications-page'
 import { rootRoute } from './root'
 
-const section = NAV_SECTIONS.find((item) => item.id === 'applications')
-if (!section) throw new Error('Нет раздела «Заявки» в навигации')
-const { roles } = section
+const roles = sectionRoles('applications')
 
 function ApplicationsRoute(): ReactNode {
   const search = applicationsRoute.useSearch()

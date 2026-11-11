@@ -10,7 +10,9 @@ import { rootRoute } from '@/routes/root'
 import { indexRoute } from '@/routes/index'
 import { accountRoute, resubmitRoute } from '@/routes/account'
 import { applicationRoute, applicationsRoute } from '@/routes/applications'
+import { adminRoute } from '@/routes/admin'
 import { authRoutes } from '@/routes/auth'
+import { rosterRoute } from '@/routes/roster'
 import { sectionRoutes } from '@/routes/sections'
 
 // Демо защиты от потери данных: условие по константе DEV вырезает маршрут
@@ -33,6 +35,8 @@ export const routeTree = rootRoute.addChildren([
   resubmitRoute,
   applicationsRoute,
   applicationRoute,
+  rosterRoute,
+  adminRoute,
   ...authRoutes,
   ...sectionRoutes,
   ...devRoutes,

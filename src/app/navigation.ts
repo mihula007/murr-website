@@ -115,6 +115,13 @@ export function visibleNavigation(role: AccessRole): NavCategory[] {
   })).filter((category) => category.sections.length > 0)
 }
 
+/** Роли раздела из той же таблицы — для `RouteGate` реализованных разделов. */
+export function sectionRoles(id: NavSectionId): readonly AccessRole[] {
+  const section = NAV_SECTIONS.find((item) => item.id === id)
+  if (!section) throw new Error(`Нет раздела ${id} в навигации`)
+  return section.roles
+}
+
 export function findSectionByPath(path: string): NavSectionConfig | undefined {
   return NAV_SECTIONS.find(
     (section) => path === section.path || path.startsWith(`${section.path}/`),
