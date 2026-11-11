@@ -34,6 +34,12 @@ export type DB = {
   'app.events': KyselyTable<Generated['events']>
   'app.event_attendance': KyselyTable<Generated['event_attendance']>
   'app.event_templates': KyselyTable<Generated['event_templates']>
+  'app.event_groups': KyselyTable<Generated['event_groups']>
+  'app.event_group_members': KyselyTable<Generated['event_group_members']>
+  'app.group_templates': KyselyTable<Generated['group_templates']>
+  'app.group_template_groups': KyselyTable<Generated['group_template_groups']>
+  'app.group_template_members': KyselyTable<Generated['group_template_members']>
+  'app.event_activity_records': KyselyTable<Generated['event_activity_records']>
   'auth.users': AuthUsersTable
 }
 

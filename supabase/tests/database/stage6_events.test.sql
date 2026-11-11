@@ -47,12 +47,13 @@ select throws_ok(
   '23514', null, 'пустое описание отклоняется'
 );
 
+-- Дата в прошлом: локальная БД может уже содержать настоящий выпуск недели.
 insert into app.events (title, event_type, description, starts_at, recurring_preset)
-values ('МТВ', 'clan', 'Еженедельное', '2026-11-14 17:00:00+00', 'mtv_sat_20');
+values ('МТВ', 'clan', 'Еженедельное', '2000-01-01 17:00:00+00', 'mtv_sat_20');
 
 select throws_ok(
   $$insert into app.events (title, event_type, description, starts_at, recurring_preset)
-    values ('МТВ', 'clan', 'Еженедельное', '2026-11-14 17:00:00+00', 'mtv_sat_20')$$,
+    values ('МТВ', 'clan', 'Еженедельное', '2000-01-01 17:00:00+00', 'mtv_sat_20')$$,
   '23505', null, 'второй выпуск пресета на то же время отклоняется (EVT-14)'
 );
 

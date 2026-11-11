@@ -137,6 +137,59 @@ export type Database = {
         }
         Relationships: []
       }
+      event_activity_records: {
+        Row: {
+          class_id: number
+          event_id: string
+          group_name: string | null
+          is_leader: boolean
+          nickname: string
+          status: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          class_id: number
+          event_id: string
+          group_name?: string | null
+          is_leader?: boolean
+          nickname: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          class_id?: number
+          event_id?: string
+          group_name?: string | null
+          is_leader?: boolean
+          nickname?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'event_activity_records_class_id_fkey'
+            columns: ['class_id']
+            isOneToOne: false
+            referencedRelation: 'character_classes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'event_activity_records_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'event_activity_records_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       event_attendance: {
         Row: {
           answer: string
@@ -170,6 +223,76 @@ export type Database = {
             columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      event_group_members: {
+        Row: {
+          event_id: string
+          group_id: string
+          is_leader: boolean
+          position: number
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          event_id: string
+          group_id: string
+          is_leader?: boolean
+          position: number
+          user_id: string
+        }
+        Update: {
+          event_id?: string
+          group_id?: string
+          is_leader?: boolean
+          position?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'event_group_members_group_id_event_id_fkey'
+            columns: ['group_id', 'event_id']
+            isOneToOne: false
+            referencedRelation: 'event_groups'
+            referencedColumns: ['id', 'event_id']
+          },
+          {
+            foreignKeyName: 'event_group_members_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      event_groups: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          name: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'event_groups_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
             referencedColumns: ['id']
           },
         ]
@@ -267,6 +390,106 @@ export type Database = {
           },
           {
             foreignKeyName: 'events_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      group_template_groups: {
+        Row: {
+          id: string
+          name: string
+          position: number
+          template_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          id?: string
+          name: string
+          position: number
+          template_id: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          position?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'group_template_groups_template_id_fkey'
+            columns: ['template_id']
+            isOneToOne: false
+            referencedRelation: 'group_templates'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      group_template_members: {
+        Row: {
+          group_id: string
+          is_leader: boolean
+          position: number
+          template_id: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          group_id: string
+          is_leader?: boolean
+          position: number
+          template_id: string
+          user_id: string
+        }
+        Update: {
+          group_id?: string
+          is_leader?: boolean
+          position?: number
+          template_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'group_template_members_group_id_template_id_fkey'
+            columns: ['group_id', 'template_id']
+            isOneToOne: false
+            referencedRelation: 'group_template_groups'
+            referencedColumns: ['id', 'template_id']
+          },
+          {
+            foreignKeyName: 'group_template_members_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      group_templates: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'group_templates_created_by_fkey'
             columns: ['created_by']
             isOneToOne: false
             referencedRelation: 'profiles'

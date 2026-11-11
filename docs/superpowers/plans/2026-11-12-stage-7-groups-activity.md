@@ -110,11 +110,11 @@
 
 ## Задача 3. Схема БД и pgTAP
 
-- [ ] `app.event_groups`: `event_id ON DELETE CASCADE` (EVT-10), название 1–40, `position`, `UNIQUE (event_id, position) DEFERRABLE`.
-- [ ] `app.event_group_members`: `PRIMARY KEY (event_id, user_id)`, `(group_id, event_id)` — составной FK на группу (группа того же события), `user_id ON DELETE CASCADE` (GRP-18), `position`, `is_leader`; частичный `UNIQUE (group_id) WHERE is_leader`.
-- [ ] `app.group_templates`, `app.group_template_groups`, `app.group_template_members` (`created_by ON DELETE CASCADE` — шаблоны удалённого удаляются, Q-33).
-- [ ] `app.event_activity_records`: `PRIMARY KEY (event_id, user_id)`, `user_id ON DELETE CASCADE` (ACT-17), `event_id ON DELETE RESTRICT` (архив не удаляется), копии `nickname`, `class_id`, `status` CHECK (`visited`, `missed`, `unmarked`), `group_name`, `is_leader`; индексы под фильтры (событие, пользователь, класс) и под период по `events.starts_at`.
-- [ ] RLS без политик, прав браузерным ролям нет; pgTAP на все ограничения; `npm run supabase:types`; коммит `feat: add groups and activity schema`.
+- [x] `app.event_groups`: `event_id ON DELETE CASCADE` (EVT-10), название 1–40, `position`, `UNIQUE (event_id, position) DEFERRABLE`.
+- [x] `app.event_group_members`: `PRIMARY KEY (event_id, user_id)`, `(group_id, event_id)` — составной FK на группу (группа того же события), `user_id ON DELETE CASCADE` (GRP-18), `position`, `is_leader`; частичный `UNIQUE (group_id) WHERE is_leader`.
+- [x] `app.group_templates`, `app.group_template_groups`, `app.group_template_members` (`created_by ON DELETE CASCADE` — шаблоны удалённого удаляются, Q-33).
+- [x] `app.event_activity_records`: `PRIMARY KEY (event_id, user_id)`, `user_id ON DELETE CASCADE` (ACT-17), `event_id ON DELETE RESTRICT` (архив не удаляется), копии `nickname`, `class_id`, `status` CHECK (`visited`, `missed`, `unmarked`), `group_name`, `is_leader`; индексы под фильтры (событие, пользователь, класс) и под период по `events.starts_at`.
+- [x] RLS без политик, прав браузерным ролям нет; pgTAP на все ограничения; `npm run supabase:types`; коммит `feat: add groups and activity schema`.
 
 ## Задача 4. Сервис групп и закрытие
 
