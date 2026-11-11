@@ -18,6 +18,9 @@ const DETAIL_KEYS = new Set([
   'application_id',
   'changed_fields',
   'role',
+  'previous_role',
+  'decision',
+  'user_id',
 ])
 
 type DetailValue = string | number | boolean | null | string[]

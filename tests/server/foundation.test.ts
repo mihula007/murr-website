@@ -9,7 +9,18 @@ import {
   auditRepository,
 } from '../../supabase/functions/_shared/audit/repository.ts'
 import { writeAudit } from '../../supabase/functions/_shared/audit/service.ts'
+import { avatarUrls } from '../../supabase/functions/_shared/account/avatars.ts'
+import type { AccessRole } from '../../supabase/functions/_shared/contracts/account.ts'
 import { withTransaction } from '../../supabase/functions/_shared/db/client.ts'
+import {
+  INTERNAL_ROLES,
+  joinedOnAfterRoleChange,
+} from '../../supabase/functions/_shared/membership.ts'
+import { notificationRepository } from '../../supabase/functions/_shared/notifications/repository.ts'
+import {
+  notify,
+  type Notification,
+} from '../../supabase/functions/_shared/notifications/service.ts'
 import {
   createAuthUser,
   createProfiledUser,
@@ -17,6 +28,8 @@ import {
   resetAppData,
   signIn,
   testDb,
+  testDeps,
+  uploadAvatar,
 } from './support.ts'
 
 const db = testDb()
@@ -85,6 +98,21 @@ describe('audit log', () => {
     expect(await auditRepository.count(db)).toBe(AUDIT_LIMIT)
   })
 
+  it('accepts the stage 4 details keys', async () => {
+    await withTransaction(db, (tx) =>
+      writeAudit(tx, {
+        ...event(1),
+        details: {
+          previous_role: 'member',
+          role: 'reader',
+          decision: 'accept',
+          user_id: crypto.randomUUID(),
+        },
+      }),
+    )
+    expect(await auditRepository.count(db)).toBe(1)
+  })
+
   it('rejects details keys outside the allowlist', async () => {
     await expect(
       withTransaction(db, (tx) =>
@@ -126,5 +154,118 @@ describe('token verifier', () => {
   it('treats a project key or garbage as no session', async () => {
     expect(await verify()(env('ANON_KEY').slice(0, 20))).toBeNull()
     expect(await verify()('a.b.c')).toBeNull()
+  })
+})
+
+describe('membership rules', () => {
+  const ROLES: AccessRole[] = [
+    'applicant',
+    'reader',
+    'member',
+    'officer',
+    'admin',
+  ]
+  const internal = (role: AccessRole) =>
+    (INTERNAL_ROLES as readonly AccessRole[]).includes(role)
+
+  it('sets the join date only when entering an internal role', () => {
+    for (const previous of ROLES) {
+      for (const next of ROLES) {
+        const result = joinedOnAfterRoleChange(
+          previous,
+          next,
+          '2026-01-01',
+          '2026-11-11',
+        )
+        const expected =
+          !internal(previous) && internal(next) ? '2026-11-11' : '2026-01-01'
+        expect(result, `${previous} → ${next}`).toBe(expected)
+      }
+    }
+  })
+
+  it('keeps a missing join date when no internal role is entered', () => {
+    expect(joinedOnAfterRoleChange('applicant', 'reader', null, 'x')).toBeNull()
+    expect(
+      joinedOnAfterRoleChange('reader', 'member', null, '2026-11-11'),
+    ).toBe('2026-11-11')
+  })
+})
+
+describe('notifications', () => {
+  async function setup() {
+    const recipient = await createProfiledUser(db, 'applicant')
+    const officer = await createProfiledUser(db, 'officer')
+    const source = { kind: 'join_application', id: crypto.randomUUID() }
+    const notification: Notification = {
+      recipientId: recipient.id,
+      actorId: officer.id,
+      kind: 'application_accepted',
+      title: 'Заявка принята',
+      target: source,
+      source,
+    }
+    return { recipient, officer, notification }
+  }
+
+  it('creates a notification for the recipient', async () => {
+    const { recipient, notification } = await setup()
+    const id = await withTransaction(db, (tx) => notify(tx, notification))
+    expect(id).toEqual(expect.any(String))
+    const rows = await notificationRepository.listForRecipient(db, recipient.id)
+    expect(rows).toMatchObject([
+      { kind: 'application_accepted', title: 'Заявка принята', read_at: null },
+    ])
+  })
+
+  it('does not duplicate a repeated notification from the same source', async () => {
+    const { recipient, notification } = await setup()
+    await withTransaction(db, (tx) => notify(tx, notification))
+    const repeat = await withTransaction(db, (tx) => notify(tx, notification))
+    expect(repeat).toBeNull()
+    const rows = await notificationRepository.listForRecipient(db, recipient.id)
+    expect(rows).toHaveLength(1)
+  })
+
+  it('does not notify the initiator about their own action', async () => {
+    const { recipient, notification } = await setup()
+    const id = await withTransaction(db, (tx) =>
+      notify(tx, { ...notification, actorId: recipient.id }),
+    )
+    expect(id).toBeNull()
+    expect(
+      await notificationRepository.listForRecipient(db, recipient.id),
+    ).toHaveLength(0)
+  })
+
+  it('is rolled back together with a failed operation', async () => {
+    const { recipient, notification } = await setup()
+    await expect(
+      withTransaction(db, async (tx) => {
+        await notify(tx, notification)
+        throw new Error('сбой операции')
+      }),
+    ).rejects.toThrow('сбой операции')
+    expect(
+      await notificationRepository.listForRecipient(db, recipient.id),
+    ).toHaveLength(0)
+  })
+})
+
+describe('batch signed avatar urls', () => {
+  const deps = testDeps(db)
+
+  it('signs existing paths in one call and skips missing ones', async () => {
+    const user = await createAuthUser()
+    const path = await uploadAvatar(deps, user.id)
+    const missing = `${user.id}/missing.png`
+    const urls = await avatarUrls(deps.storage, [path, null, path, missing])
+    expect([...urls.keys()]).toEqual([path])
+    const response = await fetch(urls.get(path) as string)
+    expect(response.ok).toBe(true)
+  })
+
+  it('returns an empty map without calling Storage for no paths', async () => {
+    expect((await avatarUrls(deps.storage, [null])).size).toBe(0)
   })
 })

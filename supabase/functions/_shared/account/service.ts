@@ -26,6 +26,7 @@ import { withTransaction, type Db, type Executor } from '../db/client.ts'
 import { isUniqueViolation } from '../db/errors.ts'
 import type { ProfileRow } from '../db/schema.ts'
 import { ApiError } from '../http/errors.ts'
+import { moscowDate } from '../membership.ts'
 import { parseBody } from '../http/validation.ts'
 import {
   AVATAR_BUCKET,
@@ -277,11 +278,6 @@ export type BootstrapInput = {
   gameNickname: string
   displayName: string
   classSlug: string
-}
-
-/** Дата по Москве (UTC+3, Q-08) для даты вступления. */
-export function moscowDate(now: Date) {
-  return new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
 }
 
 /**

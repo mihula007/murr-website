@@ -54,3 +54,9 @@ export function avatarUrl(storage: StorageGateway, path: string | null) {
     ? storage.signedUrl(AVATAR_BUCKET, path, SIGNED_URL_SECONDS)
     : Promise.resolve(null)
 }
+
+/** Ссылки на аватары списка одним запросом Storage: путь → ссылка. */
+export function avatarUrls(storage: StorageGateway, paths: (string | null)[]) {
+  const unique = [...new Set(paths.filter((path) => path !== null))]
+  return storage.signedUrls(AVATAR_BUCKET, unique, SIGNED_URL_SECONDS)
+}

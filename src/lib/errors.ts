@@ -75,6 +75,12 @@ const MESSAGES: Record<ClientErrorCode | FieldErrorCode, string> = {
   not_found: 'Не найдено.',
   registration_incomplete: 'Сначала завершите регистрацию.',
   already_bootstrapped: 'Администратор уже назначен.',
+  state_conflict:
+    'Данные уже изменились. Обновите страницу и попробуйте снова.',
+  application_pending:
+    'У пользователя есть заявка на рассмотрении: решение принимается в разделе «Заявки».',
+  last_admin: 'Нельзя понизить последнего администратора.',
+  primary_admin: 'Основного администратора нельзя понизить.',
   validation_failed: 'Проверьте поля формы.',
   avatar_invalid:
     'Аватар не принят: нужен JPEG, PNG или WebP до 500 КБ. Выберите файл ещё раз.',

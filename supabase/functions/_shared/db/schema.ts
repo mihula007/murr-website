@@ -27,6 +27,7 @@ export type DB = {
     Generated['application_equipment_links']
   >
   'app.audit_log': KyselyTable<Generated['audit_log']>
+  'app.user_notifications': KyselyTable<Generated['user_notifications']>
   'auth.users': AuthUsersTable
 }
 

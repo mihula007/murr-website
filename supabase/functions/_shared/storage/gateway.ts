@@ -14,6 +14,12 @@ export type StorageGateway = {
     path: string,
     expiresInSeconds: number,
   ): Promise<string | null>
+  /** Пакет ссылок одним запросом: путь → ссылка; не подписанные пути отсутствуют. */
+  signedUrls(
+    bucket: string,
+    paths: string[],
+    expiresInSeconds: number,
+  ): Promise<Map<string, string>>
 }
 
 const encodePath = (path: string) =>
@@ -98,6 +104,30 @@ export function createStorageGateway(
       } catch {
         return null
       }
+    },
+    async signedUrls(bucket, paths, expiresInSeconds) {
+      const urls = new Map<string, string>()
+      if (paths.length === 0) return urls
+      try {
+        const response = await call(
+          `/object/sign/${bucket}`,
+          json({ expiresIn: expiresInSeconds, paths }),
+        )
+        const items = (await response.json()) as {
+          path: string | null
+          signedURL: string | null
+          error: string | null
+        }[]
+        for (const item of items) {
+          if (item.path && item.signedURL && !item.error) {
+            urls.set(item.path, `${base}${item.signedURL}`)
+          }
+        }
+      } catch (error) {
+        // Без ссылок карточки показывают букву ника; список не падает.
+        console.error('Не удалось подписать ссылки Storage', error)
+      }
+      return urls
     },
   }
 }

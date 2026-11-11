@@ -104,13 +104,13 @@
 
 **Файлы:** `_shared/membership.ts`, `_shared/notifications/*`, `_shared/storage/gateway.ts`, `_shared/audit/service.ts`, `_shared/contracts/errors.ts`, `tests/server/foundation.test.ts`.
 
-- [ ] `membership.ts`: `INTERNAL_ROLES`, `joinedOnAfterRoleChange(previous, next, today)` — единственное место правила даты вступления; `moscowDate` переносится сюда из сервиса аккаунта.
-- [ ] `notifications.notify(tx, { recipientId, actor, kind, title, body, target, source })`: не уведомляет инициатора о собственном действии; повтор с тем же источником не создаёт дубликат (`ON CONFLICT DO NOTHING` в репозитории).
-- [ ] Пакетные подписанные ссылки `signedUrls(bucket, paths, seconds)`; ошибка Storage не роняет список — карточка показывает букву ника (`avatarInitial`).
-- [ ] Разрешённые ключи аудита: `decision`, `previous_role`, `user_id`.
-- [ ] Новые коды ошибок API.
-- [ ] Тесты: правило даты по всем парам ролей; дедупликация уведомлений; уведомление себе не создаётся.
-- [ ] Коммит: `feat: add membership rules and notification service`.
+- [x] `membership.ts`: `INTERNAL_ROLES`, `joinedOnAfterRoleChange(previous, next, today)` — единственное место правила даты вступления; `moscowDate` переносится сюда из сервиса аккаунта.
+- [x] `notifications.notify(tx, { recipientId, actor, kind, title, body, target, source })`: не уведомляет инициатора о собственном действии; повтор с тем же источником не создаёт дубликат (`ON CONFLICT DO NOTHING` в репозитории).
+- [x] Пакетные подписанные ссылки `signedUrls(bucket, paths, seconds)`; ошибка Storage не роняет список — карточка показывает букву ника (`avatarInitial`).
+- [x] Разрешённые ключи аудита: `decision`, `previous_role`, `user_id`.
+- [x] Новые коды ошибок API.
+- [x] Тесты: правило даты по всем парам ролей; дедупликация уведомлений; уведомление себе не создаётся.
+- [x] Коммит: `feat: add membership rules and notification service`.
 
 ## Задача 4. Сервис заявок
 
