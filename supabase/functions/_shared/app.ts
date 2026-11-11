@@ -23,6 +23,7 @@ import {
 import { listClasses } from './catalog/service.ts'
 import { createDb, type Db } from './db/client.ts'
 import {
+  closeEvent,
   createEvent,
   deleteEvent,
   deleteTemplate,
@@ -35,6 +36,17 @@ import {
   templateNextDate,
   updateEvent,
 } from './events/service.ts'
+import {
+  applyGroupTemplate,
+  createGroup,
+  deleteGroup,
+  deleteGroupTemplate,
+  listGroupTemplates,
+  moveMember,
+  renameGroup,
+  saveGroupTemplate,
+  setGroupLeader,
+} from './groups/service.ts'
 import { createApiHandler, type Route } from './http/handler.ts'
 import {
   countRoster,
@@ -105,6 +117,7 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'events/update': ({ actor, body }) => updateEvent(deps, actor, body),
     'events/delete': ({ actor, body }) => deleteEvent(deps, actor, body),
     'events/respond': ({ actor, body }) => respondToEvent(deps, actor, body),
+    'events/close': ({ actor, body }) => closeEvent(deps, actor, body),
     'events/ensure-weekly': ({ actor, headers }) =>
       ensureWeeklyEvents(deps, actor, headers.get('x-cron-secret')),
     'events/templates': ({ actor }) => listTemplates(deps, actor),
@@ -114,6 +127,18 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       deleteTemplate(deps, actor, body),
     'events/template-next': ({ actor, body }) =>
       templateNextDate(deps, actor, body),
+    'groups/create': ({ actor, body }) => createGroup(deps, actor, body),
+    'groups/rename': ({ actor, body }) => renameGroup(deps, actor, body),
+    'groups/delete': ({ actor, body }) => deleteGroup(deps, actor, body),
+    'groups/move': ({ actor, body }) => moveMember(deps, actor, body),
+    'groups/set-leader': ({ actor, body }) => setGroupLeader(deps, actor, body),
+    'group-templates/list': ({ actor }) => listGroupTemplates(deps, actor),
+    'group-templates/save': ({ actor, body }) =>
+      saveGroupTemplate(deps, actor, body),
+    'group-templates/delete': ({ actor, body }) =>
+      deleteGroupTemplate(deps, actor, body),
+    'group-templates/apply': ({ actor, body }) =>
+      applyGroupTemplate(deps, actor, body),
     'roster/count': () => countRoster(deps),
     'roster/stats': ({ actor }) => rosterStats(deps, actor),
     'roster/list': ({ actor }) => listRoster(deps, actor),

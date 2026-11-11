@@ -54,19 +54,26 @@ function details(extra: Partial<EventDetails> = {}): EventDetails {
       {
         id: 'p1',
         gameNickname: 'Анна',
+        classId: 8,
         className: 'Воин',
         avatarUrl: null,
         answer: 'yes',
+        status: null,
       },
       {
         id: 'p2',
         gameNickname: 'Борис',
+        classId: 7,
         className: 'Маг',
         avatarUrl: null,
         answer: null,
+        status: null,
       },
     ],
     participantsTruncated: false,
+    groups: [],
+    canManageGroups: false,
+    canClose: false,
     ...extra,
   }
 }

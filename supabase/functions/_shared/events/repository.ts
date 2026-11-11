@@ -230,8 +230,9 @@ export const eventRepository = {
   },
 
   /**
-   * Участники события: текущий состав (внутренние роли) и все ответившие,
-   * включая ставших чтецами. Сначала ответившие, затем по нику.
+   * Участники актуального события: текущий состав (внутренние роли), все
+   * ответившие и стоящие в группах, включая ставших чтецами. Сначала
+   * ответившие, затем по нику.
    */
   participants(
     db: Executor,
@@ -249,6 +250,7 @@ export const eventRepository = {
         'p.id',
         'p.game_nickname',
         'p.avatar_path',
+        'p.class_id',
         'c.name as class_name',
         'a.answer',
       ])
@@ -256,6 +258,13 @@ export const eventRepository = {
         eb.or([
           eb('p.access_role', 'in', roles),
           eb('a.event_id', 'is not', null),
+          eb.exists(
+            eb
+              .selectFrom('app.event_group_members as m')
+              .select('m.user_id')
+              .whereRef('m.user_id', '=', 'p.id')
+              .where('m.event_id', '=', eventId),
+          ),
         ]),
       )
       .orderBy((eb) => eb('a.answer', 'is', null), 'asc')

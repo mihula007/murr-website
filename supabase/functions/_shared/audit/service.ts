@@ -30,6 +30,9 @@ const DETAIL_KEYS = new Set([
   'starts_at',
   'template_id',
   'presets',
+  'visited',
+  'missed',
+  'unmarked',
 ])
 
 type DetailValue = string | number | boolean | null | string[]

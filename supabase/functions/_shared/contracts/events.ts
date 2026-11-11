@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { AttendanceStatus, EventGroup } from './groups.ts'
 import { pageRequestShape, type Page } from './paging.ts'
 
 /** Ограничения событий и шаблонов (EVT-03, EVT-11). */
@@ -115,6 +116,9 @@ export type UpdateEventRequest = z.input<typeof updateEventSchema>
 
 export const eventIdSchema = z.object({ id: z.guid('not_found') })
 
+export const closeEventSchema = eventIdSchema
+export type CloseEventRequest = z.input<typeof closeEventSchema>
+
 export const respondEventSchema = z.object({
   eventId: z.guid('not_found'),
   answer: z.enum(EVENT_ANSWERS, 'invalid'),
@@ -165,17 +169,31 @@ export type EventSummary = {
 
 export type EventParticipant = {
   id: string
+  /** У закрытого события — ник и класс на момент закрытия (ACT-03). */
   gameNickname: string
+  classId: number
   className: string
   avatarUrl: string | null
   /** null — «Без ответа». */
   answer: EventAnswer | null
+  /** Итог посещения; только у закрытого события. */
+  status: AttendanceStatus | null
 }
 
 export type EventDetails = EventSummary & {
+  /**
+   * Актуальное событие: текущий состав, ответившие и стоящие в группах;
+   * закрытое — участники итога закрытия (ACT-02).
+   */
   participants: EventParticipant[]
-  /** Участников больше порога малого списка: показана часть. */
+  /** Участников больше порога `MEMBER_LIST_LIMIT`: показана часть. */
   participantsTruncated: boolean
+  /** Группы по порядку создания, участники — по порядку в группе. */
+  groups: EventGroup[]
+  /** Офицер или администратор может менять группы (актуальное событие). */
+  canManageGroups: boolean
+  /** Текущий пользователь может закрыть событие (EVT-07, Q-47). */
+  canClose: boolean
 }
 
 export type EventListResponse = Page<EventSummary> & {

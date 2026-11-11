@@ -4,6 +4,7 @@ import type { AppDeps } from '../app.ts'
 import { auditPerson, writeAudit, type AuditPerson } from '../audit/service.ts'
 import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
 import {
+  closeEventSchema,
   createEventSchema,
   EVENT_LIMITS,
   eventIdSchema,
@@ -25,6 +26,7 @@ import {
   type EventType,
   type TemplateNextResponse,
 } from '../contracts/events.ts'
+import type { AttendanceStatus, EventGroup } from '../contracts/groups.ts'
 import {
   moscowToUtc,
   nextOccurrence,
@@ -38,6 +40,7 @@ import { decodeCursor, splitPage } from '../http/cursor.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
+import { groupRepository } from '../groups/repository.ts'
 import { eventRepository, type EventRow } from './repository.ts'
 
 /** Читают и отвечают члены, офицеры и администраторы (ACL, EVT-04). */
@@ -165,7 +168,73 @@ export async function listEvents(
   }
 }
 
-/** Карточка события с участниками: ник, класс, аватар и ответ (EVT-06). */
+/** Группы события по порядку с участниками по порядку (GRP-03, GRP-07). */
+export async function eventGroups(
+  db: Executor,
+  eventId: string,
+): Promise<EventGroup[]> {
+  const [groups, members] = await Promise.all([
+    groupRepository.groups(db, eventId),
+    groupRepository.members(db, eventId),
+  ])
+  return groups.map((group) => ({
+    id: group.id,
+    name: group.name,
+    members: members
+      .filter((member) => member.group_id === group.id)
+      .map((member) => ({
+        userId: member.user_id,
+        isLeader: member.is_leader,
+      })),
+  }))
+}
+
+type PersonRow = {
+  id: string
+  game_nickname: string
+  class_id: number
+  class_name: string
+  avatar_path: string | null
+  answer: string | null
+  status?: string
+}
+
+/**
+ * Участники события: у актуального — текущий состав, ответившие и стоящие
+ * в группах; у закрытого — итог закрытия с ником и классом на момент
+ * закрытия (ACT-02, ACT-03).
+ */
+async function loadPeople(deps: AppDeps, eventId: string, closed: boolean) {
+  const people: PersonRow[] = closed
+    ? await groupRepository.records(deps.db, eventId, MEMBER_LIST_LIMIT + 1)
+    : await eventRepository.participants(
+        deps.db,
+        eventId,
+        INTERNAL_ROLES,
+        MEMBER_LIST_LIMIT + 1,
+      )
+  const shown = people.slice(0, MEMBER_LIST_LIMIT)
+  const urls = await avatarUrls(
+    deps.storage,
+    shown.map((person) => person.avatar_path),
+  )
+  return {
+    participants: shown.map((person) => ({
+      id: person.id,
+      gameNickname: person.game_nickname,
+      classId: person.class_id,
+      className: person.class_name,
+      avatarUrl: person.avatar_path
+        ? (urls.get(person.avatar_path) ?? null)
+        : null,
+      answer: (person.answer as EventAnswer | null) ?? null,
+      status: (person.status as AttendanceStatus | undefined) ?? null,
+    })),
+    participantsTruncated: people.length > MEMBER_LIST_LIMIT,
+  }
+}
+
+/** Карточка события с участниками и группами (EVT-06, GRP). */
 async function loadEventDetails(
   deps: AppDeps,
   viewer: ProfiledActor,
@@ -175,32 +244,20 @@ async function loadEventDetails(
   if (!row) {
     throw new ApiError('not_found')
   }
-  const [[summary], people] = await Promise.all([
+  const closed = row.closed_at !== null
+  const [[summary], people, groups] = await Promise.all([
     summarize(deps, deps.db, [row], viewer),
-    eventRepository.participants(
-      deps.db,
-      id,
-      INTERNAL_ROLES,
-      MEMBER_LIST_LIMIT + 1,
-    ),
+    loadPeople(deps, id, closed),
+    eventGroups(deps.db, id),
   ])
-  const shown = people.slice(0, MEMBER_LIST_LIMIT)
-  const urls = await avatarUrls(
-    deps.storage,
-    shown.map((person) => person.avatar_path),
-  )
+  const role = viewer.profile.access_role
   return {
     ...summary!,
-    participants: shown.map((person) => ({
-      id: person.id,
-      gameNickname: person.game_nickname,
-      className: person.class_name,
-      avatarUrl: person.avatar_path
-        ? (urls.get(person.avatar_path) ?? null)
-        : null,
-      answer: (person.answer as EventAnswer | null) ?? null,
-    })),
-    participantsTruncated: people.length > MEMBER_LIST_LIMIT,
+    ...people,
+    groups,
+    canManageGroups:
+      !closed && (EVENT_MANAGERS as readonly string[]).includes(role),
+    canClose: !closed && canManageEvent(viewer, row),
   }
 }
 
@@ -263,7 +320,11 @@ export async function createEvent(
 }
 
 /** Незакрытое событие под блокировкой; иначе not_found / state_conflict. */
-async function lockOpen(tx: Executor, id: string, mode: 'share' | 'update') {
+export async function lockOpen(
+  tx: Executor,
+  id: string,
+  mode: 'share' | 'update',
+) {
   const event = await eventRepository.lock(tx, id, mode)
   if (!event) {
     throw new ApiError('not_found')
@@ -373,6 +434,47 @@ export async function respondToEvent(
   }
   const [summary] = await summarize(deps, deps.db, [row], viewer)
   return summary!
+}
+
+/**
+ * Закрытие события (EVT-08, ACT-01): одна транзакция — итог посещения
+ * каждого участника, отметка закрытия и аудит. Повторное закрытие —
+ * `state_conflict`, поэтому посещение не начисляется дважды. Права — как
+ * на правку (EVT-07, Q-47). Закрыть можно в любой момент, в том числе без
+ * групп (EVT-02).
+ */
+export async function closeEvent(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<EventDetails> {
+  const manager = requireRole(actor, EVENT_MANAGERS)
+  const { id } = parseBody(closeEventSchema, body)
+  await withTransaction(deps.db, async (tx) => {
+    const event = await lockManaged(tx, manager, id)
+    await groupRepository.writeRecords(tx, event.id, INTERNAL_ROLES)
+    await groupRepository.markClosed(tx, event.id, {
+      at: deps.now().toISOString(),
+      by: manager.userId,
+    })
+    const counts = await groupRepository.recordCounts(tx, event.id)
+    await writeAudit(tx, {
+      category: 'events',
+      action: 'event_closed',
+      summary: 'Закрытие события',
+      actor: auditPerson(manager),
+      target: eventTarget(event.id),
+      details: {
+        ...eventDetails(event.id, {
+          title: event.title,
+          eventType: event.event_type,
+          startsAt: parseTimestamp(event.starts_at).toISOString(),
+        }),
+        ...counts,
+      },
+    })
+  })
+  return loadEventDetails(deps, manager, id)
 }
 
 /** Сравнение секрета без раннего выхода по первому несовпадению. */

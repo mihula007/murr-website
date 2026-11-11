@@ -425,9 +425,11 @@ describe('answers (EVT-04, EVT-05, Q-43, Q-45)', () => {
     expect(Object.keys(card.participants[0]!).sort()).toEqual([
       'answer',
       'avatarUrl',
+      'classId',
       'className',
       'gameNickname',
       'id',
+      'status',
     ])
     expect(card.participantsTruncated).toBe(false)
   })

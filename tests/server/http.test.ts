@@ -78,6 +78,16 @@ describe('api function over HTTP', () => {
       'events/template-save',
       'events/template-delete',
       'events/template-next',
+      'events/close',
+      'groups/create',
+      'groups/rename',
+      'groups/delete',
+      'groups/move',
+      'groups/set-leader',
+      'group-templates/list',
+      'group-templates/save',
+      'group-templates/delete',
+      'group-templates/apply',
     ]) {
       expect(await call(route)).toEqual({
         status: 401,
