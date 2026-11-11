@@ -143,6 +143,7 @@ export type EventSummary = {
   id: string
   title: string
   type: EventType
+  description: string
   /** Момент начала, ISO UTC. */
   startsAt: string
   /** Дата и время начала по МСК. */
@@ -172,7 +173,6 @@ export type EventParticipant = {
 }
 
 export type EventDetails = EventSummary & {
-  description: string
   participants: EventParticipant[]
   /** Участников больше порога малого списка: показана часть. */
   participantsTruncated: boolean

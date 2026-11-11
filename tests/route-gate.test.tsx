@@ -18,9 +18,9 @@ describe('контроль доступа к маршрутам', () => {
   })
 
   it('член клана видит заглушку раздела', async () => {
-    await renderApp({ role: 'member', path: '/events' })
+    await renderApp({ role: 'member', path: '/publications' })
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Ивенты' }),
+      await screen.findByRole('heading', { level: 1, name: 'Публикации' }),
     ).toBeVisible()
     expect(screen.getByText('Раздел в разработке')).toBeVisible()
   })

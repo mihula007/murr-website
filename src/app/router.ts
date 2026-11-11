@@ -15,6 +15,12 @@ import { authRoutes } from '@/routes/auth'
 import { rosterRoute } from '@/routes/roster'
 import { sectionRoutes } from '@/routes/sections'
 import { createVoteRoute, voteRoute, votesRoute } from '@/routes/votes'
+import {
+  createEventRoute,
+  editEventRoute,
+  eventRoute,
+  eventsRoute,
+} from '@/routes/events'
 
 // Демо защиты от потери данных: условие по константе DEV вырезает маршрут
 // и его модуль из production-сборки.
@@ -41,6 +47,10 @@ export const routeTree = rootRoute.addChildren([
   votesRoute,
   createVoteRoute,
   voteRoute,
+  eventsRoute,
+  createEventRoute,
+  eventRoute,
+  editEventRoute,
   ...authRoutes,
   ...sectionRoutes,
   ...devRoutes,

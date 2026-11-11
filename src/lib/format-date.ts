@@ -1,3 +1,6 @@
+import { WEEKDAY_LABELS } from '@contracts/events'
+import { utcToMoscow } from '@contracts/moscow-time'
+
 /**
  * Единственное форматирование дат в интерфейсе: `ДД.ММ.ГГГГ` из ISO-даты
  * или метки времени (`2026-11-08`, `2026-11-08T10:00:00Z`). Без значения — «—».
@@ -9,4 +12,18 @@ export function formatDate(value: string | null | undefined) {
   }
   const [year, month, day] = value.slice(0, 10).split('-')
   return `${day}.${month}.${year}`
+}
+
+/**
+ * Дата и время события по Москве (Q-08, Q-44): `ДД.ММ.ГГГГ, ЧЧ:ММ МСК`.
+ * Перевод — общий модуль `@contracts/moscow-time`, пояс браузера не влияет.
+ */
+export function formatDateTimeMsk(iso: string) {
+  const msk = utcToMoscow(iso)
+  return `${formatDate(msk.date)}, ${msk.time} МСК`
+}
+
+/** День недели и время по Москве: `суббота, 20:00 МСК`. */
+export function formatWeekdayTimeMsk(weekday: number, time: string) {
+  return `${WEEKDAY_LABELS[weekday] ?? ''}, ${time} МСК`
 }

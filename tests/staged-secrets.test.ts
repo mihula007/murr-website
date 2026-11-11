@@ -40,35 +40,47 @@ afterEach(() => {
   }
 })
 
-it('rejects a staged secret even after the working copy is cleaned', () => {
-  const { directory, git } = createFixture()
-  const path = join(directory, 'credential-canary.txt')
-  const syntheticCredential = ['sb', 'secret', 'a'.repeat(32)].join('_')
-  writeFileSync(path, syntheticCredential)
-  git('add', 'credential-canary.txt')
-  writeFileSync(path, 'No secret in the working copy.\n')
+// git и сканер — отдельные процессы: в полном параллельном прогоне на
+// слабой машине они не укладываются в 5 секунд по умолчанию.
+const PROCESS_TIMEOUT = 20_000
 
-  const result = spawnSync(process.execPath, [script], {
-    cwd: directory,
-    encoding: 'utf8',
-  })
-  expect(result.status).toBe(1)
-  expect(result.stderr).toContain('Supabase secret key')
-  expect(result.stderr).not.toContain(syntheticCredential)
-})
+it(
+  'rejects a staged secret even after the working copy is cleaned',
+  () => {
+    const { directory, git } = createFixture()
+    const path = join(directory, 'credential-canary.txt')
+    const syntheticCredential = ['sb', 'secret', 'a'.repeat(32)].join('_')
+    writeFileSync(path, syntheticCredential)
+    git('add', 'credential-canary.txt')
+    writeFileSync(path, 'No secret in the working copy.\n')
 
-it('rejects a staged populated template even if the working template is empty', () => {
-  const { directory, git } = createFixture()
-  const path = join(directory, '.env.example')
-  writeFileSync(path, 'TELEGRAM_BOT_TOKEN=synthetic-private-value\n')
-  git('add', '.env.example')
-  writeFileSync(path, 'TELEGRAM_BOT_TOKEN=\n')
+    const result = spawnSync(process.execPath, [script], {
+      cwd: directory,
+      encoding: 'utf8',
+    })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('Supabase secret key')
+    expect(result.stderr).not.toContain(syntheticCredential)
+  },
+  PROCESS_TIMEOUT,
+)
 
-  const result = spawnSync(process.execPath, [script], {
-    cwd: directory,
-    encoding: 'utf8',
-  })
-  expect(result.status).toBe(1)
-  expect(result.stderr).toContain('TELEGRAM_BOT_TOKEN')
-  expect(result.stderr).not.toContain('synthetic-private-value')
-})
+it(
+  'rejects a staged populated template even if the working template is empty',
+  () => {
+    const { directory, git } = createFixture()
+    const path = join(directory, '.env.example')
+    writeFileSync(path, 'TELEGRAM_BOT_TOKEN=synthetic-private-value\n')
+    git('add', '.env.example')
+    writeFileSync(path, 'TELEGRAM_BOT_TOKEN=\n')
+
+    const result = spawnSync(process.execPath, [script], {
+      cwd: directory,
+      encoding: 'utf8',
+    })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('TELEGRAM_BOT_TOKEN')
+    expect(result.stderr).not.toContain('synthetic-private-value')
+  },
+  PROCESS_TIMEOUT,
+)

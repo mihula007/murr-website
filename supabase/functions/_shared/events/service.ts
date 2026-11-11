@@ -113,6 +113,7 @@ async function summarize(
       id: row.id,
       title: row.title,
       type: row.event_type as EventType,
+      description: row.description,
       startsAt: startsAt.toISOString(),
       dateMsk: msk.date,
       timeMsk: msk.time,
@@ -190,7 +191,6 @@ async function loadEventDetails(
   )
   return {
     ...summary!,
-    description: row.description,
     participants: shown.map((person) => ({
       id: person.id,
       gameNickname: person.game_nickname,

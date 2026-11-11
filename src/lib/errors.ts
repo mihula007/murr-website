@@ -35,6 +35,7 @@ export type FieldErrorCode =
   | 'too_few'
   | 'duplicate'
   | 'locked'
+  | 'invalid'
   | 'invalid_date'
   | 'invalid_url'
   | 'nickname_taken'
@@ -110,6 +111,7 @@ const MESSAGES: Record<ClientErrorCode | FieldErrorCode, string> = {
   too_few: 'Слишком мало значений',
   duplicate: 'Такое значение уже есть',
   locked: 'Это поле нельзя изменить',
+  invalid: 'Проверьте значение',
   invalid_date: 'Укажите корректную дату',
   invalid_url: 'Нужна ссылка, начинающаяся с http:// или https://',
   nickname_taken: 'Этот ник уже занят',
