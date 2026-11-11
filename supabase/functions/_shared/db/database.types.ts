@@ -137,6 +137,143 @@ export type Database = {
         }
         Relationships: []
       }
+      event_attendance: {
+        Row: {
+          answer: string
+          answered_at: string
+          event_id: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          answer: string
+          answered_at?: string
+          event_id: string
+          user_id: string
+        }
+        Update: {
+          answer?: string
+          answered_at?: string
+          event_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'event_attendance_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'event_attendance_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      event_templates: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string
+          event_type: string
+          id: string
+          time_msk: string
+          title: string
+          weekday: number
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by: string
+          description: string
+          event_type: string
+          id?: string
+          time_msk: string
+          title: string
+          weekday: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string
+          event_type?: string
+          id?: string
+          time_msk?: string
+          title?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'event_templates_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      events: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          event_type: string
+          id: string
+          recurring_preset: string | null
+          starts_at: string
+          title: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          description: string
+          event_type: string
+          id?: string
+          recurring_preset?: string | null
+          starts_at: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          event_type?: string
+          id?: string
+          recurring_preset?: string | null
+          starts_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'events_closed_by_fkey'
+            columns: ['closed_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'events_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       join_applications: {
         Row: {
           applicant_id: string
