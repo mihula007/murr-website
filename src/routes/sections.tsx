@@ -18,4 +18,9 @@ function createSectionRoute<const TSection extends NavSectionConfig>(
   })
 }
 
-export const sectionRoutes = NAV_SECTIONS.map(createSectionRoute)
+/** Разделы, у которых уже есть свои маршруты; остальные — заглушки. */
+const IMPLEMENTED: readonly string[] = ['applications']
+
+export const sectionRoutes = NAV_SECTIONS.filter(
+  (section) => !IMPLEMENTED.includes(section.id),
+).map(createSectionRoute)

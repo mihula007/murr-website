@@ -8,7 +8,8 @@ import {
 import { RouteError } from '@/components/states/route-error'
 import { rootRoute } from '@/routes/root'
 import { indexRoute } from '@/routes/index'
-import { accountRoute } from '@/routes/account'
+import { accountRoute, resubmitRoute } from '@/routes/account'
+import { applicationRoute, applicationsRoute } from '@/routes/applications'
 import { authRoutes } from '@/routes/auth'
 import { sectionRoutes } from '@/routes/sections'
 
@@ -29,6 +30,9 @@ const devRoutes = import.meta.env.DEV
 export const routeTree = rootRoute.addChildren([
   indexRoute,
   accountRoute,
+  resubmitRoute,
+  applicationsRoute,
+  applicationRoute,
   ...authRoutes,
   ...sectionRoutes,
   ...devRoutes,

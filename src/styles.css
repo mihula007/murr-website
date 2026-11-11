@@ -53,6 +53,8 @@
   --tag-foreground: #e0c17a;
   --notice-border: #806a44;
   --notice-foreground: #e4d5b4;
+  --success-border: #466b55;
+  --success-foreground: #9bd4ac;
   --input-background: #0d0c0a;
   --input-hover: #a88a51;
   --placeholder: #a99d89;
@@ -136,6 +138,8 @@
   --color-tag-foreground: var(--tag-foreground);
   --color-notice-border: var(--notice-border);
   --color-notice-foreground: var(--notice-foreground);
+  --color-success-border: var(--success-border);
+  --color-success-foreground: var(--success-foreground);
   --color-input-background: var(--input-background);
   --color-input-hover: var(--input-hover);
   --color-placeholder: var(--placeholder);

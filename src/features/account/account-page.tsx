@@ -7,7 +7,8 @@ import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Badge, Card, Notice } from '@/components/ui/surfaces'
+import { Badge, Card } from '@/components/ui/surfaces'
+import { ApplicantPath } from '@/features/applications/applicant-path'
 import { useSignOut } from '@/features/auth/use-sign-out'
 import { clearDraft } from '@/features/registration/registration-draft'
 import { formatDate } from '@/lib/format-date'
@@ -33,10 +34,6 @@ function Dashboard({ me }: { me: ReadyMe }) {
         ? APPLICATION_STATUS[application.status].label
         : 'Аккаунт создан'
       : ROLE_STATUS[profile.role]
-  const notice =
-    profile.role === 'applicant' && application
-      ? APPLICATION_STATUS[application.status].notice
-      : null
 
   // Сначала уходим на главную: иначе кабинет сам перенаправит гостя ко входу (ACC-12).
   const signOut = useSignOut(async () => {
@@ -151,7 +148,13 @@ function Dashboard({ me }: { me: ReadyMe }) {
           ) : null}
         </details>
 
-        {notice ? <Notice>{notice}</Notice> : null}
+        {profile.role === 'applicant' ? (
+          <ApplicantPath
+            application={application}
+            canResubmit={me.canResubmit}
+            className="bg-none p-4"
+          />
+        ) : null}
         <Button
           type="button"
           variant="secondary"
