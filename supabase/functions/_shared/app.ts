@@ -37,6 +37,15 @@ import {
   updateEvent,
 } from './events/service.ts'
 import {
+  activityEvent,
+  activityEvents,
+  activityHistory,
+  activityMember,
+  activitySummary,
+  attendanceRating,
+  monthTop,
+} from './activity/service.ts'
+import {
   applyGroupTemplate,
   createGroup,
   deleteGroup,
@@ -139,6 +148,13 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       deleteGroupTemplate(deps, actor, body),
     'group-templates/apply': ({ actor, body }) =>
       applyGroupTemplate(deps, actor, body),
+    'activity/summary': ({ actor, body }) => activitySummary(deps, actor, body),
+    'activity/history': ({ actor, body }) => activityHistory(deps, actor, body),
+    'activity/events': ({ actor, body }) => activityEvents(deps, actor, body),
+    'activity/event': ({ actor, body }) => activityEvent(deps, actor, body),
+    'activity/member': ({ actor, body }) => activityMember(deps, actor, body),
+    'activity/rating': ({ actor }) => attendanceRating(deps, actor),
+    'activity/month-top': ({ actor }) => monthTop(deps, actor),
     'roster/count': () => countRoster(deps),
     'roster/stats': ({ actor }) => rosterStats(deps, actor),
     'roster/list': ({ actor }) => listRoster(deps, actor),
