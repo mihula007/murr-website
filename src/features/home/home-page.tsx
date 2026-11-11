@@ -14,14 +14,17 @@ function MembersStat() {
   const count = useRosterCount()
   if (count.isError) return null
   return (
-    <div className="mt-7 grid max-w-[220px] gap-0.5 rounded-xl border border-border bg-surface-inset/80 px-4 py-3">
+    <section
+      aria-label="Численность клана"
+      className="mt-7 grid max-w-[220px] gap-0.5 rounded-xl border border-border bg-surface-inset/80 px-4 py-3"
+    >
       <strong className="text-2xl text-primary" aria-live="polite">
         {count.data ?? '—'}
       </strong>
       <span className="text-xs text-muted-foreground">
         {count.data === undefined ? 'участников' : membersLabel(count.data)}
       </span>
-    </div>
+    </section>
   )
 }
 

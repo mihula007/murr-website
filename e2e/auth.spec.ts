@@ -74,7 +74,10 @@ test('регистрация с кодом из письма создаёт за
   await enterCode(page, email, sentAt)
   await expect(page).toHaveURL(/#\/$/, { timeout: 30_000 })
   await expect(
-    page.getByText('Заявка отправлена', { exact: false }),
+    page.getByText('Заявка отправлена. Статус виден в личном кабинете.'),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Заявка отправлена' }),
   ).toBeVisible()
 
   await page.goto('./#/account')
