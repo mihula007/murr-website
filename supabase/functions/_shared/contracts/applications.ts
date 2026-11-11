@@ -4,16 +4,18 @@ import {
   LIMITS,
   type ApplicationStatus,
 } from './account.ts'
-
-/** Размер страницы вкладки «Решённые». */
-export const APPLICATION_PAGE_SIZE = 20
+import { pageRequestShape, type Page } from './paging.ts'
 
 export const APPLICATION_TABS = ['new', 'decided'] as const
 export type ApplicationTab = (typeof APPLICATION_TABS)[number]
 
+/**
+ * «Новые» — малый список (≤ 50 по ответу владельца), отдаётся целиком,
+ * курсор не используется. «Решённые» — большой, страницы по курсору.
+ */
 export const listApplicationsSchema = z.object({
   tab: z.enum(APPLICATION_TABS),
-  page: z.number().int().min(0).default(0),
+  ...pageRequestShape,
 })
 export type ListApplicationsRequest = z.input<typeof listApplicationsSchema>
 
@@ -55,12 +57,14 @@ export type ApplicationListItem = {
   applicant: ApplicantSummary
 }
 
-export type ApplicationListResponse = {
-  items: ApplicationListItem[]
-  page: number
-  hasMore: boolean
+export type ApplicationListResponse = Page<ApplicationListItem> & {
   /** Число новых заявок для счётчика вкладки. */
   newCount: number
+  /**
+   * «Новые»: заявок больше порога малого списка, показаны самые старые.
+   * Список не обрезается молча — интерфейс сообщает об этом.
+   */
+  truncated: boolean
 }
 
 /**

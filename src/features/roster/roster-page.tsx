@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { UserRoundX } from 'lucide-react'
-import type { RosterListResponse, RosterMember } from '@contracts/roster'
+import { z } from 'zod'
+import type { RosterMember, RosterStatsResponse } from '@contracts/roster'
 import { ROLE_LABELS, useAccess } from '@/app/access'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 import { EmptyState } from '@/components/states/empty-state'
@@ -11,20 +13,36 @@ import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { Badge, Card } from '@/components/ui/surfaces'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
+import {
+  pagingOf,
+  useGridColumns,
+  VirtualList,
+} from '@/components/virtual-list'
 import { useSetRole } from '@/features/admin/api'
 import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
-import { useRoster } from './api'
+import { useRoster, useRosterStats } from './api'
 import { ReadersPanel } from './readers-panel'
 
 const ALL = 'all'
 
 /**
+ * Параметры адреса состава: фильтр класса и вкладка. Чтецы — отдельная
+ * вкладка: состав догружается бесконечно, и список под ним был бы недоступен.
+ */
+export const rosterSearchSchema = z.object({
+  classId: z.number().int().positive().optional().catch(undefined),
+  view: z.enum(['members', 'readers']).catch('members'),
+})
+export type RosterSearch = z.output<typeof rosterSearchSchema>
+
+/**
  * Общая численность и распределение по классам (ROS-05). Как в прототипе,
  * показываются только классы с участниками; фильтр предлагает весь справочник.
  */
-function StatsPanel({ roster }: { roster: RosterListResponse }) {
+function StatsPanel({ roster }: { roster: RosterStatsResponse }) {
   return (
     <section
       aria-labelledby="roster-stats-title"
@@ -80,124 +98,157 @@ type MemberCardProps = {
 
 function MemberCard({ member, onBlock }: MemberCardProps) {
   return (
-    <li>
-      <Card className="flex h-full flex-col gap-4 p-[18px]">
-        <div className="flex min-w-0 items-center gap-3.5">
-          <Avatar
-            size="sm"
-            name={member.gameNickname}
-            src={member.avatarUrl}
-            alt=""
-          />
-          <div className="grid min-w-0 gap-1">
-            <h3 className="text-xl leading-tight font-bold break-words">
-              {member.gameNickname}
-            </h3>
-            <span className="inline-flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
-              <ClassIcon
-                classId={member.classId}
-                className={member.className}
-              />
-              {member.className}
-            </span>
-          </div>
+    <Card className="flex h-full flex-col gap-4 p-[18px]">
+      <div className="flex min-w-0 items-center gap-3.5">
+        <Avatar
+          size="sm"
+          name={member.gameNickname}
+          src={member.avatarUrl}
+          alt=""
+        />
+        <div className="grid min-w-0 gap-1">
+          <h3 className="text-xl leading-tight font-bold break-words">
+            {member.gameNickname}
+          </h3>
+          <span className="inline-flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+            <ClassIcon classId={member.classId} className={member.className} />
+            {member.className}
+          </span>
         </div>
-        {member.role !== 'member' || onBlock ? (
-          <div className="mt-auto flex flex-wrap items-end justify-between gap-2">
-            {onBlock ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={onBlock}
-              >
-                <UserRoundX size={14} aria-hidden="true" /> Присвоить статус
-                «Чтец»
-              </Button>
-            ) : null}
-            {member.role !== 'member' ? (
-              <Badge className="ml-auto">{ROLE_LABELS[member.role]}</Badge>
-            ) : null}
-          </div>
-        ) : null}
-      </Card>
-    </li>
+      </div>
+      {member.role !== 'member' || onBlock ? (
+        <div className="mt-auto flex flex-wrap items-end justify-between gap-2">
+          {onBlock ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onBlock}
+            >
+              <UserRoundX size={14} aria-hidden="true" /> Присвоить статус
+              «Чтец»
+            </Button>
+          ) : null}
+          {member.role !== 'member' ? (
+            <Badge className="ml-auto">{ROLE_LABELS[member.role]}</Badge>
+          ) : null}
+        </div>
+      ) : null}
+    </Card>
+  )
+}
+
+/** Сетка карточек: 1 / 2 / 3 колонки, как классы строки ниже. */
+const GRID_COLUMNS = { base: 1, sm: 2, lg: 3 }
+const gridRowClass = 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+
+function MembersList({
+  classId,
+  isAdmin,
+  userId,
+  onBlock,
+}: {
+  classId: number | null
+  isAdmin: boolean
+  userId: string | undefined
+  onBlock: (member: RosterMember) => void
+}) {
+  const roster = useRoster(classId)
+  const columns = useGridColumns(GRID_COLUMNS)
+  if (roster.isPending) {
+    return <LoadingState label="Загружаем состав…" />
+  }
+  if (roster.isError) {
+    return <ErrorState onRetry={() => void roster.refetch()} />
+  }
+  if (roster.data.length === 0) {
+    return (
+      <EmptyState
+        title="Никого нет"
+        description={
+          classId === null
+            ? 'В составе пока нет участников.'
+            : 'В составе нет участников этого класса.'
+        }
+      />
+    )
+  }
+  return (
+    <VirtualList
+      label="Участники"
+      items={roster.data}
+      getKey={(member) => member.id}
+      estimateSize={130}
+      columns={columns}
+      gap="md"
+      gridClassName={gridRowClass}
+      paging={pagingOf(roster)}
+      renderItem={(member) => (
+        <MemberCard
+          member={member}
+          onBlock={
+            isAdmin && member.role === 'member' && member.id !== userId
+              ? () => onBlock(member)
+              : undefined
+          }
+        />
+      )}
+    />
   )
 }
 
 /** Состав клана для внутренних ролей (ROS-01–09, ACL-09). */
-export function RosterPage() {
+export function RosterPage({
+  classId,
+  view = 'members',
+}: Partial<RosterSearch>) {
   const { role } = useAccess()
   const userId = useSession().session?.user.id
-  const roster = useRoster()
+  const navigate = useNavigate()
+  const stats = useRosterStats()
   const setRole = useSetRole()
-  const [classFilter, setClassFilter] = useState(ALL)
   const [blocking, setBlocking] = useState<RosterMember | null>(null)
   const isAdmin = role === 'admin'
   const canRestore = role === 'officer' || role === 'admin'
+  const showReaders = canRestore && view === 'readers'
+  const go = (search: RosterSearch) =>
+    void navigate({ to: '/roster', search, replace: true })
 
-  let content
-  if (roster.isPending) {
-    content = <LoadingState label="Загружаем состав…" />
-  } else if (roster.isError) {
-    content = <ErrorState onRetry={() => void roster.refetch()} />
+  let filters
+  if (stats.isPending) {
+    filters = <LoadingState label="Загружаем статистику…" rows={1} />
+  } else if (stats.isError) {
+    filters = <ErrorState onRetry={() => void stats.refetch()} />
   } else {
-    const members = roster.data.members.filter(
-      (member) => classFilter === ALL || String(member.classId) === classFilter,
-    )
-    content = (
-      <>
-        <div className="mb-[18px] grid grid-cols-[minmax(260px,.68fr)_minmax(0,1.32fr)] items-end gap-6 max-[900px]:grid-cols-1 max-[900px]:gap-3.5">
-          <div className="grid gap-2">
-            <label
-              htmlFor="roster-class"
-              className="text-sm text-muted-foreground"
-            >
-              Класс
-            </label>
-            <Select
-              id="roster-class"
-              value={classFilter}
-              onValueChange={setClassFilter}
-              options={[
-                { value: ALL, label: 'Все классы' },
-                ...roster.data.classes.map((item) => ({
-                  value: String(item.classId),
-                  label: item.className,
-                })),
-              ]}
-            />
-          </div>
-          <StatsPanel roster={roster.data} />
-        </div>
-        {members.length === 0 ? (
-          <EmptyState
-            title="Никого нет"
-            description={
-              classFilter === ALL
-                ? 'В составе пока нет участников.'
-                : 'В составе нет участников этого класса.'
-            }
-          />
-        ) : (
-          <ul
-            aria-label="Участники"
-            className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3"
+    filters = (
+      <div className="mb-[18px] grid grid-cols-[minmax(260px,.68fr)_minmax(0,1.32fr)] items-end gap-6 max-[900px]:grid-cols-1 max-[900px]:gap-3.5">
+        <div className="grid gap-2">
+          <label
+            htmlFor="roster-class"
+            className="text-sm text-muted-foreground"
           >
-            {members.map((member) => (
-              <MemberCard
-                key={member.id}
-                member={member}
-                onBlock={
-                  isAdmin && member.role === 'member' && member.id !== userId
-                    ? () => setBlocking(member)
-                    : undefined
-                }
-              />
-            ))}
-          </ul>
-        )}
-      </>
+            Класс
+          </label>
+          <Select
+            id="roster-class"
+            value={classId === undefined ? ALL : String(classId)}
+            onValueChange={(value) =>
+              go({
+                view: 'members',
+                classId: value === ALL ? undefined : Number(value),
+              })
+            }
+            options={[
+              { value: ALL, label: 'Все классы' },
+              ...stats.data.classes.map((item) => ({
+                value: String(item.classId),
+                label: item.className,
+              })),
+            ]}
+          />
+        </div>
+        <StatsPanel roster={stats.data} />
+      </div>
     )
   }
 
@@ -208,8 +259,32 @@ export function RosterPage() {
         title="Состав"
         description="Текущие участники клана: члены, офицеры и администраторы."
       />
-      {content}
-      {canRestore ? <ReadersPanel /> : null}
+      {canRestore ? (
+        <Tabs
+          value={showReaders ? 'readers' : 'members'}
+          onValueChange={(value) =>
+            go({ view: value === 'readers' ? 'readers' : 'members', classId })
+          }
+        >
+          <TabsList aria-label="Состав" className="mb-4">
+            <TabsTrigger value="members">Участники</TabsTrigger>
+            <TabsTrigger value="readers">Чтецы</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      ) : null}
+      {showReaders ? (
+        <ReadersPanel />
+      ) : (
+        <>
+          {filters}
+          <MembersList
+            classId={classId ?? null}
+            isAdmin={isAdmin}
+            userId={userId}
+            onBlock={setBlocking}
+          />
+        </>
+      )}
       <ConfirmActionDialog
         open={blocking !== null}
         onOpenChange={(open) => {

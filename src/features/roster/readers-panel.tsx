@@ -7,6 +7,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/surfaces'
 import { toast } from '@/components/ui/toaster'
+import { pagingOf, VirtualList } from '@/components/virtual-list'
 import { ClassIcon } from '@/features/catalog/class-icon'
 import { useReaders, useRestoreReader } from './api'
 
@@ -25,12 +26,14 @@ export function ReadersPanel() {
     content = <p className="text-muted-foreground">Чтецов нет.</p>
   } else {
     content = (
-      <ul aria-label="Чтецы" className="m-0 grid list-none gap-2 p-0">
-        {readers.data.map((reader) => (
-          <li
-            key={reader.id}
-            className="flex min-w-0 flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-inset p-3 max-xs:grid max-xs:grid-cols-1"
-          >
+      <VirtualList
+        label="Чтецы"
+        items={readers.data}
+        getKey={(reader) => reader.id}
+        estimateSize={66}
+        paging={pagingOf(readers)}
+        renderItem={(reader) => (
+          <div className="flex min-w-0 flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-inset p-3 max-xs:grid max-xs:grid-cols-1">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <Avatar
                 size="sm"
@@ -58,14 +61,14 @@ export function ReadersPanel() {
             >
               Восстановить в клане
             </Button>
-          </li>
-        ))}
-      </ul>
+          </div>
+        )}
+      />
     )
   }
 
   return (
-    <Card className="mt-6 grid gap-3">
+    <Card className="grid gap-3">
       <div className="grid gap-1">
         <h2 className="text-xl font-bold">Чтецы</h2>
         <p className="text-sm text-muted-foreground">

@@ -1,5 +1,15 @@
 import type { Executor } from '../db/client.ts'
 
+/** Ключ сортировки карточек: ник и `id` (последний ключ — для однозначности). */
+export type NicknameKey = { gameNickname: string; id: string }
+
+export type CardPageOptions = {
+  roles: readonly string[]
+  classId: number | null
+  after: NicknameKey | null
+  limit: number
+}
+
 export const rosterRepository = {
   async countByRoles(db: Executor, roles: readonly string[]) {
     const row = await db
@@ -10,9 +20,13 @@ export const rosterRepository = {
     return Number(row.count)
   },
 
-  /** Карточки с ролью из списка, по нику; без закрытых полей профиля. */
-  listByRoles(db: Executor, roles: readonly string[]) {
-    return db
+  /**
+   * Страница карточек с ролью из списка, по нику; без закрытых полей
+   * профиля. Keyset: строки после `(ник, id)` курсора, `limit` с запасом
+   * на признак следующей страницы задаёт сервис.
+   */
+  listByRoles(db: Executor, options: CardPageOptions) {
+    let query = db
       .selectFrom('app.profiles as p')
       .innerJoin('app.character_classes as c', 'c.id', 'p.class_id')
       .select([
@@ -23,9 +37,24 @@ export const rosterRepository = {
         'p.avatar_path',
         'p.access_role',
       ])
-      .where('p.access_role', 'in', roles)
+      .where('p.access_role', 'in', options.roles)
+    if (options.classId !== null) {
+      query = query.where('p.class_id', '=', options.classId)
+    }
+    if (options.after) {
+      const { gameNickname, id } = options.after
+      query = query.where((eb) =>
+        eb(
+          eb.refTuple('p.game_nickname', 'p.id'),
+          '>',
+          eb.tuple(gameNickname, id),
+        ),
+      )
+    }
+    return query
       .orderBy('p.game_nickname')
       .orderBy('p.id')
+      .limit(options.limit)
       .execute()
   },
 

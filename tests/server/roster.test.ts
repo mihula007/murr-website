@@ -8,6 +8,7 @@ import {
   countRoster,
   listReaders,
   listRoster,
+  rosterStats,
 } from '../../supabase/functions/_shared/roster/service.ts'
 import {
   actorOf,
@@ -68,12 +69,12 @@ describe('roster/count', () => {
 
 describe('roster/list', () => {
   it('rejects a guest, a user without a profile, applicants and readers (ACL-09)', async () => {
-    await rejects(listRoster(deps, GUEST), 'not_authenticated')
+    await rejects(listRoster(deps, GUEST, {}), 'not_authenticated')
     const incomplete = await actorOf(db, (await createAuthUser()).id)
-    await rejects(listRoster(deps, incomplete), 'registration_incomplete')
+    await rejects(listRoster(deps, incomplete, {}), 'registration_incomplete')
     for (const role of ['applicant', 'reader'] as const) {
       await rejects(
-        listRoster(deps, (await roleActor(role)).actor),
+        listRoster(deps, (await roleActor(role)).actor, {}),
         'forbidden',
       )
     }
@@ -94,17 +95,18 @@ describe('roster/list', () => {
     const { user: admin, actor } = await roleActor('admin')
     await setProfile(admin.id, { game_nickname: 'mid' })
 
-    const roster = await listRoster(deps, actor)
-    expect(roster.members.map((member) => member.gameNickname)).toEqual([
+    const roster = await listRoster(deps, actor, {})
+    expect(roster.items.map((member) => member.gameNickname)).toEqual([
       'amy',
       'mid',
       'zed',
     ])
-    expect(roster.total).toBe(3)
-    for (const member of roster.members) {
+    expect(roster.nextCursor).toBeNull()
+    expect((await rosterStats(deps, actor)).total).toBe(3)
+    for (const member of roster.items) {
       expect(Object.keys(member).sort()).toEqual(CARD_KEYS)
     }
-    expect(roster.members.map((member) => member.role)).toEqual([
+    expect(roster.items.map((member) => member.role)).toEqual([
       'officer',
       'admin',
       'member',
@@ -122,7 +124,7 @@ describe('roster/list', () => {
       .where('is_active', '=', true)
       .execute()
 
-    const { classes } = await listRoster(deps, actor)
+    const { classes } = await rosterStats(deps, actor)
     expect(classes).toHaveLength(active.length)
     const counts = Object.fromEntries(classes.map((c) => [c.classId, c.count]))
     expect(counts[1]).toBe(1)
@@ -130,11 +132,58 @@ describe('roster/list', () => {
     expect(classes.reduce((sum, c) => sum + c.count, 0)).toBe(2)
   })
 
+  it('pages by cursor without gaps or repeats and filters by class on the server', async () => {
+    const { user: admin, actor } = await roleActor('admin')
+    await setProfile(admin.id, { game_nickname: 'a0' })
+    for (const [index, classId] of [1, 2, 1, 2, 1].entries()) {
+      const user = await createProfiledUser(db, 'member')
+      await setProfile(user.id, {
+        game_nickname: `m${index}`,
+        class_id: classId,
+      })
+    }
+    // Чтец не попадает в состав ни на одной странице.
+    await createProfiledUser(db, 'reader')
+
+    const seen: string[] = []
+    let cursor: string | null = null
+    do {
+      const page: Awaited<ReturnType<typeof listRoster>> = await listRoster(
+        deps,
+        actor,
+        { cursor, limit: 2 },
+      )
+      expect(page.items.length).toBeLessThanOrEqual(2)
+      seen.push(...page.items.map((member) => member.gameNickname))
+      cursor = page.nextCursor
+    } while (cursor)
+    expect(seen).toEqual(['a0', 'm0', 'm1', 'm2', 'm3', 'm4'])
+
+    const mages = await listRoster(deps, actor, { classId: 2 })
+    expect(mages.items.map((member) => member.gameNickname)).toEqual([
+      'm1',
+      'm3',
+    ])
+    // Статистика — по всему составу, независимо от фильтра.
+    expect((await rosterStats(deps, actor)).total).toBe(6)
+  })
+
+  it('rejects a damaged cursor and an oversized page', async () => {
+    const { actor } = await roleActor('member')
+    for (const body of [
+      { cursor: 'not-a-cursor' },
+      { cursor: btoa('["x"]') },
+      { limit: 1000 },
+    ]) {
+      await rejects(listRoster(deps, actor, body), 'validation_failed')
+    }
+  })
+
   it('signs avatar links for roster cards', async () => {
     const { user, actor } = await roleActor('member')
     const path = await uploadAvatar(deps, user.id)
     await setProfile(user.id, { avatar_path: path })
-    const [card] = (await listRoster(deps, actor)).members
+    const [card] = (await listRoster(deps, actor, {})).items
     expect(card?.avatarUrl).toContain('/storage/v1/object/sign/avatars/')
   })
 })
@@ -149,10 +198,14 @@ describe('roster/readers', () => {
       (await roleActor('member')).actor,
     ]
     for (const actor of denied) {
-      await rejects(listReaders(deps, actor), 'forbidden')
+      await rejects(listReaders(deps, actor, {}), 'forbidden')
     }
     for (const role of ['officer', 'admin'] as const) {
-      const { readers } = await listReaders(deps, (await roleActor(role)).actor)
+      const { items: readers } = await listReaders(
+        deps,
+        (await roleActor(role)).actor,
+        {},
+      )
       // Два чтеца: созданный выше и тот, кто проверял отказ.
       expect(readers.map((r) => r.role)).toEqual(['reader', 'reader'])
       expect(readers.map((r) => r.id)).toContain(reader.id)

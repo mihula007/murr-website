@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import type {
   RestoreReaderRequest,
   RoleChangeResult,
@@ -7,6 +12,7 @@ import type {
   RosterCountResponse,
   RosterListResponse,
   RosterReadersResponse,
+  RosterStatsResponse,
 } from '@contracts/roster'
 import { callApi } from '@/lib/supabase/api'
 import { accountKeys } from '@/features/admin/query-keys'
@@ -22,18 +28,38 @@ export function useRosterCount() {
   })
 }
 
-export function useRoster() {
+/** Численность и распределение по классам — считает сервер (ROS-05). */
+export function useRosterStats() {
   return useQuery({
-    queryKey: rosterKeys.list,
-    queryFn: () => callApi<RosterListResponse>('roster/list'),
+    queryKey: rosterKeys.stats,
+    queryFn: () => callApi<RosterStatsResponse>('roster/stats'),
   })
 }
 
+/** Состав — большой список: страницы по курсору, фильтр класса на сервере. */
+export function useRoster(classId: number | null) {
+  return useInfiniteQuery({
+    queryKey: rosterKeys.list(classId),
+    queryFn: ({ pageParam }) =>
+      callApi<RosterListResponse>('roster/list', {
+        classId,
+        cursor: pageParam,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+    select: (data) => data.pages.flatMap((page) => page.items),
+  })
+}
+
+/** Чтецы — большой список: страницы по курсору. */
 export function useReaders() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: rosterKeys.readers,
-    queryFn: () => callApi<RosterReadersResponse>('roster/readers'),
-    select: (data) => data.readers,
+    queryFn: ({ pageParam }) =>
+      callApi<RosterReadersResponse>('roster/readers', { cursor: pageParam }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+    select: (data) => data.pages.flatMap((page) => page.items),
   })
 }
 

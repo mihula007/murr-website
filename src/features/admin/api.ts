@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+  type InfiniteData,
+} from '@tanstack/react-query'
 import type {
   AccountsListResponse,
   RoleChangeResult,
@@ -10,11 +15,15 @@ import { rosterKeys } from '@/features/roster/query-keys'
 import { callApi } from '@/lib/supabase/api'
 import { accountKeys } from './query-keys'
 
+/** Аккаунты — большой список: страницы по курсору; поиск (этап 11) — на сервере. */
 export function useAccounts() {
-  return useQuery({
-    queryKey: accountKeys.all,
-    queryFn: () => callApi<AccountsListResponse>('accounts/list'),
-    select: (data) => data.accounts,
+  return useInfiniteQuery({
+    queryKey: accountKeys.list,
+    queryFn: ({ pageParam }) =>
+      callApi<AccountsListResponse>('accounts/list', { cursor: pageParam }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+    select: (data) => data.pages.flatMap((page) => page.items),
   })
 }
 
@@ -30,15 +39,19 @@ export function useSetRole() {
     mutationFn: (input: SetRoleRequest) =>
       callApi<RoleChangeResult>('accounts/set-role', input),
     onSuccess: async (result) => {
-      queryClient.setQueryData<AccountsListResponse>(
-        accountKeys.all,
+      queryClient.setQueryData<InfiniteData<AccountsListResponse>>(
+        accountKeys.list,
         (data) =>
           data && {
-            accounts: data.accounts.map((account) =>
-              account.id === result.userId
-                ? { ...account, role: result.role, joinedOn: result.joinedOn }
-                : account,
-            ),
+            ...data,
+            pages: data.pages.map((page) => ({
+              ...page,
+              items: page.items.map((account) =>
+                account.id === result.userId
+                  ? { ...account, role: result.role, joinedOn: result.joinedOn }
+                  : account,
+              ),
+            })),
           },
       )
       await Promise.all([

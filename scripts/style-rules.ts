@@ -34,6 +34,34 @@ const TOP_LEVEL_ALLOWED = [
   /^@theme(?:\s+inline)?$/,
   /^@layer\s+base$/,
 ]
+/**
+ * Единственное исключение для `style` (решение владельца 11.11.2026):
+ * геометрия виртуализированных списков вычисляется во время работы и
+ * передаётся CSS-переменными `--virtual-*` только из этого файла.
+ */
+export const VIRTUAL_GEOMETRY_FILE = 'src/components/virtual-list.tsx'
+const VIRTUAL_VARIABLE = /^--virtual-[a-z-]+$/
+
+/** `style={{ '--virtual-…': … }}` (возможно, с `as CSSProperties`). */
+function isVirtualGeometryStyle(attribute: AstNode) {
+  let expression = child(child(attribute, 'value'), 'expression')
+  while (expression?.type === 'TSAsExpression') {
+    expression = child(expression, 'expression')
+  }
+  if (expression?.type !== 'ObjectExpression') {
+    return false
+  }
+  const properties = children(expression, 'properties')
+  return (
+    properties.length > 0 &&
+    properties.every(
+      (property) =>
+        property.type === 'Property' &&
+        VIRTUAL_VARIABLE.test(keyName(child(property, 'key')) ?? ''),
+    )
+  )
+}
+
 const CLASS_HELPERS = new Set(['cn', 'clsx', 'cx', 'twMerge'])
 const CLASS_VARIABLE = /class(?:es|name|names)?$/i
 const CLASS_PROPERTY = /^class(?:Name|Names)?$/
@@ -243,7 +271,10 @@ export function inspectComponentSource(
   walk(program, (node) => {
     if (node.type === 'JSXAttribute') {
       const name = keyName(child(node, 'name'))
-      if (name === 'style') {
+      if (
+        name === 'style' &&
+        !(file === VIRTUAL_GEOMETRY_FILE && isVirtualGeometryStyle(node))
+      ) {
         findings.push(
           `${file}:${lineAt(source, node.start)}: inline-стиль — используйте утилиты Tailwind`,
         )

@@ -88,9 +88,9 @@ describe('application queue', () => {
             applicant: details().applicant,
           },
         ],
-        page: 0,
-        hasMore: false,
+        nextCursor: null,
         newCount: 1,
+        truncated: false,
       }),
     })
     await renderApp({ role: 'officer', path: '/applications' })
@@ -100,9 +100,63 @@ describe('application queue', () => {
     expect(
       within(screen.getByRole('tab', { name: /Новые/ })).getByText('1'),
     ).toBeVisible()
+    expect(callApi).toHaveBeenCalledWith('applications/list', { tab: 'new' })
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('says when the new queue is longer than the small-list limit', async () => {
+    respond({
+      'applications/list': () => ({
+        items: [
+          {
+            id: APPLICATION_ID,
+            status: 'pending_officer_review',
+            submittedAt: '2026-11-10T10:00:00Z',
+            decidedAt: null,
+            applicant: details().applicant,
+          },
+        ],
+        nextCursor: null,
+        newCount: 51,
+        truncated: true,
+      }),
+    })
+    await renderApp({ role: 'officer', path: '/applications' })
+    expect(
+      await screen.findByText(/Показаны 50 самых старых заявок/),
+    ).toBeVisible()
+  })
+
+  it('loads decided applications page by page with the cursor', async () => {
+    const item = (id: string, nickname: string) => ({
+      id,
+      status: 'officer_rejected',
+      submittedAt: '2026-11-01T10:00:00Z',
+      decidedAt: '2026-11-02T10:00:00Z',
+      applicant: { ...details().applicant, gameNickname: nickname },
+    })
+    respond({
+      'applications/list': (body) =>
+        (body as { cursor: string | null }).cursor === 'next'
+          ? {
+              items: [item('b', 'Второй')],
+              nextCursor: null,
+              newCount: 0,
+              truncated: false,
+            }
+          : {
+              items: [item('a', 'Первый')],
+              nextCursor: 'next',
+              newCount: 0,
+              truncated: false,
+            },
+    })
+    await renderApp({ role: 'admin', path: '/applications?tab=decided' })
+    expect(await screen.findByRole('link', { name: /Второй/ })).toBeVisible()
+    expect(screen.getByRole('link', { name: /Первый/ })).toBeVisible()
     expect(callApi).toHaveBeenCalledWith('applications/list', {
-      tab: 'new',
-      page: 0,
+      tab: 'decided',
+      cursor: 'next',
     })
   })
 
@@ -110,9 +164,9 @@ describe('application queue', () => {
     respond({
       'applications/list': () => ({
         items: [],
-        page: 0,
-        hasMore: false,
+        nextCursor: null,
         newCount: 0,
+        truncated: false,
       }),
     })
     await renderApp({ role: 'admin', path: '/applications?tab=decided' })
@@ -168,9 +222,9 @@ describe('application card', () => {
         }),
       'applications/list': () => ({
         items: [],
-        page: 0,
-        hasMore: false,
+        nextCursor: null,
         newCount: 0,
+        truncated: false,
       }),
     })
     await renderApp({

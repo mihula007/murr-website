@@ -11,6 +11,13 @@ import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/surfaces'
 import { toast } from '@/components/ui/toaster'
+import {
+  LoadMore,
+  useMediaQuery,
+  useWindowList,
+  VirtualSpacerRow,
+  type Paging,
+} from '@/components/virtual-list'
 import { useSession } from '@/features/auth/session'
 import { formatDate } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
@@ -108,9 +115,38 @@ const MOBILE_CELL: Record<string, { cell: string; label: string }> = {
 const tableClass =
   'w-full border-collapse text-left text-[13px] max-[900px]:block [&_td]:border-b [&_td]:border-border [&_td]:px-2 [&_td]:py-3 [&_td]:align-middle [&_th]:border-b [&_th]:border-border [&_th]:px-2 [&_th]:py-3 [&_th]:font-semibold [&_th]:text-muted-foreground max-[900px]:[&_tbody]:grid max-[900px]:[&_tbody]:gap-2.5 max-[900px]:[&_thead]:hidden max-[900px]:[&_tr]:grid max-[900px]:[&_tr]:grid-cols-2 max-[900px]:[&_tr]:gap-x-4 max-[900px]:[&_tr]:gap-y-2.5 max-[900px]:[&_tr]:rounded-xl max-[900px]:[&_tr]:border max-[900px]:[&_tr]:border-border max-[900px]:[&_tr]:bg-surface-inset max-[900px]:[&_tr]:p-3.5 max-[900px]:[&_td]:grid max-[900px]:[&_td]:gap-1 max-[900px]:[&_td]:border-0 max-[900px]:[&_td]:p-0'
 
-/** Таблица аккаунтов с выбором роли и подтверждением (ADM-04–06, ADM-08). */
-export function AccountsTable({ accounts }: { accounts: AccountListItem[] }) {
+/** Промежуток между карточками строк на узком экране (`gap-2.5`), px. */
+const NARROW_GAP = 10
+
+/**
+ * Таблица аккаунтов с выбором роли и подтверждением (ADM-04–06, ADM-08).
+ * Большой список: страницы по курсору, строки виртуализированы.
+ */
+export function AccountsTable({
+  accounts,
+  paging,
+}: {
+  accounts: AccountListItem[]
+  paging: Paging
+}) {
   const table = useTable({ features, columns, data: accounts })
+  const rows = table.getRowModel().rows
+  const narrow = useMediaQuery('(max-width: 900px)')
+  const {
+    setListElement,
+    items: virtualItems,
+    measureElement,
+    before,
+    after,
+  } = useWindowList({
+    count: rows.length,
+    estimateSize: narrow ? 210 : 64,
+    gap: narrow ? NARROW_GAP : 0,
+    getItemKey: (index) => rows[index]?.id ?? String(index),
+    paging,
+  })
+  // Отступ-строка в сетке узкого экрана сама добавляет промежуток.
+  const spacer = (height: number) => (narrow ? height - NARROW_GAP : height)
   const setRole = useSetRole()
   const userId = useSession().session?.user.id
   const [change, setChange] = useState<RoleChange | null>(null)
@@ -133,26 +169,38 @@ export function AccountsTable({ accounts }: { accounts: AccountListItem[] }) {
             </tr>
           ))}
         </thead>
-        <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr key={row.id}>
-              {row.getAllCells().map((cell) => (
-                <td key={cell.id} className={MOBILE_CELL[cell.column.id]?.cell}>
-                  <span
-                    className={cn(
-                      'hidden text-xs text-muted-foreground max-[900px]:block',
-                      MOBILE_CELL[cell.column.id]?.label,
-                    )}
+        <tbody ref={setListElement}>
+          <VirtualSpacerRow height={spacer(before)} colSpan={columns.length} />
+          {virtualItems.map((item) => {
+            const row = rows[item.index]
+            if (!row) {
+              return null
+            }
+            return (
+              <tr key={row.id} data-index={item.index} ref={measureElement}>
+                {row.getAllCells().map((cell) => (
+                  <td
+                    key={cell.id}
+                    className={MOBILE_CELL[cell.column.id]?.cell}
                   >
-                    {String(cell.column.columnDef.header)}
-                  </span>
-                  <table.FlexRender cell={cell} />
-                </td>
-              ))}
-            </tr>
-          ))}
+                    <span
+                      className={cn(
+                        'hidden text-xs text-muted-foreground max-[900px]:block',
+                        MOBILE_CELL[cell.column.id]?.label,
+                      )}
+                    >
+                      {String(cell.column.columnDef.header)}
+                    </span>
+                    <table.FlexRender cell={cell} />
+                  </td>
+                ))}
+              </tr>
+            )
+          })}
+          <VirtualSpacerRow height={spacer(after)} colSpan={columns.length} />
         </tbody>
       </table>
+      <LoadMore paging={paging} />
       <ConfirmActionDialog
         open={change !== null}
         onOpenChange={(open) => {

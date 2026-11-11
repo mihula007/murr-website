@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 
 /** Совпадает с `ACTIVITY_KEY` в `src/app/splash/splash-timing.ts`. */
 export const ACTIVITY_KEY = 'murr-last-activity'
@@ -8,6 +8,23 @@ export async function skipSplash(page: Page) {
   await page.addInitScript((key) => {
     localStorage.setItem(key, String(Date.now()))
   }, ACTIVITY_KEY)
+}
+
+/**
+ * Большие списки догружаются при прокрутке и рисуют только видимые строки:
+ * прокручивает окно, пока элемент не появится, как это сделал бы человек.
+ */
+export async function scrollUntilVisible(page: Page, target: Locator) {
+  for (let step = 0; step < 60; step += 1) {
+    if ((await target.count()) > 0) {
+      await target.first().scrollIntoViewIfNeeded()
+      await expect(target.first()).toBeVisible()
+      return
+    }
+    await page.evaluate(() => window.scrollBy(0, window.innerHeight))
+    await page.waitForTimeout(150)
+  }
+  throw new Error('Элемент не найден в списке после прокрутки')
 }
 
 export async function hasHorizontalScroll(page: Page) {

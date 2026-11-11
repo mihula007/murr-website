@@ -1,5 +1,10 @@
 import { expect, test, type Browser } from '@playwright/test'
-import { expectInternalMenu, hasHorizontalScroll, skipSplash } from './helpers'
+import {
+  expectInternalMenu,
+  hasHorizontalScroll,
+  scrollUntilVisible,
+  skipSplash,
+} from './helpers'
 import {
   accessToken,
   auditActions,
@@ -49,17 +54,21 @@ test('E2E-06: блокировка в чтеца и восстановление
     .getByRole('list', { name: 'Участники' })
     .getByRole('listitem')
     .filter({ has: adminPage.getByRole('heading', { name: member.nickname }) })
+  // Состав — большой список: карточка может быть на следующих страницах.
+  await scrollUntilVisible(adminPage, card)
   await card.getByRole('button', { name: 'Присвоить статус «Чтец»' }).click()
   const blockDialog = adminPage.getByRole('alertdialog')
   await blockDialog.getByRole('button', { name: 'Присвоить «Чтец»' }).click()
   await expect(blockDialog).toBeHidden()
   await expect(card).toHaveCount(0)
-  await expect(
+  await adminPage.getByRole('tab', { name: 'Чтецы' }).click()
+  await scrollUntilVisible(
+    adminPage,
     adminPage
       .getByRole('list', { name: 'Чтецы' })
       .getByRole('listitem')
       .filter({ hasText: member.nickname }),
-  ).toBeVisible()
+  )
   await adminPage.context().close()
 
   // Чтец: права гостя, но вход, профиль и смена пароля остаются (ACL-06).
@@ -84,24 +93,31 @@ test('E2E-06: блокировка в чтеца и восстановление
   await expect(page.getByText('Пароль изменён')).toBeVisible()
   expect(await hasHorizontalScroll(page)).toBe(false)
 
-  // Офицер восстанавливает чтеца из блока «Чтецы» (ACL-06, ADM-09).
+  // Офицер восстанавливает чтеца на вкладке «Чтецы» (ACL-06, ADM-09).
   const officerPage = await signedInPage(browser, officer.email)
   await officerPage.goto('./#/roster')
   await expect(
+    officerPage.getByRole('list', { name: 'Участники' }),
+  ).toBeVisible()
+  await expect(
     officerPage.getByRole('button', { name: 'Присвоить статус «Чтец»' }),
   ).toHaveCount(0)
+  await officerPage.getByRole('tab', { name: 'Чтецы' }).click()
   const reader = officerPage
     .getByRole('list', { name: 'Чтецы' })
     .getByRole('listitem')
     .filter({ hasText: member.nickname })
+  await scrollUntilVisible(officerPage, reader)
   await reader.getByRole('button', { name: 'Восстановить в клане' }).click()
   const restoreDialog = officerPage.getByRole('alertdialog')
   await restoreDialog.getByRole('button', { name: 'Восстановить' }).click()
   await expect(restoreDialog).toBeHidden()
   await expect(reader).toHaveCount(0)
-  await expect(
+  await officerPage.getByRole('tab', { name: 'Участники' }).click()
+  await scrollUntilVisible(
+    officerPage,
     officerPage.getByRole('heading', { name: member.nickname }),
-  ).toBeVisible()
+  )
   await officerPage.context().close()
 
   await page.reload()

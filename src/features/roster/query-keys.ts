@@ -2,6 +2,8 @@
 export const rosterKeys = {
   all: ['roster'] as const,
   count: ['roster', 'count'] as const,
-  list: ['roster', 'list'] as const,
+  stats: ['roster', 'stats'] as const,
+  /** Страницы состава с фильтром класса (`null` — все классы). */
+  list: (classId: number | null) => ['roster', 'list', classId] as const,
   readers: ['roster', 'readers'] as const,
 }

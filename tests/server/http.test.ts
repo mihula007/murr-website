@@ -52,6 +52,7 @@ describe('api function over HTTP', () => {
       'applications/get',
       'applications/decide',
       'applications/resubmit',
+      'roster/stats',
       'roster/list',
       'roster/readers',
       'accounts/list',

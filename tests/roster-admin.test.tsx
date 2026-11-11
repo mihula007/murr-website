@@ -54,12 +54,24 @@ function member(
   }
 }
 
-const ROSTER = {
-  members: [
-    member('m1', 'Альфа', 1, 'officer'),
-    member('m2', 'Бета', 7),
-    member('m3', 'Гамма', 7, 'admin'),
-  ],
+const MEMBERS = [
+  member('m1', 'Альфа', 1, 'officer'),
+  member('m2', 'Бета', 7),
+  member('m3', 'Гамма', 7, 'admin'),
+]
+
+/** Сервер фильтрует по классу; без курсора — первая и единственная страница. */
+function rosterPage(members: RosterMember[]) {
+  return (body: unknown) => {
+    const { classId } = body as { classId: number | null }
+    return {
+      items: members.filter((m) => classId === null || m.classId === classId),
+      nextCursor: null,
+    }
+  }
+}
+
+const STATS = {
   total: 3,
   classes: [
     { classId: 1, className: 'Оборотень', count: 1 },
@@ -68,14 +80,18 @@ const ROSTER = {
   ],
 }
 
-const READERS = { readers: [member('r1', 'Чтец1', 8, 'reader')] }
+const READERS = {
+  items: [member('r1', 'Чтец1', 8, 'reader')],
+  nextCursor: null,
+}
 
 let routes: Record<string, Handler>
 beforeEach(() => {
   callApi.mockReset()
   routes = {
     'catalog/classes': () => CLASSES,
-    'roster/list': () => ROSTER,
+    'roster/stats': () => STATS,
+    'roster/list': rosterPage(MEMBERS),
     'roster/readers': () => READERS,
     'roster/count': () => ({ count: 3 }),
   }
@@ -85,6 +101,12 @@ beforeEach(() => {
 function chooseOption(trigger: HTMLElement, option: string) {
   fireEvent.keyDown(trigger, { key: 'ArrowDown' })
   fireEvent.click(screen.getByRole('option', { name: option }))
+}
+
+async function openReaders() {
+  const tab = await screen.findByRole('tab', { name: 'Чтецы' })
+  fireEvent.mouseDown(tab)
+  fireEvent.click(tab)
 }
 
 const cards = () =>
@@ -103,10 +125,16 @@ describe('roster page', () => {
     expect(cards()).toHaveLength(3)
 
     chooseOption(screen.getByRole('combobox', { name: 'Класс' }), 'Маг')
-    expect(cards().map((card) => card.textContent)).toEqual([
-      expect.stringContaining('Бета'),
-      expect.stringContaining('Гамма'),
-    ])
+    await waitFor(() =>
+      expect(cards().map((card) => card.textContent)).toEqual([
+        expect.stringContaining('Бета'),
+        expect.stringContaining('Гамма'),
+      ]),
+    )
+    expect(callApi).toHaveBeenCalledWith('roster/list', {
+      classId: 7,
+      cursor: null,
+    })
     // Статистика не зависит от фильтра.
     expect(screen.getByText('3')).toBeVisible()
 
@@ -122,8 +150,11 @@ describe('roster page', () => {
     expect(
       screen.queryByRole('button', { name: /Присвоить статус/ }),
     ).toBeNull()
-    expect(screen.queryByRole('heading', { name: 'Чтецы' })).toBeNull()
-    expect(callApi).not.toHaveBeenCalledWith('roster/readers', {})
+    expect(screen.queryByRole('tab', { name: 'Чтецы' })).toBeNull()
+    expect(callApi).not.toHaveBeenCalledWith(
+      'roster/readers',
+      expect.anything(),
+    )
   })
 
   it('lets an officer restore a reader but not block (ACL-03, ADM-09)', async () => {
@@ -138,6 +169,7 @@ describe('roster page', () => {
       screen.queryByRole('button', { name: /Присвоить статус/ }),
     ).toBeNull()
 
+    await openReaders()
     fireEvent.click(
       await screen.findByRole('button', { name: 'Восстановить в клане' }),
     )
@@ -191,14 +223,38 @@ describe('roster page', () => {
       expect(await screen.findByText('Нет доступа')).toBeVisible()
       unmount()
     }
-    expect(callApi).not.toHaveBeenCalledWith('roster/list', {})
+    expect(callApi).not.toHaveBeenCalledWith('roster/list', expect.anything())
+  })
+
+  it('loads the next roster page with the cursor', async () => {
+    routes['roster/list'] = (body) =>
+      (body as { cursor: string | null }).cursor === 'page-2'
+        ? { items: [member('m9', 'Омега', 8)], nextCursor: null }
+        : { items: MEMBERS, nextCursor: 'page-2' }
+    await renderApp({ role: 'member', path: '/roster' })
+    expect(await screen.findByRole('heading', { name: 'Омега' })).toBeVisible()
+    expect(cards()).toHaveLength(4)
+    expect(callApi).toHaveBeenCalledWith('roster/list', {
+      classId: null,
+      cursor: 'page-2',
+    })
+  })
+
+  it('opens the readers tab from the address for an officer', async () => {
+    await renderApp({ role: 'officer', path: '/roster?view=readers' })
+    expect(
+      within(await screen.findByRole('list', { name: 'Чтецы' })).getByText(
+        'Чтец1',
+        { selector: 'strong' },
+      ),
+    ).toBeVisible()
+    expect(callApi).not.toHaveBeenCalledWith('roster/list', expect.anything())
   })
 
   it('shows the class name when the class icon is unknown (ROS-09)', async () => {
-    routes['roster/list'] = () => ({
-      ...ROSTER,
-      members: [{ ...member('x', 'Дельта', 99), className: 'Новый класс' }],
-    })
+    routes['roster/list'] = rosterPage([
+      { ...member('x', 'Дельта', 99), className: 'Новый класс' },
+    ])
     await renderApp({ role: 'member', path: '/roster' })
     const card = (
       await screen.findByRole('heading', { name: 'Дельта' })
@@ -254,7 +310,8 @@ function account(
 describe('admin accounts', () => {
   beforeEach(() => {
     routes['accounts/list'] = () => ({
-      accounts: [
+      nextCursor: null,
+      items: [
         account('a1', 'Глава', 'admin', { isPrimaryAdmin: true }),
         account('a2', 'Зам', 'admin'),
         account('c1', 'Кандидат', 'applicant', { hasActiveApplication: true }),

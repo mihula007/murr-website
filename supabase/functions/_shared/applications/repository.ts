@@ -21,12 +21,17 @@ export const DECIDED_STATUSES = [
 /** Уникальный частичный индекс активной заявки (миграция этапа 3). */
 export const ONE_ACTIVE_CONSTRAINT = 'join_applications_one_active'
 
-export type QueueOptions = {
-  statuses: readonly string[]
-  order: 'oldest_submitted' | 'latest_decided'
-  limit: number
-  offset: number
-}
+/** Ключ сортировки решённых заявок: время решения и `id`, по убыванию. */
+export type DecidedKey = { decidedAt: string; id: string }
+
+export type QueueOptions =
+  | { order: 'oldest_submitted'; statuses: readonly string[]; limit: number }
+  | {
+      order: 'latest_decided'
+      statuses: readonly string[]
+      after: DecidedKey | null
+      limit: number
+    }
 
 export const applicationRepository = {
   latestForApplicant(db: Executor, applicantId: string) {
@@ -97,15 +102,23 @@ export const applicationRepository = {
         'p.avatar_path',
       ])
       .where('a.status', 'in', options.statuses)
-    query =
-      options.order === 'oldest_submitted'
-        ? query.orderBy('a.submitted_at', 'asc')
-        : query.orderBy('a.decided_at', 'desc')
-    return query
-      .orderBy('a.id')
-      .limit(options.limit)
-      .offset(options.offset)
-      .execute()
+    if (options.order === 'oldest_submitted') {
+      query = query.orderBy('a.submitted_at', 'asc').orderBy('a.id')
+    } else {
+      const { after } = options
+      if (after) {
+        // Keyset по убыванию: строки строго «раньше» последней показанной.
+        query = query.where((eb) =>
+          eb(
+            eb.refTuple('a.decided_at', 'a.id'),
+            '<',
+            eb.tuple(after.decidedAt, after.id),
+          ),
+        )
+      }
+      query = query.orderBy('a.decided_at', 'desc').orderBy('a.id', 'desc')
+    }
+    return query.limit(options.limit).execute()
   },
 
   /** Заявка со всеми полями кандидата; набор для ответа выбирает сервис. */

@@ -74,6 +74,30 @@ export async function sql<T>(
   }
 }
 
+/**
+ * Много участников одним запросом — фикстура для больших списков (больше
+ * одной страницы). Пользователи Auth без пароля: войти ими нельзя.
+ */
+export async function seedMembers(count: number, prefix: string) {
+  return sql(
+    (db) => db<{ nickname: string }[]>`
+      with users as (
+        insert into auth.users (id, instance_id, aud, role, email)
+        select gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
+          'authenticated', 'authenticated',
+          ${prefix} || n || '-' || substr(md5(random()::text), 1, 8) || '@example.test'
+        from generate_series(1, ${count}) as n
+        returning id
+      )
+      insert into app.profiles
+        (id, display_name, game_nickname, class_id, access_role)
+      select id, 'Тест', ${prefix} || substr(md5(random()::text), 1, 9 - ${prefix.length}),
+        1, 'member'
+      from users
+      returning game_nickname as nickname`,
+  )
+}
+
 /** Подтверждённый пользователь с профилем роли — фикстура в обход регистрации. */
 export async function createMember(role: string) {
   const { API_URL, SERVICE_ROLE_KEY } = localStack()

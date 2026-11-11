@@ -60,15 +60,32 @@ async function audit() {
 
 describe('accounts/list', () => {
   it('is available only to admins', async () => {
-    await rejects(listAccounts(deps, GUEST), 'not_authenticated')
+    await rejects(listAccounts(deps, GUEST, {}), 'not_authenticated')
     const incomplete = await actorOf(db, (await createAuthUser()).id)
-    await rejects(listAccounts(deps, incomplete), 'registration_incomplete')
+    await rejects(listAccounts(deps, incomplete, {}), 'registration_incomplete')
     for (const role of ['applicant', 'reader', 'member', 'officer'] as const) {
       await rejects(
-        listAccounts(deps, (await roleActor(role)).actor),
+        listAccounts(deps, (await roleActor(role)).actor, {}),
         'forbidden',
       )
     }
+  })
+
+  it('pages accounts by nickname with a cursor', async () => {
+    const { user: admin, actor } = await roleActor('admin')
+    await setProfile(admin.id, { game_nickname: 'c' })
+    for (const nickname of ['a', 'e', 'b', 'd']) {
+      const user = await createProfiledUser(db, 'applicant')
+      await setProfile(user.id, { game_nickname: nickname })
+    }
+    const first = await listAccounts(deps, actor, { limit: 3 })
+    expect(first.items.map((a) => a.gameNickname)).toEqual(['a', 'b', 'c'])
+    const second = await listAccounts(deps, actor, {
+      cursor: first.nextCursor,
+      limit: 3,
+    })
+    expect(second.items.map((a) => a.gameNickname)).toEqual(['d', 'e'])
+    expect(second.nextCursor).toBeNull()
   })
 
   it('lists every profile with email, role and protection flags', async () => {
@@ -81,8 +98,9 @@ describe('accounts/list', () => {
     await applicationRepository.create(db, applicant.id, [])
     await createProfiledUser(db, 'reader')
 
-    const { accounts } = await listAccounts(deps, actor)
+    const { items: accounts, nextCursor } = await listAccounts(deps, actor, {})
     expect(accounts).toHaveLength(3)
+    expect(nextCursor).toBeNull()
     expect(accounts.find((a) => a.id === admin.id)).toEqual({
       id: admin.id,
       gameNickname: admin.nickname,
@@ -124,7 +142,7 @@ describe('accounts/set-role', () => {
     const { user: admin, actor } = await roleActor('admin')
     const { user: member, actor: memberBefore } = await roleActor('member')
     await setProfile(member.id, { joined_on: '2026-02-03' })
-    await listRoster(deps, memberBefore)
+    await listRoster(deps, memberBefore, {})
 
     const result = await setRole(deps, actor, {
       userId: member.id,
@@ -152,7 +170,10 @@ describe('accounts/set-role', () => {
         },
       },
     ])
-    await rejects(listRoster(deps, await actorOf(db, member.id)), 'forbidden')
+    await rejects(
+      listRoster(deps, await actorOf(db, member.id), {}),
+      'forbidden',
+    )
   })
 
   it('changes roles between internal roles without touching the join date', async () => {
@@ -297,7 +318,7 @@ describe('accounts/restore-reader', () => {
           role: 'member',
         },
       })
-      await listRoster(deps, await actorOf(db, reader.id))
+      await listRoster(deps, await actorOf(db, reader.id), {})
     }
   })
 

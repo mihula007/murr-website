@@ -6,6 +6,7 @@ import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
 import { userRepository } from '../auth/repository.ts'
 import type { AccessRole } from '../contracts/account.ts'
 import {
+  accountsListSchema,
   restoreReaderSchema,
   setRoleSchema,
   type AccountsListResponse,
@@ -13,23 +14,35 @@ import {
 } from '../contracts/accounts.ts'
 import { withTransaction, type Executor } from '../db/client.ts'
 import type { ProfileRow } from '../db/schema.ts'
+import { decodeCursor, splitPage } from '../http/cursor.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { joinedOnAfterRoleChange, moscowDate } from '../membership.ts'
+import { nicknameCursor, nicknameKey } from '../roster/cursor.ts'
 import { accountRepository } from './repository.ts'
 
 /** Восстанавливают чтеца офицер и администратор (ACL-06, ADM-09). */
 const READER_KEEPERS = ['officer', 'admin'] as const
 
-/** Таблица аккаунтов администратора, без поиска (этап 11). */
+/** Страница таблицы аккаунтов администратора; поиск — этап 11, на сервере. */
 export async function listAccounts(
   deps: AppDeps,
   actor: Actor,
+  body: unknown,
 ): Promise<AccountsListResponse> {
   requireRole(actor, ['admin'])
-  const rows = await accountRepository.listAll(deps.db)
+  const { cursor, limit } = parseBody(accountsListSchema, body ?? {})
+  const rows = await accountRepository.listPage(
+    deps.db,
+    cursor ? decodeCursor(nicknameCursor, cursor) : null,
+    limit + 1,
+  )
+  const page = splitPage(rows, limit, (row) =>
+    nicknameKey(row.game_nickname, row.id),
+  )
   return {
-    accounts: rows.map((row) => ({
+    nextCursor: page.nextCursor,
+    items: page.rows.map((row) => ({
       id: row.id,
       gameNickname: row.game_nickname,
       displayName: row.display_name,

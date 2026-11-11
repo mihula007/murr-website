@@ -8,6 +8,7 @@ import {
   inspectCandidates,
   inspectComponentSource,
   inspectStylesheet,
+  VIRTUAL_GEOMETRY_FILE,
   type DesignSystemLike,
 } from '../scripts/style-rules.ts'
 
@@ -152,5 +153,24 @@ describe('классы в компонентах', () => {
     expect(check(`<div style={{ color: 'red' }} />`)).toEqual([
       expect.stringContaining('inline-стиль'),
     ])
+  })
+
+  it('разрешает только переменные --virtual-* в файле виртуализации', () => {
+    const inspect = (source: string, file: string) =>
+      inspectComponentSource(source, file).findings
+    const geometry = `<div style={{ '--virtual-before': top } as CSSProperties} />`
+    expect(inspect(geometry, VIRTUAL_GEOMETRY_FILE)).toEqual([])
+    expect(inspect(geometry, 'src/components/other.tsx')).toEqual([
+      expect.stringContaining('inline-стиль'),
+    ])
+    for (const source of [
+      `<div style={{ '--virtual-before': top, color: 'red' }} />`,
+      `<div style={{ '--brand': top }} />`,
+      `<div style={styles} />`,
+    ]) {
+      expect(inspect(source, VIRTUAL_GEOMETRY_FILE)).toEqual([
+        expect.stringContaining('inline-стиль'),
+      ])
+    }
   })
 })

@@ -10,8 +10,8 @@ import type {
   ApplicationStatus,
   MeResponse,
 } from '../contracts/account.ts'
+import { z } from 'zod'
 import {
-  APPLICATION_PAGE_SIZE,
   applicationIdSchema,
   decideApplicationSchema,
   listApplicationsSchema,
@@ -19,8 +19,10 @@ import {
   type ApplicationDetails,
   type ApplicationListResponse,
 } from '../contracts/applications.ts'
+import { SMALL_LIST_LIMIT } from '../contracts/paging.ts'
 import { withTransaction, type Executor } from '../db/client.ts'
 import { isUniqueViolation } from '../db/errors.ts'
+import { decodeCursor, splitPage } from '../http/cursor.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { joinedOnAfterRoleChange, moscowDate } from '../membership.ts'
@@ -30,6 +32,11 @@ import {
   DECIDED_STATUSES,
   ONE_ACTIVE_CONSTRAINT,
 } from './repository.ts'
+
+/** Курсор решённых заявок: `[decided_at, id]`. */
+const decidedCursor = z
+  .tuple([z.string().min(1).max(64), z.guid()])
+  .transform(([decidedAt, id]) => ({ decidedAt, id }))
 
 /** Рассматривают заявки офицеры и администраторы (APP-03, ACL). */
 const REVIEWERS = ['officer', 'admin'] as const
@@ -65,19 +72,31 @@ export async function listApplications(
   body: unknown,
 ): Promise<ApplicationListResponse> {
   requireRole(actor, REVIEWERS)
-  const { tab, page } = parseBody(listApplicationsSchema, body)
+  const { tab, cursor, limit } = parseBody(listApplicationsSchema, body)
   const isNew = tab === 'new'
+  // «Новые» — малый список: целиком, но не больше порога; «Решённые» —
+  // большой, страницы по курсору `(decided_at, id)`.
+  const pageLimit = isNew ? SMALL_LIST_LIMIT : limit
   const [rows, newCount] = await Promise.all([
-    applicationRepository.listQueue(deps.db, {
-      statuses: isNew ? [NEW_STATUS] : DECIDED_STATUSES,
-      order: isNew ? 'oldest_submitted' : 'latest_decided',
-      // Новые показываются целиком; решённые — постранично.
-      limit: isNew ? 1000 : APPLICATION_PAGE_SIZE + 1,
-      offset: isNew ? 0 : page * APPLICATION_PAGE_SIZE,
-    }),
+    applicationRepository.listQueue(
+      deps.db,
+      isNew
+        ? {
+            order: 'oldest_submitted',
+            statuses: [NEW_STATUS],
+            limit: pageLimit + 1,
+          }
+        : {
+            order: 'latest_decided',
+            statuses: DECIDED_STATUSES,
+            after: cursor ? decodeCursor(decidedCursor, cursor) : null,
+            limit: pageLimit + 1,
+          },
+    ),
     applicationRepository.countByStatus(deps.db, NEW_STATUS),
   ])
-  const visible = isNew ? rows : rows.slice(0, APPLICATION_PAGE_SIZE)
+  const page = splitPage(rows, pageLimit, (row) => [row.decided_at, row.id])
+  const visible = page.rows
   const urls = await avatarUrls(
     deps.storage,
     visible.map((row) => row.avatar_path),
@@ -96,9 +115,9 @@ export async function listApplications(
         avatarUrl: row.avatar_path ? (urls.get(row.avatar_path) ?? null) : null,
       },
     })),
-    page: isNew ? 0 : page,
-    hasMore: !isNew && rows.length > APPLICATION_PAGE_SIZE,
+    nextCursor: isNew ? null : page.nextCursor,
     newCount,
+    truncated: isNew && rows.length > pageLimit,
   }
 }
 

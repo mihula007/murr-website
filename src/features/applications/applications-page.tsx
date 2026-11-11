@@ -10,18 +10,18 @@ import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
 import { Avatar } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
 import { NavBadge } from '@/components/ui/nav-badge'
 import { Badge } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { pagingOf, VirtualList } from '@/components/virtual-list'
 import { APPLICATION_STATUS } from '@/features/account/status-labels'
+import { SMALL_LIST_LIMIT } from '@contracts/paging'
 import { formatDate } from '@/lib/format-date'
-import { useApplicationList } from './api'
+import { useDecidedApplications, useNewApplications } from './api'
 
-/** Параметры адреса очереди: неизвестные значения дают первую страницу «Новых». */
+/** Параметры адреса очереди: неизвестная вкладка — «Новые». */
 export const applicationsSearchSchema = z.object({
   tab: z.enum(APPLICATION_TABS).catch('new'),
-  page: z.number().int().min(0).catch(0),
 })
 export type ApplicationsSearch = z.output<typeof applicationsSearchSchema>
 
@@ -29,81 +29,123 @@ export type ApplicationsSearch = z.output<typeof applicationsSearchSchema>
 function QueueCard({ item }: { item: ApplicationListItem }) {
   const { applicant } = item
   return (
-    <li>
-      <Link
-        to="/applications/$id"
-        params={{ id: item.id }}
-        className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-surface-inset p-3.5 no-underline transition-colors hover:border-border-accent focus-visible:border-ring focus-visible:outline-none"
-      >
-        <Avatar
-          size="sm"
-          name={applicant.gameNickname}
-          src={applicant.avatarUrl}
-          alt=""
-        />
-        <span className="grid min-w-0 flex-1 gap-0.5">
-          <strong className="break-words text-foreground">
-            {applicant.gameNickname}
-          </strong>
-          <small className="text-muted-foreground">
-            {applicant.className} · подана {formatDate(item.submittedAt)}
-            {item.decidedAt ? ` · решение ${formatDate(item.decidedAt)}` : ''}
-          </small>
-        </span>
-        {item.status !== 'pending_officer_review' ? (
-          <Badge className="max-sm:hidden">
-            {APPLICATION_STATUS[item.status].label}
-          </Badge>
-        ) : null}
-        <ChevronRight
-          size={18}
-          aria-hidden="true"
-          className="flex-none text-muted-foreground"
-        />
-      </Link>
-    </li>
+    <Link
+      to="/applications/$id"
+      params={{ id: item.id }}
+      className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-surface-inset p-3.5 no-underline transition-colors hover:border-border-accent focus-visible:border-ring focus-visible:outline-none"
+    >
+      <Avatar
+        size="sm"
+        name={applicant.gameNickname}
+        src={applicant.avatarUrl}
+        alt=""
+      />
+      <span className="grid min-w-0 flex-1 gap-0.5">
+        <strong className="break-words text-foreground">
+          {applicant.gameNickname}
+        </strong>
+        <small className="text-muted-foreground">
+          {applicant.className} · подана {formatDate(item.submittedAt)}
+          {item.decidedAt ? ` · решение ${formatDate(item.decidedAt)}` : ''}
+        </small>
+      </span>
+      {item.status !== 'pending_officer_review' ? (
+        <Badge className="max-sm:hidden">
+          {APPLICATION_STATUS[item.status].label}
+        </Badge>
+      ) : null}
+      <ChevronRight
+        size={18}
+        aria-hidden="true"
+        className="flex-none text-muted-foreground"
+      />
+    </Link>
+  )
+}
+
+const EMPTY = {
+  new: {
+    title: 'Новых заявок нет',
+    description: 'Когда кандидат подаст заявку, она появится здесь.',
+  },
+  decided: {
+    title: 'Решённых заявок нет',
+    description: 'Здесь появятся принятые и отклонённые заявки.',
+  },
+} as const
+
+/**
+ * «Новые» — малый список (≤ 50 по ответу владельца): целиком, без
+ * виртуализации. Если заявок всё же больше, сервер отдаёт самые старые и
+ * признак `truncated` — интерфейс сообщает об этом, а не обрезает молча.
+ */
+function NewQueue({
+  items,
+  truncated,
+}: {
+  items: ApplicationListItem[]
+  truncated: boolean
+}) {
+  return (
+    <>
+      <ul aria-label="Новые заявки" className="m-0 grid list-none gap-2 p-0">
+        {items.map((item) => (
+          <li key={item.id}>
+            <QueueCard item={item} />
+          </li>
+        ))}
+      </ul>
+      {truncated ? (
+        <output className="mt-3 block text-sm text-muted-foreground">
+          Показаны {SMALL_LIST_LIMIT} самых старых заявок. Остальные появятся
+          здесь после решения по этим.
+        </output>
+      ) : null}
+    </>
   )
 }
 
 /** Очередь заявок офицера и администратора (APP-03, APP-04). */
 // Типы поиска TanStack Router в компоненте маршрута необязательны: значения
 // по умолчанию — те же, что у схемы.
-export function ApplicationsPage({
-  tab = 'new',
-  page = 0,
-}: Partial<ApplicationsSearch>) {
+export function ApplicationsPage({ tab = 'new' }: Partial<ApplicationsSearch>) {
   const navigate = useNavigate()
-  const list = useApplicationList(tab, page)
-  const go = (search: ApplicationsSearch) =>
-    void navigate({ to: '/applications', search })
+  const newQueue = useNewApplications(tab === 'new')
+  const decided = useDecidedApplications(tab === 'decided')
+  const decidedItems = decided.data?.pages.flatMap((page) => page.items)
+  const newCount =
+    tab === 'new' ? newQueue.data?.newCount : decided.data?.pages[0]?.newCount
+  const list = tab === 'new' ? newQueue : decided
 
   let content
   if (list.isPending) {
     content = <LoadingState label="Загружаем заявки…" />
   } else if (list.isError) {
     content = <ErrorState onRetry={() => void list.refetch()} />
-  } else if (list.data.items.length === 0) {
-    content = (
-      <EmptyState
-        title={tab === 'new' ? 'Новых заявок нет' : 'Решённых заявок нет'}
-        description={
-          tab === 'new'
-            ? 'Когда кандидат подаст заявку, она появится здесь.'
-            : 'Здесь появятся принятые и отклонённые заявки.'
-        }
-      />
-    )
+  } else if (tab === 'new' && newQueue.data) {
+    content =
+      newQueue.data.items.length === 0 ? (
+        <EmptyState {...EMPTY.new} />
+      ) : (
+        <NewQueue
+          items={newQueue.data.items}
+          truncated={newQueue.data.truncated}
+        />
+      )
+  } else if (!decidedItems || decidedItems.length === 0) {
+    content = <EmptyState {...EMPTY.decided} />
   } else {
     content = (
-      <ul className="m-0 grid list-none gap-2 p-0">
-        {list.data.items.map((item) => (
-          <QueueCard key={item.id} item={item} />
-        ))}
-      </ul>
+      <VirtualList
+        label="Решённые заявки"
+        items={decidedItems}
+        getKey={(item) => item.id}
+        estimateSize={70}
+        paging={pagingOf(decided)}
+        renderItem={(item) => <QueueCard item={item} />}
+      />
     )
   }
-
-  const hasPages = tab === 'decided' && (page > 0 || list.data?.hasMore)
 
   return (
     <section>
@@ -115,46 +157,21 @@ export function ApplicationsPage({
       <Tabs
         value={tab}
         onValueChange={(value) =>
-          go({ tab: value === 'decided' ? 'decided' : 'new', page: 0 })
+          void navigate({
+            to: '/applications',
+            search: { tab: value === 'decided' ? 'decided' : 'new' },
+          })
         }
       >
         <TabsList aria-label="Заявки" className="mb-4">
           <TabsTrigger value="new" className="inline-flex items-center gap-2">
             Новые
-            <NavBadge count={list.data?.newCount} />
+            <NavBadge count={newCount} />
           </TabsTrigger>
           <TabsTrigger value="decided">Решённые</TabsTrigger>
         </TabsList>
       </Tabs>
       {content}
-      {hasPages ? (
-        <nav
-          aria-label="Страницы решённых заявок"
-          className="mt-4 flex flex-wrap items-center justify-between gap-3"
-        >
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={page === 0}
-            onClick={() => go({ tab, page: page - 1 })}
-          >
-            Новее
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            Страница {page + 1}
-          </span>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={!list.data?.hasMore}
-            onClick={() => go({ tab, page: page + 1 })}
-          >
-            Старше
-          </Button>
-        </nav>
-      ) : null}
     </section>
   )
 }

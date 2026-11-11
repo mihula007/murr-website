@@ -12,7 +12,7 @@ import {
   type Actor,
 } from '../../supabase/functions/_shared/auth/actor.ts'
 import type { AccessRole } from '../../supabase/functions/_shared/contracts/account.ts'
-import { APPLICATION_PAGE_SIZE } from '../../supabase/functions/_shared/contracts/applications.ts'
+import { SMALL_LIST_LIMIT } from '../../supabase/functions/_shared/contracts/paging.ts'
 import { moscowDate } from '../../supabase/functions/_shared/membership.ts'
 import {
   actorOf,
@@ -159,7 +159,11 @@ describe('queue', () => {
       earlier.applicationId,
       later.applicationId,
     ])
-    expect(result).toMatchObject({ newCount: 2, hasMore: false, page: 0 })
+    expect(result).toMatchObject({
+      newCount: 2,
+      nextCursor: null,
+      truncated: false,
+    })
     expect(result.items[0]?.applicant).toEqual({
       id: earlier.user.id,
       gameNickname: earlier.user.nickname,
@@ -182,10 +186,10 @@ describe('queue', () => {
     expect(result.items[0]?.applicant.avatarUrl).toMatch(/^http/)
   })
 
-  it('pages decided applications, latest decision first', async () => {
+  it('pages decided applications by cursor, latest decision first', async () => {
     const { actor } = await roleActor('officer')
     const ids: string[] = []
-    for (let n = 0; n <= APPLICATION_PAGE_SIZE; n += 1) {
+    for (let n = 0; n < 5; n += 1) {
       const { applicationId } = await createApplicant()
       await decideApplication(deps, actor, {
         id: applicationId,
@@ -193,17 +197,45 @@ describe('queue', () => {
       })
       ids.push(applicationId)
     }
-    const first = await listApplications(deps, actor, { tab: 'decided' })
-    expect(first.items).toHaveLength(APPLICATION_PAGE_SIZE)
-    expect(first.hasMore).toBe(true)
-    expect(first.items[0]?.id).toBe(ids.at(-1))
-    const second = await listApplications(deps, actor, {
-      tab: 'decided',
-      page: 1,
+    // Одинаковое время решения у двух заявок: порядок решает `id`.
+    await db
+      .updateTable('app.join_applications')
+      .set({ decided_at: '2026-11-11T10:00:00Z' })
+      .where('id', 'in', [ids[1]!, ids[2]!])
+      .execute()
+
+    const seen: string[] = []
+    let cursor: string | null = null
+    do {
+      const page: Awaited<ReturnType<typeof listApplications>> =
+        await listApplications(deps, actor, {
+          tab: 'decided',
+          cursor,
+          limit: 2,
+        })
+      expect(page.items.length).toBeLessThanOrEqual(2)
+      expect(page.newCount).toBe(0)
+      seen.push(...page.items.map((item) => item.id))
+      cursor = page.nextCursor
+    } while (cursor)
+    expect([...seen].sort()).toEqual([...ids].sort())
+    expect(seen[0]).toBe(ids.at(-1))
+  })
+
+  it('caps the new queue at the small-list limit and says so', async () => {
+    for (let n = 0; n <= SMALL_LIST_LIMIT; n += 1) {
+      await createApplicant({
+        submittedAt: new Date(Date.UTC(2026, 10, 1, 0, n)).toISOString(),
+      })
+    }
+    const { actor } = await roleActor('officer')
+    const result = await listApplications(deps, actor, { tab: 'new' })
+    expect(result.items).toHaveLength(SMALL_LIST_LIMIT)
+    expect(result).toMatchObject({
+      truncated: true,
+      nextCursor: null,
+      newCount: SMALL_LIST_LIMIT + 1,
     })
-    expect(second.items.map((item) => item.id)).toEqual([ids[0]])
-    expect(second.hasMore).toBe(false)
-    expect(second.newCount).toBe(0)
   })
 })
 

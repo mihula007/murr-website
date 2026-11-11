@@ -21,7 +21,12 @@ import {
 import { listClasses } from './catalog/service.ts'
 import { createDb, type Db } from './db/client.ts'
 import { createApiHandler, type Route } from './http/handler.ts'
-import { countRoster, listReaders, listRoster } from './roster/service.ts'
+import {
+  countRoster,
+  listReaders,
+  listRoster,
+  rosterStats,
+} from './roster/service.ts'
 import { createStorageGateway, type StorageGateway } from './storage/gateway.ts'
 
 export type AppEnv = {
@@ -52,9 +57,10 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'applications/resubmit': ({ actor, body }) =>
       resubmitApplication(deps, actor, body),
     'roster/count': () => countRoster(deps),
-    'roster/list': ({ actor }) => listRoster(deps, actor),
-    'roster/readers': ({ actor }) => listReaders(deps, actor),
-    'accounts/list': ({ actor }) => listAccounts(deps, actor),
+    'roster/stats': ({ actor }) => rosterStats(deps, actor),
+    'roster/list': ({ actor, body }) => listRoster(deps, actor, body),
+    'roster/readers': ({ actor, body }) => listReaders(deps, actor, body),
+    'accounts/list': ({ actor, body }) => listAccounts(deps, actor, body),
     'accounts/set-role': ({ actor, body }) => setRole(deps, actor, body),
     'accounts/restore-reader': ({ actor, body }) =>
       restoreReader(deps, actor, body),

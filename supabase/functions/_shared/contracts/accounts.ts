@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { AccessRole } from './account.ts'
+import { pageRequestShape, type Page } from './paging.ts'
 
 export const ACCESS_ROLES = [
   'applicant',
@@ -32,7 +33,10 @@ export type AccountListItem = {
   hasActiveApplication: boolean
 }
 
-export type AccountsListResponse = { accounts: AccountListItem[] }
+/** Страница таблицы «Аккаунты» по нику. */
+export const accountsListSchema = z.object(pageRequestShape)
+export type AccountsListRequest = z.input<typeof accountsListSchema>
+export type AccountsListResponse = Page<AccountListItem>
 
 /** Результат смены роли, блокировки или восстановления: без закрытых полей. */
 export type RoleChangeResult = {

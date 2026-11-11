@@ -1,5 +1,6 @@
 import type { Executor } from '../db/client.ts'
 import { ACTIVE_STATUSES } from '../applications/repository.ts'
+import type { NicknameKey } from '../roster/repository.ts'
 
 /** Профили с email и признаком активной заявки. */
 function accounts(db: Executor) {
@@ -27,8 +28,23 @@ function accounts(db: Executor) {
 }
 
 export const accountRepository = {
-  listAll(db: Executor) {
-    return accounts(db).orderBy('p.game_nickname').orderBy('p.id').execute()
+  /** Страница по нику (keyset после `(ник, id)` курсора). */
+  listPage(db: Executor, after: NicknameKey | null, limit: number) {
+    let query = accounts(db)
+    if (after) {
+      query = query.where((eb) =>
+        eb(
+          eb.refTuple('p.game_nickname', 'p.id'),
+          '>',
+          eb.tuple(after.gameNickname, after.id),
+        ),
+      )
+    }
+    return query
+      .orderBy('p.game_nickname')
+      .orderBy('p.id')
+      .limit(limit)
+      .execute()
   },
 
   findById(db: Executor, id: string) {

@@ -199,7 +199,7 @@ export function ApplicationPage({ id }: { id: string }) {
     <section>
       <Link
         to="/applications"
-        search={{ tab: 'new', page: 0 }}
+        search={{ tab: 'new' }}
         className={cn(linkButtonClass, 'mb-3 inline-flex items-center gap-1.5')}
       >
         <ArrowLeft size={16} aria-hidden="true" /> К заявкам

@@ -1,5 +1,5 @@
 import {
-  keepPreviousData,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -7,7 +7,6 @@ import {
 import type {
   ApplicationDetails,
   ApplicationListResponse,
-  ApplicationTab,
   DecideApplicationRequest,
 } from '@contracts/applications'
 import { rosterKeys } from '@/features/roster/query-keys'
@@ -16,18 +15,33 @@ import { callApi } from '@/lib/supabase/api'
 export const applicationKeys = {
   all: ['applications'] as const,
   lists: ['applications', 'list'] as const,
-  list: (tab: ApplicationTab, page: number) =>
-    ['applications', 'list', tab, page] as const,
+  newQueue: ['applications', 'list', 'new'] as const,
+  decided: ['applications', 'list', 'decided'] as const,
   detail: (id: string) => ['applications', 'detail', id] as const,
 }
 
-/** Очередь заявок: вкладка «Новые» целиком, «Решённые» — постранично. */
-export function useApplicationList(tab: ApplicationTab, page: number) {
+/** «Новые» — малый список (≤ 50 по ответу владельца): целиком. */
+export function useNewApplications(enabled: boolean) {
   return useQuery({
-    queryKey: applicationKeys.list(tab, page),
+    queryKey: applicationKeys.newQueue,
     queryFn: () =>
-      callApi<ApplicationListResponse>('applications/list', { tab, page }),
-    placeholderData: keepPreviousData,
+      callApi<ApplicationListResponse>('applications/list', { tab: 'new' }),
+    enabled,
+  })
+}
+
+/** «Решённые» — большой список: страницы по курсору. */
+export function useDecidedApplications(enabled: boolean) {
+  return useInfiniteQuery({
+    queryKey: applicationKeys.decided,
+    queryFn: ({ pageParam }) =>
+      callApi<ApplicationListResponse>('applications/list', {
+        tab: 'decided',
+        cursor: pageParam,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+    enabled,
   })
 }
 

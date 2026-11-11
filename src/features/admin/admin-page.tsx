@@ -3,6 +3,7 @@ import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
 import { Card } from '@/components/ui/surfaces'
+import { pagingOf } from '@/components/virtual-list'
 import { AccountsTable } from './accounts-table'
 import { useAccounts } from './api'
 
@@ -18,7 +19,9 @@ export function AdminPage() {
   } else if (accounts.data.length === 0) {
     content = <EmptyState title="Аккаунтов нет" />
   } else {
-    content = <AccountsTable accounts={accounts.data} />
+    content = (
+      <AccountsTable accounts={accounts.data} paging={pagingOf(accounts)} />
+    )
   }
 
   return (
