@@ -2,7 +2,7 @@ import { Link, Navigate, useNavigate } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAccess } from '@/app/access'
 import { LoadingState } from '@/components/states/loading-state'
-import { Button } from '@/components/ui/button'
+import { Button, linkButtonClass } from '@/components/ui/button'
 import { Notice } from '@/components/ui/surfaces'
 import { toast } from '@/components/ui/toaster'
 import { finishRegistration } from '@/features/auth/finish-registration'
@@ -16,6 +16,7 @@ import { requireSupabase } from '@/features/auth/supabase-auth'
 import { meQueryKey } from '@/features/auth/use-me'
 import { ApiCallError } from '@/lib/api/client'
 import { errorMessage, fieldMessage } from '@/lib/api/messages'
+import { cn } from '@/lib/utils'
 import { AuthPage } from './auth-layout'
 import { RegistrationForm } from './registration-form'
 
@@ -80,7 +81,7 @@ export function CompleteRegistrationPage() {
       />
       <button
         type="button"
-        className="link-button justify-self-center"
+        className={cn(linkButtonClass, 'justify-self-center')}
         onClick={() => {
           clearDraft()
           void requireSupabase().auth.signOut()

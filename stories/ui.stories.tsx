@@ -2,7 +2,13 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Button } from '../src/components/ui/button'
 import { Input, Textarea } from '../src/components/ui/input'
 import { Select } from '../src/components/ui/select'
-import { Badge, Card, Field, Notice } from '../src/components/ui/surfaces'
+import {
+  Badge,
+  Card,
+  Field,
+  Notice,
+  Table as DataTable,
+} from '../src/components/ui/surfaces'
 
 const meta = { title: 'Дизайн-система/Элементы' } satisfies Meta
 export default meta
@@ -73,7 +79,7 @@ export const Table: Story = {
   name: 'Таблица',
   render: () => (
     <Card className="max-w-2xl overflow-x-auto">
-      <table className="guild-table">
+      <DataTable>
         <thead>
           <tr>
             <th>Участник</th>
@@ -97,7 +103,7 @@ export const Table: Story = {
             </td>
           </tr>
         </tbody>
-      </table>
+      </DataTable>
     </Card>
   ),
 }

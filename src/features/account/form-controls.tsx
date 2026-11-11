@@ -1,12 +1,41 @@
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import { Plus, X } from 'lucide-react'
 import { LIMITS } from '@contracts/account'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Button, linkButtonClass } from '@/components/ui/button'
+import { Input, inputClass } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { fieldClass } from '@/components/ui/surfaces'
 import { useClasses } from '@/features/auth/use-classes'
 import { fieldMessage } from '@/lib/api/messages'
 import { cn } from '@/lib/utils'
+
+/** Сетка формы: две колонки, одна на узком экране; `col-span-full` — во всю ширину. */
+export const formGridClass =
+  'grid grid-cols-2 gap-x-[13px] gap-y-3.5 max-[650px]:grid-cols-1'
+export const formLabelClass = 'text-sm font-semibold text-foreground'
+export const fieldHintClass = 'text-xs text-muted-foreground'
+export const fieldErrorClass = 'text-xs text-destructive'
+
+/** Заголовок блока формы: золотой, капителью, во всю ширину сетки. */
+export function FormSectionTitle({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="col-span-full mt-2 mb-0 text-xs font-extrabold tracking-[0.16em] text-primary uppercase">
+      {children}
+    </h2>
+  )
+}
+
+/** Вложенная форма в кабинете. */
+export const subformClass =
+  'grid gap-4 rounded-xl border border-border bg-surface-inset p-4'
+
+/** Раскрывающийся блок кабинета (`<details>`) с золотым заголовком. */
+export const disclosureClass =
+  'border-y border-border py-3 [&>summary]:cursor-pointer [&>summary]:font-bold [&>summary]:text-primary open:[&>summary]:mb-3'
+
+/** Круглое фото профиля с первой буквой вместо изображения. */
+export const profilePhotoClass =
+  'grid flex-none place-items-center overflow-hidden rounded-full border border-border bg-secondary text-2xl font-extrabold text-primary *:[img]:size-full *:[img]:object-cover'
 
 /** Атрибуты доступности для поля с ошибкой и подсказкой. */
 export function fieldAria(
@@ -68,18 +97,18 @@ export function FormField({
   children,
 }: FormFieldProps) {
   return (
-    <div className={cn('guild-field', className)}>
-      <label htmlFor={id} className="form-label">
+    <div className={cn(fieldClass, className)}>
+      <label htmlFor={id} className={formLabelClass}>
         {label}
       </label>
       {children}
       {hint ? (
-        <small id={`${id}-hint`} className="field-hint">
+        <small id={`${id}-hint`} className={fieldHintClass}>
           {hint}
         </small>
       ) : null}
       {error ? (
-        <small id={`${id}-error`} className="field-error">
+        <small id={`${id}-error`} className={fieldErrorClass}>
           {error}
         </small>
       ) : null}
@@ -111,9 +140,10 @@ export function PasswordInput({
 }: PasswordInputProps) {
   const [visible, setVisible] = useState(false)
   return (
-    <div className="password-input-wrap">
+    <div className="flex min-w-0">
       <Input
         {...fieldAria(id, error, hint)}
+        className="flex-1 rounded-r-none border-r-0"
         type={visible ? 'text' : 'password'}
         autoComplete={autoComplete}
         value={value}
@@ -123,7 +153,7 @@ export function PasswordInput({
       />
       <button
         type="button"
-        className="password-toggle"
+        className="flex-none cursor-pointer rounded-r-lg border border-input bg-secondary px-3 text-xs text-primary"
         aria-label={visible ? 'Скрыть пароль' : 'Показать пароль'}
         aria-pressed={visible}
         onClick={() => setVisible((current) => !current)}
@@ -158,11 +188,11 @@ export function ClassSelect({ id, value, onChange, error }: ClassSelectProps) {
         }))}
       />
       {classes.isError ? (
-        <small className="field-error">
+        <small className={fieldErrorClass}>
           Не удалось загрузить классы.{' '}
           <button
             type="button"
-            className="link-button"
+            className={linkButtonClass}
             onClick={() => void classes.refetch()}
           >
             Повторить
@@ -210,20 +240,23 @@ export function AvatarPicker({
   const shown = preview ?? currentUrl ?? null
   const hint = 'JPEG, PNG или WebP до 500 КБ; уменьшается до 512 px'
   return (
-    <div className="avatar-picker">
-      <div className="avatar-preview" aria-hidden={shown ? undefined : true}>
+    <div className="flex min-w-0 items-center gap-4">
+      <div
+        className={cn(profilePhotoClass, 'size-[72px]')}
+        aria-hidden={shown ? undefined : true}
+      >
         {shown ? (
           <img src={shown} alt="Предпросмотр аватара" />
         ) : (
           <span>{fallback}</span>
         )}
       </div>
-      <div className="avatar-picker-controls">
+      <div className="grid min-w-0 flex-1 gap-2">
         <input
           {...fieldAria(id, error, hint)}
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          className="guild-input avatar-file"
+          className={cn(inputClass, 'py-2 text-[13px]')}
           disabled={busy}
           onChange={(event) => {
             const selected = event.target.files?.[0]
@@ -262,8 +295,8 @@ export function EquipmentLinks({
 }: EquipmentLinksProps) {
   const hintId = useId()
   return (
-    <div className="equipment-links">
-      <small id={hintId} className="field-hint">
+    <div className="grid gap-2">
+      <small id={hintId} className={fieldHintClass}>
         Необязательно. До {LIMITS.equipmentLinks} ссылок на изображения
         снаряжения (например, из облака или хостинга картинок).
       </small>
@@ -271,7 +304,10 @@ export function EquipmentLinks({
         const id = `${idPrefix}-${index}`
         const error = errors[index]
         return (
-          <div key={index} className="equipment-link-row">
+          <div
+            key={index}
+            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2"
+          >
             <Input
               {...fieldAria(id, error)}
               aria-label={`Ссылка ${index + 1}`}
@@ -299,7 +335,7 @@ export function EquipmentLinks({
             {error ? (
               <small
                 id={`${id}-error`}
-                className="field-error equipment-link-error"
+                className={cn(fieldErrorClass, 'col-span-full')}
               >
                 {error}
               </small>

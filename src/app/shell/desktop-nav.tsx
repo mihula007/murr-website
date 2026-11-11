@@ -10,6 +10,10 @@ import {
 import { NavBadge } from '@/components/ui/nav-badge'
 import { useActiveSection } from './use-active-section'
 
+/** Пункт меню категорий: приглушённый текст, золотой с подсветкой-линией у активного. */
+const navLinkClass =
+  'relative cursor-pointer rounded-lg border-0 bg-transparent px-[13px] py-2.5 text-base font-medium whitespace-nowrap text-muted-foreground no-underline transition-colors duration-200 before:absolute before:inset-x-[13px] before:bottom-[3px] before:h-0.5 before:scale-x-45 before:rounded-sm before:bg-linear-90/srgb before:from-transparent before:via-highlight-line before:to-transparent before:opacity-0 before:drop-shadow-glow before:transition-[opacity,scale] before:duration-200 hover:text-highlight aria-[current=page]:text-highlight aria-[current=page]:before:scale-x-100 aria-[current=page]:before:opacity-100 data-active:text-highlight data-active:before:scale-x-100 data-active:before:opacity-100 data-[state=open]:text-highlight data-[state=open]:before:scale-x-100 data-[state=open]:before:opacity-100'
+
 type DesktopNavProps = {
   categories: NavCategory[]
   /** Счётчики новых записей по id раздела; данные появятся на этапе 10. */
@@ -26,10 +30,13 @@ export function DesktopNav({ categories, counts }: DesktopNavProps) {
   const { pathname, section: active } = useActiveSection()
 
   return (
-    <nav aria-label="Основная навигация" className="shell-nav max-lg:hidden">
+    <nav
+      aria-label="Основная навигация"
+      className="ml-auto flex items-center gap-1.5 max-lg:hidden"
+    >
       <Link
         to="/"
-        className="shell-nav-link"
+        className={navLinkClass}
         aria-current={pathname === '/' ? 'page' : undefined}
       >
         Главная
@@ -47,7 +54,7 @@ export function DesktopNav({ categories, counts }: DesktopNavProps) {
           }
         >
           <DropdownMenuTrigger
-            className="shell-nav-link"
+            className={navLinkClass}
             data-active={active?.category === category.id ? '' : undefined}
           >
             {category.label}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { registrationFieldsSchema } from '@contracts/account'
-import { Button } from '@/components/ui/button'
+import { Button, linkButtonClass } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ui/toaster'
 import { finishRegistration } from '@/features/auth/finish-registration'
@@ -42,7 +42,7 @@ export function OtpField({
     <FormField id={id} label="Код из письма" error={error} hint="6 цифр">
       <Input
         {...fieldAria(id, error, true)}
-        className="otp-input"
+        className="max-w-[220px] text-center text-[26px] font-bold tracking-[0.4em]"
         inputMode="numeric"
         autoComplete="one-time-code"
         maxLength={6}
@@ -170,7 +170,7 @@ export function VerifyPage({ email }: { email?: string }) {
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
           <button
             type="button"
-            className="link-button"
+            className={linkButtonClass}
             disabled={cooldown > 0}
             onClick={() => void resend()}
           >
@@ -178,7 +178,7 @@ export function VerifyPage({ email }: { email?: string }) {
               ? `Отправить код ещё раз через ${cooldown} с`
               : 'Отправить код ещё раз'}
           </button>
-          <Link to="/register" className="link-button">
+          <Link to="/register" className={linkButtonClass}>
             Изменить данные
           </Link>
         </div>

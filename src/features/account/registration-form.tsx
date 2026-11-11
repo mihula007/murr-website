@@ -8,6 +8,7 @@ import {
 } from '@contracts/account'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
+import { fieldClass } from '@/components/ui/surfaces'
 import { AvatarError, compressAvatar } from '@/features/auth/compress-avatar'
 import {
   saveDraft,
@@ -17,6 +18,7 @@ import { useSession } from '@/features/auth/session'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { callApi } from '@/lib/api/client'
 import { fieldMessage } from '@/lib/api/messages'
+import { cn } from '@/lib/utils'
 import { FormError } from './auth-layout'
 import { focusFirstInvalid } from './focus'
 import {
@@ -24,9 +26,12 @@ import {
   ClassSelect,
   EquipmentLinks,
   FormField,
+  FormSectionTitle,
   PasswordInput,
   fieldAria,
   fieldError,
+  formGridClass,
+  formLabelClass,
 } from './form-controls'
 
 export const accountFieldsSchema = z.object({
@@ -189,10 +194,10 @@ export function RegistrationForm({
     >
       <form.Subscribe selector={(state) => state.submissionAttempts > 0}>
         {(submitted) => (
-          <div className="form-grid">
+          <div className={formGridClass}>
             {mode === 'register' ? (
               <>
-                <h2 className="form-section-title">Аккаунт</h2>
+                <FormSectionTitle>Аккаунт</FormSectionTitle>
                 <form.Field name="email">
                   {(field) => {
                     const error = fieldError(field.state.meta, submitted)
@@ -201,7 +206,7 @@ export function RegistrationForm({
                         id="reg-email"
                         label="Логин (электронная почта)"
                         error={error}
-                        className="full"
+                        className="col-span-full"
                       >
                         <Input
                           {...fieldAria('reg-email', error)}
@@ -226,7 +231,7 @@ export function RegistrationForm({
                         id="reg-password"
                         label="Пароль"
                         error={error}
-                        className="full"
+                        className="col-span-full"
                       >
                         <PasswordInput
                           id="reg-password"
@@ -244,7 +249,7 @@ export function RegistrationForm({
               </>
             ) : null}
 
-            <h2 className="form-section-title">Персонаж</h2>
+            <FormSectionTitle>Персонаж</FormSectionTitle>
             <FormField
               id="reg-avatar"
               label="Аватар"
@@ -257,7 +262,7 @@ export function RegistrationForm({
                   ? 'Готовим изображение…'
                   : 'JPEG, PNG или WebP до 500 КБ'
               }
-              className="full"
+              className="col-span-full"
             >
               <AvatarPicker
                 id="reg-avatar"
@@ -393,7 +398,7 @@ export function RegistrationForm({
                     id="reg-class"
                     label="Класс персонажа"
                     error={error}
-                    className="full"
+                    className="col-span-full"
                   >
                     <ClassSelect
                       id="reg-class"
@@ -409,7 +414,7 @@ export function RegistrationForm({
               }}
             </form.Field>
 
-            <h2 className="form-section-title">О себе</h2>
+            <FormSectionTitle>О себе</FormSectionTitle>
             <form.Field name="about">
               {(field) => {
                 const error = fieldError(
@@ -423,7 +428,7 @@ export function RegistrationForm({
                     label="Рассказ о себе"
                     error={error}
                     hint={`${field.state.value.length} / ${LIMITS.about}`}
-                    className="full"
+                    className="col-span-full"
                   >
                     <Textarea
                       {...fieldAria('reg-about', error, true)}
@@ -455,8 +460,8 @@ export function RegistrationForm({
                   return message ? fieldMessage(message) : null
                 })
                 return (
-                  <fieldset className="guild-field full">
-                    <legend className="form-label mb-2">
+                  <fieldset className={cn(fieldClass, 'col-span-full')}>
+                    <legend className={cn(formLabelClass, 'mb-2')}>
                       Скриншоты снаряжения
                     </legend>
                     <EquipmentLinks

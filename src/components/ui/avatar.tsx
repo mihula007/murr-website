@@ -11,16 +11,22 @@ type AvatarProps = ComponentProps<typeof AvatarPrimitive.Root> & {
 export function Avatar({ name, src, className, ...props }: AvatarProps) {
   const initial = name.trim().charAt(0).toLocaleUpperCase('ru') || '?'
   return (
-    <AvatarPrimitive.Root className={cn('guild-avatar', className)} {...props}>
+    <AvatarPrimitive.Root
+      className={cn(
+        'relative inline-flex size-10 flex-none overflow-hidden rounded-full border border-border-accent bg-secondary',
+        className,
+      )}
+      {...props}
+    >
       {src ? (
         <AvatarPrimitive.Image
-          className="guild-avatar-image"
+          className="size-full object-cover"
           src={src}
           alt={name}
         />
       ) : null}
       <AvatarPrimitive.Fallback
-        className="guild-avatar-fallback"
+        className="grid size-full place-items-center font-extrabold text-primary"
         delayMs={src ? 300 : undefined}
       >
         <span aria-hidden="true">{initial}</span>

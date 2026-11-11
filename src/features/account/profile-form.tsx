@@ -29,6 +29,8 @@ import {
   FormField,
   fieldAria,
   fieldError,
+  formGridClass,
+  subformClass,
 } from './form-controls'
 
 const profileSchema = z.object({
@@ -133,7 +135,7 @@ export function ProfileForm({ profile, email, onDone }: ProfileFormProps) {
   return (
     <form
       noValidate
-      className="account-subform grid gap-4"
+      className={subformClass}
       aria-labelledby="profile-form-title"
       onSubmit={(event) => {
         event.preventDefault()
@@ -145,7 +147,7 @@ export function ProfileForm({ profile, email, onDone }: ProfileFormProps) {
       </h3>
       <form.Subscribe selector={(state) => state.submissionAttempts > 0}>
         {(submitted) => (
-          <div className="form-grid">
+          <div className={formGridClass}>
             <FormField
               id="profile-avatar"
               label="Аватар"
@@ -155,7 +157,7 @@ export function ProfileForm({ profile, email, onDone }: ProfileFormProps) {
                   ? 'Готовим изображение…'
                   : 'JPEG, PNG или WebP до 500 КБ'
               }
-              className="full"
+              className="col-span-full"
             >
               <AvatarPicker
                 id="profile-avatar"
@@ -323,7 +325,7 @@ export function ProfileForm({ profile, email, onDone }: ProfileFormProps) {
                     label="О себе"
                     error={error}
                     hint={`${field.state.value.length} / ${LIMITS.about}`}
-                    className="full"
+                    className="col-span-full"
                   >
                     <Textarea
                       {...fieldAria('profile-about', error, true)}

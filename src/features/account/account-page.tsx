@@ -10,6 +10,8 @@ import { Badge, Card, Notice } from '@/components/ui/surfaces'
 import { clearDraft } from '@/features/auth/registration-draft'
 import { requireSupabase } from '@/features/auth/supabase-auth'
 import { useMe } from '@/features/auth/use-me'
+import { cn } from '@/lib/utils'
+import { disclosureClass, profilePhotoClass } from './form-controls'
 import { PasswordForm } from './password-form'
 import { ProfileForm } from './profile-form'
 import { APPLICATION_STATUS, ROLE_STATUS } from './status-labels'
@@ -51,7 +53,7 @@ function Dashboard({ me }: { me: ReadyMe }) {
         title="Личный кабинет"
         description="Профиль, статус и безопасность аккаунта."
       />
-      <Card className="auth-card grid gap-4">
+      <Card className="mx-auto grid w-full max-w-[620px] gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-2xl font-bold">
@@ -61,8 +63,8 @@ function Dashboard({ me }: { me: ReadyMe }) {
           </div>
           <Badge>{status}</Badge>
         </div>
-        <div className="account-profile-head">
-          <div className="account-photo">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <div className={cn(profilePhotoClass, 'size-[76px]')}>
             {profile.avatarUrl ? (
               <img
                 src={profile.avatarUrl}
@@ -83,7 +85,7 @@ function Dashboard({ me }: { me: ReadyMe }) {
         </div>
         <p className="break-words text-muted-foreground">{me.email}</p>
 
-        <details className="account-disclosure">
+        <details className={disclosureClass}>
           <summary>Личная информация</summary>
           {editing ? (
             <ProfileForm
@@ -93,7 +95,7 @@ function Dashboard({ me }: { me: ReadyMe }) {
             />
           ) : (
             <div className="grid gap-3">
-              <dl className="account-personal-grid">
+              <dl className="m-0 grid grid-cols-2 gap-x-[18px] gap-y-2 max-[560px]:grid-cols-1 [&_dd]:m-0 [&_dt]:text-xs [&_dt]:text-muted-foreground">
                 <div>
                   <dt>Имя</dt>
                   <dd>{profile.displayName}</dd>
@@ -124,7 +126,7 @@ function Dashboard({ me }: { me: ReadyMe }) {
                     <dd>{formatDate(profile.joinedOn)}</dd>
                   </div>
                 ) : null}
-                <div className="account-personal-about">
+                <div className="col-span-full">
                   <dt>О себе</dt>
                   <dd className="whitespace-pre-line">
                     {profile.about ?? '—'}
@@ -145,7 +147,7 @@ function Dashboard({ me }: { me: ReadyMe }) {
         </details>
 
         <details
-          className="account-disclosure"
+          className={disclosureClass}
           open={passwordOpen}
           onToggle={(event) => setPasswordOpen(event.currentTarget.open)}
         >

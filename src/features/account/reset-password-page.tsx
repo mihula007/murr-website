@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { z } from 'zod'
 import { LIMITS } from '@contracts/account'
-import { Button } from '@/components/ui/button'
+import { Button, linkButtonClass } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ui/toaster'
 import {
@@ -183,7 +183,7 @@ export function ResetPasswordPage({
           {step === 'code' ? (
             <button
               type="button"
-              className="link-button"
+              className={linkButtonClass}
               disabled={cooldown > 0}
               onClick={() => void sendCode()}
             >
@@ -194,7 +194,7 @@ export function ResetPasswordPage({
           ) : (
             <span />
           )}
-          <Link to="/login" className="link-button">
+          <Link to="/login" className={linkButtonClass}>
             Вернуться ко входу
           </Link>
         </div>

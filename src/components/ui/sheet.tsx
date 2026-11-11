@@ -2,6 +2,11 @@ import type { ComponentProps } from 'react'
 import * as SheetPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  dialogCloseClass,
+  dialogDescriptionClass,
+  overlayClass,
+} from './dialog'
 
 export const Sheet = SheetPrimitive.Root
 export const SheetTrigger = SheetPrimitive.Trigger
@@ -16,14 +21,17 @@ export function SheetContent({
 }: ComponentProps<typeof SheetPrimitive.Content> & { closeLabel?: string }) {
   return (
     <SheetPrimitive.Portal>
-      <SheetPrimitive.Overlay className="guild-overlay" />
+      <SheetPrimitive.Overlay className={overlayClass} />
       <SheetPrimitive.Content
-        className={cn('guild-sheet', className)}
+        className={cn(
+          'fixed inset-y-0 left-0 z-61 flex w-[min(88vw,360px)] flex-col gap-4 overflow-y-auto border-r border-border-strong bg-surface-header px-4 py-5 text-foreground shadow-sheet duration-220 ease-out data-[state=open]:animate-in data-[state=open]:slide-in-from-left motion-reduce:animate-none',
+          className,
+        )}
         {...props}
       >
         {children}
         <SheetPrimitive.Close
-          className="guild-dialog-close"
+          className={dialogCloseClass}
           aria-label={closeLabel}
         >
           <X aria-hidden="true" size={18} />
@@ -39,7 +47,10 @@ export function SheetTitle({
 }: ComponentProps<typeof SheetPrimitive.Title>) {
   return (
     <SheetPrimitive.Title
-      className={cn('guild-sheet-title', className)}
+      className={cn(
+        'm-0 pr-11 text-[13px] font-black tracking-[0.13em]',
+        className,
+      )}
       {...props}
     />
   )
@@ -51,7 +62,7 @@ export function SheetDescription({
 }: ComponentProps<typeof SheetPrimitive.Description>) {
   return (
     <SheetPrimitive.Description
-      className={cn('guild-dialog-description', className)}
+      className={cn(dialogDescriptionClass, className)}
       {...props}
     />
   )

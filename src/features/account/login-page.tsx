@@ -4,7 +4,7 @@ import { useForm } from '@tanstack/react-form'
 import { useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import type { MeResponse } from '@contracts/account'
-import { Button } from '@/components/ui/button'
+import { Button, linkButtonClass } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useSession } from '@/features/auth/session'
 import {
@@ -143,7 +143,7 @@ export function LoginPage({ email = '' }: { email?: string }) {
           )}
         </form.Subscribe>
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <Link to="/reset-password" className="link-button">
+          <Link to="/reset-password" className={linkButtonClass}>
             Забыли пароль?
           </Link>
           <span className="text-muted-foreground">

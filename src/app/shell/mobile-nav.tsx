@@ -12,6 +12,9 @@ import {
 } from '@/components/ui/sheet'
 import { useActiveSection } from './use-active-section'
 
+const sheetLinkClass =
+  'flex min-h-11 items-center justify-between gap-3 rounded-md px-3 py-2.5 text-[16px] text-foreground no-underline hover:bg-secondary hover:text-highlight aria-[current=page]:bg-secondary aria-[current=page]:text-highlight aria-[current=page]:shadow-[inset_2px_0_0_var(--highlight-line)]'
+
 type MobileNavProps = {
   categories: NavCategory[]
   counts?: Partial<Record<string, number>>
@@ -30,7 +33,7 @@ export function MobileNav({ categories, counts }: MobileNavProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
-        className="shell-burger lg:hidden"
+        className="-ml-2 grid size-[42px] flex-none cursor-pointer place-items-center rounded-lg border border-transparent bg-transparent text-foreground hover:border-border-strong hover:bg-secondary hover:text-highlight data-[state=open]:border-border-strong data-[state=open]:bg-secondary data-[state=open]:text-highlight lg:hidden"
         aria-label="Открыть меню"
       >
         <Menu aria-hidden="true" size={22} />
@@ -41,7 +44,7 @@ export function MobileNav({ categories, counts }: MobileNavProps) {
         <nav aria-label="Мобильная навигация" className="grid gap-5">
           <Link
             to="/"
-            className="shell-sheet-link"
+            className={sheetLinkClass}
             aria-current={pathname === '/' ? 'page' : undefined}
             onClick={close}
           >
@@ -55,7 +58,7 @@ export function MobileNav({ categories, counts }: MobileNavProps) {
             >
               <h2
                 id={`mobile-nav-${category.id}`}
-                className="shell-sheet-category"
+                className="relative m-0 px-3 py-1 text-2xs font-extrabold tracking-[0.2em] text-muted-foreground uppercase data-active:text-primary"
                 data-active={active?.category === category.id ? '' : undefined}
               >
                 {category.label}
@@ -64,7 +67,7 @@ export function MobileNav({ categories, counts }: MobileNavProps) {
                 <Link
                   key={section.id}
                   to={section.path}
-                  className="shell-sheet-link"
+                  className={sheetLinkClass}
                   aria-current={active?.id === section.id ? 'page' : undefined}
                   onClick={close}
                 >

@@ -10,8 +10,8 @@ export function Toaster() {
       closeButton
       toastOptions={{
         classNames: {
-          toast: 'guild-toast',
-          description: 'guild-toast-description',
+          toast: 'border-border-strong! bg-popover! text-foreground!',
+          description: 'text-muted-foreground!',
         },
       }}
     />

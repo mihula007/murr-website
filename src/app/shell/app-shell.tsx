@@ -3,7 +3,7 @@ import { Header } from './header'
 
 export function AppShell({ children }: PropsWithChildren) {
   return (
-    <div className="site-shell flex min-h-svh flex-col">
+    <div className="flex min-h-svh flex-col bg-(image:--image-site) bg-size-[110%_auto] bg-position-[calc(50%-2vw)_95px] bg-no-repeat">
       <a
         href="#main-content"
         onClick={(event) => {
@@ -22,7 +22,7 @@ export function AppShell({ children }: PropsWithChildren) {
       >
         {children}
       </main>
-      <footer className="shell-footer">
+      <footer className="border-t border-border py-[25px] text-xs text-muted-foreground">
         <div className="mx-auto flex w-full max-w-[1240px] flex-wrap justify-between gap-x-6 gap-y-1 px-[22px] max-sm:px-[14px]">
           <span>Murr клан · Сила в единстве</span>
           <span>Место, где собирается гильдия.</span>

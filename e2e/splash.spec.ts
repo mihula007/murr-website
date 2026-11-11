@@ -5,11 +5,7 @@ async function isScrollLocked(page: Page) {
   return page.evaluate(() => {
     const html = getComputedStyle(document.documentElement).overflow
     const body = getComputedStyle(document.body).overflow
-    return (
-      document.documentElement.classList.contains('splash-lock') ||
-      html === 'hidden' ||
-      body === 'hidden'
-    )
+    return html === 'hidden' || body === 'hidden'
   })
 }
 
@@ -75,6 +71,8 @@ test('с reduced motion заставка исчезает сразу', async ({ 
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('./#/')
   await page.getByRole('button', { name: 'Пропустить анимацию' }).click()
-  await expect(page.locator('.splash')).toHaveCount(0, { timeout: 300 })
+  await expect(page.getByRole('dialog', { name: 'MurrClan' })).toHaveCount(0, {
+    timeout: 300,
+  })
   expect(await canScroll(page)).toBe(true)
 })

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { LIMITS } from '@contracts/account'
-import { Button } from '@/components/ui/button'
+import { Button, linkButtonClass } from '@/components/ui/button'
 import { toast } from '@/components/ui/toaster'
 import {
   authErrorMessage,
@@ -9,8 +9,9 @@ import {
 } from '@/features/auth/supabase-auth'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { fieldMessage } from '@/lib/api/messages'
+import { cn } from '@/lib/utils'
 import { FormError } from './auth-layout'
-import { FormField, PasswordInput } from './form-controls'
+import { FormField, PasswordInput, subformClass } from './form-controls'
 
 type Fields = { current: string; next: string; repeat: string }
 const EMPTY: Fields = { current: '', next: '', repeat: '' }
@@ -82,7 +83,7 @@ export function PasswordForm({
   return (
     <form
       noValidate
-      className="account-subform grid gap-4"
+      className={subformClass}
       onSubmit={(event) => {
         event.preventDefault()
         void submit()
@@ -145,7 +146,7 @@ export function PasswordForm({
         <Link
           to="/reset-password"
           search={{ email }}
-          className="link-button text-sm"
+          className={cn(linkButtonClass, 'text-sm')}
         >
           Забыли пароль?
         </Link>

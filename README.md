@@ -102,6 +102,7 @@ GitHub Actions Secrets использовать для будущих защищ
 | `npm run build`           | Проверка типов, production build и проверка секретов |
 | `npm run preview`         | Просмотр собранного сайта                            |
 | `npm run check`           | Все проверки, кроме браузерных                       |
+| `npm run check:styles`    | Правила единой системы стилей Tailwind               |
 | `npm test`                | Vitest однократно                                    |
 | `npm run test:watch`      | Vitest в режиме наблюдения                           |
 | `npm run typecheck`       | Проверка TypeScript                                  |
@@ -144,7 +145,7 @@ src/
   components/ui/        # Добавляемые по необходимости компоненты shadcn/ui
   lib/supabase/         # Публичная конфигурация и ленивый клиент
   lib/utils.ts          # Объединение CSS-классов shadcn/ui
-  styles.css            # Tailwind 4 и временные дизайн-токены
+  styles.css            # Токены, тема Tailwind 4 и базовые стили
 tests/                  # Конфигурация Supabase и защита секретов
 e2e/                    # Проверки production build в Playwright
 supabase/               # Локальная конфигурация, будущие миграции и функции

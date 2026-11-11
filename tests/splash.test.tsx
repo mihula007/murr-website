@@ -9,8 +9,11 @@ import {
   writeLastActivity,
 } from '@/app/splash/splash-timing'
 
+/** Прокрутка заблокирована утилитой Tailwind на html и body. */
 const isLocked = () =>
-  document.documentElement.classList.contains('splash-lock')
+  [document.documentElement, document.body].every((element) =>
+    element.classList.contains('overflow-hidden'),
+  )
 
 function renderGate() {
   return render(

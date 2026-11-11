@@ -9,13 +9,13 @@ type AuthPageProps = {
   children: ReactNode
 }
 
-/** Страница входа/регистрации: заголовок и карточка 620 px, как `.auth-card` прототипа. */
+/** Страница входа/регистрации: заголовок и карточка 620 px, как карточка входа прототипа. */
 export function AuthPage({ title, description, children }: AuthPageProps) {
   const session = useSession()
   return (
     <section>
       <PageHeader title={title} description={description} />
-      <Card className="auth-card grid gap-4">
+      <Card className="mx-auto grid w-full max-w-[620px] gap-4">
         {session.status === 'unavailable' ? (
           <Notice>
             Вход временно недоступен: сайт ещё не подключён к серверу.

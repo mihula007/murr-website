@@ -34,26 +34,29 @@ export function Select({
         aria-labelledby={ariaLabelledby}
         aria-describedby={ariaDescribedby}
         aria-invalid={ariaInvalid}
-        className={cn('guild-select-trigger', className)}
+        className={cn(
+          'group flex min-h-11 w-full min-w-0 cursor-pointer items-center justify-between gap-3 rounded-lg border border-input bg-input-background px-3 py-2.5 text-left text-base text-foreground hover:border-input-hover disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive data-placeholder:text-placeholder data-[state=open]:border-input-hover',
+          className,
+        )}
       >
         <SelectPrimitive.Value placeholder={placeholder} />
-        <SelectPrimitive.Icon className="guild-select-icon">
+        <SelectPrimitive.Icon className="flex flex-none text-primary group-data-[state=open]:rotate-180">
           <ChevronDown aria-hidden="true" size={18} />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content
-          className="guild-select-content"
+          className="z-50 max-h-[min(280px,var(--radix-select-content-available-height))] w-(--radix-select-trigger-width) overflow-hidden rounded-xl border border-border-strong bg-popover text-foreground shadow-select"
           position="popper"
           sideOffset={6}
         >
-          <SelectPrimitive.ScrollUpButton className="guild-select-scroll">
+          <SelectPrimitive.ScrollUpButton className="flex h-6 items-center justify-center text-primary">
             <ChevronUp size={16} />
           </SelectPrimitive.ScrollUpButton>
-          <SelectPrimitive.Viewport className="guild-select-viewport">
+          <SelectPrimitive.Viewport className="p-1">
             {options.map((option) => (
               <SelectPrimitive.Item
-                className="guild-select-item"
+                className="relative flex min-h-10 cursor-pointer items-center rounded-md py-2 pr-9 pl-3 text-base outline-none select-none data-disabled:cursor-not-allowed data-disabled:opacity-45 data-highlighted:bg-item-highlight data-highlighted:not-data-[state=checked]:text-accent-foreground data-[state=checked]:text-primary"
                 key={option.value}
                 value={option.value}
                 disabled={option.disabled}
@@ -61,13 +64,13 @@ export function Select({
                 <SelectPrimitive.ItemText>
                   {option.label}
                 </SelectPrimitive.ItemText>
-                <SelectPrimitive.ItemIndicator className="guild-select-check">
+                <SelectPrimitive.ItemIndicator className="absolute right-3 flex text-primary">
                   <Check size={16} />
                 </SelectPrimitive.ItemIndicator>
               </SelectPrimitive.Item>
             ))}
           </SelectPrimitive.Viewport>
-          <SelectPrimitive.ScrollDownButton className="guild-select-scroll">
+          <SelectPrimitive.ScrollDownButton className="flex h-6 items-center justify-center text-primary">
             <ChevronDown size={16} />
           </SelectPrimitive.ScrollDownButton>
         </SelectPrimitive.Content>
