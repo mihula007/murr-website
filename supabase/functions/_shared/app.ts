@@ -116,7 +116,7 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       templateNextDate(deps, actor, body),
     'roster/count': () => countRoster(deps),
     'roster/stats': ({ actor }) => rosterStats(deps, actor),
-    'roster/list': ({ actor, body }) => listRoster(deps, actor, body),
+    'roster/list': ({ actor }) => listRoster(deps, actor),
     'roster/readers': ({ actor, body }) => listReaders(deps, actor, body),
     'accounts/list': ({ actor, body }) => listAccounts(deps, actor, body),
     'accounts/set-role': ({ actor, body }) => setRole(deps, actor, body),

@@ -6,6 +6,16 @@ import { z } from 'zod'
  */
 export const SMALL_LIST_LIMIT = 50
 
+/**
+ * Страховочный порог списков текущих участников клана (Q-48): их до 200,
+ * и они всегда отдаются целиком одним ответом; при превышении порога
+ * ответ несёт признак обрезки, а не обрезает молча.
+ */
+export const MEMBER_LIST_LIMIT = 250
+
+/** Список участников клана целиком; `truncated` — порог превышен. */
+export type MemberList<T> = { items: T[]; truncated: boolean }
+
 /** Размер страницы большого списка по умолчанию и максимум запроса. */
 export const PAGE_SIZE = 50
 export const MAX_PAGE_SIZE = 100

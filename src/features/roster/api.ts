@@ -36,18 +36,14 @@ export function useRosterStats() {
   })
 }
 
-/** Состав — большой список: страницы по курсору, фильтр класса на сервере. */
-export function useRoster(classId: number | null) {
-  return useInfiniteQuery({
-    queryKey: rosterKeys.list(classId),
-    queryFn: ({ pageParam }) =>
-      callApi<RosterListResponse>('roster/list', {
-        classId,
-        cursor: pageParam,
-      }),
-    initialPageParam: null as string | null,
-    getNextPageParam: (last) => last.nextCursor,
-    select: (data) => data.pages.flatMap((page) => page.items),
+/**
+ * Весь текущий состав одним ответом (Q-48); фильтр класса — на клиенте,
+ * поэтому смена фильтра не делает новый запрос.
+ */
+export function useRoster() {
+  return useQuery({
+    queryKey: rosterKeys.list,
+    queryFn: () => callApi<RosterListResponse>('roster/list'),
   })
 }
 

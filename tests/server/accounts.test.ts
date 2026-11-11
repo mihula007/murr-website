@@ -142,7 +142,7 @@ describe('accounts/set-role', () => {
     const { user: admin, actor } = await roleActor('admin')
     const { user: member, actor: memberBefore } = await roleActor('member')
     await setProfile(member.id, { joined_on: '2026-02-03' })
-    await listRoster(deps, memberBefore, {})
+    await listRoster(deps, memberBefore)
 
     const result = await setRole(deps, actor, {
       userId: member.id,
@@ -170,10 +170,7 @@ describe('accounts/set-role', () => {
         },
       },
     ])
-    await rejects(
-      listRoster(deps, await actorOf(db, member.id), {}),
-      'forbidden',
-    )
+    await rejects(listRoster(deps, await actorOf(db, member.id)), 'forbidden')
   })
 
   it('changes roles between internal roles without touching the join date', async () => {
@@ -318,7 +315,7 @@ describe('accounts/restore-reader', () => {
           role: 'member',
         },
       })
-      await listRoster(deps, await actorOf(db, reader.id), {})
+      await listRoster(deps, await actorOf(db, reader.id))
     }
   })
 

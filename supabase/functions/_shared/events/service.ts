@@ -32,7 +32,7 @@ import {
   utcToMoscow,
   weekdayOf,
 } from '../contracts/moscow-time.ts'
-import { SMALL_LIST_LIMIT } from '../contracts/paging.ts'
+import { MEMBER_LIST_LIMIT, SMALL_LIST_LIMIT } from '../contracts/paging.ts'
 import { withTransaction, type Executor } from '../db/client.ts'
 import { decodeCursor, splitPage } from '../http/cursor.ts'
 import { ApiError } from '../http/errors.ts'
@@ -181,10 +181,10 @@ async function loadEventDetails(
       deps.db,
       id,
       INTERNAL_ROLES,
-      SMALL_LIST_LIMIT + 1,
+      MEMBER_LIST_LIMIT + 1,
     ),
   ])
-  const shown = people.slice(0, SMALL_LIST_LIMIT)
+  const shown = people.slice(0, MEMBER_LIST_LIMIT)
   const urls = await avatarUrls(
     deps.storage,
     shown.map((person) => person.avatar_path),
@@ -200,7 +200,7 @@ async function loadEventDetails(
         : null,
       answer: (person.answer as EventAnswer | null) ?? null,
     })),
-    participantsTruncated: people.length > SMALL_LIST_LIMIT,
+    participantsTruncated: people.length > MEMBER_LIST_LIMIT,
   }
 }
 

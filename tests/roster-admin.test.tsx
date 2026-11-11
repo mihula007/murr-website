@@ -60,15 +60,14 @@ const MEMBERS = [
   member('m3', 'Гамма', 7, 'admin'),
 ]
 
-/** Сервер фильтрует по классу; без курсора — первая и единственная страница. */
+/** Весь состав одним ответом (Q-48); фильтр класса выполняет клиент. */
 function rosterPage(members: RosterMember[]) {
-  return (body: unknown) => {
-    const { classId } = body as { classId: number | null }
-    return {
-      items: members.filter((m) => classId === null || m.classId === classId),
-      nextCursor: null,
-    }
-  }
+  return () => ({ items: members, truncated: false })
+}
+
+/** Сколько раз страница запрашивала состав. */
+function rosterCalls() {
+  return callApi.mock.calls.filter(([route]) => route === 'roster/list').length
 }
 
 const STATS = {
@@ -131,10 +130,8 @@ describe('roster page', () => {
         expect.stringContaining('Гамма'),
       ]),
     )
-    expect(callApi).toHaveBeenCalledWith('roster/list', {
-      classId: 7,
-      cursor: null,
-    })
+    // Фильтр класса не делает новый запрос (Q-48).
+    expect(rosterCalls()).toBe(1)
     // Статистика не зависит от фильтра.
     expect(screen.getByText('3')).toBeVisible()
 
@@ -223,21 +220,15 @@ describe('roster page', () => {
       expect(await screen.findByText('Нет доступа')).toBeVisible()
       unmount()
     }
-    expect(callApi).not.toHaveBeenCalledWith('roster/list', expect.anything())
+    expect(rosterCalls()).toBe(0)
   })
 
-  it('loads the next roster page with the cursor', async () => {
-    routes['roster/list'] = (body) =>
-      (body as { cursor: string | null }).cursor === 'page-2'
-        ? { items: [member('m9', 'Омега', 8)], nextCursor: null }
-        : { items: MEMBERS, nextCursor: 'page-2' }
+  it('reports a roster cut at the safety limit (Q-48)', async () => {
+    routes['roster/list'] = () => ({ items: MEMBERS, truncated: true })
     await renderApp({ role: 'member', path: '/roster' })
-    expect(await screen.findByRole('heading', { name: 'Омега' })).toBeVisible()
-    expect(cards()).toHaveLength(4)
-    expect(callApi).toHaveBeenCalledWith('roster/list', {
-      classId: null,
-      cursor: 'page-2',
-    })
+    expect(
+      await screen.findByText('Показаны первые 250 участников по нику.'),
+    ).toBeVisible()
   })
 
   it('opens the readers tab from the address for an officer', async () => {
@@ -248,7 +239,7 @@ describe('roster page', () => {
         { selector: 'strong' },
       ),
     ).toBeVisible()
-    expect(callApi).not.toHaveBeenCalledWith('roster/list', expect.anything())
+    expect(rosterCalls()).toBe(0)
   })
 
   it('shows the class name when the class icon is unknown (ROS-09)', async () => {

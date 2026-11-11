@@ -3,7 +3,7 @@ import type { AppDeps } from '../app.ts'
 import { applicationRepository } from '../applications/repository.ts'
 import { auditPerson, writeAudit } from '../audit/service.ts'
 import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
-import { SMALL_LIST_LIMIT } from '../contracts/paging.ts'
+import { MEMBER_LIST_LIMIT, SMALL_LIST_LIMIT } from '../contracts/paging.ts'
 import {
   castBallotSchema,
   createVoteSchema,
@@ -134,12 +134,12 @@ export async function loadVoteDetails(
   const [summary] = await summarize(db, [row], viewer.userId)
   const details: VoteDetails = { ...summary! }
   if (isManager(viewer)) {
-    const ballots = await voteRepository.ballots(db, id, SMALL_LIST_LIMIT + 1)
-    details.ballots = ballots.slice(0, SMALL_LIST_LIMIT).map((ballot) => ({
+    const ballots = await voteRepository.ballots(db, id, MEMBER_LIST_LIMIT + 1)
+    details.ballots = ballots.slice(0, MEMBER_LIST_LIMIT).map((ballot) => ({
       gameNickname: ballot.game_nickname,
       optionId: ballot.option_id,
     }))
-    details.ballotsTruncated = ballots.length > SMALL_LIST_LIMIT
+    details.ballotsTruncated = ballots.length > MEMBER_LIST_LIMIT
     if (row.application_id) {
       details.applicationId = row.application_id
     }

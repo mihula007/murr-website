@@ -2,9 +2,9 @@ import { avatarUrls } from '../account/avatars.ts'
 import type { AppDeps } from '../app.ts'
 import { requireRole, type Actor } from '../auth/actor.ts'
 import type { AccessRole } from '../contracts/account.ts'
+import { MEMBER_LIST_LIMIT } from '../contracts/paging.ts'
 import {
   readersListSchema,
-  rosterListSchema,
   type RosterCountResponse,
   type RosterListResponse,
   type RosterMember,
@@ -61,13 +61,12 @@ export async function rosterStats(
 async function cardPage(
   deps: AppDeps,
   roles: readonly string[],
-  classId: number | null,
   cursor: string | null,
   limit: number,
 ) {
   const rows = await rosterRepository.listByRoles(deps.db, {
     roles,
-    classId,
+    classId: null,
     after: cursor ? decodeCursor(nicknameCursor, cursor) : null,
     limit: limit + 1,
   })
@@ -77,15 +76,25 @@ async function cardPage(
   return { items: await toCards(deps, page.rows), nextCursor: page.nextCursor }
 }
 
-/** Страница текущего состава для внутренних ролей (ROS-01–03, ACL-09). */
+/**
+ * Весь текущий состав для внутренних ролей (ROS-01–03, ACL-09, Q-48):
+ * одним ответом до `MEMBER_LIST_LIMIT`, превышение — `truncated`.
+ */
 export async function listRoster(
   deps: AppDeps,
   actor: Actor,
-  body: unknown,
 ): Promise<RosterListResponse> {
   requireRole(actor, INTERNAL_ROLES)
-  const { classId, cursor, limit } = parseBody(rosterListSchema, body ?? {})
-  return cardPage(deps, INTERNAL_ROLES, classId, cursor, limit)
+  const rows = await rosterRepository.listByRoles(deps.db, {
+    roles: INTERNAL_ROLES,
+    classId: null,
+    after: null,
+    limit: MEMBER_LIST_LIMIT + 1,
+  })
+  return {
+    items: await toCards(deps, rows.slice(0, MEMBER_LIST_LIMIT)),
+    truncated: rows.length > MEMBER_LIST_LIMIT,
+  }
 }
 
 /** Страница чтецов для офицера и администратора (ACL-06, ADM-09). */
@@ -96,5 +105,5 @@ export async function listReaders(
 ): Promise<RosterReadersResponse> {
   requireRole(actor, READER_KEEPERS)
   const { cursor, limit } = parseBody(readersListSchema, body ?? {})
-  return cardPage(deps, ['reader'], null, cursor, limit)
+  return cardPage(deps, ['reader'], cursor, limit)
 }

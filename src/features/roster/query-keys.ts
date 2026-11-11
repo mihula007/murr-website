@@ -3,7 +3,7 @@ export const rosterKeys = {
   all: ['roster'] as const,
   count: ['roster', 'count'] as const,
   stats: ['roster', 'stats'] as const,
-  /** Страницы состава с фильтром класса (`null` — все классы). */
-  list: (classId: number | null) => ['roster', 'list', classId] as const,
+  /** Весь текущий состав (Q-48). */
+  list: ['roster', 'list'] as const,
   readers: ['roster', 'readers'] as const,
 }

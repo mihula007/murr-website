@@ -15,11 +15,7 @@ import { Select } from '@/components/ui/select'
 import { Badge, Card } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
-import {
-  pagingOf,
-  useGridColumns,
-  VirtualList,
-} from '@/components/virtual-list'
+import { MEMBER_LIST_LIMIT } from '@contracts/paging'
 import { useSetRole } from '@/features/admin/api'
 import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
@@ -30,7 +26,7 @@ const ALL = 'all'
 
 /**
  * Параметры адреса состава: фильтр класса и вкладка. Чтецы — отдельная
- * вкладка: состав догружается бесконечно, и список под ним был бы недоступен.
+ * вкладка: их список догружается бесконечно.
  */
 export const rosterSearchSchema = z.object({
   classId: z.number().int().positive().optional().catch(undefined),
@@ -138,10 +134,6 @@ function MemberCard({ member, onBlock }: MemberCardProps) {
   )
 }
 
-/** Сетка карточек: 1 / 2 / 3 колонки, как классы строки ниже. */
-const GRID_COLUMNS = { base: 1, sm: 2, lg: 3 }
-const gridRowClass = 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-
 function MembersList({
   classId,
   isAdmin,
@@ -153,15 +145,18 @@ function MembersList({
   userId: string | undefined
   onBlock: (member: RosterMember) => void
 }) {
-  const roster = useRoster(classId)
-  const columns = useGridColumns(GRID_COLUMNS)
+  const roster = useRoster()
   if (roster.isPending) {
     return <LoadingState label="Загружаем состав…" />
   }
   if (roster.isError) {
     return <ErrorState onRetry={() => void roster.refetch()} />
   }
-  if (roster.data.length === 0) {
+  const members =
+    classId === null
+      ? roster.data.items
+      : roster.data.items.filter((member) => member.classId === classId)
+  if (members.length === 0) {
     return (
       <EmptyState
         title="Никого нет"
@@ -173,27 +168,32 @@ function MembersList({
       />
     )
   }
+  // Участников клана до 200 (Q-48): весь список рисуется без виртуализации.
   return (
-    <VirtualList
-      label="Участники"
-      items={roster.data}
-      getKey={(member) => member.id}
-      estimateSize={130}
-      columns={columns}
-      gap="md"
-      gridClassName={gridRowClass}
-      paging={pagingOf(roster)}
-      renderItem={(member) => (
-        <MemberCard
-          member={member}
-          onBlock={
-            isAdmin && member.role === 'member' && member.id !== userId
-              ? () => onBlock(member)
-              : undefined
-          }
-        />
-      )}
-    />
+    <>
+      <ul
+        aria-label="Участники"
+        className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3"
+      >
+        {members.map((member) => (
+          <li key={member.id} className="min-w-0">
+            <MemberCard
+              member={member}
+              onBlock={
+                isAdmin && member.role === 'member' && member.id !== userId
+                  ? () => onBlock(member)
+                  : undefined
+              }
+            />
+          </li>
+        ))}
+      </ul>
+      {roster.data.truncated ? (
+        <output className="mt-4 block text-sm text-muted-foreground">
+          Показаны первые {MEMBER_LIST_LIMIT} участников по нику.
+        </output>
+      ) : null}
+    </>
   )
 }
 

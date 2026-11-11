@@ -8,7 +8,7 @@ import {
   type EventDetails,
   type EventParticipant,
 } from '@contracts/events'
-import { SMALL_LIST_LIMIT } from '@contracts/paging'
+import { MEMBER_LIST_LIMIT } from '@contracts/paging'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
@@ -99,7 +99,7 @@ function Participants({ event }: { event: EventDetails }) {
       )}
       {event.participantsTruncated ? (
         <output className="text-sm text-muted-foreground">
-          Показаны первые {SMALL_LIST_LIMIT} участников: сначала ответившие, по
+          Показаны первые {MEMBER_LIST_LIMIT} участников: сначала ответившие, по
           нику. Счётчики в карточке учитывают все ответы.
         </output>
       ) : null}

@@ -1,7 +1,7 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import type { VoteDetails } from '@contracts/votes'
-import { SMALL_LIST_LIMIT } from '@contracts/paging'
+import { MEMBER_LIST_LIMIT } from '@contracts/paging'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
@@ -51,7 +51,7 @@ function Ballots({ vote }: { vote: VoteDetails }) {
       )}
       {vote.ballotsTruncated ? (
         <output className="text-sm text-muted-foreground">
-          Показаны первые {SMALL_LIST_LIMIT} голосов по нику. Итоги выше
+          Показаны первые {MEMBER_LIST_LIMIT} голосов по нику. Итоги выше
           учитывают все голоса.
         </output>
       ) : null}

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { AccessRole } from './account.ts'
-import { pageRequestShape, type Page } from './paging.ts'
+import { pageRequestShape, type MemberList, type Page } from './paging.ts'
 
 /** Численность текущего состава (member + officer + admin) — видна всем. */
 export type RosterCountResponse = { count: number }
@@ -31,18 +31,11 @@ export type RosterStatsResponse = {
   classes: RosterClassStat[]
 }
 
-/** Страница состава по нику; фильтр по классу — на сервере. */
-export const rosterListSchema = z.object({
-  classId: z
-    .number()
-    .int()
-    .positive()
-    .nullish()
-    .transform((value) => value ?? null),
-  ...pageRequestShape,
-})
-export type RosterListRequest = z.input<typeof rosterListSchema>
-export type RosterListResponse = Page<RosterMember>
+/**
+ * Весь текущий состав по нику одним ответом (Q-48): фильтр класса и поиск
+ * выполняет клиент.
+ */
+export type RosterListResponse = MemberList<RosterMember>
 
 /** Страница чтецов для восстановления (ACL-06, ADM-09). */
 export const readersListSchema = z.object(pageRequestShape)

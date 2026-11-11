@@ -13,10 +13,10 @@ test.beforeEach(async ({ page }) => {
 })
 
 /**
- * Большие списки (AGENTS.md, «Списки»): больше одной страницы данных,
- * догрузка по курсору при прокрутке и отрисовка только видимых строк.
+ * Состав — участники клана целиком одним ответом (Q-48); аккаунты — большой
+ * список: догрузка по курсору при прокрутке и отрисовка только видимых строк.
  */
-test('состав и аккаунты догружаются страницами и виртуализированы', async ({
+test('состав приходит целиком, аккаунты догружаются страницами', async ({
   page,
 }) => {
   const seeded = await seedMembers(60, 'zl')
@@ -28,6 +28,12 @@ test('состав и аккаунты догружаются страницам
   await signInUi(page, admin.email)
   await expectSignedIn(page)
 
+  let rosterRequests = 0
+  page.on('request', (request) => {
+    if (request.url().endsWith('/functions/v1/api/roster/list')) {
+      rosterRequests++
+    }
+  })
   await page.goto('./#/roster')
   const roster = page.getByRole('list', { name: 'Участники' })
   await expect(roster.getByRole('listitem').first()).toBeVisible()
@@ -38,17 +44,10 @@ test('состав и аккаунты догружаются страницам
       .textContent(),
   )
   expect(total).toBeGreaterThan(60)
-  // В DOM — только видимые карточки, а не весь состав.
-  expect(await roster.getByRole('listitem').count()).toBeLessThan(total)
-
-  const nextPage = page.waitForRequest(
-    (request) =>
-      request.url().endsWith('/functions/v1/api/roster/list') &&
-      !(request.postData() ?? '').includes('"cursor":null'),
-  )
+  // Весь состав — в одном ответе и в DOM.
+  await expect(roster.getByRole('listitem')).toHaveCount(total)
   await scrollUntilVisible(page, page.getByRole('heading', { name: last }))
-  await nextPage
-  expect(await roster.getByRole('listitem').count()).toBeLessThan(total)
+  expect(rosterRequests).toBe(1)
   expect(await hasHorizontalScroll(page)).toBe(false)
 
   await page.goto('./#/admin')
