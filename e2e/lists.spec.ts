@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { MEMBER_LIST_LIMIT } from '../supabase/functions/_shared/contracts/paging'
 import { hasHorizontalScroll, scrollUntilVisible, skipSplash } from './helpers'
 import { createMember, expectSignedIn, seedMembers, signInUi } from './supabase'
 
@@ -44,9 +45,18 @@ test('состав приходит целиком, аккаунты догру�
       .textContent(),
   )
   expect(total).toBeGreaterThan(60)
-  // Весь состав — в одном ответе и в DOM.
-  await expect(roster.getByRole('listitem')).toHaveCount(total)
-  await scrollUntilVisible(page, page.getByRole('heading', { name: last }))
+  // Весь состав — в одном ответе и в DOM, но не больше страховочного порога
+  // (локальная БД копит участников от прогона к прогону).
+  await expect(roster.getByRole('listitem')).toHaveCount(
+    Math.min(total, MEMBER_LIST_LIMIT),
+  )
+  if (total > MEMBER_LIST_LIMIT) {
+    await expect(
+      page.getByText(`Показаны первые ${MEMBER_LIST_LIMIT} участников`),
+    ).toBeVisible()
+  } else {
+    await scrollUntilVisible(page, page.getByRole('heading', { name: last }))
+  }
   expect(rosterRequests).toBe(1)
   expect(await hasHorizontalScroll(page)).toBe(false)
 

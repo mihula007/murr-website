@@ -15,13 +15,22 @@ export async function skipSplash(page: Page) {
  * прокручивает окно, пока элемент не появится, как это сделал бы человек.
  */
 export async function scrollUntilVisible(page: Page, target: Locator) {
-  for (let step = 0; step < 60; step += 1) {
+  // Прокрутка до цели или до конца страницы: локальная БД копит записи
+  // от прогона к прогону, фиксированного числа экранов не хватает.
+  let stalled = 0
+  for (let step = 0; step < 1000 && stalled < 20; step += 1) {
     if ((await target.count()) > 0) {
       await target.first().scrollIntoViewIfNeeded()
       await expect(target.first()).toBeVisible()
       return
     }
-    await page.evaluate(() => window.scrollBy(0, window.innerHeight))
+    const moved = await page.evaluate(() => {
+      const before = window.scrollY
+      window.scrollBy(0, window.innerHeight)
+      return window.scrollY !== before
+    })
+    // В конце страницы ждём догрузку следующей страницы списка.
+    stalled = moved ? 0 : stalled + 1
     await page.waitForTimeout(150)
   }
   throw new Error('Элемент не найден в списке после прокрутки')
