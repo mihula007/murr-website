@@ -10,15 +10,11 @@ import type {
   DecideApplicationRequest,
 } from '@contracts/applications'
 import { rosterKeys } from '@/features/roster/query-keys'
+import { voteKeys } from '@/features/votes/query-keys'
 import { callApi } from '@/lib/supabase/api'
+import { applicationKeys } from './query-keys'
 
-export const applicationKeys = {
-  all: ['applications'] as const,
-  lists: ['applications', 'list'] as const,
-  newQueue: ['applications', 'list', 'new'] as const,
-  decided: ['applications', 'list', 'decided'] as const,
-  detail: (id: string) => ['applications', 'detail', id] as const,
-}
+export { applicationKeys }
 
 /** «Новые» — малый список (≤ 50 по ответу владельца): целиком. */
 export function useNewApplications(enabled: boolean) {
@@ -26,6 +22,16 @@ export function useNewApplications(enabled: boolean) {
     queryKey: applicationKeys.newQueue,
     queryFn: () =>
       callApi<ApplicationListResponse>('applications/list', { tab: 'new' }),
+    enabled,
+  })
+}
+
+/** «Окончательные решения» — малый список, только администратору (APP-08). */
+export function useFinalApplications(enabled: boolean) {
+  return useQuery({
+    queryKey: applicationKeys.final,
+    queryFn: () =>
+      callApi<ApplicationListResponse>('applications/list', { tab: 'final' }),
     enabled,
   })
 }
@@ -52,20 +58,44 @@ export function useApplication(id: string) {
   })
 }
 
+export type DecisionKind = 'direct' | 'final'
+
+const DECIDE_ROUTE = {
+  direct: 'applications/decide',
+  final: 'applications/final-decide',
+} as const
+
 /**
- * Прямое решение по новой заявке. После успеха карточка берётся из ответа,
- * очередь, состав и численность перечитываются.
+ * Прямое решение по новой заявке (APP-04) или окончательное решение
+ * администратора после голосования (APP-08). После успеха карточка берётся
+ * из ответа, очереди, состав и численность перечитываются.
  */
-export function useDecideApplication() {
+export function useDecideApplication(kind: DecisionKind = 'direct') {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: DecideApplicationRequest) =>
-      callApi<ApplicationDetails>('applications/decide', input),
+      callApi<ApplicationDetails>(DECIDE_ROUTE[kind], input),
     onSuccess: async (details) => {
       queryClient.setQueryData(applicationKeys.detail(details.id), details)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: applicationKeys.lists }),
         queryClient.invalidateQueries({ queryKey: rosterKeys.all }),
+      ])
+    },
+  })
+}
+
+/** Передача новой заявки на голосование (APP-05). */
+export function useSubmitToVote() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      callApi<ApplicationDetails>('applications/submit-to-vote', { id }),
+    onSuccess: async (details) => {
+      queryClient.setQueryData(applicationKeys.detail(details.id), details)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: applicationKeys.lists }),
+        queryClient.invalidateQueries({ queryKey: voteKeys.lists }),
       ])
     },
   })

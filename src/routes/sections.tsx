@@ -19,7 +19,12 @@ function createSectionRoute<const TSection extends NavSectionConfig>(
 }
 
 /** Разделы, у которых уже есть свои маршруты; остальные — заглушки. */
-const IMPLEMENTED: readonly string[] = ['applications', 'roster', 'admin']
+const IMPLEMENTED: readonly string[] = [
+  'applications',
+  'roster',
+  'admin',
+  'votes',
+]
 
 export const sectionRoutes = NAV_SECTIONS.filter(
   (section) => !IMPLEMENTED.includes(section.id),

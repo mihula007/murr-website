@@ -5,6 +5,7 @@ import {
   APPLICATION_TABS,
   type ApplicationListItem,
 } from '@contracts/applications'
+import { ADMIN_ROLES, hasRole, useAccess } from '@/app/access'
 import { EmptyState } from '@/components/states/empty-state'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
@@ -17,7 +18,11 @@ import { pagingOf, VirtualList } from '@/components/virtual-list'
 import { APPLICATION_STATUS } from '@/features/account/status-labels'
 import { SMALL_LIST_LIMIT } from '@contracts/paging'
 import { formatDate } from '@/lib/format-date'
-import { useDecidedApplications, useNewApplications } from './api'
+import {
+  useDecidedApplications,
+  useFinalApplications,
+  useNewApplications,
+} from './api'
 
 /** Параметры адреса очереди: неизвестная вкладка — «Новые». */
 export const applicationsSearchSchema = z.object({
@@ -48,8 +53,16 @@ function QueueCard({ item }: { item: ApplicationListItem }) {
           {applicant.className} · подана {formatDate(item.submittedAt)}
           {item.decidedAt ? ` · решение ${formatDate(item.decidedAt)}` : ''}
         </small>
+        {item.vote ? (
+          <small className="break-words text-foreground">
+            {item.vote.options
+              .map((option) => `${option.label}: ${option.count}`)
+              .join(' · ')}
+          </small>
+        ) : null}
       </span>
-      {item.status !== 'pending_officer_review' ? (
+      {item.status !== 'pending_officer_review' &&
+      item.status !== 'vote_completed' ? (
         <Badge className="max-sm:hidden">
           {APPLICATION_STATUS[item.status].label}
         </Badge>
@@ -68,6 +81,10 @@ const EMPTY = {
     title: 'Новых заявок нет',
     description: 'Когда кандидат подаст заявку, она появится здесь.',
   },
+  final: {
+    title: 'Окончательных решений не ждёт ни одна заявка',
+    description: 'Здесь появятся заявки после завершения голосования по ним.',
+  },
   decided: {
     title: 'Решённых заявок нет',
     description: 'Здесь появятся принятые и отклонённые заявки.',
@@ -79,16 +96,18 @@ const EMPTY = {
  * виртуализации. Если заявок всё же больше, сервер отдаёт самые старые и
  * признак `truncated` — интерфейс сообщает об этом, а не обрезает молча.
  */
-function NewQueue({
+function SmallQueue({
+  label,
   items,
   truncated,
 }: {
+  label: string
   items: ApplicationListItem[]
   truncated: boolean
 }) {
   return (
     <>
-      <ul aria-label="Новые заявки" className="m-0 grid list-none gap-2 p-0">
+      <ul aria-label={label} className="m-0 grid list-none gap-2 p-0">
         {items.map((item) => (
           <li key={item.id}>
             <QueueCard item={item} />
@@ -98,7 +117,7 @@ function NewQueue({
       {truncated ? (
         <output className="mt-3 block text-sm text-muted-foreground">
           Показаны {SMALL_LIST_LIMIT} самых старых заявок. Остальные появятся
-          здесь после решения по этим.
+          здесь после решения по показанным.
         </output>
       ) : null}
     </>
@@ -108,28 +127,41 @@ function NewQueue({
 /** Очередь заявок офицера и администратора (APP-03, APP-04). */
 // Типы поиска TanStack Router в компоненте маршрута необязательны: значения
 // по умолчанию — те же, что у схемы.
-export function ApplicationsPage({ tab = 'new' }: Partial<ApplicationsSearch>) {
+export function ApplicationsPage({
+  tab: requested = 'new',
+}: Partial<ApplicationsSearch>) {
   const navigate = useNavigate()
+  const { role } = useAccess()
+  const isAdmin = hasRole(role, ADMIN_ROLES)
+  // Очередь окончательных решений — только администратору (APP-08).
+  const tab = requested === 'final' && !isAdmin ? 'new' : requested
   const newQueue = useNewApplications(tab === 'new')
+  const finalQueue = useFinalApplications(tab === 'final')
   const decided = useDecidedApplications(tab === 'decided')
   const decidedItems = decided.data?.pages.flatMap((page) => page.items)
-  const newCount =
-    tab === 'new' ? newQueue.data?.newCount : decided.data?.pages[0]?.newCount
-  const list = tab === 'new' ? newQueue : decided
+  const counts =
+    tab === 'new'
+      ? newQueue.data
+      : tab === 'final'
+        ? finalQueue.data
+        : decided.data?.pages[0]
+  const small = tab === 'new' ? newQueue : finalQueue
+  const list = tab === 'decided' ? decided : small
 
   let content
   if (list.isPending) {
     content = <LoadingState label="Загружаем заявки…" />
   } else if (list.isError) {
     content = <ErrorState onRetry={() => void list.refetch()} />
-  } else if (tab === 'new' && newQueue.data) {
+  } else if (tab !== 'decided' && small.data) {
     content =
-      newQueue.data.items.length === 0 ? (
-        <EmptyState {...EMPTY.new} />
+      small.data.items.length === 0 ? (
+        <EmptyState {...EMPTY[tab]} />
       ) : (
-        <NewQueue
-          items={newQueue.data.items}
-          truncated={newQueue.data.truncated}
+        <SmallQueue
+          label={tab === 'new' ? 'Новые заявки' : 'Окончательные решения'}
+          items={small.data.items}
+          truncated={small.data.truncated}
         />
       )
   } else if (!decidedItems || decidedItems.length === 0) {
@@ -152,22 +184,33 @@ export function ApplicationsPage({ tab = 'new' }: Partial<ApplicationsSearch>) {
       <PageHeader
         eyebrow="Управление"
         title="Заявки"
-        description="Проверка анкет кандидатов: приём в клан или отказ."
+        description="Проверка анкет кандидатов: голосование, приём в клан или отказ."
       />
       <Tabs
         value={tab}
         onValueChange={(value) =>
           void navigate({
             to: '/applications',
-            search: { tab: value === 'decided' ? 'decided' : 'new' },
+            search: {
+              tab: value === 'decided' || value === 'final' ? value : 'new',
+            },
           })
         }
       >
         <TabsList aria-label="Заявки" className="mb-4">
           <TabsTrigger value="new" className="inline-flex items-center gap-2">
             Новые
-            <NavBadge count={newCount} />
+            <NavBadge count={counts?.newCount} />
           </TabsTrigger>
+          {isAdmin ? (
+            <TabsTrigger
+              value="final"
+              className="inline-flex items-center gap-2"
+            >
+              Окончательные
+              <NavBadge count={counts?.finalCount} />
+            </TabsTrigger>
+          ) : null}
           <TabsTrigger value="decided">Решённые</TabsTrigger>
         </TabsList>
       </Tabs>

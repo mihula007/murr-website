@@ -1,17 +1,23 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
-import type { ApplicationDetails } from '@contracts/applications'
+import type {
+  ApplicationDetails,
+  ApplicationVoteResult,
+} from '@contracts/applications'
+import { ADMIN_ROLES, hasRole, useAccess } from '@/app/access'
+import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
 import { Avatar } from '@/components/ui/avatar'
 import { Button, linkButtonClass } from '@/components/ui/button'
 import { Badge, Card, Notice } from '@/components/ui/surfaces'
+import { toast } from '@/components/ui/toaster'
 import { APPLICATION_STATUS } from '@/features/account/status-labels'
 import { formatDate } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
-import { useApplication } from './api'
+import { useApplication, useSubmitToVote, type DecisionKind } from './api'
 import { DecisionDialog, type Decision } from './decision-dialog'
 
 const detailsListClass =
@@ -29,11 +35,65 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
+/** Итоги связанного голосования в карточке заявки (APP-08). */
+function VoteResult({ vote }: { vote: ApplicationVoteResult }) {
+  return (
+    <Section title="Голосование">
+      <dl className={detailsListClass}>
+        {vote.options.map((option) => (
+          <div key={option.id}>
+            <dt>{option.label}</dt>
+            <dd
+              className={cn(
+                'tabular-nums',
+                option.leading && 'font-bold text-primary',
+              )}
+            >
+              {option.count}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="text-sm text-muted-foreground">
+        Голосов: {vote.totalBallots} ·{' '}
+        {vote.closedAt
+          ? `завершено ${formatDate(vote.closedAt)}`
+          : 'голосование идёт'}
+      </p>
+      <Link
+        to="/votes/$id"
+        params={{ id: vote.id }}
+        className="justify-self-start text-primary underline underline-offset-2"
+      >
+        Открыть голосование
+      </Link>
+    </Section>
+  )
+}
+
+/** Пояснение для проверяющих, пока заявка в голосовании или ждёт решения. */
+const REVIEWER_NOTICE = {
+  pending_vote:
+    'Заявка на голосовании. После его завершения окончательное решение примет администратор.',
+  vote_completed:
+    'Голосование завершено. Окончательное решение принимает администратор.',
+} as const
+
 function ApplicationCard({ details }: { details: ApplicationDetails }) {
+  const { role } = useAccess()
   const [decision, setDecision] = useState<Decision | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const [conflict, setConflict] = useState(false)
+  const submitToVote = useSubmitToVote()
   const { applicant } = details
   const isNew = details.status === 'pending_officer_review'
+  const awaitsFinal =
+    details.status === 'vote_completed' && hasRole(role, ADMIN_ROLES)
+  const decisionKind: DecisionKind = awaitsFinal ? 'final' : 'direct'
+  const reviewerNotice =
+    details.status === 'pending_vote' || details.status === 'vote_completed'
+      ? REVIEWER_NOTICE[details.status]
+      : null
 
   return (
     <Card className="mx-auto grid w-full max-w-[720px] gap-4">
@@ -117,6 +177,8 @@ function ApplicationCard({ details }: { details: ApplicationDetails }) {
         )}
       </Section>
 
+      {details.vote ? <VoteResult vote={details.vote} /> : null}
+
       {details.decidedAt ? (
         <Section title="Решение">
           <dl className={detailsListClass}>
@@ -145,9 +207,18 @@ function ApplicationCard({ details }: { details: ApplicationDetails }) {
         </Notice>
       ) : null}
 
-      {isNew ? (
+      {isNew || awaitsFinal ? (
         <div className="flex flex-wrap gap-2 border-t border-border pt-4 max-xs:grid max-xs:grid-cols-1">
-          <Button type="button" onClick={() => setDecision('accept')}>
+          {isNew ? (
+            <Button type="button" onClick={() => setSubmitting(true)}>
+              Передать на голосование
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant={isNew ? 'secondary' : 'default'}
+            onClick={() => setDecision('accept')}
+          >
             Принять
           </Button>
           <Button
@@ -159,14 +230,28 @@ function ApplicationCard({ details }: { details: ApplicationDetails }) {
             Отклонить
           </Button>
         </div>
-      ) : details.decidedAt ? null : (
-        <Notice>{APPLICATION_STATUS[details.status].notice}</Notice>
-      )}
+      ) : reviewerNotice ? (
+        <Notice>{reviewerNotice}</Notice>
+      ) : null}
+
+      <ConfirmActionDialog
+        open={submitting}
+        onOpenChange={setSubmitting}
+        title={`Передать заявку ${applicant.gameNickname} на голосование?`}
+        description="Будет создано голосование «За», «Против», «Воздержаться», «Конфликт». Участники увидят только ник и класс кандидата. Заявка покинет очередь новых."
+        confirmLabel="Передать"
+        pendingLabel="Передаём…"
+        onConfirm={async () => {
+          await submitToVote.mutateAsync(details.id)
+          toast('Заявка передана на голосование')
+        }}
+      />
 
       <DecisionDialog
         applicationId={details.id}
         nickname={applicant.gameNickname}
         decision={decision}
+        kind={decisionKind}
         onClose={() => setDecision(null)}
         onConflict={() => setConflict(true)}
       />
