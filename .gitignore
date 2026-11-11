@@ -15,6 +15,7 @@ playwright-report/
 test-results/
 .tools/
 .superpowers/
+.claude/
 .tanstack/
 .supabase/
 .worktrees/

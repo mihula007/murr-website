@@ -118,8 +118,7 @@ Next.js и TanStack Start в выбранную основу не входят.
   Node.js и тестов. Типы Node не добавлять в клиентскую конфигурацию.
 - Vitest и React Testing Library — тесты клиентской основы; Playwright
   — браузерные проверки собранного сайта на desktop и mobile.
-- Oxlint — линтер (название «osxlint» интерпретировано как опечатка).
-  Prettier — форматтер. ESLint не установлен.
+- Oxlint — линтер. Prettier — форматтер. ESLint не установлен.
 - TanStack Query (серверное состояние) и TanStack Form (формы) установлены
   и используются; TanStack Table установлен на этапе 4 с первой таблицей
   («Аккаунты»): версия 9, API `useTable` + `tableFeatures`.
@@ -418,7 +417,7 @@ Git и артефакты `dist/`. Он обнаруживает известн�
 
 `prototype/` и `.agents/` исключены из lint, форматирования и тестов
 нового приложения; прототип не изменять в рамках сетапа.
-Локальные `.tools/`, `.supabase/` и `.superpowers/` игнорируются Git.
+Локальные `.tools/`, `.supabase/`, `.superpowers/` и `.claude/` (настройки Claude Code, например `launch.json`) игнорируются Git.
 
 Подробности запуска и подключения: [README.md](README.md).
 План: [инициализация](docs/superpowers/plans/2026-11-08-project-initialization.md).
