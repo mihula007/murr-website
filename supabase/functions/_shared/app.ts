@@ -22,6 +22,19 @@ import {
 } from './auth/token.ts'
 import { listClasses } from './catalog/service.ts'
 import { createDb, type Db } from './db/client.ts'
+import {
+  createEvent,
+  deleteEvent,
+  deleteTemplate,
+  ensureWeeklyEvents,
+  getEvent,
+  listEvents,
+  listTemplates,
+  respondToEvent,
+  saveTemplate,
+  templateNextDate,
+  updateEvent,
+} from './events/service.ts'
 import { createApiHandler, type Route } from './http/handler.ts'
 import {
   countRoster,
@@ -45,9 +58,17 @@ export type AppEnv = {
   supabaseUrl: string
   apiKey: string
   serviceKey: string
+  /** Секрет вызова выпуска постоянных событий по расписанию (Q-42). */
+  cronSecret?: string | null
 }
 
-export type AppDeps = { db: Db; storage: StorageGateway; now: () => Date }
+export type AppDeps = {
+  db: Db
+  storage: StorageGateway
+  now: () => Date
+  /** null — выпуск по расписанию не принимается. */
+  cronSecret?: string | null
+}
 
 export function createRoutes(deps: AppDeps): Record<string, Route> {
   return {
@@ -78,6 +99,21 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'votes/cast': ({ actor, body }) => castBallot(deps, actor, body),
     'votes/close': ({ actor, body }) => closeVote(deps, actor, body),
     'votes/delete': ({ actor, body }) => deleteVote(deps, actor, body),
+    'events/list': ({ actor, body }) => listEvents(deps, actor, body),
+    'events/get': ({ actor, body }) => getEvent(deps, actor, body),
+    'events/create': ({ actor, body }) => createEvent(deps, actor, body),
+    'events/update': ({ actor, body }) => updateEvent(deps, actor, body),
+    'events/delete': ({ actor, body }) => deleteEvent(deps, actor, body),
+    'events/respond': ({ actor, body }) => respondToEvent(deps, actor, body),
+    'events/ensure-weekly': ({ actor, headers }) =>
+      ensureWeeklyEvents(deps, actor, headers.get('x-cron-secret')),
+    'events/templates': ({ actor }) => listTemplates(deps, actor),
+    'events/template-save': ({ actor, body }) =>
+      saveTemplate(deps, actor, body),
+    'events/template-delete': ({ actor, body }) =>
+      deleteTemplate(deps, actor, body),
+    'events/template-next': ({ actor, body }) =>
+      templateNextDate(deps, actor, body),
     'roster/count': () => countRoster(deps),
     'roster/stats': ({ actor }) => rosterStats(deps, actor),
     'roster/list': ({ actor, body }) => listRoster(deps, actor, body),
@@ -97,6 +133,7 @@ export function createApp(
     db: createDb(env.dbUrl),
     storage: createStorageGateway(env.supabaseUrl, env.serviceKey),
     now: () => new Date(),
+    cronSecret: env.cronSecret || null,
   }
   const verifyToken =
     overrides.verifyToken ?? createTokenVerifier(env.supabaseUrl, env.apiKey)

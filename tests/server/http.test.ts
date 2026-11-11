@@ -67,12 +67,42 @@ describe('api function over HTTP', () => {
       'votes/cast',
       'votes/close',
       'votes/delete',
+      'events/list',
+      'events/get',
+      'events/create',
+      'events/update',
+      'events/delete',
+      'events/respond',
+      'events/ensure-weekly',
+      'events/templates',
+      'events/template-save',
+      'events/template-delete',
+      'events/template-next',
     ]) {
       expect(await call(route)).toEqual({
         status: 401,
         body: { error: 'not_authenticated' },
       })
     }
+  })
+
+  it('rejects the weekly events call with a wrong schedule secret', async () => {
+    const key = env('ANON_KEY')
+    const response = await fetch(
+      `${env('API_URL')}/functions/v1/api/events/ensure-weekly`,
+      {
+        method: 'POST',
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          'x-cron-secret': `wrong-${crypto.randomUUID()}`,
+        },
+        body: '{}',
+      },
+    )
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'forbidden' })
   })
 
   it('serves the roster count to a guest', async () => {

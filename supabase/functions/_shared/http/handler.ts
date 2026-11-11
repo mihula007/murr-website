@@ -2,7 +2,7 @@ import type { Actor } from '../auth/actor.ts'
 import type { ApiErrorBody } from '../contracts/errors.ts'
 import { ApiError } from './errors.ts'
 
-export type RouteInput = { body: unknown; actor: Actor }
+export type RouteInput = { body: unknown; actor: Actor; headers: Headers }
 export type Route = (input: RouteInput) => Promise<unknown>
 
 const CORS_HEADERS = {
@@ -47,7 +47,7 @@ export function createApiHandler(options: {
         throw new ApiError('validation_failed')
       }
       const actor = await options.resolveActor(request)
-      return json(200, await route({ body, actor }))
+      return json(200, await route({ body, actor, headers: request.headers }))
     } catch (error) {
       if (error instanceof ApiError) {
         const body: ApiErrorBody = { error: error.code }

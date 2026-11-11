@@ -25,6 +25,11 @@ const DETAIL_KEYS = new Set([
   'vote_id',
   'vote_kind',
   'title',
+  'event_id',
+  'event_type',
+  'starts_at',
+  'template_id',
+  'presets',
 ])
 
 type DetailValue = string | number | boolean | null | string[]
