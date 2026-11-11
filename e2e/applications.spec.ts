@@ -1,5 +1,10 @@
 import { expect, test, type Browser, type Page } from '@playwright/test'
-import { expectInternalMenu, hasHorizontalScroll, skipSplash } from './helpers'
+import {
+  expectInternalMenu,
+  hasHorizontalScroll,
+  scrollUntilVisible,
+  skipSplash,
+} from './helpers'
 import {
   auditActions,
   createMember,
@@ -84,9 +89,11 @@ test('E2E-02: офицер принимает заявку, кандидат с�
   expect(await memberCount(page)).toBeGreaterThanOrEqual(before + 1)
 
   await page.goto('./#/roster')
-  await expect(
+  // Состав виртуализирован: в локальной БД участник может быть ниже экрана.
+  await scrollUntilVisible(
+    page,
     page.getByRole('heading', { name: applicant.nickname }),
-  ).toBeVisible()
+  )
   expect(await hasHorizontalScroll(page)).toBe(false)
 
   await page.goto('./#/account')
