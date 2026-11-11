@@ -61,7 +61,12 @@ npm run supabase:functions
 Сейчас одна функция `api` (`verify_jwt = false`, JWT проверяет обработчик):
 маршруты `POST /functions/v1/api/<модуль>/<операция>` — `catalog/classes`,
 `account/check-nickname` (гостю), `account/me`, `account/avatar-upload`,
-`account/complete-registration`, `account/update-profile`. Импорты Deno —
+`account/complete-registration`, `account/update-profile`; этап 4 —
+`applications/list`, `applications/get`, `applications/decide`,
+`applications/resubmit`, `roster/count` (гостю), `roster/list`,
+`roster/readers`, `accounts/list`, `accounts/set-role`,
+`accounts/restore-reader`. Кто вызывает каждую операцию и что пишется в
+аудит — таблица в [плане этапа 4](../docs/superpowers/plans/2026-11-11-stage-4-applications-roster.md#операции-функции-api). Импорты Deno —
 `functions/api/deno.json` с теми же точными версиями, что в `package.json`.
 Auth и Storage вызываются через `fetch`, без `@supabase/supabase-js`, ради
 быстрого холодного старта.

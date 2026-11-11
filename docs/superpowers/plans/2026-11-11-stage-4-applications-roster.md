@@ -174,10 +174,10 @@
 
 **Файлы:** `AGENTS.md`, `README.md`, `docs/design-system.md`, `docs/requirements/{01-roles,04-applications,10-roster,15-admin,16-home}.md`, мастер-план.
 
-- [ ] AGENTS.md: модули `applications`, `roster`, `accounts`, `notifications`; правило даты вступления; TanStack Table установлен.
-- [ ] Статусы требований — «реализовано», не «принято»; ADM-08 и E2E-06 со ссылкой на Q-38.
-- [ ] Мастер-план: этап 4 завершён, отличия от плана.
-- [ ] Коммит: `docs: update project notes for stage 4`.
+- [x] AGENTS.md: модули `applications`, `roster`, `accounts`, `notifications`; правило даты вступления; TanStack Table установлен.
+- [x] Статусы требований — «реализовано», не «принято»; ADM-08 и E2E-06 со ссылкой на Q-38.
+- [x] Мастер-план: этап 4 завершён, отличия от плана.
+- [x] Коммит: `docs: update project notes for stage 4`.
 
 ## Задача 10. Итоговая проверка
 

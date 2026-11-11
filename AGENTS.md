@@ -121,7 +121,8 @@ Next.js и TanStack Start в выбранную основу не входят.
 - Oxlint — линтер (название «osxlint» интерпретировано как опечатка).
   Prettier — форматтер. ESLint не установлен.
 - TanStack Query (серверное состояние) и TanStack Form (формы) установлены
-  и используются; TanStack Table устанавливается вместе с первой таблицей.
+  и используются; TanStack Table установлен на этапе 4 с первой таблицей
+  («Аккаунты»): версия 9, API `useTable` + `tableFeatures`.
 - shadcn/ui: `components.json`, CSS-токены Tailwind 4. Новые компоненты
   добавляются только при появлении задачи, которой они нужны.
 - Supabase JS SDK и CLI 3. Браузер использует publishable key; служебные
@@ -150,7 +151,7 @@ Next.js и TanStack Start в выбранную основу не входят.
 | Маршрутизация        | TanStack Router, маршруты кодом в `src/routes/`, hash history                                                                                                                                                                                   |
 | Серверное состояние  | TanStack Query: чтение — `useQuery` (или `queryClient.fetchQuery` для разовой проверки), любая запись — `useMutation`, обновление кеша — в его `onSuccess`                                                                                      |
 | Формы                | TanStack Form + zod-схема, `onSubmitInvalid: focusFirstInvalid`, поля через `FormField`/`fieldError` (`src/components/form/`); формы, меняющие данные, подключают `useUnsavedChangesGuard`. `useState` с ручной проверкой полей не используется |
-| Таблицы              | TanStack Table (устанавливается с первой таблицей)                                                                                                                                                                                              |
+| Таблицы              | TanStack Table v9 (`useTable`); на узком экране строка — карточка без горизонтальной прокрутки                                                                                                                                                  |
 | Валидация            | zod — единственная библиотека проверки на клиенте и сервере; общие схемы и `LIMITS` — `supabase/functions/_shared/contracts/` (импорт `@contracts/*`), схемы полей Auth — `src/features/auth/schemas.ts`                                        |
 | Supabase в браузере  | supabase-js только в `src/lib/supabase/*.ts` и `src/features/auth/*.ts` (не `.tsx`); проверяет Oxlint                                                                                                                                           |
 | Операции Auth        | только функции `src/features/auth/auth-api.ts`; страницы и компоненты не импортируют клиент Supabase; проверяет Oxlint                                                                                                                          |
@@ -187,8 +188,13 @@ Next.js и TanStack Start в выбранную основу не входят.
 
 Структура клиента: `src/routes/` только объявляет маршруты; страницы и их
 логика — в доменных модулях `src/features/<домен>/` (`auth`, `registration`,
-`account`, `catalog`, `home`, `not-found`, `sections`, `dev`); общие элементы
-форм — `src/components/form/`; общие модули без React — `src/lib/`.
+`account`, `applications`, `roster`, `admin`, `catalog`, `home`,
+`not-found`, `sections`, `dev`); общие элементы форм — `src/components/form/`;
+подтверждение действия с ответом сервера — `ConfirmActionDialog`
+(`src/components/confirm-action-dialog.tsx`); иконка класса — `ClassIcon`
+(`src/features/catalog/`, файлы `src/assets/class-icons/<slug>.webp`);
+общие модули без React — `src/lib/`. Ключи кеша домена — рядом с ним
+(`query-keys.ts`), чтобы другие модули сбрасывали их без циклов импорта.
 
 ## Дизайн
 
@@ -249,6 +255,11 @@ Storybook обязателен: история для каждого компо�
   `role`. Демо `/#/dev/unsaved-demo` остаётся только в dev, `e2e/shell.spec.ts`
   проверяет его отсутствие в `dist/`. Кеш TanStack Query очищается при выходе
   и смене пользователя (`SessionProvider`).
+- Смена роли во время сессии (этап 4): клиент кеша создаёт
+  `createQueryClient` (`src/app/query-client.ts`); любой ответ `forbidden`
+  от `api` перечитывает `me`, поэтому меню и доступ обновляются без выхода.
+  Иначе `me` перечитывается при возврате на вкладку (после 60 с) и
+  перезагрузке; данные всё равно защищены сервером при каждом вызове.
 - Сессия в браузере бессрочная до явного выхода или очистки данных сайта
   (Q-35): `persistSession` + `autoRefreshToken`, ограничения сессий Supabase
   не включаются. Регистрация, вход, код, сброс пароля — [проект регистрации](docs/architecture/registration-flow.md).
@@ -263,7 +274,16 @@ Storybook обязателен: история для каждого компо�
 - Вся бизнес-логика — TypeScript в Supabase Edge Functions, данные —
   в Supabase Postgres (решение владельца, см. раздел «Серверная логика»).
   Этап 3: схема `app` (классы, профили, заявки, ссылки, аудит) и одна
-  функция `api` с операциями каталога и аккаунта.
+  функция `api` с операциями каталога и аккаунта. Этап 4: таблица
+  `user_notifications` и модули `applications` (очередь, карточка, прямое
+  решение, новая заявка), `roster` (численность, состав, чтецы), `accounts`
+  (таблица аккаунтов, смена роли и блокировка, восстановление чтеца),
+  `notifications` (`notify(tx, …)` в транзакции действия). Правило даты
+  вступления — только `joinedOnAfterRoleChange` в `_shared/membership.ts`:
+  переход кандидата или чтеца во внутреннюю роль ставит сегодняшнюю дату по
+  Москве, переходы между внутренними ролями и блокировка её не меняют.
+  Смена роли блокирует строки всех администраторов, затем цель (`FOR UPDATE`,
+  один порядок) — защита основного и последнего администратора от гонок.
 - Прикладные таблицы не открываются через Data API: браузер не получает
   к ним GRANT, RLS включён без политик (запрет по умолчанию).
 - CI проверяет изменения на push и pull request. Публикация Pages
