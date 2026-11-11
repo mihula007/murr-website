@@ -40,7 +40,9 @@ export function ConfirmActionDialog({
   const [error, setError] = useState<string | null>(null)
 
   function change(next: boolean) {
-    if (pending) return
+    if (pending) {
+      return
+    }
     setError(null)
     onOpenChange(next)
   }

@@ -325,7 +325,9 @@ describe('update profile', () => {
   it('writes nothing when nothing changed', async () => {
     const { actor } = await roleActor('member')
     const current = await getMe(deps, actor)
-    if (current.state !== 'ready') throw new Error('нет профиля')
+    if (current.state !== 'ready') {
+      throw new Error('нет профиля')
+    }
     await updateProfile(deps, await actorOf(db, current.profile.id), {
       displayName: current.profile.displayName,
       gameNickname: current.profile.gameNickname,

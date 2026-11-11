@@ -15,10 +15,16 @@ function isKnownAuthCode(code: string | undefined): code is AuthErrorCode {
  * `src/lib/supabase/` и `src/features/auth/` бросают только `AppError`.
  */
 export function toAppError(error: unknown): AppError {
-  if (error instanceof AppError) return error
+  if (error instanceof AppError) {
+    return error
+  }
   if (isAuthError(error)) {
-    if (isKnownAuthCode(error.code)) return new AppError(error.code)
-    if (error.status === 0) return new AppError('network')
+    if (isKnownAuthCode(error.code)) {
+      return new AppError(error.code)
+    }
+    if (error.status === 0) {
+      return new AppError('network')
+    }
     return new AppError('unknown')
   }
   if (

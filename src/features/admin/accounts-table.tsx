@@ -23,7 +23,9 @@ const ROLE_OPTIONS = (
 
 /** Почему роль аккаунта нельзя выбрать здесь; `null` — можно. */
 export function roleLockReason(account: AccountListItem) {
-  if (account.isPrimaryAdmin) return 'Основной администратор: роль не меняется'
+  if (account.isPrimaryAdmin) {
+    return 'Основной администратор: роль не меняется'
+  }
   if (account.hasActiveApplication) {
     return 'Заявка на рассмотрении: решение — в разделе «Заявки»'
   }
@@ -154,7 +156,9 @@ export function AccountsTable({ accounts }: { accounts: AccountListItem[] }) {
       <ConfirmActionDialog
         open={change !== null}
         onOpenChange={(open) => {
-          if (!open) setChange(null)
+          if (!open) {
+            setChange(null)
+          }
         }}
         title={
           change
@@ -180,7 +184,9 @@ export function AccountsTable({ accounts }: { accounts: AccountListItem[] }) {
         confirmLabel={toReader ? 'Заблокировать' : 'Сменить роль'}
         pendingLabel="Сохраняем…"
         onConfirm={async () => {
-          if (!change) return
+          if (!change) {
+            return
+          }
           await setRole.mutateAsync({
             userId: change.account.id,
             role: change.role,

@@ -15,7 +15,9 @@ export async function callApi<T>(route: string, body: object = {}): Promise<T> {
     .catch((thrown: unknown) => {
       throw toAppError(thrown)
     })
-  if (!error) return data as T
+  if (!error) {
+    return data as T
+  }
   if (error instanceof FunctionsHttpError) {
     const payload = (await (error.context as Response)
       .json()

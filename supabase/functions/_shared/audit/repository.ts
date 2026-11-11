@@ -30,7 +30,9 @@ export const auditRepository = {
       .offset(limit - 1)
       .limit(1)
       .executeTakeFirst()
-    if (!boundary) return
+    if (!boundary) {
+      return
+    }
     await tx.deleteFrom('app.audit_log').where('id', '<', boundary.id).execute()
   },
 

@@ -39,7 +39,9 @@ const designSystem = await __unstable__loadDesignSystem(css, {
 
 const findings = [...findExtraStylesheets(files), ...inspectStylesheet(css)]
 for (const file of files.filter((path) => /\.[cm]?[jt]sx?$/.test(path))) {
-  if (/\.test\.[jt]sx?$/.test(file)) continue
+  if (/\.test\.[jt]sx?$/.test(file)) {
+    continue
+  }
   const source = readFileSync(join(root, file), 'utf8')
   const result = inspectComponentSource(source, file)
   findings.push(
@@ -50,7 +52,9 @@ for (const file of files.filter((path) => /\.[cm]?[jt]sx?$/.test(path))) {
 
 if (findings.length > 0) {
   console.error('Нарушены правила единой системы стилей (Tailwind):')
-  for (const finding of findings) console.error(`- ${finding}`)
+  for (const finding of findings) {
+    console.error(`- ${finding}`)
+  }
   process.exit(1)
 }
 console.log('Правила стилей соблюдены: только Tailwind и токены темы.')

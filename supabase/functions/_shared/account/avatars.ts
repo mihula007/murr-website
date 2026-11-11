@@ -29,7 +29,9 @@ export async function verifyAvatar(
   if (!file || file.size === 0 || file.size > LIMITS.avatarBytes) {
     throw new ApiError('avatar_invalid')
   }
-  if (!detectImageType(file.head)) throw new ApiError('avatar_invalid')
+  if (!detectImageType(file.head)) {
+    throw new ApiError('avatar_invalid')
+  }
 }
 
 /** Удаляет из папки пользователя всё, кроме текущего аватара. Ошибка не критична. */

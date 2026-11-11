@@ -86,7 +86,9 @@ export async function createMember(role: string) {
     password: PASSWORD,
     email_confirm: true,
   })
-  if (error || !data.user) throw error ?? new Error('Не создан пользователь')
+  if (error || !data.user) {
+    throw error ?? new Error('Не создан пользователь')
+  }
   const nickname = uniqueNickname()
   await sql(
     (db) => db`insert into app.profiles
@@ -125,7 +127,9 @@ export async function accessToken(email: string, password = PASSWORD) {
     email,
     password,
   })
-  if (error || !data.session) throw error ?? new Error('Нет сессии')
+  if (error || !data.session) {
+    throw error ?? new Error('Нет сессии')
+  }
   return data.session.access_token
 }
 
@@ -161,7 +165,9 @@ export async function registerApplicant(
   const client = anonClient()
   const sentAt = Date.now() - 1000
   const signUp = await client.auth.signUp({ email, password: PASSWORD })
-  if (signUp.error) throw signUp.error
+  if (signUp.error) {
+    throw signUp.error
+  }
   const verified = await client.auth.verifyOtp({
     email,
     token: await latestCode(email, sentAt),
@@ -183,7 +189,9 @@ export async function registerApplicant(
       new Blob([readFileSync(AVATAR)], { type: 'image/png' }),
       { contentType: 'image/png' },
     )
-  if (uploaded.error) throw uploaded.error
+  if (uploaded.error) {
+    throw uploaded.error
+  }
 
   const done = await callApi('account/complete-registration', token, {
     displayName: 'Анна',

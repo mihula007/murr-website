@@ -82,7 +82,9 @@ export async function buildMe(
   user: UserActor,
 ): Promise<MeResponse> {
   const profile = await profileRepository.findById(deps.db, user.userId)
-  if (!profile) return { state: 'incomplete', email: user.email }
+  if (!profile) {
+    return { state: 'incomplete', email: user.email }
+  }
   const [className, url, application] = await Promise.all([
     profileRepository.className(deps.db, profile.class_id),
     avatarUrl(deps.storage, profile.avatar_path),
@@ -151,7 +153,9 @@ export async function completeRegistration(
   body: unknown,
 ): Promise<MeResponse> {
   const user = requireConfirmedUser(actor)
-  if (user.profile) return buildMe(deps, user)
+  if (user.profile) {
+    return buildMe(deps, user)
+  }
   const input = parseBody(completeRegistrationSchema, body)
   await ensureActiveClass(deps.db, input.classId)
   if (await profileRepository.nicknameTaken(deps.db, input.gameNickname)) {
@@ -198,13 +202,18 @@ export async function completeRegistration(
       })
     })
   } catch (error) {
-    if (isUniqueViolation(error, NICKNAME_CONSTRAINT)) throw nicknameTaken()
+    if (isUniqueViolation(error, NICKNAME_CONSTRAINT)) {
+      throw nicknameTaken()
+    }
     // Параллельная вкладка уже завершила регистрацию — отдаём её результат.
-    if (!isUniqueViolation(error, PROFILE_PK_CONSTRAINT)) throw error
+    if (!isUniqueViolation(error, PROFILE_PK_CONSTRAINT)) {
+      throw error
+    }
   }
   const saved = await profileRepository.findById(deps.db, user.userId)
-  if (saved)
+  if (saved) {
     await cleanupAvatarFolder(deps.storage, user.userId, saved.avatar_path)
+  }
   return buildMe(deps, user)
 }
 
@@ -258,7 +267,9 @@ export async function updateProfile(
     changes.avatar_path = nextAvatar
     changedFields.push('avatar_path')
   }
-  if (changedFields.length === 0) return buildMe(deps, user)
+  if (changedFields.length === 0) {
+    return buildMe(deps, user)
+  }
 
   try {
     await withTransaction(deps.db, async (tx) => {
@@ -277,7 +288,9 @@ export async function updateProfile(
       })
     })
   } catch (error) {
-    if (isUniqueViolation(error, NICKNAME_CONSTRAINT)) throw nicknameTaken()
+    if (isUniqueViolation(error, NICKNAME_CONSTRAINT)) {
+      throw nicknameTaken()
+    }
     throw error
   }
   if (changedFields.includes('avatar_path')) {
@@ -313,14 +326,19 @@ export async function bootstrapFirstAdmin(
         throw new ApiError('already_bootstrapped')
       }
       const user = await userRepository.findByEmail(tx, email)
-      if (!user) throw new ApiError('not_found')
-      if (!user.email_confirmed_at) throw new ApiError('email_not_confirmed')
+      if (!user) {
+        throw new ApiError('not_found')
+      }
+      if (!user.email_confirmed_at) {
+        throw new ApiError('email_not_confirmed')
+      }
       if (await profileRepository.findById(tx, user.id)) {
         throw new ApiError('validation_failed', { email: 'profile_exists' })
       }
       const classId = await catalogRepository.findIdBySlug(tx, input.classSlug)
-      if (classId === undefined)
+      if (classId === undefined) {
         throw new ApiError('validation_failed', { classSlug: 'required' })
+      }
       if (await profileRepository.nicknameTaken(tx, gameNickname)) {
         throw new ApiError('validation_failed', {
           gameNickname: 'nickname_taken',

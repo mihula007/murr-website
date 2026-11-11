@@ -128,7 +128,9 @@ export function PasswordForm({
                         autoComplete={autoComplete}
                         value={field.state.value}
                         onChange={(value) => {
-                          if (serverCode) change.reset()
+                          if (serverCode) {
+                            change.reset()
+                          }
                           field.handleChange(value)
                         }}
                         onBlur={field.handleBlur}

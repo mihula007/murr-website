@@ -4,7 +4,9 @@
  * Берётся календарная дата из строки, без перевода в часовой пояс браузера.
  */
 export function formatDate(value: string | null | undefined) {
-  if (!value) return '—'
+  if (!value) {
+    return '—'
+  }
   const [year, month, day] = value.slice(0, 10).split('-')
   return `${day}.${month}.${year}`
 }

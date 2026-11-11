@@ -169,8 +169,12 @@ function ResubmitForm({ me }: { me: ReadyMe }) {
               {(field) => {
                 const errors = field.state.value.map((_link, index) => {
                   const server = serverErrors[`equipmentLinks.${index}`]
-                  if (server) return fieldMessage(server)
-                  if (!submitted) return null
+                  if (server) {
+                    return fieldMessage(server)
+                  }
+                  if (!submitted) {
+                    return null
+                  }
                   const meta = form.getFieldMeta(`equipmentLinks[${index}]`)
                   const issue = meta?.errors.find(Boolean) as
                     { message?: string } | string | undefined
@@ -223,15 +227,21 @@ function ResubmitForm({ me }: { me: ReadyMe }) {
 export function ResubmitPage() {
   const access = useAccess()
   const me = useMe()
-  if (access.status === 'loading')
+  if (access.status === 'loading') {
     return <LoadingState label="Загружаем аккаунт…" />
-  if (access.status === 'guest') return <Navigate to="/login" />
-  if (access.status === 'incomplete')
+  }
+  if (access.status === 'guest') {
+    return <Navigate to="/login" />
+  }
+  if (access.status === 'incomplete') {
     return <Navigate to="/register/complete" />
+  }
   if (access.status === 'error' || me.data?.state !== 'ready') {
     return <ErrorState onRetry={() => void me.refetch()} />
   }
-  if (!me.data.canResubmit) return <Navigate to="/account" />
+  if (!me.data.canResubmit) {
+    return <Navigate to="/account" />
+  }
   return (
     <section>
       <PageHeader

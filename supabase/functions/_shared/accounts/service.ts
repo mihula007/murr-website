@@ -112,13 +112,17 @@ export async function setRole(
     // Сначала администраторы, затем цель: один порядок блокировок для всех.
     const admins = await accountRepository.lockAdmins(tx)
     const target = await profileRepository.findByIdForUpdate(tx, userId)
-    if (!target) throw new ApiError('not_found')
+    if (!target) {
+      throw new ApiError('not_found')
+    }
     const previousRole = target.access_role as AccessRole
     if (previousRole === role) {
       return { userId, role, joinedOn: target.joined_on }
     }
     if (previousRole === 'admin') {
-      if (target.is_primary_admin) throw new ApiError('primary_admin')
+      if (target.is_primary_admin) {
+        throw new ApiError('primary_admin')
+      }
       if (!admins.some((other) => other.id !== target.id)) {
         throw new ApiError('last_admin')
       }
@@ -148,8 +152,12 @@ export async function restoreReader(
 
   return withTransaction(deps.db, async (tx) => {
     const target = await profileRepository.findByIdForUpdate(tx, userId)
-    if (!target) throw new ApiError('not_found')
-    if (target.access_role !== 'reader') throw new ApiError('state_conflict')
+    if (!target) {
+      throw new ApiError('not_found')
+    }
+    if (target.access_role !== 'reader') {
+      throw new ApiError('state_conflict')
+    }
     return applyRole(tx, deps, keeper, target, 'member', ROLE_AUDIT.restored)
   })
 }

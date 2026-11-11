@@ -416,7 +416,9 @@ describe('resubmission after rejection', () => {
       application: { status: 'pending_officer_review' },
       canResubmit: false,
     })
-    if (me.state !== 'ready' || !me.application) throw new Error('нет заявки')
+    if (me.state !== 'ready' || !me.application) {
+      throw new Error('нет заявки')
+    }
     expect(me.application.id).not.toBe(applicationId)
     expect(await applicationRepository.links(db, me.application.id)).toEqual([
       'https://example.com/new.png',

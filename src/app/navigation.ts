@@ -118,7 +118,9 @@ export function visibleNavigation(role: AccessRole): NavCategory[] {
 /** Роли раздела из той же таблицы — для `RouteGate` реализованных разделов. */
 export function sectionRoles(id: NavSectionId): readonly AccessRole[] {
   const section = NAV_SECTIONS.find((item) => item.id === id)
-  if (!section) throw new Error(`Нет раздела ${id} в навигации`)
+  if (!section) {
+    throw new Error(`Нет раздела ${id} в навигации`)
+  }
   return section.roles
 }
 

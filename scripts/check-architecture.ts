@@ -36,8 +36,9 @@ const findings: string[] = []
 
 for (const path of files.filter(
   (file) => file.startsWith('supabase/functions/') && file.endsWith('.ts'),
-))
+)) {
   findings.push(...inspectServerSource(path, read(path)))
+}
 
 findings.push(
   ...findComponentsWithoutStories(
@@ -58,7 +59,9 @@ findings.push(
 
 if (findings.length > 0) {
   console.error('Нарушены правила архитектуры:')
-  for (const finding of findings) console.error(`- ${finding}`)
+  for (const finding of findings) {
+    console.error(`- ${finding}`)
+  }
   process.exit(1)
 }
 console.log(

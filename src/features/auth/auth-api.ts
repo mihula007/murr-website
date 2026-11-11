@@ -39,7 +39,9 @@ export function subscribeToSession(
   listener: (session: AuthSession | null) => void,
 ) {
   const supabase = getSupabaseClient()
-  if (!supabase) return null
+  if (!supabase) {
+    return null
+  }
   void supabase.auth.getSession().then(({ data }) => listener(data.session))
   const { data } = supabase.auth.onAuthStateChange((_event, session) =>
     listener(session),
@@ -52,7 +54,9 @@ export function signIn(credentials: Credentials) {
   return run(async () => {
     const { data, error } =
       await requireSupabase().auth.signInWithPassword(credentials)
-    if (error) throw error
+    if (error) {
+      throw error
+    }
     return data.user.id
   })
 }
@@ -64,8 +68,12 @@ export function signIn(credentials: Credentials) {
 export function signUp(credentials: Credentials) {
   return run(async (): Promise<'created' | 'exists'> => {
     const { data, error } = await requireSupabase().auth.signUp(credentials)
-    if (error?.code === 'user_already_exists') return 'exists'
-    if (error) throw error
+    if (error?.code === 'user_already_exists') {
+      return 'exists'
+    }
+    if (error) {
+      throw error
+    }
     return data.user?.identities?.length === 0 ? 'exists' : 'created'
   })
 }
@@ -83,7 +91,9 @@ export async function verifySignupCode({
   ).catch((error: unknown) => {
     throw codeError(error)
   })
-  if (result.error || !result.data.user) throw codeError(result.error)
+  if (result.error || !result.data.user) {
+    throw codeError(result.error)
+  }
   return result.data.user.id
 }
 
@@ -94,7 +104,9 @@ export function resendSignupCode(email: string) {
       type: 'signup',
       email,
     })
-    if (error) throw error
+    if (error) {
+      throw error
+    }
   })
 }
 
@@ -102,7 +114,9 @@ export function resendSignupCode(email: string) {
 export function sendPasswordResetCode(email: string) {
   return run(async () => {
     const { error } = await requireSupabase().auth.resetPasswordForEmail(email)
-    if (error) throw error
+    if (error) {
+      throw error
+    }
   })
 }
 
@@ -121,7 +135,9 @@ export async function resetPassword({
   ).catch((error: unknown) => {
     throw codeError(error)
   })
-  if (verified.error) throw codeError(verified.error)
+  if (verified.error) {
+    throw codeError(verified.error)
+  }
   await updatePassword(password)
 }
 
@@ -155,7 +171,9 @@ export async function changePassword({
 function updatePassword(password: string) {
   return run(async () => {
     const { error } = await requireSupabase().auth.updateUser({ password })
-    if (error) throw error
+    if (error) {
+      throw error
+    }
   })
 }
 
@@ -163,6 +181,8 @@ function updatePassword(password: string) {
 export function signOut() {
   return run(async () => {
     const { error } = await requireSupabase().auth.signOut()
-    if (error) throw error
+    if (error) {
+      throw error
+    }
   })
 }

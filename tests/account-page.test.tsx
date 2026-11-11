@@ -38,7 +38,9 @@ vi.mock('@/lib/supabase/client', async (importOriginal) => ({
 /** jsdom не раскрывает <details> по клику на summary. */
 async function openDetails(summary: string) {
   const details = (await screen.findByText(summary)).closest('details')
-  if (!details) throw new Error('нет details')
+  if (!details) {
+    throw new Error('нет details')
+  }
   details.open = true
   fireEvent(details, new Event('toggle'))
 }
@@ -146,7 +148,9 @@ describe('account dashboard', () => {
     const form = screen
       .getByRole('button', { name: 'Изменить пароль' })
       .closest('form')
-    if (!form) throw new Error('нет формы')
+    if (!form) {
+      throw new Error('нет формы')
+    }
     fireEvent.change(within(form).getByLabelText('Новый пароль'), {
       target: { value: '1234567' },
     })

@@ -145,7 +145,9 @@ test('прямые вызовы запрещённых операций откл
   ]
   const tokens = new Map<string, string>()
   for (const [email, route, body] of cases) {
-    if (!tokens.has(email)) tokens.set(email, await accessToken(email))
+    if (!tokens.has(email)) {
+      tokens.set(email, await accessToken(email))
+    }
     const result = await callApi(route, tokens.get(email)!, body)
     expect({ route, email, ...result }).toEqual({
       route,

@@ -12,7 +12,9 @@ type RouteGateProps = PropsWithChildren<{ roles: readonly AccessRole[] }>
  */
 export function RouteGate({ roles, children }: RouteGateProps) {
   const { role, status, retry } = useAccess()
-  if (status === 'loading') return <LoadingState label="Проверяем доступ…" />
+  if (status === 'loading') {
+    return <LoadingState label="Проверяем доступ…" />
+  }
   if (status === 'error') {
     return (
       <ErrorState
@@ -21,6 +23,8 @@ export function RouteGate({ roles, children }: RouteGateProps) {
       />
     )
   }
-  if (!hasRole(role, roles)) return <ForbiddenState accessRole={role} />
+  if (!hasRole(role, roles)) {
+    return <ForbiddenState accessRole={role} />
+  }
   return children
 }

@@ -2,7 +2,9 @@ import { createApp } from '../_shared/app.ts'
 
 function requireEnv(name: string) {
   const value = Deno.env.get(name)
-  if (!value) throw new Error(`Не задана переменная окружения ${name}`)
+  if (!value) {
+    throw new Error(`Не задана переменная окружения ${name}`)
+  }
   return value
 }
 

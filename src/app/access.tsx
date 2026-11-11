@@ -66,10 +66,15 @@ function SessionAccess({ children }: PropsWithChildren) {
   const session = useSession()
   const me = useMe()
   const value = useMemo<AccessContextValue>(() => {
-    if (session.status === 'loading')
+    if (session.status === 'loading') {
       return { role: 'guest', status: 'loading' }
-    if (session.status !== 'signedIn') return { role: 'guest', status: 'guest' }
-    if (me.isPending) return { role: 'guest', status: 'loading' }
+    }
+    if (session.status !== 'signedIn') {
+      return { role: 'guest', status: 'guest' }
+    }
+    if (me.isPending) {
+      return { role: 'guest', status: 'loading' }
+    }
     if (me.isError || !me.data) {
       return { role: 'guest', status: 'error', retry: () => void me.refetch() }
     }

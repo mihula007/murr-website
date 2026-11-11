@@ -36,7 +36,9 @@ export function AvatarPicker({
   )
   useEffect(
     () => () => {
-      if (preview) URL.revokeObjectURL(preview)
+      if (preview) {
+        URL.revokeObjectURL(preview)
+      }
     },
     [preview],
   )
@@ -54,7 +56,9 @@ export function AvatarPicker({
           disabled={busy}
           onChange={(event) => {
             const selected = event.target.files?.[0]
-            if (selected) onSelect(selected)
+            if (selected) {
+              onSelect(selected)
+            }
             event.target.value = ''
           }}
         />

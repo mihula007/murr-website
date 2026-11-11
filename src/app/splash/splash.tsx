@@ -33,8 +33,11 @@ function afterPageLoad(callback: () => void, delay: number) {
   const start = () => {
     timer = window.setTimeout(callback, delay)
   }
-  if (document.readyState === 'complete') start()
-  else window.addEventListener('load', start, { once: true })
+  if (document.readyState === 'complete') {
+    start()
+  } else {
+    window.addEventListener('load', start, { once: true })
+  }
   return () => {
     window.removeEventListener('load', start)
     window.clearTimeout(timer)
@@ -44,19 +47,26 @@ function afterPageLoad(callback: () => void, delay: number) {
 /** Обновляет метку активности при действиях пользователя не чаще раза в 15 с. */
 function useActivityTracking(enabled: boolean) {
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) {
+      return
+    }
     let lastWrite = readLastActivity() ?? 0
     const mark = () => {
       const now = Date.now()
-      if (now - lastWrite < ACTIVITY_WRITE_INTERVAL_MS) return
+      if (now - lastWrite < ACTIVITY_WRITE_INTERVAL_MS) {
+        return
+      }
       lastWrite = now
       writeLastActivity(now)
     }
     const events = ['pointerdown', 'keydown', 'touchstart'] as const
-    for (const name of events)
+    for (const name of events) {
       window.addEventListener(name, mark, { passive: true })
+    }
     return () => {
-      for (const name of events) window.removeEventListener(name, mark)
+      for (const name of events) {
+        window.removeEventListener(name, mark)
+      }
     }
   }, [enabled])
 }
@@ -73,30 +83,42 @@ export function SplashGate({ children }: PropsWithChildren) {
 
   const close = useCallback(() => {
     setPhase((current) => {
-      if (current !== 'visible') return current
+      if (current !== 'visible') {
+        return current
+      }
       writeLastActivity(Date.now())
       return prefersReducedMotion() ? 'gone' : 'leaving'
     })
   }, [])
 
   useEffect(() => {
-    if (phase !== 'visible') return
+    if (phase !== 'visible') {
+      return
+    }
     const locked = [document.documentElement, document.body]
-    for (const element of locked) element.classList.add(...LOCK_CLASSES)
+    for (const element of locked) {
+      element.classList.add(...LOCK_CLASSES)
+    }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close()
+      if (event.key === 'Escape') {
+        close()
+      }
     }
     document.addEventListener('keydown', onKeyDown)
     const cancelAutoClose = afterPageLoad(close, AUTO_CLOSE_MS)
     return () => {
-      for (const element of locked) element.classList.remove(...LOCK_CLASSES)
+      for (const element of locked) {
+        element.classList.remove(...LOCK_CLASSES)
+      }
       document.removeEventListener('keydown', onKeyDown)
       cancelAutoClose()
     }
   }, [phase, close])
 
   useEffect(() => {
-    if (phase !== 'leaving') return
+    if (phase !== 'leaving') {
+      return
+    }
     const timer = window.setTimeout(() => setPhase('gone'), LEAVE_MS)
     return () => window.clearTimeout(timer)
   }, [phase])

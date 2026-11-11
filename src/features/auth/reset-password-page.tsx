@@ -184,7 +184,9 @@ function CodeStep({
                   value={field.state.value}
                   error={fieldError(field.state.meta, submitted, serverCode)}
                   onChange={(value) => {
-                    if (serverCode) reset.reset()
+                    if (serverCode) {
+                      reset.reset()
+                    }
                     field.handleChange(value)
                   }}
                   onBlur={field.handleBlur}

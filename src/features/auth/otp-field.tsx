@@ -8,7 +8,9 @@ const RESEND_SECONDS = 60
 export function useCountdown() {
   const [left, setLeft] = useState(0)
   useEffect(() => {
-    if (left <= 0) return
+    if (left <= 0) {
+      return
+    }
     const timer = setTimeout(() => setLeft((value) => value - 1), 1000)
     return () => clearTimeout(timer)
   }, [left])

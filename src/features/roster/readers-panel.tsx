@@ -77,14 +77,18 @@ export function ReadersPanel() {
       <ConfirmActionDialog
         open={restoring !== null}
         onOpenChange={(open) => {
-          if (!open) setRestoring(null)
+          if (!open) {
+            setRestoring(null)
+          }
         }}
         title={`Восстановить ${restoring?.gameNickname ?? ''} в клане?`}
         description="Чтец снова станет членом клана, дата вступления — сегодня. Действие записывается в журнал аудита."
         confirmLabel="Восстановить"
         pendingLabel="Восстанавливаем…"
         onConfirm={async () => {
-          if (!restoring) return
+          if (!restoring) {
+            return
+          }
           await restore.mutateAsync({ userId: restoring.id })
           toast(`${restoring.gameNickname} снова в клане`)
         }}

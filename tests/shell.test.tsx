@@ -60,7 +60,9 @@ describe('оболочка приложения', () => {
   it('открытие второй категории закрывает первую (HOM-03)', async () => {
     await renderApp({ role: 'admin' })
     const [clan, community] = categoryButtons()
-    if (!clan || !community) throw new Error('Нет категорий')
+    if (!clan || !community) {
+      throw new Error('Нет категорий')
+    }
     fireEvent.keyDown(clan, { key: 'Enter' })
     expect(
       await screen.findByRole('menuitem', { name: 'Ивенты' }),
@@ -80,7 +82,9 @@ describe('оболочка приложения', () => {
   it('выбор раздела закрывает меню и выделяет активный раздел', async () => {
     const { router } = await renderApp({ role: 'member' })
     const [clan] = categoryButtons()
-    if (!clan) throw new Error('Нет категорий')
+    if (!clan) {
+      throw new Error('Нет категорий')
+    }
     fireEvent.keyDown(clan, { key: 'Enter' })
     fireEvent.click(
       await screen.findByRole('menuitem', { name: 'Голосование' }),

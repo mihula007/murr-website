@@ -179,11 +179,15 @@ function Dashboard({ me }: { me: ReadyMe }) {
 export function AccountPage() {
   const access = useAccess()
   const me = useMe()
-  if (access.status === 'loading')
+  if (access.status === 'loading') {
     return <LoadingState label="Загружаем аккаунт…" />
-  if (access.status === 'guest') return <Navigate to="/login" />
-  if (access.status === 'incomplete')
+  }
+  if (access.status === 'guest') {
+    return <Navigate to="/login" />
+  }
+  if (access.status === 'incomplete') {
     return <Navigate to="/register/complete" />
+  }
   if (access.status === 'error' || me.data?.state !== 'ready') {
     return <ErrorState onRetry={() => void me.refetch()} />
   }

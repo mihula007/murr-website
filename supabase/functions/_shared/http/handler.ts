@@ -31,7 +31,9 @@ export function createApiHandler(options: {
   resolveActor: (request: Request) => Promise<Actor>
 }) {
   return async (request: Request): Promise<Response> => {
-    if (request.method === 'OPTIONS') return json(200, {})
+    if (request.method === 'OPTIONS') {
+      return json(200, {})
+    }
     const route = options.routes[routeName(request.url)]
     if (!route || request.method !== 'POST') {
       return json(404, { error: 'not_found' } satisfies ApiErrorBody)
@@ -49,7 +51,9 @@ export function createApiHandler(options: {
     } catch (error) {
       if (error instanceof ApiError) {
         const body: ApiErrorBody = { error: error.code }
-        if (error.fields) body.fields = error.fields
+        if (error.fields) {
+          body.fields = error.fields
+        }
         return json(error.status, body)
       }
       // Подробности только в логах функции, клиенту — общий код.

@@ -160,7 +160,9 @@ export function RegistrationForm({
 
   async function checkNickname(value: string) {
     const nickname = value.trim()
-    if (!nickname || nickname.length > LIMITS.gameNickname) return
+    if (!nickname || nickname.length > LIMITS.gameNickname) {
+      return
+    }
     try {
       const result = await queryClient.fetchQuery({
         queryKey: ['account', 'nickname-available', nickname],
@@ -450,8 +452,12 @@ export function RegistrationForm({
               {(field) => {
                 const errors = field.state.value.map((_link, index) => {
                   const server = serverErrors[`equipmentLinks.${index}`]
-                  if (server) return fieldMessage(server)
-                  if (!submitted) return null
+                  if (server) {
+                    return fieldMessage(server)
+                  }
+                  if (!submitted) {
+                    return null
+                  }
                   // Ошибки элементов массива TanStack Form хранит под `equipmentLinks[i]`.
                   const meta = form.getFieldMeta(`equipmentLinks[${index}]`)
                   const issue = meta?.errors.find(Boolean) as

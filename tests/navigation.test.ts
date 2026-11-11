@@ -93,7 +93,9 @@ describe('конфигурация разделов', () => {
   it('пути уникальны и начинаются с /', () => {
     const paths = NAV_SECTIONS.map((section) => section.path)
     expect(new Set(paths).size).toBe(paths.length)
-    for (const path of paths) expect(path.startsWith('/')).toBe(true)
+    for (const path of paths) {
+      expect(path.startsWith('/')).toBe(true)
+    }
   })
 
   it('id разделов уникальны', () => {

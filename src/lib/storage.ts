@@ -18,7 +18,9 @@ function* available(areas: readonly StorageArea[]) {
     } catch {
       // Хранилище запрещено настройками браузера.
     }
-    if (storage) yield storage
+    if (storage) {
+      yield storage
+    }
   }
 }
 
@@ -27,7 +29,9 @@ export function readStored(key: string, areas: readonly StorageArea[]) {
   for (const storage of available(areas)) {
     try {
       const value = storage.getItem(key)
-      if (value !== null) return value
+      if (value !== null) {
+        return value
+      }
     } catch {
       // Пробуем следующую область.
     }

@@ -25,7 +25,9 @@ export type Notification = {
  * Возвращает id созданного уведомления или null.
  */
 export async function notify(tx: Executor, notification: Notification) {
-  if (notification.actorId === notification.recipientId) return null
+  if (notification.actorId === notification.recipientId) {
+    return null
+  }
   const id = await notificationRepository.insertOnce(tx, {
     recipient_id: notification.recipientId,
     actor_id: notification.actorId,

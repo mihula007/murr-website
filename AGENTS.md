@@ -119,6 +119,9 @@ Next.js и TanStack Start в выбранную основу не входят.
 - Vitest и React Testing Library — тесты клиентской основы; Playwright
   — браузерные проверки собранного сайта на desktop и mobile.
 - Oxlint — линтер. Prettier — форматтер. ESLint не установлен.
+  Тела `if`/`else`/`for`/`while`/`do` всегда в фигурных скобках
+  (`curly: all` в `.oxlintrc.json`, исправляет `npm run lint:fix`;
+  Prettier сам скобки не добавляет).
 - TanStack Query (серверное состояние) и TanStack Form (формы) установлены
   и используются; TanStack Table установлен на этапе 4 с первой таблицей
   («Аккаунты»): версия 9, API `useTable` + `tableFeatures`.

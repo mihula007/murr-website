@@ -54,10 +54,16 @@ export function fieldError(
   submitted: boolean,
   serverCode?: string,
 ) {
-  if (serverCode) return fieldMessage(serverCode)
-  if (!submitted && !(meta.isTouched && meta.isBlurred)) return null
+  if (serverCode) {
+    return fieldMessage(serverCode)
+  }
+  if (!submitted && !(meta.isTouched && meta.isBlurred)) {
+    return null
+  }
   const first = meta.errors.find(Boolean)
-  if (!first) return null
+  if (!first) {
+    return null
+  }
   const code =
     typeof first === 'string'
       ? first

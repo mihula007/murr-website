@@ -136,11 +136,14 @@ export function fieldMessage(code: string) {
  * у полей; общий текст остаётся только для `validation_failed`.
  */
 export function formErrorMessage(error: AppError | null | undefined) {
-  if (!error) return null
+  if (!error) {
+    return null
+  }
   if (
     Object.keys(error.fields).length > 0 &&
     error.code !== 'validation_failed'
-  )
+  ) {
     return null
+  }
   return errorMessage(error.code)
 }

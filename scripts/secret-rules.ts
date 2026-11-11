@@ -11,7 +11,9 @@ export function inspectContent(content: string): string[] {
     ['Private key', /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/],
   ]
   for (const [name, pattern] of patterns) {
-    if (pattern.test(content)) findings.push(name)
+    if (pattern.test(content)) {
+      findings.push(name)
+    }
   }
 
   for (const match of content.matchAll(
@@ -38,7 +40,9 @@ export function inspectTemplate(content: string): string[] {
   const names = new Set<string>()
   for (const line of content.split(/\r?\n/)) {
     const entry = line.trim()
-    if (!entry || entry.startsWith('#')) continue
+    if (!entry || entry.startsWith('#')) {
+      continue
+    }
     const match = /^([A-Z][A-Z0-9_]*)=(.*)$/.exec(entry)
     if (!match) {
       findings.push('Некорректная строка шаблона окружения')
@@ -46,8 +50,12 @@ export function inspectTemplate(content: string): string[] {
     }
     const name = match[1] ?? ''
     const value = match[2] ?? ''
-    if (names.has(name)) findings.push(`Повтор переменной: ${name}`)
-    if (value !== '') findings.push(`Значение должно быть пустым: ${name}`)
+    if (names.has(name)) {
+      findings.push(`Повтор переменной: ${name}`)
+    }
+    if (value !== '') {
+      findings.push(`Значение должно быть пустым: ${name}`)
+    }
     names.add(name)
   }
   return findings

@@ -19,7 +19,9 @@ type Handler = (body: unknown) => unknown
 function respond(routes: Record<string, Handler>) {
   callApi.mockImplementation((route, body) => {
     const handler = routes[route]
-    if (!handler) return Promise.reject(new AppError('not_found'))
+    if (!handler) {
+      return Promise.reject(new AppError('not_found'))
+    }
     try {
       return Promise.resolve(handler(body))
     } catch (error) {

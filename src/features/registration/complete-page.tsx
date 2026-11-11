@@ -34,9 +34,12 @@ export function CompleteRegistrationPage() {
     },
   })
 
-  if (access.status === 'loading')
+  if (access.status === 'loading') {
     return <LoadingState label="Загружаем аккаунт…" />
-  if (access.status === 'ready') return <Navigate to="/account" />
+  }
+  if (access.status === 'ready') {
+    return <Navigate to="/account" />
+  }
   if (access.status !== 'incomplete') {
     return (
       <AuthPage title="Завершите регистрацию">

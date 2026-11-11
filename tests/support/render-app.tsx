@@ -15,7 +15,9 @@ export async function renderApp({
   splash = false,
 }: { role?: AccessRole; path?: string; splash?: boolean } = {}) {
   localStorage.clear()
-  if (!splash) writeLastActivity(Date.now())
+  if (!splash) {
+    writeLastActivity(Date.now())
+  }
   const router = createAppRouter(
     createMemoryHistory({ initialEntries: [path] }),
   )

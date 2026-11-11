@@ -8,7 +8,9 @@ import './styles.css'
 const router = createAppRouter()
 const rootElement = document.getElementById('root')
 
-if (!rootElement) throw new Error('Не найден корневой элемент приложения')
+if (!rootElement) {
+  throw new Error('Не найден корневой элемент приложения')
+}
 
 createRoot(rootElement).render(
   <StrictMode>

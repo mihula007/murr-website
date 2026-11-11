@@ -13,5 +13,7 @@ export async function uploadToSignedUrl(upload: SignedUpload, file: Blob) {
     .uploadToSignedUrl(upload.path, upload.token, file, {
       contentType: file.type,
     })
-  if (error) throw new AppError('avatar_invalid')
+  if (error) {
+    throw new AppError('avatar_invalid')
+  }
 }

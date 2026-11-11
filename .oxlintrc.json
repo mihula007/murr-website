@@ -5,6 +5,7 @@
     "correctness": "error"
   },
   "rules": {
+    "curly": ["error", "all"],
     "react/rules-of-hooks": "error",
     "react/exhaustive-deps": "warn",
     "vitest/expect-expect": [

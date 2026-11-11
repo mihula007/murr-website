@@ -4,7 +4,9 @@ type NavBadgeProps = { count?: number | undefined; className?: string }
 
 /** Счётчик новых записей в пункте меню; при 0 или без данных не рендерится. */
 export function NavBadge({ count, className }: NavBadgeProps) {
-  if (!count || count <= 0) return null
+  if (!count || count <= 0) {
+    return null
+  }
   return (
     <span
       className={cn(

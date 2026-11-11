@@ -6,7 +6,9 @@ const config = readFileSync('supabase/config.toml', 'utf8')
 
 function section(name: string) {
   const start = config.indexOf(`[${name}]\n`)
-  if (start === -1) throw new Error(`Нет секции [${name}]`)
+  if (start === -1) {
+    throw new Error(`Нет секции [${name}]`)
+  }
   const rest = config.slice(start + name.length + 3)
   const end = rest.search(/^\[/m)
   return end === -1 ? rest : rest.slice(0, end)

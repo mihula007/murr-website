@@ -213,14 +213,18 @@ export function RosterPage() {
       <ConfirmActionDialog
         open={blocking !== null}
         onOpenChange={(open) => {
-          if (!open) setBlocking(null)
+          if (!open) {
+            setBlocking(null)
+          }
         }}
         title={`Присвоить ${blocking?.gameNickname ?? ''} статус «Чтец»?`}
         description="Участник выйдет из состава и потеряет внутренний доступ. Аккаунт, профиль и дата вступления сохранятся; восстановить его может офицер или администратор."
         confirmLabel="Присвоить «Чтец»"
         pendingLabel="Сохраняем…"
         onConfirm={async () => {
-          if (!blocking) return
+          if (!blocking) {
+            return
+          }
           await setRole.mutateAsync({ userId: blocking.id, role: 'reader' })
           toast(`${blocking.gameNickname} теперь чтец`)
         }}

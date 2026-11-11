@@ -16,7 +16,9 @@ export function saveDraft(draft: RegistrationDraft) {
 
 export function loadDraft(): RegistrationDraft | null {
   const raw = readStored(DRAFT_KEY, AREAS)
-  if (!raw) return null
+  if (!raw) {
+    return null
+  }
   try {
     return JSON.parse(raw) as RegistrationDraft
   } catch {

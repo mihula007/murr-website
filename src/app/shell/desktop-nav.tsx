@@ -63,7 +63,9 @@ export function DesktopNav({ categories, counts }: DesktopNavProps) {
             align={category.id === 'management' ? 'end' : 'start'}
             onCloseAutoFocus={(event) => {
               // Фокус остаётся в открытой следом категории, а не на этом триггере.
-              if (openIdRef.current !== null) event.preventDefault()
+              if (openIdRef.current !== null) {
+                event.preventDefault()
+              }
             }}
           >
             {category.sections.map((section) => (

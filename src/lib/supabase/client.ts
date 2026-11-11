@@ -7,7 +7,9 @@ let client: SupabaseClient | undefined
 // No client or network activity until a feature actually requests Supabase.
 export function getSupabaseClient(): SupabaseClient | null {
   const config = readSupabaseConfig(import.meta.env)
-  if (!config) return null
+  if (!config) {
+    return null
+  }
 
   client ??= createClient(config.url, config.publishableKey, {
     auth: {
@@ -24,6 +26,8 @@ export function getSupabaseClient(): SupabaseClient | null {
 /** Клиент для операции; без конфигурации — `AppError('unavailable')`. */
 export function requireSupabase(): SupabaseClient {
   const supabase = getSupabaseClient()
-  if (!supabase) throw new AppError('unavailable')
+  if (!supabase) {
+    throw new AppError('unavailable')
+  }
   return supabase
 }

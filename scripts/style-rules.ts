@@ -72,34 +72,49 @@ export function inspectStylesheet(css: string, file = STYLESHEET): string[] {
       index = end === -1 ? source.length : end
       continue
     }
-    if (char !== '{' && char !== '}' && char !== ';') continue
+    if (char !== '{' && char !== '}' && char !== ';') {
+      continue
+    }
     const text = source.slice(start, index).trim()
     const line = lineAt(source, start + source.slice(start).search(/\S|$/))
     const where = `${file}:${line}`
     if (char === '{') {
-      if (stack.length === 0 && !TOP_LEVEL_ALLOWED.some((re) => re.test(text)))
+      if (
+        stack.length === 0 &&
+        !TOP_LEVEL_ALLOWED.some((re) => re.test(text))
+      ) {
         findings.push(
           `${where}: блок «${text}» запрещён — в styles.css только импорты, :root, @theme и @layer base`,
         )
-      if (/^@(?:utility|layer|tailwind|apply)\b/.test(text) && stack.length > 0)
+      }
+      if (
+        /^@(?:utility|layer|tailwind|apply)\b/.test(text) &&
+        stack.length > 0
+      ) {
         findings.push(`${where}: «${text}» запрещён внутри блоков`)
-      if (!text.startsWith('@') && CLASS_SELECTOR.test(text))
+      }
+      if (!text.startsWith('@') && CLASS_SELECTOR.test(text)) {
         findings.push(
           `${where}: селектор класса «${text}» — оформляйте утилитами в разметке`,
         )
+      }
       stack.push(text)
     } else if (text) {
       // Объявление или at-правило без блока (`;` или последнее перед `}`).
-      if (stack.length === 0 && !/^@(?:import|custom-variant)\s/.test(text))
+      if (stack.length === 0 && !/^@(?:import|custom-variant)\s/.test(text)) {
         findings.push(
           `${where}: «${text}» запрещён на верхнем уровне styles.css`,
         )
-      if (!stack.includes(':root') && RAW_COLOR.test(text))
+      }
+      if (!stack.includes(':root') && RAW_COLOR.test(text)) {
         findings.push(
           `${where}: цвет-литерал «${text}» вне :root — добавьте токен`,
         )
+      }
     }
-    if (char === '}') stack.pop()
+    if (char === '}') {
+      stack.pop()
+    }
     start = index + 1
   }
   return findings
@@ -107,11 +122,14 @@ export function inspectStylesheet(css: string, file = STYLESHEET): string[] {
 
 /** Все строки-литералы выражения, где ожидаются классы. */
 function collectStrings(node: unknown, out: StringPart[]) {
-  if (!isNode(node)) return
+  if (!isNode(node)) {
+    return
+  }
   switch (node.type) {
     case 'Literal':
-      if (typeof node['value'] === 'string')
+      if (typeof node['value'] === 'string') {
         out.push({ value: node['value'], start: node.start })
+      }
       return
     case 'TemplateLiteral': {
       // Части рядом с подстановкой — неполные классы, их не проверяем.
@@ -119,8 +137,12 @@ function collectStrings(node: unknown, out: StringPart[]) {
       quasis.forEach((quasi, index) => {
         const value = quasi['value'] as { cooked?: string | null } | undefined
         let tokens = (value?.cooked ?? '').split(/\s+/)
-        if (index > 0) tokens = tokens.slice(1)
-        if (index < quasis.length - 1) tokens = tokens.slice(0, -1)
+        if (index > 0) {
+          tokens = tokens.slice(1)
+        }
+        if (index < quasis.length - 1) {
+          tokens = tokens.slice(0, -1)
+        }
         out.push({ value: tokens.join(' '), start: quasi.start })
       })
       return
@@ -134,15 +156,17 @@ function collectStrings(node: unknown, out: StringPart[]) {
       collectStrings(node['right'], out)
       return
     case 'ArrayExpression':
-      for (const element of children(node, 'elements'))
+      for (const element of children(node, 'elements')) {
         collectStrings(element, out)
+      }
       return
     case 'ObjectExpression':
       // Объект clsx/cn: ключи — классы.
       for (const property of children(node, 'properties')) {
         const key = child(property, 'key')
-        if (property.type === 'Property' && key?.type === 'Literal')
+        if (property.type === 'Property' && key?.type === 'Literal') {
           collectStrings(key, out)
+        }
       }
       return
     case 'ParenthesizedExpression':
@@ -153,10 +177,13 @@ function collectStrings(node: unknown, out: StringPart[]) {
       return
     case 'CallExpression': {
       const callee = keyName(child(node, 'callee'))
-      if (callee && CLASS_HELPERS.has(callee))
-        for (const argument of children(node, 'arguments'))
+      if (callee && CLASS_HELPERS.has(callee)) {
+        for (const argument of children(node, 'arguments')) {
           collectStrings(argument, out)
-      else if (callee === 'cva') collectCva(node, out)
+        }
+      } else if (callee === 'cva') {
+        collectCva(node, out)
+      }
       return
     }
     default:
@@ -167,23 +194,31 @@ function collectStrings(node: unknown, out: StringPart[]) {
 function collectCva(node: AstNode, out: StringPart[]) {
   const [base, config] = children(node, 'arguments')
   collectStrings(base, out)
-  if (config?.type !== 'ObjectExpression') return
+  if (config?.type !== 'ObjectExpression') {
+    return
+  }
   for (const property of children(config, 'properties')) {
     const key = keyName(child(property, 'key'))
     const value = child(property, 'value')
     if (key === 'variants' && value?.type === 'ObjectExpression') {
       for (const variant of children(value, 'properties')) {
         const options = child(variant, 'value')
-        if (options?.type === 'ObjectExpression')
-          for (const option of children(options, 'properties'))
+        if (options?.type === 'ObjectExpression') {
+          for (const option of children(options, 'properties')) {
             collectStrings(option['value'], out)
+          }
+        }
       }
     }
-    if (key === 'compoundVariants' && value?.type === 'ArrayExpression')
-      for (const item of children(value, 'elements'))
-        for (const field of children(item, 'properties'))
-          if (CLASS_PROPERTY.test(keyName(child(field, 'key')) ?? ''))
+    if (key === 'compoundVariants' && value?.type === 'ArrayExpression') {
+      for (const item of children(value, 'elements')) {
+        for (const field of children(item, 'properties')) {
+          if (CLASS_PROPERTY.test(keyName(child(field, 'key')) ?? '')) {
             collectStrings(field['value'], out)
+          }
+        }
+      }
+    }
   }
 }
 
@@ -197,20 +232,22 @@ export function inspectComponentSource(
   file: string,
 ): { candidates: ClassCandidate[]; findings: string[] } {
   const { program, errors } = parseSync(file, source)
-  if (errors.length > 0)
+  if (errors.length > 0) {
     return {
       candidates: [],
       findings: [`${file}: не удалось разобрать файл для проверки стилей`],
     }
+  }
   const strings: StringPart[] = []
   const findings: string[] = []
   walk(program, (node) => {
     if (node.type === 'JSXAttribute') {
       const name = keyName(child(node, 'name'))
-      if (name === 'style')
+      if (name === 'style') {
         findings.push(
           `${file}:${lineAt(source, node.start)}: inline-стиль — используйте утилиты Tailwind`,
         )
+      }
       if (name === 'className' || name === 'class') {
         collectStrings(node['value'], strings)
         return false
@@ -232,10 +269,13 @@ export function inspectComponentSource(
       CLASS_PROPERTY.test(keyName(child(node, 'key')) ?? '')
     ) {
       const value = child(node, 'value')
-      if (value?.type === 'ObjectExpression')
-        for (const field of children(value, 'properties'))
+      if (value?.type === 'ObjectExpression') {
+        for (const field of children(value, 'properties')) {
           collectStrings(field['value'], strings)
-      else collectStrings(value, strings)
+        }
+      } else {
+        collectStrings(value, strings)
+      }
       return false
     }
     return true
@@ -268,7 +308,9 @@ export function inspectCandidates(
   const reported = new Set<string>()
   for (const { name, line } of candidates) {
     const key = `${line}:${name}`
-    if (reported.has(key)) continue
+    if (reported.has(key)) {
+      continue
+    }
     if (unknown.has(name)) {
       reported.add(key)
       findings.push(

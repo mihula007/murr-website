@@ -12,7 +12,9 @@ import type { AccessRole } from '../../supabase/functions/_shared/db/schema.ts'
 
 export function env(name: string) {
   const value = process.env[`LOCAL_${name}`]
-  if (!value) throw new Error(`Нет LOCAL_${name}: запустите локальный Supabase`)
+  if (!value) {
+    throw new Error(`Нет LOCAL_${name}: запустите локальный Supabase`)
+  }
   return value
 }
 
@@ -41,7 +43,9 @@ export async function createAuthUser(options: { confirmed?: boolean } = {}) {
     password: TEST_PASSWORD,
     email_confirm: options.confirmed ?? true,
   })
-  if (error || !data.user) throw error ?? new Error('Не создан пользователь')
+  if (error || !data.user) {
+    throw error ?? new Error('Не создан пользователь')
+  }
   return { id: data.user.id, email }
 }
 
@@ -74,7 +78,9 @@ export async function signIn(email: string, password = TEST_PASSWORD) {
     email,
     password,
   })
-  if (error || !data.session) throw error ?? new Error('Нет сессии')
+  if (error || !data.session) {
+    throw error ?? new Error('Нет сессии')
+  }
   return data.session.access_token
 }
 
@@ -116,7 +122,9 @@ export async function uploadAvatar(
         contentType,
       },
     )
-  if (error) throw error
+  if (error) {
+    throw error
+  }
   return path
 }
 

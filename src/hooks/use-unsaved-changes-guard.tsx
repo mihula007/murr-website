@@ -26,7 +26,9 @@ export function useUnsavedChangesGuard(isDirty: boolean) {
     <AlertDialog
       open={isBlocked}
       onOpenChange={(open) => {
-        if (!open) blocker.reset?.()
+        if (!open) {
+          blocker.reset?.()
+        }
       }}
     >
       <AlertDialogContent>

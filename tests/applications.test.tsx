@@ -59,7 +59,9 @@ const CONTACTS = {
 function respond(routes: Record<string, (body: unknown) => unknown>) {
   callApi.mockImplementation((route, body) => {
     const handler = routes[route]
-    if (!handler) return Promise.reject(new AppError('not_found'))
+    if (!handler) {
+      return Promise.reject(new AppError('not_found'))
+    }
     try {
       return Promise.resolve(handler(body))
     } catch (error) {

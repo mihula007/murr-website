@@ -17,7 +17,9 @@ export function readSupabaseConfig(
 
   const url = String(env.VITE_SUPABASE_URL ?? '').trim()
   const publishableKey = String(env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '').trim()
-  if (!url && !publishableKey) return null
+  if (!url && !publishableKey) {
+    return null
+  }
   if (!url || !publishableKey) {
     throw new Error('Для Supabase необходимо задать обе переменные окружения')
   }

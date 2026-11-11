@@ -11,7 +11,9 @@ export const ACTIVITY_WRITE_INTERVAL_MS = 15_000
 export const ACTIVITY_KEY = 'murr-last-activity'
 
 export function shouldShowSplash(now: number, lastActivity: number | null) {
-  if (lastActivity === null || lastActivity > now) return true
+  if (lastActivity === null || lastActivity > now) {
+    return true
+  }
   return now - lastActivity >= IDLE_LIMIT_MS
 }
 
@@ -20,7 +22,9 @@ const AREAS: readonly StorageArea[] = ['local', 'session']
 
 export function readLastActivity(): number | null {
   const raw = readStored(ACTIVITY_KEY, AREAS)
-  if (raw === null) return null
+  if (raw === null) {
+    return null
+  }
   const value = Number(raw)
   return Number.isFinite(value) ? value : null
 }

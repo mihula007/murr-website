@@ -20,7 +20,9 @@ export const GUEST: GuestActor = { kind: 'guest' }
 /** Текущее состояние пользователя читается из БД при каждом запросе. */
 export async function loadActor(db: Executor, userId: string): Promise<Actor> {
   const user = await userRepository.findById(db, userId)
-  if (!user) return GUEST
+  if (!user) {
+    return GUEST
+  }
   const profile = await profileRepository.findById(db, userId)
   return {
     kind: 'user',
@@ -32,19 +34,25 @@ export async function loadActor(db: Executor, userId: string): Promise<Actor> {
 }
 
 export function requireUser(actor: Actor): UserActor {
-  if (actor.kind !== 'user') throw new ApiError('not_authenticated')
+  if (actor.kind !== 'user') {
+    throw new ApiError('not_authenticated')
+  }
   return actor
 }
 
 export function requireConfirmedUser(actor: Actor): UserActor {
   const user = requireUser(actor)
-  if (!user.emailConfirmed) throw new ApiError('email_not_confirmed')
+  if (!user.emailConfirmed) {
+    throw new ApiError('email_not_confirmed')
+  }
   return user
 }
 
 export function requireProfile(actor: Actor): ProfiledActor {
   const user = requireConfirmedUser(actor)
-  if (!user.profile) throw new ApiError('registration_incomplete')
+  if (!user.profile) {
+    throw new ApiError('registration_incomplete')
+  }
   return user as ProfiledActor
 }
 

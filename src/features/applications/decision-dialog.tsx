@@ -71,7 +71,9 @@ export function DecisionDialog({
   const [formError, setFormError] = useState<string | null>(null)
   // Тексты закрывающегося диалога не меняются во время анимации.
   const [shown, setShown] = useState<Decision>('accept')
-  if (decision && decision !== shown) setShown(decision)
+  if (decision && decision !== shown) {
+    setShown(decision)
+  }
   const copy = COPY[decision ?? shown]
 
   const form = useForm({
@@ -79,7 +81,9 @@ export function DecisionDialog({
     validators: { onChange: noteSchema },
     onSubmitInvalid: focusFirstInvalid,
     onSubmit: async ({ value }) => {
-      if (!decision) return
+      if (!decision) {
+        return
+      }
       setFormError(null)
       const { note } = noteSchema.parse(value)
       await decide
@@ -116,7 +120,9 @@ export function DecisionDialog({
       <AlertDialog
         open={decision !== null}
         onOpenChange={(open) => {
-          if (!open && !decide.isPending) close()
+          if (!open && !decide.isPending) {
+            close()
+          }
         }}
       >
         <AlertDialogContent>

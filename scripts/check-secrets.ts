@@ -40,8 +40,9 @@ const ignored = git('check-ignore', '--no-index', '--', ...envProbes)
   .trim()
   .split(/\r?\n/)
 for (const path of envProbes) {
-  if (!ignored.includes(path))
+  if (!ignored.includes(path)) {
     findings.push(`${path}: отсутствует правило gitignore`)
+  }
 }
 
 const templatePath = join(root, '.env.example')
@@ -59,7 +60,9 @@ if (!existsSync(templatePath)) {
 const textFile =
   /(?:\.(?:[cm]?[jt]sx?|json|html?|css|md|txt|toml|ya?ml|sql|sh|ps1|pem)|(?:^|\/)\.[^/]+)$/i
 for (const path of new Set(files)) {
-  if (isEnvFile(path) || !textFile.test(path) || !existsSync(path)) continue
+  if (isEnvFile(path) || !textFile.test(path) || !existsSync(path)) {
+    continue
+  }
   const content = readFileSync(path, 'utf8')
   findings.push(
     ...inspectContent(content).map((finding) => `${path}: ${finding}`),
@@ -77,7 +80,9 @@ const staged = git(
   .split('\0')
   .filter(Boolean)
 for (const path of staged) {
-  if (isEnvFile(path) || !textFile.test(path)) continue
+  if (isEnvFile(path) || !textFile.test(path)) {
+    continue
+  }
   const content = git('show', `:${path}`)
   findings.push(
     ...inspectContent(content).map((finding) => `index:${path}: ${finding}`),
@@ -90,11 +95,14 @@ for (const path of staged) {
 }
 
 function scanBuild(directory: string) {
-  if (!existsSync(directory)) return
+  if (!existsSync(directory)) {
+    return
+  }
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name)
-    if (entry.isDirectory()) scanBuild(path)
-    else if (textFile.test(path)) {
+    if (entry.isDirectory()) {
+      scanBuild(path)
+    } else if (textFile.test(path)) {
       findings.push(
         ...inspectContent(readFileSync(path, 'utf8')).map(
           (finding) => `${relative(root, path)}: ${finding}`,
@@ -107,7 +115,9 @@ scanBuild(join(root, 'dist'))
 
 if (findings.length) {
   console.error('Проверка секретов не пройдена (значения скрыты):')
-  for (const finding of findings) console.error(`- ${finding}`)
+  for (const finding of findings) {
+    console.error(`- ${finding}`)
+  }
   process.exitCode = 1
 } else {
   console.log(

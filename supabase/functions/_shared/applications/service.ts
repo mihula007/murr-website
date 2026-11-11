@@ -113,7 +113,9 @@ async function loadDetails(
   id: string,
 ): Promise<ApplicationDetails> {
   const row = await applicationRepository.findDetails(db, id)
-  if (!row) throw new ApiError('not_found')
+  if (!row) {
+    throw new ApiError('not_found')
+  }
   const [links, url] = await Promise.all([
     applicationRepository.links(db, id),
     avatarUrl(deps.storage, row.avatar_path),
@@ -280,7 +282,9 @@ export async function resubmitApplication(
 
   const missing: Record<string, string> = {}
   for (const [field, column] of Object.entries(REQUIRED_PROFILE_FIELDS)) {
-    if (!applicant.profile[column]) missing[field] = 'required'
+    if (!applicant.profile[column]) {
+      missing[field] = 'required'
+    }
   }
   if (Object.keys(missing).length > 0) {
     throw new ApiError('validation_failed', missing)

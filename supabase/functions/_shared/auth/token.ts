@@ -11,11 +11,15 @@ export function createTokenVerifier(
 ): TokenVerifier {
   return async (token) => {
     // Ключ проекта (не JWT) приходит от гостя: это не ошибка, а отсутствие сессии.
-    if (token.split('.').length !== 3) return null
+    if (token.split('.').length !== 3) {
+      return null
+    }
     const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
       headers: { apikey: apiKey, Authorization: `Bearer ${token}` },
     })
-    if (!response.ok) return null
+    if (!response.ok) {
+      return null
+    }
     const user = (await response.json()) as { id?: unknown }
     return typeof user.id === 'string' && user.id ? user.id : null
   }

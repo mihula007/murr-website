@@ -27,7 +27,9 @@ type MobileNavProps = {
 export function MobileNav({ categories, counts }: MobileNavProps) {
   const [open, setOpen] = useState(false)
   const { pathname, section: active } = useActiveSection()
-  if (categories.length === 0) return null
+  if (categories.length === 0) {
+    return null
+  }
   const close = () => setOpen(false)
 
   return (

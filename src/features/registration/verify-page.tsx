@@ -28,7 +28,9 @@ async function confirmEmail(email: string, code: string) {
   const userId = await verifySignupCode({ email, code })
   const draft = registrationFieldsSchema.safeParse(loadDraft() ?? {})
   const avatar = getPendingAvatar()
-  if (!draft.success || !avatar) return { userId, me: null, failed: false }
+  if (!draft.success || !avatar) {
+    return { userId, me: null, failed: false }
+  }
   try {
     return {
       userId,
@@ -71,8 +73,9 @@ function VerifyForm({ email }: { email: string }) {
         await navigate({ to: '/' })
         return
       }
-      if (failed)
+      if (failed) {
         toast('Почта подтверждена. Проверьте анкету и завершите регистрацию.')
+      }
       await navigate({ to: '/register/complete' })
     },
   })
@@ -124,7 +127,9 @@ function VerifyForm({ email }: { email: string }) {
                   value={field.state.value}
                   error={fieldError(field.state.meta, submitted, serverCode)}
                   onChange={(value) => {
-                    if (serverCode) verify.reset()
+                    if (serverCode) {
+                      verify.reset()
+                    }
                     field.handleChange(value)
                   }}
                   onBlur={field.handleBlur}

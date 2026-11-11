@@ -23,7 +23,9 @@ export const profileRepository = {
       .selectFrom('app.profiles')
       .select('id')
       .where('game_nickname', '=', nickname)
-    if (exceptId) query = query.where('id', '<>', exceptId)
+    if (exceptId) {
+      query = query.where('id', '<>', exceptId)
+    }
     return (await query.executeTakeFirst()) !== undefined
   },
 

@@ -38,7 +38,9 @@ export default async function setup() {
   const status = JSON.parse(output) as Record<string, string>
   for (const name of NAMES) {
     const value = status[name]
-    if (!value) throw new Error(`Локальный Supabase не запущен: нет ${name}`)
+    if (!value) {
+      throw new Error(`Локальный Supabase не запущен: нет ${name}`)
+    }
     process.env[`LOCAL_${name}`] = value
   }
 
@@ -53,13 +55,16 @@ export default async function setup() {
     })
     const deadline = Date.now() + 90_000
     while (!(await functionsReady(apiUrl, key))) {
-      if (Date.now() > deadline)
+      if (Date.now() > deadline) {
         throw new Error('Edge Functions не запустились')
+      }
       await new Promise((resolve) => setTimeout(resolve, 1000))
     }
   }
   return () => {
-    if (!serve?.pid) return
+    if (!serve?.pid) {
+      return
+    }
     // Группу процессов на Windows останавливает только taskkill.
     if (process.platform === 'win32') {
       execFileSync('taskkill', ['/pid', String(serve.pid), '/T', '/F'], {

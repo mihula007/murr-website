@@ -16,6 +16,8 @@ export async function finishRegistration(
     ...fields,
     avatarPath,
   })
-  if (me.state === 'ready') clearDraft()
+  if (me.state === 'ready') {
+    clearDraft()
+  }
   return me
 }

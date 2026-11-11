@@ -34,19 +34,28 @@ export function isSqlAllowed(path: string) {
  */
 export function inspectServerSource(path: string, source: string): string[] {
   const file = normalize(path)
-  if (isSqlAllowed(file)) return []
+  if (isSqlAllowed(file)) {
+    return []
+  }
   const { program, errors } = parseSync(file, source)
-  if (errors.length > 0) return [`${file}: не удалось разобрать файл`]
+  if (errors.length > 0) {
+    return [`${file}: не удалось разобрать файл`]
+  }
   const findings: string[] = []
   walk(program, (node) => {
-    if (node.type !== 'CallExpression') return
+    if (node.type !== 'CallExpression') {
+      return
+    }
     const callee = child(node, 'callee')
-    if (callee?.type !== 'MemberExpression') return
+    if (callee?.type !== 'MemberExpression') {
+      return
+    }
     const method = keyName(child(callee, 'property'))
-    if (method && QUERY_METHODS.has(method))
+    if (method && QUERY_METHODS.has(method)) {
       findings.push(
         `${file}:${lineAt(source, node.start)}: запрос «${method}» вне репозитория — SQL только в <модуль>/repository.ts`,
       )
+    }
   })
   return findings
 }
@@ -63,7 +72,9 @@ export function importedModules(path: string, source: string): string[] {
       node.type === 'ImportExpression'
     ) {
       const value = keyName(child(node, 'source'))
-      if (value) modules.push(value)
+      if (value) {
+        modules.push(value)
+      }
     }
   })
   return modules
@@ -71,12 +82,19 @@ export function importedModules(path: string, source: string): string[] {
 
 /** Разрешает относительный импорт истории в путь от корня без расширения. */
 function resolveFrom(storyPath: string, specifier: string) {
-  if (specifier.startsWith('@/')) return `src/${specifier.slice(2)}`
-  if (!specifier.startsWith('.')) return null
+  if (specifier.startsWith('@/')) {
+    return `src/${specifier.slice(2)}`
+  }
+  if (!specifier.startsWith('.')) {
+    return null
+  }
   const parts = normalize(storyPath).split('/').slice(0, -1)
   for (const segment of specifier.split('/')) {
-    if (segment === '..') parts.pop()
-    else if (segment !== '.') parts.push(segment)
+    if (segment === '..') {
+      parts.pop()
+    } else if (segment !== '.') {
+      parts.push(segment)
+    }
   }
   return parts.join('/').replace(/\.(?:tsx?|jsx?)$/, '')
 }
@@ -90,11 +108,14 @@ export function findComponentsWithoutStories(
   stories: { path: string; source: string }[],
 ): string[] {
   const covered = new Set<string>()
-  for (const story of stories)
+  for (const story of stories) {
     for (const specifier of importedModules(story.path, story.source)) {
       const target = resolveFrom(story.path, specifier)
-      if (target) covered.add(target)
+      if (target) {
+        covered.add(target)
+      }
     }
+  }
   return componentPaths
     .map(normalize)
     .filter(
@@ -121,8 +142,10 @@ export function inspectEdgeFunctions(directories: string[]): string[] {
       (name) =>
         `supabase/functions/${name}: новая Edge Function — только по решению владельца (обязательна одна функция api)`,
     )
-  for (const name of EDGE_FUNCTIONS)
-    if (!functions.includes(name))
+  for (const name of EDGE_FUNCTIONS) {
+    if (!functions.includes(name)) {
       findings.push(`supabase/functions/${name}: отсутствует функция ${name}`)
+    }
+  }
   return findings
 }

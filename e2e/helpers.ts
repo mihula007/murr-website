@@ -25,6 +25,9 @@ export async function expectInternalMenu(page: Page, visible: boolean) {
     .getByRole('banner')
     .getByRole('button', { name: /^(Клан|Открыть меню)$/ })
     .filter({ visible: true })
-  if (visible) await expect(trigger.first()).toBeVisible({ timeout: 15_000 })
-  else await expect(trigger).toHaveCount(0)
+  if (visible) {
+    await expect(trigger.first()).toBeVisible({ timeout: 15_000 })
+  } else {
+    await expect(trigger).toHaveCount(0)
+  }
 }

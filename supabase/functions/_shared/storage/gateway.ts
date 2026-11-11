@@ -59,7 +59,9 @@ export function createStorageGateway(
       )
       const { url } = (await response.json()) as { url: string }
       const token = new URL(url, base).searchParams.get('token')
-      if (!token) throw new Error('Нет токена загрузки')
+      if (!token) {
+        throw new Error('Нет токена загрузки')
+      }
       return { path, token }
     },
     async read(bucket, path) {
@@ -67,7 +69,9 @@ export function createStorageGateway(
         `${base}/object/${bucket}/${encodePath(path)}`,
         { headers },
       )
-      if (!response.ok) return null
+      if (!response.ok) {
+        return null
+      }
       const bytes = new Uint8Array(await response.arrayBuffer())
       return { size: bytes.byteLength, head: bytes.slice(0, 16) }
     },
@@ -86,7 +90,9 @@ export function createStorageGateway(
         .map((item) => `${folder}/${item.name}`)
     },
     async remove(bucket, paths) {
-      if (paths.length === 0) return
+      if (paths.length === 0) {
+        return
+      }
       await call(`/object/${bucket}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -107,7 +113,9 @@ export function createStorageGateway(
     },
     async signedUrls(bucket, paths, expiresInSeconds) {
       const urls = new Map<string, string>()
-      if (paths.length === 0) return urls
+      if (paths.length === 0) {
+        return urls
+      }
       try {
         const response = await call(
           `/object/sign/${bucket}`,

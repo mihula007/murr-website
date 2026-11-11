@@ -36,8 +36,11 @@ export function keyName(node: AstNode | undefined) {
 /** Номер строки (с 1) для смещения в исходнике. */
 export function lineAt(source: string, offset: number) {
   let line = 1
-  for (let index = 0; index < offset; index += 1)
-    if (source.charCodeAt(index) === 10) line += 1
+  for (let index = 0; index < offset; index += 1) {
+    if (source.charCodeAt(index) === 10) {
+      line += 1
+    }
+  }
   return line
 }
 
@@ -48,13 +51,22 @@ export function lineAt(source: string, offset: number) {
 export function walk(root: unknown, enter: (node: AstNode) => boolean | void) {
   const visit = (value: unknown) => {
     if (Array.isArray(value)) {
-      for (const item of value) visit(item)
+      for (const item of value) {
+        visit(item)
+      }
       return
     }
-    if (!isNode(value)) return
-    if (enter(value) === false) return
-    for (const key of Object.keys(value))
-      if (key !== 'parent' && typeof value[key] === 'object') visit(value[key])
+    if (!isNode(value)) {
+      return
+    }
+    if (enter(value) === false) {
+      return
+    }
+    for (const key of Object.keys(value)) {
+      if (key !== 'parent' && typeof value[key] === 'object') {
+        visit(value[key])
+      }
+    }
   }
   visit(root)
 }
