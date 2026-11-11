@@ -11,6 +11,7 @@ export const LIMITS = {
   avatarBytes: 500 * 1024,
   avatarSide: 512,
   passwordMin: 8,
+  decisionNote: 1000,
 } as const
 
 export const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
@@ -53,6 +54,12 @@ export const equipmentLinkSchema = z
     }
   }, 'invalid_url')
 
+/** Ссылки на снаряжение: до 10 (APP-13); пустые строки формы не считаются ссылками. */
+export const equipmentLinksSchema = z
+  .array(z.string())
+  .transform((links) => links.filter((link) => link.trim() !== ''))
+  .pipe(z.array(equipmentLinkSchema).max(LIMITS.equipmentLinks, 'too_many'))
+
 export const registrationFieldsSchema = z.object({
   displayName: displayNameSchema,
   gameNickname: gameNicknameSchema,
@@ -60,11 +67,7 @@ export const registrationFieldsSchema = z.object({
   birthDate: birthDateSchema,
   classId: classIdSchema,
   about: required(LIMITS.about),
-  // Пустые строки формы не считаются ссылками.
-  equipmentLinks: z
-    .array(z.string())
-    .transform((links) => links.filter((link) => link.trim() !== ''))
-    .pipe(z.array(equipmentLinkSchema).max(LIMITS.equipmentLinks, 'too_many')),
+  equipmentLinks: equipmentLinksSchema,
 })
 export type RegistrationFields = z.infer<typeof registrationFieldsSchema>
 
@@ -149,4 +152,6 @@ export type MeResponse =
       profile: ProfileView
       /** Чтецу не показывается (ACC-05). */
       application: ApplicationView | null
+      /** Кандидат без активной заявки может подать новую (APP-10, Q-06). */
+      canResubmit?: boolean
     }

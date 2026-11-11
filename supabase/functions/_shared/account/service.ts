@@ -36,7 +36,10 @@ import {
   verifyAvatar,
 } from './avatars.ts'
 import {
+  ACTIVE_STATUSES,
   applicationRepository,
+} from '../applications/repository.ts'
+import {
   NICKNAME_CONSTRAINT,
   PROFILE_PK_CONSTRAINT,
   profileRepository,
@@ -73,7 +76,11 @@ export async function checkNickname(
   }
 }
 
-async function buildMe(deps: AppDeps, user: UserActor): Promise<MeResponse> {
+/** Ответ `account/me` для пользователя; используют и другие операции. */
+export async function buildMe(
+  deps: AppDeps,
+  user: UserActor,
+): Promise<MeResponse> {
   const profile = await profileRepository.findById(deps.db, user.userId)
   if (!profile) return { state: 'incomplete', email: user.email }
   const [className, url, application] = await Promise.all([
@@ -107,6 +114,12 @@ async function buildMe(deps: AppDeps, user: UserActor): Promise<MeResponse> {
           submittedAt: application.submitted_at,
         }
       : null,
+    canResubmit:
+      profile.access_role === 'applicant' &&
+      !(
+        application &&
+        (ACTIVE_STATUSES as readonly string[]).includes(application.status)
+      ),
   }
 }
 

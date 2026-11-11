@@ -5,6 +5,12 @@ import {
   getMe,
   updateProfile,
 } from './account/service.ts'
+import {
+  decideApplication,
+  getApplication,
+  listApplications,
+  resubmitApplication,
+} from './applications/service.ts'
 import { GUEST, loadActor } from './auth/actor.ts'
 import {
   bearerToken,
@@ -36,6 +42,13 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       completeRegistration(deps, actor, body),
     'account/update-profile': ({ actor, body }) =>
       updateProfile(deps, actor, body),
+    'applications/list': ({ actor, body }) =>
+      listApplications(deps, actor, body),
+    'applications/get': ({ actor, body }) => getApplication(deps, actor, body),
+    'applications/decide': ({ actor, body }) =>
+      decideApplication(deps, actor, body),
+    'applications/resubmit': ({ actor, body }) =>
+      resubmitApplication(deps, actor, body),
   }
 }
 
