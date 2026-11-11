@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { Buffer } from 'node:buffer'
 import { describe, expect, it } from 'vitest'
-import { inspectContent, inspectTemplate } from '../scripts/secret-rules.mjs'
+import { inspectContent, inspectTemplate } from '../scripts/secret-rules.ts'
 
 describe('repository secret checks', () => {
   it('detects a server Supabase key in source or built output', () => {

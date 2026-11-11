@@ -5,24 +5,22 @@ import { useAccess } from '@/app/access'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
+import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Badge, Card, Notice } from '@/components/ui/surfaces'
-import { clearDraft } from '@/features/auth/registration-draft'
-import { requireSupabase } from '@/features/auth/supabase-auth'
-import { useMe } from '@/features/auth/use-me'
-import { cn } from '@/lib/utils'
-import { disclosureClass, profilePhotoClass } from './form-controls'
+import { useSignOut } from '@/features/auth/use-sign-out'
+import { clearDraft } from '@/features/registration/registration-draft'
+import { formatDate } from '@/lib/format-date'
 import { PasswordForm } from './password-form'
 import { ProfileForm } from './profile-form'
 import { APPLICATION_STATUS, ROLE_STATUS } from './status-labels'
+import { useMe } from './use-me'
 
 type ReadyMe = Extract<MeResponse, { state: 'ready' }>
 
-function formatDate(value: string | null) {
-  if (!value) return '—'
-  const [year, month, day] = value.slice(0, 10).split('-')
-  return `${day}.${month}.${year}`
-}
+/** Раскрывающийся блок кабинета (`<details>`) с золотым заголовком. */
+const disclosureClass =
+  'border-y border-border py-3 [&>summary]:cursor-pointer [&>summary]:font-bold [&>summary]:text-primary open:[&>summary]:mb-3'
 
 function Dashboard({ me }: { me: ReadyMe }) {
   const navigate = useNavigate()
@@ -41,11 +39,10 @@ function Dashboard({ me }: { me: ReadyMe }) {
       : null
 
   // Сначала уходим на главную: иначе кабинет сам перенаправит гостя ко входу (ACC-12).
-  async function signOut() {
+  const signOut = useSignOut(async () => {
     clearDraft()
     await navigate({ to: '/' })
-    await requireSupabase().auth.signOut()
-  }
+  })
 
   return (
     <section>
@@ -64,18 +61,12 @@ function Dashboard({ me }: { me: ReadyMe }) {
           <Badge>{status}</Badge>
         </div>
         <div className="flex min-w-0 items-center gap-3.5">
-          <div className={cn(profilePhotoClass, 'size-[76px]')}>
-            {profile.avatarUrl ? (
-              <img
-                src={profile.avatarUrl}
-                alt={`Аватар ${profile.gameNickname}`}
-              />
-            ) : (
-              <span aria-hidden="true">
-                {profile.gameNickname.slice(0, 1).toUpperCase()}
-              </span>
-            )}
-          </div>
+          <Avatar
+            size="lg"
+            name={profile.gameNickname}
+            src={profile.avatarUrl}
+            alt={`Аватар ${profile.gameNickname}`}
+          />
           <div className="min-w-0">
             <strong className="block break-words">{profile.displayName}</strong>
             <span className="text-muted-foreground">
@@ -165,7 +156,8 @@ function Dashboard({ me }: { me: ReadyMe }) {
           type="button"
           variant="secondary"
           className="w-full"
-          onClick={() => void signOut()}
+          disabled={signOut.isPending}
+          onClick={() => signOut.mutate()}
         >
           Выйти
         </Button>

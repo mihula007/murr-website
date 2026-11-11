@@ -4,7 +4,7 @@
 // Без неё используется локальный Supabase из `supabase status`.
 import { execFileSync } from 'node:child_process'
 import { parseArgs } from 'node:util'
-import { bootstrapFirstAdmin } from '../supabase/functions/_shared/account/bootstrap.ts'
+import { bootstrapFirstAdmin } from '../supabase/functions/_shared/account/service.ts'
 import { createDb } from '../supabase/functions/_shared/db/client.ts'
 import { ApiError } from '../supabase/functions/_shared/http/errors.ts'
 

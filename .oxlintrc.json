@@ -14,6 +14,147 @@
       }
     ]
   },
+  "overrides": [
+    {
+      "files": ["src/**", "stories/**", "supabase/functions/**", "scripts/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@supabase/supabase-js",
+                "message": "Supabase SDK — только в src/lib/supabase/*.ts и src/features/auth/*.ts (не в компонентах)."
+              },
+              {
+                "name": "@/lib/supabase/client",
+                "message": "Клиент Supabase — только в src/lib/supabase/*.ts и src/features/auth/*.ts; страницы и компоненты вызывают операции features/auth и callApi."
+              },
+              {
+                "name": "kysely",
+                "message": "Kysely — только в репозиториях (supabase/functions/_shared/**/repository.ts) и _shared/db/."
+              },
+              {
+                "name": "kysely-postgres-js",
+                "message": "Драйвер БД — только в supabase/functions/_shared/db/."
+              },
+              {
+                "name": "postgres",
+                "message": "Драйвер БД — только в supabase/functions/_shared/db/."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/lib/supabase/*.ts", "src/features/auth/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "kysely", "message": "Kysely — только на сервере." },
+              {
+                "name": "kysely-postgres-js",
+                "message": "Драйвер БД — только на сервере."
+              },
+              {
+                "name": "postgres",
+                "message": "Драйвер БД — только на сервере."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["supabase/functions/_shared/**/repository.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@supabase/supabase-js",
+                "message": "В Edge Functions supabase-js не импортируется: Auth и Storage вызываются через fetch."
+              },
+              {
+                "name": "kysely-postgres-js",
+                "message": "Драйвер БД — только в supabase/functions/_shared/db/."
+              },
+              {
+                "name": "postgres",
+                "message": "Драйвер БД — только в supabase/functions/_shared/db/."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["supabase/functions/_shared/db/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@supabase/supabase-js",
+                "message": "В Edge Functions supabase-js не импортируется: Auth и Storage вызываются через fetch."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/**", "stories/**"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "localStorage",
+            "message": "Браузерные хранилища — только через src/lib/storage.ts."
+          },
+          {
+            "name": "sessionStorage",
+            "message": "Браузерные хранилища — только через src/lib/storage.ts."
+          }
+        ],
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "window",
+            "property": "localStorage",
+            "message": "Браузерные хранилища — только через src/lib/storage.ts."
+          },
+          {
+            "object": "window",
+            "property": "sessionStorage",
+            "message": "Браузерные хранилища — только через src/lib/storage.ts."
+          },
+          {
+            "object": "globalThis",
+            "property": "localStorage",
+            "message": "Браузерные хранилища — только через src/lib/storage.ts."
+          },
+          {
+            "object": "globalThis",
+            "property": "sessionStorage",
+            "message": "Браузерные хранилища — только через src/lib/storage.ts."
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/lib/storage.ts"],
+      "rules": {
+        "no-restricted-globals": "off",
+        "no-restricted-properties": "off"
+      }
+    }
+  ],
   "ignorePatterns": [
     "node_modules/**",
     "dist/**",

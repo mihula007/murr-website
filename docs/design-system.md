@@ -10,7 +10,7 @@
 
 Стандартная палитра Tailwind отключена (`--color-*: initial` в `@theme`): `bg-red-500`, `text-white` и подобные классы не генерируются, доступны только цвета-токены и ключевые слова `transparent`/`current`.
 
-Правила проверяет `npm run check:styles` (`scripts/check-styles.mjs`, входит в `npm run check`):
+Правила проверяет `npm run check:styles` (`scripts/check-styles.ts`, входит в `npm run check`):
 
 - каждый класс в `className`, `cn`/`clsx`, `cva` (база, варианты, `compoundVariants`), константах `*Class`/`*Classes` и свойствах `classNames` должен порождать CSS в дизайн-системе Tailwind — собственные классы, опечатки и стандартная палитра не проходят; классы-маркеры `group`/`peer` разрешены;
 - произвольные значения не содержат цветов-литералов (`bg-[#fff]`);
@@ -18,6 +18,8 @@
 - в `styles.css` на верхнем уровне только `@import`, `:root`, `@theme` и `@layer base`, нет селекторов классов, `@utility` и других слоёв, цвета-литералы — только в `:root`.
 
 Проверка использует `__unstable__loadDesignSystem` из `@tailwindcss/node` и `oxc-parser`; при обновлении Tailwind её покрывают тесты `tests/check-styles.test.ts`. Части шаблонных строк рядом с подстановкой (`gap-${size}`) не проверяются — собирайте классы из полных строк.
+
+Каждый компонент `src/components/ui/` и `src/components/states/` обязан иметь историю в `stories/*.stories.tsx` — это проверяет `npm run check:architecture`, а сборка Storybook входит в `npm run check`. Новый компонент shadcn/ui добавляется CLI shadcn по `components.json` и затем переоформляется токенами и утилитами по правилам выше.
 
 Компоненты сейчас покрывают кнопки и их состояния, поля ввода, выбора и многострочного текста, карточки, метки, уведомления и табличное оформление. Истории показывают примеры из разных типов экранов; данные в них условные. Для подписей полей необходим `htmlFor`, для длинных таблиц — горизонтальная прокрутка. Фокус виден при работе с клавиатурой; отключённые кнопки используют нативное состояние.
 
@@ -47,17 +49,19 @@
 - `Sheet` — боковая панель слева шириной `min(88vw, 360px)` на базе Dialog: фокус-ловушка, блокировка прокрутки фона, Escape.
 - `DropdownMenu` — тёмная панель меню как в прототипе (`--surface-menu`, радиус 12 px), пункты с подсветкой и `NavBadge`.
 - `Tabs` — текстовые вкладки с золотой линией у активной.
-- `Avatar` — круг с золотой границей; без изображения показывает первую букву имени.
+- `Avatar` — единственный аватар приложения: круг, изображение или первая буква имени (`avatarInitial`, без имени — «?»). Размеры `size`: `sm` — 40 px с золотой границей (списки, меню), `md` — 72 px (выбор фото в форме), `lg` — 76 px (фото в кабинете).
 - `NavBadge` — красный счётчик (`count`), не рендерится при `0` и без данных, больше 99 — «99+».
 - `Skeleton`, `Toaster` (sonner, подключён в `AppProviders`, тёмная тема).
 
 ## Состояния страницы
 
-`src/components/states/`: `PageHeader` (надзаголовок, заголовок 32 px, описание, слот действий), `LoadingState` (скелетоны, `aria-busy`), `EmptyState` (иконка, заголовок, описание, действие), `ErrorState` (`role="alert"`, «Повторить», без технических подробностей), `ForbiddenState` («Нет доступа»; гостю — «Войти», остальным — «На главную»; закрытые данные не показываются). Ошибки маршрутов выводятся через `ErrorState`.
+`src/components/states/`: `PageHeader` (надзаголовок, заголовок 32 px, описание, слот действий), `LoadingState` (скелетоны, `aria-busy`), `EmptyState` (иконка, заголовок, описание, действие), `ErrorState` (`role="alert"`, «Повторить», без технических подробностей), `ForbiddenState` («Нет доступа»; гостю — «Войти», остальным — «На главную»; закрытые данные не показываются), `RouteError` — ошибка маршрута через `ErrorState`, подробности только в консоли.
 
 ## Формы аккаунта
 
-Этап 3 добавил общие элементы форм в `src/features/account/form-controls.tsx`: `FormField` (подпись 14 px, подсказка и ошибка под полем, `aria-describedby`/`aria-invalid`), `PasswordInput` с кнопкой «Показать/Скрыть», `ClassSelect` на `Select`, `AvatarPicker` (круг 72 px, предпросмотр до сохранения), `EquipmentLinks` (до 10 ссылок). Сетка `formGridClass` — две колонки, одна до 650 px, элементы во всю ширину — `col-span-full`; заголовки блоков `FormSectionTitle` (золотой, капителью). Карточка входа и регистрации — 620 px по центру, как в прототипе. Кабинет: фото `profilePhotoClass` 76 px, раскрывающиеся блоки `disclosureClass`, вложенные формы `subformClass`. Формы валидируются общими zod-схемами из `supabase/functions/_shared/contracts/`, после неудачной отправки фокус переходит на первое поле с ошибкой.
+Все формы построены одинаково: TanStack Form со схемой zod (общие схемы и `LIMITS` — `supabase/functions/_shared/contracts/`, поля Auth — `src/features/auth/schemas.ts`), отправка через `useMutation`, `onSubmitInvalid: focusFirstInvalid` — после неудачной отправки фокус переходит на первое поле с ошибкой. Ошибки полей показываются после ухода с поля или попытки отправки; ошибка сервера или Auth для поля (`AppError.fields`) имеет приоритет, общая — в `FormError`. Тексты — только из каталога `src/lib/errors.ts`.
+
+Общие элементы форм — `src/components/form/`: `FormField` (подпись 14 px, подсказка и ошибка под полем, `aria-describedby`/`aria-invalid`), `fieldError`, `PasswordInput` с кнопкой «Показать/Скрыть», `FormError`, `focusFirstInvalid`. Сетка `formGridClass` — две колонки, одна до 650 px, элементы во всю ширину — `col-span-full`; заголовки блоков `FormSectionTitle` (золотой, капителью); вложенные формы `subformClass`. Предметные элементы живут в своих модулях: `ClassSelect` — `features/catalog`, `AvatarPicker` (аватар `md` 72 px, предпросмотр до сохранения) — `features/account`, `EquipmentLinks` (до 10 ссылок) и `OtpField` — `features/registration` и `features/auth`. Карточка входа и регистрации — 620 px по центру, как в прототипе. Кабинет: фото — `Avatar` размера `lg` (76 px), раскрывающиеся блоки `<details>`.
 
 ## Заставка
 

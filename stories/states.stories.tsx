@@ -4,6 +4,7 @@ import { ErrorState } from '../src/components/states/error-state'
 import { ForbiddenState } from '../src/components/states/forbidden-state'
 import { LoadingState } from '../src/components/states/loading-state'
 import { PageHeader } from '../src/components/states/page-header'
+import { RouteError } from '../src/components/states/route-error'
 import { Button } from '../src/components/ui/button'
 import { withRouter } from './router-decorator'
 
@@ -52,4 +53,13 @@ export const ForbiddenReader: Story = {
   name: 'Нет доступа — чтец',
   render: () => <ForbiddenState accessRole="reader" />,
   globals: narrow,
+}
+export const RouteFailure: Story = {
+  name: 'Ошибка маршрута',
+  render: () => (
+    <RouteError
+      error={new Error('Пример ошибки маршрута')}
+      reset={() => undefined}
+    />
+  ),
 }

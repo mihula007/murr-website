@@ -1,16 +1,16 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { targetSize } from '@/features/auth/compress-avatar'
+import { targetSize } from '@/features/account/compress-avatar'
 import {
   loadDraft,
   saveDraft,
   setPendingAvatar,
-} from '@/features/auth/registration-draft'
+} from '@/features/registration/registration-draft'
 import { renderApp } from './support/render-app'
 
 const signUp = vi.hoisted(() => vi.fn<(input: unknown) => Promise<unknown>>())
 
-vi.mock('@/lib/api/client', async (importOriginal) => ({
+vi.mock('@/lib/supabase/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   callApi: (route: string) =>
     Promise.resolve(
@@ -20,7 +20,7 @@ vi.mock('@/lib/api/client', async (importOriginal) => ({
     ),
 }))
 
-vi.mock('@/features/auth/supabase-auth', async (importOriginal) => ({
+vi.mock('@/lib/supabase/client', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   requireSupabase: () => ({ auth: { signUp } }),
 }))

@@ -1,20 +1,63 @@
-import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { LIMITS } from '@contracts/account'
+import { useForm, useStore } from '@tanstack/react-form'
+import { useMutation } from '@tanstack/react-query'
+import { z } from 'zod'
+import { focusFirstInvalid } from '@/components/form/focus-first-invalid'
+import { FormError } from '@/components/form/form-error'
+import {
+  FormField,
+  fieldError,
+  subformClass,
+} from '@/components/form/form-field'
+import { PasswordInput } from '@/components/form/password-input'
 import { Button, linkButtonClass } from '@/components/ui/button'
 import { toast } from '@/components/ui/toaster'
-import {
-  authErrorMessage,
-  requireSupabase,
-} from '@/features/auth/supabase-auth'
+import { changePassword } from '@/features/auth/auth-api'
+import { newPasswordSchema, PASSWORD_HINT } from '@/features/auth/schemas'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
-import { fieldMessage } from '@/lib/api/messages'
+import { formErrorMessage } from '@/lib/errors'
 import { cn } from '@/lib/utils'
-import { FormError } from './auth-layout'
-import { FormField, PasswordInput, subformClass } from './form-controls'
 
-type Fields = { current: string; next: string; repeat: string }
-const EMPTY: Fields = { current: '', next: '', repeat: '' }
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'current_password_required'),
+    newPassword: newPasswordSchema,
+    repeatPassword: z.string(),
+  })
+  .refine((value) => value.repeatPassword === value.newPassword, {
+    message: 'password_mismatch',
+    path: ['repeatPassword'],
+  })
+
+type PasswordField = keyof z.input<typeof passwordSchema>
+
+const FIELDS: {
+  name: PasswordField
+  id: string
+  label: string
+  autoComplete: 'current-password' | 'new-password'
+  hint?: string
+}[] = [
+  {
+    name: 'currentPassword',
+    id: 'password-current',
+    label: 'Текущий пароль',
+    autoComplete: 'current-password',
+  },
+  {
+    name: 'newPassword',
+    id: 'password-next',
+    label: 'Новый пароль',
+    autoComplete: 'new-password',
+    hint: PASSWORD_HINT,
+  },
+  {
+    name: 'repeatPassword',
+    id: 'password-repeat',
+    label: 'Повторите новый пароль',
+    autoComplete: 'new-password',
+  },
+]
 
 /** Смена своего пароля (ACC-09, ACC-10); доступна и чтецу. Без аудита (Q-34). */
 export function PasswordForm({
@@ -24,61 +67,32 @@ export function PasswordForm({
   email: string
   onDone: () => void
 }) {
-  const [values, setValues] = useState<Fields>(EMPTY)
-  const [errors, setErrors] = useState<Partial<Fields>>({})
-  const [formError, setFormError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const { dialog } = useUnsavedChangesGuard(
-    Object.values(values).some((value) => value !== ''),
-  )
-
-  const set = (name: keyof Fields) => (value: string) => {
-    setErrors(({ [name]: _removed, ...rest }) => rest)
-    setValues((current) => ({ ...current, [name]: value }))
-  }
-
-  async function submit() {
-    const next: Partial<Fields> = {}
-    if (!values.current) next.current = 'Введите текущий пароль'
-    if (values.next.length < LIMITS.passwordMin)
-      next.next = fieldMessage('password_short')
-    if (values.repeat !== values.next)
-      next.repeat = fieldMessage('password_mismatch')
-    setErrors(next)
-    setFormError(null)
-    if (Object.keys(next).length > 0) {
-      document.getElementById(`password-${Object.keys(next)[0]}`)?.focus()
-      return
-    }
-    setBusy(true)
-    try {
-      const supabase = requireSupabase()
-      // Текущий пароль проверяется повторным входом той же учётной записи.
-      const check = await supabase.auth.signInWithPassword({
-        email,
-        password: values.current,
-      })
-      if (check.error) {
-        setErrors({ current: 'Текущий пароль указан неверно' })
-        document.getElementById('password-current')?.focus()
-        return
-      }
-      const { error } = await supabase.auth.updateUser({
-        password: values.next,
-      })
-      if (error) {
-        setFormError(authErrorMessage(error))
-        return
-      }
-      setValues(EMPTY)
+  const change = useMutation({
+    mutationFn: changePassword,
+    onSuccess: () => {
+      form.reset()
       toast('Пароль изменён')
       onDone()
-    } catch (error) {
-      setFormError(authErrorMessage(error))
-    } finally {
-      setBusy(false)
-    }
-  }
+    },
+  })
+
+  const form = useForm({
+    defaultValues: { currentPassword: '', newPassword: '', repeatPassword: '' },
+    validators: { onChange: passwordSchema },
+    onSubmitInvalid: focusFirstInvalid,
+    onSubmit: async ({ value }) => {
+      const input = passwordSchema.parse(value)
+      await change
+        .mutateAsync({
+          email,
+          currentPassword: input.currentPassword,
+          newPassword: input.newPassword,
+        })
+        .catch(focusFirstInvalid)
+    },
+  })
+  const isDirty = useStore(form.store, (state) => state.isDirty)
+  const { dialog } = useUnsavedChangesGuard(isDirty)
 
   return (
     <form
@@ -86,7 +100,7 @@ export function PasswordForm({
       className={subformClass}
       onSubmit={(event) => {
         event.preventDefault()
-        void submit()
+        void form.handleSubmit()
       }}
     >
       <div>
@@ -95,54 +109,49 @@ export function PasswordForm({
           Для защиты аккаунта сначала подтверди текущий пароль.
         </p>
       </div>
-      <div className="grid gap-3">
-        <FormField
-          id="password-current"
-          label="Текущий пароль"
-          error={errors.current}
-        >
-          <PasswordInput
-            id="password-current"
-            autoComplete="current-password"
-            value={values.current}
-            onChange={set('current')}
-            error={errors.current}
-          />
-        </FormField>
-        <FormField
-          id="password-next"
-          label="Новый пароль"
-          error={errors.next}
-          hint="Минимум 8 символов"
-        >
-          <PasswordInput
-            id="password-next"
-            autoComplete="new-password"
-            value={values.next}
-            onChange={set('next')}
-            error={errors.next}
-            hint
-          />
-        </FormField>
-        <FormField
-          id="password-repeat"
-          label="Повторите новый пароль"
-          error={errors.repeat}
-        >
-          <PasswordInput
-            id="password-repeat"
-            autoComplete="new-password"
-            value={values.repeat}
-            onChange={set('repeat')}
-            error={errors.repeat}
-          />
-        </FormField>
-      </div>
-      <FormError message={formError} />
+      <form.Subscribe selector={(state) => state.submissionAttempts > 0}>
+        {(submitted) => (
+          <div className="grid gap-3">
+            {FIELDS.map(({ name, id, label, autoComplete, hint }) => (
+              <form.Field key={name} name={name}>
+                {(field) => {
+                  const serverCode = change.error?.fields[name]
+                  const error = fieldError(
+                    field.state.meta,
+                    submitted,
+                    serverCode,
+                  )
+                  return (
+                    <FormField id={id} label={label} error={error} hint={hint}>
+                      <PasswordInput
+                        id={id}
+                        autoComplete={autoComplete}
+                        value={field.state.value}
+                        onChange={(value) => {
+                          if (serverCode) change.reset()
+                          field.handleChange(value)
+                        }}
+                        onBlur={field.handleBlur}
+                        error={error}
+                        hint={hint}
+                      />
+                    </FormField>
+                  )
+                }}
+              </form.Field>
+            ))}
+          </div>
+        )}
+      </form.Subscribe>
+      <FormError message={formErrorMessage(change.error)} />
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" size="sm" disabled={busy}>
-          {busy ? 'Меняем…' : 'Изменить пароль'}
-        </Button>
+        <form.Subscribe selector={(state) => state.isSubmitting}>
+          {(submitting) => (
+            <Button type="submit" size="sm" disabled={submitting}>
+              {submitting ? 'Меняем…' : 'Изменить пароль'}
+            </Button>
+          )}
+        </form.Subscribe>
         <Link
           to="/reset-password"
           search={{ email }}

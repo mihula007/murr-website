@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { AppError } from '@/lib/errors'
 import { readSupabaseConfig } from './config'
 
 let client: SupabaseClient | undefined
@@ -18,4 +19,11 @@ export function getSupabaseClient(): SupabaseClient | null {
     },
   })
   return client
+}
+
+/** Клиент для операции; без конфигурации — `AppError('unavailable')`. */
+export function requireSupabase(): SupabaseClient {
+  const supabase = getSupabaseClient()
+  if (!supabase) throw new AppError('unavailable')
+  return supabase
 }

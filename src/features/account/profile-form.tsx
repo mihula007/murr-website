@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useForm, useStore } from '@tanstack/react-form'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import {
   LIMITS,
@@ -10,28 +10,29 @@ import {
   gameNicknameSchema,
   type MeResponse,
   type ProfileView,
+  type UpdateProfileRequest,
 } from '@contracts/account'
-import { Button } from '@/components/ui/button'
-import { Input, Textarea } from '@/components/ui/input'
-import { toast } from '@/components/ui/toaster'
-import { AvatarError, compressAvatar } from '@/features/auth/compress-avatar'
-import { uploadAvatar } from '@/features/auth/finish-registration'
-import { useSession } from '@/features/auth/session'
-import { meQueryKey } from '@/features/auth/use-me'
-import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
-import { ApiCallError, callApi } from '@/lib/api/client'
-import { errorMessage, fieldMessage } from '@/lib/api/messages'
-import { FormError } from './auth-layout'
-import { focusFirstInvalid } from './focus'
+import { focusFirstInvalid } from '@/components/form/focus-first-invalid'
+import { FormError } from '@/components/form/form-error'
 import {
-  AvatarPicker,
-  ClassSelect,
   FormField,
   fieldAria,
   fieldError,
   formGridClass,
   subformClass,
-} from './form-controls'
+} from '@/components/form/form-field'
+import { Button } from '@/components/ui/button'
+import { Input, Textarea } from '@/components/ui/input'
+import { toast } from '@/components/ui/toaster'
+import { useSession } from '@/features/auth/session'
+import { ClassSelect } from '@/features/catalog/class-select'
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
+import { fieldMessage, formErrorMessage } from '@/lib/errors'
+import { callApi } from '@/lib/supabase/api'
+import { AvatarPicker } from './avatar-picker'
+import { AvatarError, compressAvatar } from './compress-avatar'
+import { uploadAvatar } from './upload-avatar'
+import { meQueryKey } from './use-me'
 
 const profileSchema = z.object({
   displayName: displayNameSchema,
@@ -44,6 +45,22 @@ const profileSchema = z.object({
 
 type AvatarChange =
   { action: 'keep' } | { action: 'remove' } | { action: 'replace'; file: Blob }
+
+type ProfileInput = Omit<UpdateProfileRequest, 'avatar'> & {
+  avatar: AvatarChange
+}
+
+/** Загрузка нового аватара (если выбран) и сохранение профиля. */
+async function saveProfile({ avatar, ...fields }: ProfileInput) {
+  const avatarChange =
+    avatar.action === 'replace'
+      ? { action: 'replace' as const, path: await uploadAvatar(avatar.file) }
+      : avatar
+  return callApi<MeResponse>('account/update-profile', {
+    ...fields,
+    avatar: avatarChange,
+  })
+}
 
 type ProfileFormProps = {
   profile: ProfileView
@@ -59,7 +76,24 @@ export function ProfileForm({ profile, email, onDone }: ProfileFormProps) {
   const [avatarError, setAvatarError] = useState<string | null>(null)
   const [avatarBusy, setAvatarBusy] = useState(false)
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({})
-  const [formError, setFormError] = useState<string | null>(null)
+  const save = useMutation({
+    mutationFn: saveProfile,
+    onSuccess: (me) => {
+      queryClient.setQueryData(meQueryKey(session.session?.user.id), me)
+      toast('Личная информация сохранена')
+      form.reset()
+      setAvatar({ action: 'keep' })
+      onDone()
+    },
+    onError: (error) => {
+      if (error.code === 'avatar_invalid') {
+        setAvatarError(fieldMessage(error.code))
+        return
+      }
+      setServerErrors(error.fields)
+      focusFirstInvalid()
+    },
+  })
 
   const form = useForm({
     defaultValues: {
@@ -73,40 +107,16 @@ export function ProfileForm({ profile, email, onDone }: ProfileFormProps) {
     validators: { onChange: profileSchema },
     onSubmitInvalid: focusFirstInvalid,
     onSubmit: async ({ value }) => {
-      setFormError(null)
       const input = profileSchema.parse(value)
-      try {
-        const avatarChange =
-          avatar.action === 'replace'
-            ? {
-                action: 'replace' as const,
-                path: await uploadAvatar(avatar.file),
-              }
-            : avatar
-        const me = await callApi<MeResponse>('account/update-profile', {
+      await save
+        .mutateAsync({
           ...input,
           city: input.city || null,
           birthDate: input.birthDate || null,
           about: input.about || null,
-          avatar: avatarChange,
+          avatar,
         })
-        queryClient.setQueryData(meQueryKey(session.session?.user.id), me)
-        toast('Личная информация сохранена')
-        form.reset()
-        setAvatar({ action: 'keep' })
-        onDone()
-      } catch (error) {
-        if (!(error instanceof ApiCallError)) {
-          setFormError(errorMessage('network'))
-          return
-        }
-        if (error.code === 'avatar_invalid') {
-          setAvatarError(fieldMessage('avatar_invalid'))
-          return
-        }
-        setServerErrors(error.code === 'validation_failed' ? error.fields : {})
-        setFormError(errorMessage(error.code))
-      }
+        .catch(() => undefined)
     },
   })
 
@@ -165,7 +175,7 @@ export function ProfileForm({ profile, email, onDone }: ProfileFormProps) {
                 currentUrl={
                   avatar.action === 'remove' ? null : profile.avatarUrl
                 }
-                fallback={profile.gameNickname.slice(0, 1).toUpperCase()}
+                name={profile.gameNickname}
                 busy={avatarBusy}
                 error={avatarError}
                 onSelect={(file) => void selectAvatar(file)}
@@ -209,7 +219,7 @@ export function ProfileForm({ profile, email, onDone }: ProfileFormProps) {
                     id="profile-nickname"
                     label="Игровой никнейм"
                     error={error}
-                    hint="До 9 символов, регистр важен"
+                    hint={`До ${LIMITS.gameNickname} символов, регистр важен`}
                   >
                     <Input
                       {...fieldAria('profile-nickname', error, true)}
@@ -344,7 +354,13 @@ export function ProfileForm({ profile, email, onDone }: ProfileFormProps) {
           </div>
         )}
       </form.Subscribe>
-      <FormError message={formError} />
+      <FormError
+        message={
+          save.error?.code === 'avatar_invalid'
+            ? null
+            : formErrorMessage(save.error)
+        }
+      />
       <form.Subscribe selector={(state) => state.isSubmitting}>
         {(submitting) => (
           <div className="flex flex-wrap gap-2">

@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import {
   bootstrapFirstAdmin,
   moscowDate,
-} from '../../supabase/functions/_shared/account/bootstrap.ts'
+} from '../../supabase/functions/_shared/account/service.ts'
 import {
   createAuthUser,
   createProfiledUser,

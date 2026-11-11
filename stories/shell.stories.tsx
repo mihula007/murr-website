@@ -129,7 +129,6 @@ function MiscExample() {
       </Tabs>
       <div className="flex items-center gap-3">
         <Avatar name="Мурка" />
-        <Avatar name="Барсик" className="size-12" />
         <NavBadge count={7} />
         <NavBadge count={120} />
       </div>
@@ -169,4 +168,19 @@ export const MiscNarrow: Story = {
   name: 'Вкладки, аватары, счётчики — узкий экран',
   render: MiscExample,
   globals: narrow,
+}
+
+function AvatarsExample() {
+  return (
+    <div className="flex flex-wrap items-center gap-4">
+      <Avatar name="Мурка" size="sm" />
+      <Avatar name="Барсик" size="md" />
+      <Avatar name="рейна" size="lg" />
+      <Avatar name="" size="md" />
+    </div>
+  )
+}
+export const Avatars: Story = {
+  name: 'Аватар: размеры 40, 72 и 76 px',
+  render: AvatarsExample,
 }

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, expect, it } from 'vitest'
 
 const script = fileURLToPath(
-  new URL('../scripts/check-secrets.mjs', import.meta.url),
+  new URL('../scripts/check-secrets.ts', import.meta.url),
 )
 const temporaryPrefix = join(tmpdir(), 'murr-secret-check-')
 const directories: string[] = []

@@ -6,22 +6,25 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react'
-import type { Session } from '@supabase/supabase-js'
 import { useQueryClient } from '@tanstack/react-query'
-import { getSupabaseClient } from '@/lib/supabase/client'
+import {
+  isAuthConfigured,
+  subscribeToSession,
+  type AuthSession,
+} from './auth-api'
 
 export type SessionState =
   | { status: 'unavailable'; session: null }
   | { status: 'loading'; session: null }
   | { status: 'signedOut'; session: null }
-  | { status: 'signedIn'; session: Session }
+  | { status: 'signedIn'; session: AuthSession }
 
 const SessionContext = createContext<SessionState>({
   status: 'unavailable',
   session: null,
 })
 
-function toState(session: Session | null): SessionState {
+function toState(session: AuthSession | null): SessionState {
   return session
     ? { status: 'signedIn', session }
     : { status: 'signedOut', session: null }
@@ -34,28 +37,22 @@ function toState(session: Session | null): SessionState {
 export function SessionProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient()
   const [state, setState] = useState<SessionState>(() =>
-    getSupabaseClient()
+    isAuthConfigured()
       ? { status: 'loading', session: null }
       : { status: 'unavailable', session: null },
   )
   const userId = useRef<string | null | undefined>(undefined)
 
   useEffect(() => {
-    const supabase = getSupabaseClient()
-    if (!supabase) return
-    const apply = (session: Session | null) => {
+    const unsubscribe = subscribeToSession((session) => {
       const nextId = session?.user.id ?? null
       if (userId.current !== undefined && userId.current !== nextId) {
         queryClient.clear()
       }
       userId.current = nextId
       setState(toState(session))
-    }
-    void supabase.auth.getSession().then(({ data }) => apply(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_event, session) =>
-      apply(session),
-    )
-    return () => data.subscription.unsubscribe()
+    })
+    return unsubscribe ?? undefined
   }, [queryClient])
 
   return <SessionContext value={state}>{children}</SessionContext>

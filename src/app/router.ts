@@ -5,7 +5,8 @@ import {
   lazyRouteComponent,
   type RouterHistory,
 } from '@tanstack/react-router'
-import { RouteError, rootRoute } from '@/routes/root'
+import { RouteError } from '@/components/states/route-error'
+import { rootRoute } from '@/routes/root'
 import { indexRoute } from '@/routes/index'
 import { accountRoute } from '@/routes/account'
 import { authRoutes } from '@/routes/auth'
@@ -19,7 +20,7 @@ const devRoutes = import.meta.env.DEV
         getParentRoute: () => rootRoute,
         path: '/dev/unsaved-demo',
         component: lazyRouteComponent(
-          () => import('@/routes/dev-unsaved-demo'),
+          () => import('@/features/dev/unsaved-demo-page'),
         ),
       }),
     ]

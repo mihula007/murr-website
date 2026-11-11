@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import UnsavedDemoPage from '../src/routes/dev-unsaved-demo'
+import UnsavedDemoPage from '../src/features/dev/unsaved-demo-page'
 import { Toaster } from '../src/components/ui/toaster'
 import { withRouter } from './router-decorator'
 

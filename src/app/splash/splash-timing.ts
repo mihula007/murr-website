@@ -1,3 +1,5 @@
+import { readStored, writeStored, type StorageArea } from '@/lib/storage'
+
 /** Заставка закрывается сама через 10 секунд после загрузки страницы (HOM-12). */
 export const AUTO_CLOSE_MS = 10_000
 /** Активность свежее 10 минут пропускает повторную заставку. */
@@ -13,39 +15,16 @@ export function shouldShowSplash(now: number, lastActivity: number | null) {
   return now - lastActivity >= IDLE_LIMIT_MS
 }
 
-function storages() {
-  const result: Storage[] = []
-  for (const name of ['localStorage', 'sessionStorage'] as const) {
-    try {
-      result.push(window[name])
-    } catch {
-      // Хранилище запрещено настройками браузера.
-    }
-  }
-  return result
-}
+/** Основное хранилище — localStorage, запасное — sessionStorage. */
+const AREAS: readonly StorageArea[] = ['local', 'session']
 
 export function readLastActivity(): number | null {
-  for (const storage of storages()) {
-    try {
-      const raw = storage.getItem(ACTIVITY_KEY)
-      if (raw === null) continue
-      const value = Number(raw)
-      if (Number.isFinite(value)) return value
-    } catch {
-      // Пробуем следующее хранилище.
-    }
-  }
-  return null
+  const raw = readStored(ACTIVITY_KEY, AREAS)
+  if (raw === null) return null
+  const value = Number(raw)
+  return Number.isFinite(value) ? value : null
 }
 
 export function writeLastActivity(now: number) {
-  for (const storage of storages()) {
-    try {
-      storage.setItem(ACTIVITY_KEY, String(now))
-      return
-    } catch {
-      // Пробуем следующее хранилище.
-    }
-  }
+  writeStored(ACTIVITY_KEY, String(now), AREAS)
 }

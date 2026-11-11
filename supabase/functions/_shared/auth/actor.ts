@@ -1,6 +1,8 @@
+import { profileRepository } from '../account/repository.ts'
 import type { Executor } from '../db/client.ts'
 import type { AccessRole, ProfileRow } from '../db/schema.ts'
 import { ApiError } from '../http/errors.ts'
+import { userRepository } from './repository.ts'
 
 export type GuestActor = { kind: 'guest' }
 export type UserActor = {
@@ -17,17 +19,9 @@ export const GUEST: GuestActor = { kind: 'guest' }
 
 /** Текущее состояние пользователя читается из БД при каждом запросе. */
 export async function loadActor(db: Executor, userId: string): Promise<Actor> {
-  const user = await db
-    .selectFrom('auth.users')
-    .select(['id', 'email', 'email_confirmed_at'])
-    .where('id', '=', userId)
-    .executeTakeFirst()
+  const user = await userRepository.findById(db, userId)
   if (!user) return GUEST
-  const profile = await db
-    .selectFrom('app.profiles')
-    .selectAll()
-    .where('id', '=', userId)
-    .executeTakeFirst()
+  const profile = await profileRepository.findById(db, userId)
   return {
     kind: 'user',
     userId: user.id,

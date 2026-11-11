@@ -11,7 +11,7 @@ const updateUser = vi.hoisted(() =>
   vi.fn<(input: unknown) => Promise<unknown>>(),
 )
 
-vi.mock('@/features/auth/use-me', async (importOriginal) => ({
+vi.mock('@/features/account/use-me', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   useMe: () => ({
     data: me.value,
@@ -20,11 +20,11 @@ vi.mock('@/features/auth/use-me', async (importOriginal) => ({
     refetch: vi.fn<() => void>(),
   }),
 }))
-vi.mock('@/lib/api/client', async (importOriginal) => ({
+vi.mock('@/lib/supabase/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   callApi,
 }))
-vi.mock('@/features/auth/supabase-auth', async (importOriginal) => ({
+vi.mock('@/lib/supabase/client', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   requireSupabase: () => ({
     auth: {

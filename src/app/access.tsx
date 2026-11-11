@@ -5,7 +5,7 @@ import {
   type PropsWithChildren,
 } from 'react'
 import { useSession } from '@/features/auth/session'
-import { useMe } from '@/features/auth/use-me'
+import { useMe } from '@/features/account/use-me'
 
 export type AccessRole =
   'guest' | 'applicant' | 'reader' | 'member' | 'officer' | 'admin'

@@ -10,6 +10,15 @@ export const catalogRepository = {
       .execute()
   },
 
+  async findIdBySlug(db: Executor, slug: string) {
+    const row = await db
+      .selectFrom('app.character_classes')
+      .select('id')
+      .where('slug', '=', slug)
+      .executeTakeFirst()
+    return row?.id
+  },
+
   async isActiveClass(db: Executor, id: number) {
     const row = await db
       .selectFrom('app.character_classes')

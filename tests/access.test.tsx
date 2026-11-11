@@ -10,7 +10,7 @@ const sessionMock = vi.hoisted(() => ({
 }))
 const meMock = vi.hoisted(() => ({ value: {} as unknown }))
 
-vi.mock('@/features/auth/use-me', () => ({ useMe: () => meMock.value }))
+vi.mock('@/features/account/use-me', () => ({ useMe: () => meMock.value }))
 
 function Probe() {
   const { role, status } = useAccess()

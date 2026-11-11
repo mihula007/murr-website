@@ -1,11 +1,14 @@
 # Веб-сайт гильдии
 
-Техническая основа: React 19, Vite, TypeScript strict, TanStack Router и Query,
-shadcn/ui, Tailwind CSS 4. Backend — Supabase Free, frontend — GitHub Pages
-с собственным доменом. Отдельный сервер приложения не требуется.
+Техническая основа: React 19, Vite, TypeScript strict, TanStack Router, Query
+и Form, zod, shadcn/ui (Radix), Tailwind CSS 4. Backend — Supabase Free (одна
+Edge Function `api`, Kysely и postgres.js), frontend — GitHub Pages с
+собственным доменом. Отдельный сервер приложения не требуется. Полный
+обязательный перечень инструментов — раздел «Обязательный стек» в
+[AGENTS.md](AGENTS.md): одна задача решается одним способом.
 
-Сейчас реализован только статический каркас. Авторизация, роли, заявки,
-голосования, персонажи, события, торговля и боты будут отдельными задачами.
+Реализованы оболочка, регистрация, вход, восстановление пароля и личный
+кабинет. Голосования, события, торговля и боты будут отдельными задачами.
 Прототип находится в `prototype/` и не переносился в новое приложение.
 
 ## Запуск
@@ -96,25 +99,27 @@ GitHub Actions Secrets использовать для будущих защищ
 
 ## Команды
 
-| Команда                   | Назначение                                           |
-| ------------------------- | ---------------------------------------------------- |
-| `npm run dev`             | Vite dev server                                      |
-| `npm run build`           | Проверка типов, production build и проверка секретов |
-| `npm run preview`         | Просмотр собранного сайта                            |
-| `npm run check`           | Все проверки, кроме браузерных                       |
-| `npm run check:styles`    | Правила единой системы стилей Tailwind               |
-| `npm test`                | Vitest однократно                                    |
-| `npm run test:watch`      | Vitest в режиме наблюдения                           |
-| `npm run typecheck`       | Проверка TypeScript                                  |
-| `npm run lint`            | Oxlint без допустимых предупреждений                 |
-| `npm run format`          | Форматирование Prettier                              |
-| `npm run format:check`    | Проверка форматирования                              |
-| `npm run security:check`  | Проверки секретов и `.env`                           |
-| `npm run supabase:test`   | pgTAP-тесты схемы на локальном Supabase              |
-| `npm run test:server`     | Тесты сервисов и функции `api` на локальном Supabase |
-| `npm run supabase:env`    | Публичная конфигурация локального стека для `dev`    |
-| `npm run build:e2e`       | Сборка для Playwright с локальным Supabase           |
-| `npm run admin:bootstrap` | Назначение первого администратора                    |
+| Команда                      | Назначение                                            |
+| ---------------------------- | ----------------------------------------------------- |
+| `npm run dev`                | Vite dev server                                       |
+| `npm run build`              | Проверка типов, production build и проверка секретов  |
+| `npm run preview`            | Просмотр собранного сайта                             |
+| `npm run check`              | Все проверки, кроме браузерных                        |
+| `npm run check:styles`       | Правила единой системы стилей Tailwind                |
+| `npm run check:architecture` | SQL в репозиториях, истории компонентов, одна функция |
+| `npm run build-storybook`    | Статическая сборка Storybook (входит в `check`)       |
+| `npm test`                   | Vitest однократно                                     |
+| `npm run test:watch`         | Vitest в режиме наблюдения                            |
+| `npm run typecheck`          | Проверка TypeScript                                   |
+| `npm run lint`               | Oxlint без допустимых предупреждений                  |
+| `npm run format`             | Форматирование Prettier                               |
+| `npm run format:check`       | Проверка форматирования                               |
+| `npm run security:check`     | Проверки секретов и `.env`                            |
+| `npm run supabase:test`      | pgTAP-тесты схемы на локальном Supabase               |
+| `npm run test:server`        | Тесты сервисов и функции `api` на локальном Supabase  |
+| `npm run supabase:env`       | Публичная конфигурация локального стека для `dev`     |
+| `npm run build:e2e`          | Сборка для Playwright с локальным Supabase            |
+| `npm run admin:bootstrap`    | Назначение первого администратора                     |
 
 Браузерные тесты работают по сборке, подключённой к локальному Supabase, на
 desktop и mobile; коды из писем берутся из Mailpit:
@@ -140,23 +145,38 @@ npm run test:e2e
 
 ```text
 src/
-  app/                  # Router и провайдеры приложения
-  routes/               # Маршруты; пока главная и обработка 404
-  components/ui/        # Добавляемые по необходимости компоненты shadcn/ui
-  lib/supabase/         # Публичная конфигурация и ленивый клиент
-  lib/utils.ts          # Объединение CSS-классов shadcn/ui
+  app/                  # Провайдеры, router, оболочка, заставка, роли
+  routes/               # Только объявления маршрутов
+  features/<домен>/     # Страницы и логика: auth, registration, account,
+                        # catalog, home, not-found, sections, dev
+  components/ui/        # Компоненты shadcn/ui (добавляются CLI shadcn)
+  components/states/    # Состояния страниц
+  components/form/      # Общие элементы форм TanStack Form
+  lib/supabase/         # Конфигурация, клиент, callApi, загрузки, toAppError
+  lib/errors.ts         # AppError и единый каталог сообщений
+  lib/storage.ts        # Единственный доступ к localStorage/sessionStorage
+  lib/format-date.ts    # Единственное форматирование дат
+  lib/utils.ts          # Объединение CSS-классов (cn)
   styles.css            # Токены, тема Tailwind 4 и базовые стили
-tests/                  # Конфигурация Supabase и защита секретов
+stories/                # Storybook: история для каждого компонента ui/states
+tests/                  # Vitest: клиент, проверки scripts/, tests/server/
 e2e/                    # Проверки production build в Playwright
-supabase/               # Локальная конфигурация, будущие миграции и функции
-scripts/                # Проверки секретов и подготовка CNAME
+supabase/               # Конфигурация, миграции, функция api и общий код
+scripts/                # TypeScript-скрипты проверок и сервисных команд
 .github/workflows/      # CI и ручная публикация Pages
 ```
 
-Доменные модули добавлять в `src/features/` по мере реализации. Клиент не
-импортирует серверный код Edge Functions. Они работают в отдельном Deno-
-совместимом runtime, не являются частью Vite-сборки и не запускаются Vitest.
-Тестовую конфигурацию для функций добавить вместе с первой функцией.
+Доменные модули добавляются в `src/features/` вместе с задачами. Клиент
+импортирует из серверного кода только контракты (`@contracts/*`). Функция
+`api` работает в Deno-совместимом runtime и не входит в Vite-сборку; её
+сервисы и HTTP-обработчик проверяет `npm run test:server`.
+
+Границы модулей проверяются автоматически: supabase-js и клиент Supabase —
+только в `src/lib/supabase/*.ts` и `src/features/auth/*.ts`, Kysely — только
+в репозиториях и `_shared/db/`, браузерные хранилища — только через
+`src/lib/storage.ts` (Oxlint, `.oxlintrc.json`); SQL вне репозиториев,
+истории компонентов и единственность функции `api` —
+`npm run check:architecture`.
 
 Подробности backend: [supabase/README.md](supabase/README.md).
 Правила разработки и принятые решения: [AGENTS.md](AGENTS.md).
@@ -206,6 +226,6 @@ HTML-файл, а маршрут обрабатывает браузер. `base:
 
 ## Дизайн-система и Storybook
 
-Визуальная основа повторяет основной прототип: угольные поверхности, золотые акценты, светлый текст и изображение на фоне. Токены темы и общие стили находятся в `src/styles.css`, компоненты — в `src/components/ui/`. Примеры кнопок, карточек, статусов, полей и таблицы доступны через `npm run storybook`; статическая сборка — `npm run build-storybook`. Примеры не подключены к данным и не реализуют продуктовые действия.
+Визуальная основа повторяет основной прототип: угольные поверхности, золотые акценты, светлый текст и изображение на фоне. Токены темы и общие стили находятся в `src/styles.css`, компоненты — в `src/components/ui/`. Storybook обязателен: у каждого компонента `src/components/ui/` и `src/components/states/` есть история (`npm run storybook`); статическая сборка `npm run build-storybook` входит в `npm run check`. Примеры не подключены к данным и не реализуют продуктовые действия.
 
-Текстовые поля используют нативные элементы, а список выбора — доступный компонент Radix; подпись передавайте через `Field`, а для таблиц сохраняйте заголовки и контейнер с горизонтальной прокруткой. Тему и компоненты расширяйте по мере появления утверждённых экранов.
+Текстовые поля используют нативные элементы, а список выбора — доступный компонент Radix; подпись передавайте через `Field`, а для таблиц сохраняйте заголовки и контейнер с горизонтальной прокруткой. Тему и компоненты расширяйте вместе с утверждёнными экранами; новый компонент shadcn/ui добавляется CLI shadcn и переоформляется токенами.

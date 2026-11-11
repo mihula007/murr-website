@@ -1,9 +1,9 @@
 import { createRoute } from '@tanstack/react-router'
-import { CompleteRegistrationPage } from '@/features/account/complete-page'
-import { LoginPage } from '@/features/account/login-page'
-import { RegisterPage } from '@/features/account/register-page'
-import { ResetPasswordPage } from '@/features/account/reset-password-page'
-import { VerifyPage } from '@/features/account/verify-page'
+import { LoginPage } from '@/features/auth/login-page'
+import { ResetPasswordPage } from '@/features/auth/reset-password-page'
+import { CompleteRegistrationPage } from '@/features/registration/complete-page'
+import { RegisterPage } from '@/features/registration/register-page'
+import { VerifyPage } from '@/features/registration/verify-page'
 import { rootRoute } from './root'
 
 type EmailSearch = { email?: string }

@@ -9,7 +9,7 @@ import {
   inspectComponentSource,
   inspectStylesheet,
   type DesignSystemLike,
-} from '../scripts/style-rules.mjs'
+} from '../scripts/style-rules.ts'
 
 const stylesheetPath = fileURLToPath(
   new URL('../src/styles.css', import.meta.url),

@@ -20,7 +20,6 @@
     "supabase/functions",
     "types",
     "tests/server",
-    "scripts/*.ts",
     "vitest.server.config.ts"
   ]
 }
