@@ -298,7 +298,7 @@ function PoolPanel({ board }: { board: Board }) {
       <Tabs value={current.value} onValueChange={setTab}>
         <TabsList
           aria-label={closed ? 'Итог посещения' : 'Ответы участников'}
-          className="grid grid-cols-2"
+          className="grid grid-cols-2 overflow-visible"
         >
           {tabs.map((item) => (
             <TabsTrigger

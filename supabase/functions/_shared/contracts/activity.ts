@@ -8,6 +8,12 @@ import { pageRequestShape, type MemberList, type Page } from './paging.ts'
  * (`event_activity_records`). Дата мероприятия — дата начала по МСК (Q-50).
  */
 
+/**
+ * Предел строк истории в одной выгрузке Excel: страховка памяти браузера.
+ * 200 участников × 250 событий; при превышении интерфейс сообщает об обрезке.
+ */
+export const ACTIVITY_EXPORT_LIMIT = 50_000
+
 /** Процент посещения (ACT-05, Q-49): округление до целого, без записей — 0. */
 export function attendancePercent(visited: number, total: number) {
   return total > 0 ? Math.round((visited / total) * 100) : 0

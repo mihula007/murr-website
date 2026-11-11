@@ -9,6 +9,7 @@ import { RouteError } from '@/components/states/route-error'
 import { rootRoute } from '@/routes/root'
 import { indexRoute } from '@/routes/index'
 import { accountRoute, resubmitRoute } from '@/routes/account'
+import { activityRoute, ratingRoute } from '@/routes/activity'
 import { applicationRoute, applicationsRoute } from '@/routes/applications'
 import { adminRoute } from '@/routes/admin'
 import { authRoutes } from '@/routes/auth'
@@ -51,6 +52,8 @@ export const routeTree = rootRoute.addChildren([
   createEventRoute,
   eventRoute,
   editEventRoute,
+  activityRoute,
+  ratingRoute,
   ...authRoutes,
   ...sectionRoutes,
   ...devRoutes,
