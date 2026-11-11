@@ -171,6 +171,27 @@ export const applicationRepository = {
   },
 
   /**
+   * Переход активной заявки `from` → `to` без решения (голосование, APP-05,
+   * 07, 11). Условное обновление: другой статус — строка не меняется.
+   */
+  async transition(
+    tx: Executor,
+    id: string,
+    from: string,
+    to: string,
+    at: string,
+  ) {
+    const row = await tx
+      .updateTable('app.join_applications')
+      .set({ status: to, updated_at: at })
+      .where('id', '=', id)
+      .where('status', '=', from)
+      .returning('applicant_id')
+      .executeTakeFirst()
+    return row?.applicant_id
+  },
+
+  /**
    * Решение по заявке из статуса `from`. Условное обновление защищает от
    * параллельного решения: если статус уже другой, строка не меняется.
    */

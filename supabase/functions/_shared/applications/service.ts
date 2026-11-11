@@ -3,7 +3,7 @@ import { profileRepository } from '../account/repository.ts'
 import { buildMe } from '../account/service.ts'
 import type { AppDeps } from '../app.ts'
 import { auditPerson, writeAudit } from '../audit/service.ts'
-import { requireRole, type Actor } from '../auth/actor.ts'
+import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
 import { userRepository } from '../auth/repository.ts'
 import type {
   AccessRole,
@@ -18,8 +18,10 @@ import {
   resubmitApplicationSchema,
   type ApplicationDetails,
   type ApplicationListResponse,
+  type ApplicationVoteResult,
 } from '../contracts/applications.ts'
 import { SMALL_LIST_LIMIT } from '../contracts/paging.ts'
+import { APPLICATION_VOTE_OPTIONS } from '../contracts/votes.ts'
 import { withTransaction, type Executor } from '../db/client.ts'
 import { isUniqueViolation } from '../db/errors.ts'
 import { decodeCursor, splitPage } from '../http/cursor.ts'
@@ -27,6 +29,8 @@ import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { joinedOnAfterRoleChange, moscowDate } from '../membership.ts'
 import { notify } from '../notifications/service.ts'
+import { voteRepository } from '../votes/repository.ts'
+import { withLeaders } from '../votes/service.ts'
 import {
   applicationRepository,
   DECIDED_STATUSES,
@@ -42,48 +46,115 @@ const decidedCursor = z
 const REVIEWERS = ['officer', 'admin'] as const
 
 const NEW_STATUS = 'pending_officer_review'
+/** Ждёт окончательного решения администратора после голосования (APP-07). */
+const FINAL_STATUS = 'vote_completed'
 
-const DECISIONS = {
+type Decision = {
+  status: string
+  action: string
+  summary: string
+  notification: {
+    kind: 'application_accepted' | 'application_rejected'
+    title: string
+    body: string
+  }
+}
+
+const ACCEPTED_NOTIFICATION = {
+  kind: 'application_accepted',
+  title: 'Заявка принята',
+  body: 'Добро пожаловать в клан! Внутренние разделы открыты.',
+} as const
+const REJECTED_NOTIFICATION = {
+  kind: 'application_rejected',
+  title: 'Заявка отклонена',
+  body: 'Можно подать новую заявку в личном кабинете.',
+} as const
+
+/** Прямое решение до голосования (APP-04). */
+const DIRECT_DECISIONS: Record<'accept' | 'reject', Decision> = {
   accept: {
     status: 'officer_approved',
     action: 'application_accepted_directly',
     summary: 'Прямой приём без голосования',
-    notification: {
-      kind: 'application_accepted',
-      title: 'Заявка принята',
-      body: 'Добро пожаловать в клан! Внутренние разделы открыты.',
-    },
+    notification: ACCEPTED_NOTIFICATION,
   },
   reject: {
     status: 'officer_rejected',
     action: 'application_rejected',
     summary: 'Отказ по заявке',
-    notification: {
-      kind: 'application_rejected',
-      title: 'Заявка отклонена',
-      body: 'Можно подать новую заявку в личном кабинете.',
-    },
+    notification: REJECTED_NOTIFICATION,
   },
-} as const
+}
+
+/** Окончательное решение администратора после голосования (APP-08). */
+const FINAL_DECISIONS: Record<'accept' | 'reject', Decision> = {
+  accept: {
+    status: 'admin_approved',
+    action: 'application_accepted_final',
+    summary: 'Окончательный приём после голосования',
+    notification: ACCEPTED_NOTIFICATION,
+  },
+  reject: {
+    status: 'admin_rejected',
+    action: 'application_rejected_final',
+    summary: 'Окончательный отказ после голосования',
+    notification: REJECTED_NOTIFICATION,
+  },
+}
+
+type VoteRef = { id: string; closed_at: string | null }
+
+/** Итоги связанных голосований по их id. */
+async function voteResults(
+  db: Executor,
+  votes: readonly VoteRef[],
+): Promise<Map<string, ApplicationVoteResult>> {
+  const totals = await voteRepository.totals(
+    db,
+    votes.map((vote) => vote.id),
+  )
+  return new Map(
+    votes.map((vote) => {
+      const options = withLeaders(
+        totals.filter((total) => total.vote_id === vote.id),
+      )
+      return [
+        vote.id,
+        {
+          id: vote.id,
+          closedAt: vote.closed_at,
+          options,
+          totalBallots: options.reduce((sum, option) => sum + option.count, 0),
+        },
+      ]
+    }),
+  )
+}
 
 export async function listApplications(
   deps: AppDeps,
   actor: Actor,
   body: unknown,
 ): Promise<ApplicationListResponse> {
-  requireRole(actor, REVIEWERS)
+  const reviewer = requireRole(actor, REVIEWERS)
   const { tab, cursor, limit } = parseBody(listApplicationsSchema, body)
-  const isNew = tab === 'new'
-  // «Новые» — малый список: целиком, но не больше порога; «Решённые» —
-  // большой, страницы по курсору `(decided_at, id)`.
-  const pageLimit = isNew ? SMALL_LIST_LIMIT : limit
-  const [rows, newCount] = await Promise.all([
+  const isAdmin = reviewer.profile.access_role === 'admin'
+  // Окончательное решение принимает только администратор (APP-08).
+  if (tab === 'final' && !isAdmin) {
+    throw new ApiError('forbidden')
+  }
+  // «Новые» и «Окончательные» — малые списки: целиком, но не больше порога;
+  // «Решённые» — большой, страницы по курсору `(decided_at, id)`.
+  const isSmall = tab !== 'decided'
+  const pageLimit = isSmall ? SMALL_LIST_LIMIT : limit
+  const [rows, newCount, finalCount] = await Promise.all([
     applicationRepository.listQueue(
       deps.db,
-      isNew
+      isSmall
         ? {
             order: 'oldest_submitted',
-            statuses: [NEW_STATUS],
+            statuses: [tab === 'new' ? NEW_STATUS : FINAL_STATUS],
             limit: pageLimit + 1,
           }
         : {
@@ -94,30 +165,50 @@ export async function listApplications(
           },
     ),
     applicationRepository.countByStatus(deps.db, NEW_STATUS),
+    isAdmin
+      ? applicationRepository.countByStatus(deps.db, FINAL_STATUS)
+      : Promise.resolve(undefined),
   ])
   const page = splitPage(rows, pageLimit, (row) => [row.decided_at, row.id])
   const visible = page.rows
-  const urls = await avatarUrls(
-    deps.storage,
-    visible.map((row) => row.avatar_path),
-  )
+  const [urls, votes] = await Promise.all([
+    avatarUrls(
+      deps.storage,
+      visible.map((row) => row.avatar_path),
+    ),
+    tab === 'final'
+      ? voteRepository.forApplications(
+          deps.db,
+          visible.map((row) => row.id),
+        )
+      : Promise.resolve([]),
+  ])
+  const results = await voteResults(deps.db, votes)
   return {
-    items: visible.map((row) => ({
-      id: row.id,
-      status: row.status as ApplicationStatus,
-      submittedAt: row.submitted_at,
-      decidedAt: row.decided_at,
-      applicant: {
-        id: row.applicant_id,
-        gameNickname: row.game_nickname,
-        classId: row.class_id,
-        className: row.class_name,
-        avatarUrl: row.avatar_path ? (urls.get(row.avatar_path) ?? null) : null,
-      },
-    })),
-    nextCursor: isNew ? null : page.nextCursor,
+    items: visible.map((row) => {
+      const vote = votes.find((item) => item.application_id === row.id)
+      const result = vote ? results.get(vote.id) : undefined
+      return {
+        id: row.id,
+        status: row.status as ApplicationStatus,
+        submittedAt: row.submitted_at,
+        decidedAt: row.decided_at,
+        applicant: {
+          id: row.applicant_id,
+          gameNickname: row.game_nickname,
+          classId: row.class_id,
+          className: row.class_name,
+          avatarUrl: row.avatar_path
+            ? (urls.get(row.avatar_path) ?? null)
+            : null,
+        },
+        ...(result ? { vote: result } : {}),
+      }
+    }),
+    nextCursor: isSmall ? null : page.nextCursor,
     newCount,
-    truncated: isNew && rows.length > pageLimit,
+    ...(finalCount === undefined ? {} : { finalCount }),
+    truncated: isSmall && rows.length > pageLimit,
   }
 }
 
@@ -135,10 +226,12 @@ async function loadDetails(
   if (!row) {
     throw new ApiError('not_found')
   }
-  const [links, url] = await Promise.all([
+  const [links, url, vote] = await Promise.all([
     applicationRepository.links(db, id),
     avatarUrl(deps.storage, row.avatar_path),
+    voteRepository.findByApplication(db, id),
   ])
+  const result = vote ? (await voteResults(db, [vote])).get(vote.id) : undefined
   const details: ApplicationDetails = {
     id: row.id,
     status: row.status as ApplicationStatus,
@@ -149,6 +242,7 @@ async function loadDetails(
       ? { gameNickname: row.decided_by_nickname }
       : null,
     equipmentLinks: links,
+    ...(result ? { vote: result } : {}),
     applicant: {
       id: row.applicant_id,
       displayName: row.display_name,
@@ -185,10 +279,81 @@ export async function getApplication(
 }
 
 /**
- * Прямое решение по новой заявке без голосования (APP-04, ADM-05, Q-24).
- * Одна транзакция: статус, роль и дата вступления при приёме, уведомление
- * кандидату (APP-14) и аудит. Повтор и параллельное решение — state_conflict.
+ * Передача новой заявки на голосование (APP-04, APP-05): одно связанное
+ * голосование «Заявка: <ник>» с фиксированными вариантами, заявка покидает
+ * очередь новых. Повтор и параллельное действие — state_conflict.
  */
+export async function submitApplicationToVote(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<ApplicationDetails> {
+  const reviewer = requireRole(actor, REVIEWERS)
+  const { id } = parseBody(applicationIdSchema, body)
+  await withTransaction(deps.db, async (tx) => {
+    const applicantId = await applicationRepository.transition(
+      tx,
+      id,
+      NEW_STATUS,
+      'pending_vote',
+      deps.now().toISOString(),
+    )
+    if (!applicantId) {
+      throw new ApiError(
+        (await applicationRepository.exists(tx, id))
+          ? 'state_conflict'
+          : 'not_found',
+      )
+    }
+    const applicant = await profileRepository.findById(tx, applicantId)
+    if (!applicant) {
+      throw new ApiError('state_conflict')
+    }
+    const title = `Заявка: ${applicant.game_nickname}`
+    const voteId = await voteRepository.create(
+      tx,
+      {
+        kind: 'application',
+        title,
+        context: '',
+        createdBy: reviewer.userId,
+        applicationId: id,
+      },
+      APPLICATION_VOTE_OPTIONS,
+    )
+    const user = await userRepository.findById(tx, applicantId)
+    await writeAudit(tx, {
+      category: 'applications',
+      action: 'application_submitted_to_vote',
+      summary: 'Передача заявки на голосование',
+      actor: auditPerson(reviewer),
+      target: {
+        kind: 'join_application',
+        id,
+        user: {
+          id: applicantId,
+          role: applicant.access_role as AccessRole,
+          nickname: applicant.game_nickname,
+          email: user?.email ?? null,
+        },
+      },
+      details: {
+        application_id: id,
+        profile_id: applicantId,
+        vote_id: voteId,
+        title,
+      },
+    })
+  })
+  return loadDetails(
+    deps,
+    deps.db,
+    reviewer.profile.access_role as AccessRole,
+    id,
+  )
+}
+
+/** Прямое решение по новой заявке без голосования (APP-04, ADM-05, Q-24). */
 export async function decideApplication(
   deps: AppDeps,
   actor: Actor,
@@ -196,21 +361,45 @@ export async function decideApplication(
 ): Promise<ApplicationDetails> {
   const reviewer = requireRole(actor, REVIEWERS)
   const input = parseBody(decideApplicationSchema, body)
-  const decision = DECISIONS[input.decision]
+  return decide(deps, reviewer, input, NEW_STATUS, DIRECT_DECISIONS)
+}
+
+/**
+ * Окончательное решение администратора после голосования (APP-08, VOT-10):
+ * большинство «За» само по себе кандидата не принимает.
+ */
+export async function finalDecideApplication(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<ApplicationDetails> {
+  const admin = requireRole(actor, ['admin'])
+  const input = parseBody(decideApplicationSchema, body)
+  return decide(deps, admin, input, FINAL_STATUS, FINAL_DECISIONS)
+}
+
+/**
+ * Одна транзакция решения: статус из `from`, роль и дата вступления при
+ * приёме, уведомление кандидату (APP-14) и аудит. Повтор и параллельное
+ * решение — state_conflict.
+ */
+async function decide(
+  deps: AppDeps,
+  reviewer: ProfiledActor,
+  input: z.output<typeof decideApplicationSchema>,
+  from: string,
+  decisions: Record<'accept' | 'reject', Decision>,
+): Promise<ApplicationDetails> {
+  const decision = decisions[input.decision]
   const now = deps.now()
 
   await withTransaction(deps.db, async (tx) => {
-    const applicantId = await applicationRepository.decide(
-      tx,
-      input.id,
-      NEW_STATUS,
-      {
-        status: decision.status,
-        decided_by: reviewer.userId,
-        decided_at: now.toISOString(),
-        decision_note: input.note,
-      },
-    )
+    const applicantId = await applicationRepository.decide(tx, input.id, from, {
+      status: decision.status,
+      decided_by: reviewer.userId,
+      decided_at: now.toISOString(),
+      decision_note: input.note,
+    })
     if (!applicantId) {
       throw new ApiError(
         (await applicationRepository.exists(tx, input.id))

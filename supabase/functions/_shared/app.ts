@@ -8,9 +8,11 @@ import {
 import { listAccounts, restoreReader, setRole } from './accounts/service.ts'
 import {
   decideApplication,
+  finalDecideApplication,
   getApplication,
   listApplications,
   resubmitApplication,
+  submitApplicationToVote,
 } from './applications/service.ts'
 import { GUEST, loadActor } from './auth/actor.ts'
 import {
@@ -28,6 +30,15 @@ import {
   rosterStats,
 } from './roster/service.ts'
 import { createStorageGateway, type StorageGateway } from './storage/gateway.ts'
+import {
+  castBallot,
+  closeVote,
+  createVote,
+  deleteVote,
+  getVote,
+  listVotes,
+  updateVote,
+} from './votes/service.ts'
 
 export type AppEnv = {
   dbUrl: string
@@ -56,6 +67,17 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       decideApplication(deps, actor, body),
     'applications/resubmit': ({ actor, body }) =>
       resubmitApplication(deps, actor, body),
+    'applications/submit-to-vote': ({ actor, body }) =>
+      submitApplicationToVote(deps, actor, body),
+    'applications/final-decide': ({ actor, body }) =>
+      finalDecideApplication(deps, actor, body),
+    'votes/list': ({ actor, body }) => listVotes(deps, actor, body),
+    'votes/get': ({ actor, body }) => getVote(deps, actor, body),
+    'votes/create': ({ actor, body }) => createVote(deps, actor, body),
+    'votes/update': ({ actor, body }) => updateVote(deps, actor, body),
+    'votes/cast': ({ actor, body }) => castBallot(deps, actor, body),
+    'votes/close': ({ actor, body }) => closeVote(deps, actor, body),
+    'votes/delete': ({ actor, body }) => deleteVote(deps, actor, body),
     'roster/count': () => countRoster(deps),
     'roster/stats': ({ actor }) => rosterStats(deps, actor),
     'roster/list': ({ actor, body }) => listRoster(deps, actor, body),

@@ -58,6 +58,15 @@ describe('api function over HTTP', () => {
       'accounts/list',
       'accounts/set-role',
       'accounts/restore-reader',
+      'applications/submit-to-vote',
+      'applications/final-decide',
+      'votes/list',
+      'votes/get',
+      'votes/create',
+      'votes/update',
+      'votes/cast',
+      'votes/close',
+      'votes/delete',
     ]) {
       expect(await call(route)).toEqual({
         status: 401,
@@ -152,20 +161,27 @@ describe('direct access around the api', () => {
     }
   })
 
-  it('does not expose user notifications through the Data API', async () => {
+  it('does not expose user notifications and votes through the Data API', async () => {
     const user = await createAuthUser()
     const token = await signIn(user.email)
-    const response = await fetch(
-      `${env('API_URL')}/rest/v1/user_notifications?select=*`,
-      {
-        headers: {
-          apikey: env('ANON_KEY'),
-          Authorization: `Bearer ${token}`,
-          'Accept-Profile': 'app',
+    for (const table of [
+      'user_notifications',
+      'votes',
+      'vote_options',
+      'vote_ballots',
+    ]) {
+      const response = await fetch(
+        `${env('API_URL')}/rest/v1/${table}?select=*`,
+        {
+          headers: {
+            apikey: env('ANON_KEY'),
+            Authorization: `Bearer ${token}`,
+            'Accept-Profile': 'app',
+          },
         },
-      },
-    )
-    expect(response.ok).toBe(false)
+      )
+      expect(response.ok).toBe(false)
+    }
   })
 
   it('does not let a user read or list avatars directly from Storage', async () => {

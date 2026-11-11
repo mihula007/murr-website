@@ -22,6 +22,9 @@ const DETAIL_KEYS = new Set([
   'previous_role',
   'decision',
   'user_id',
+  'vote_id',
+  'vote_kind',
+  'title',
 ])
 
 type DetailValue = string | number | boolean | null | string[]

@@ -5,13 +5,16 @@ import {
   type ApplicationStatus,
 } from './account.ts'
 import { pageRequestShape, type Page } from './paging.ts'
+import type { VoteOptionResult } from './votes.ts'
 
-export const APPLICATION_TABS = ['new', 'decided'] as const
+/** `final` — очередь окончательных решений, только администратору (APP-08). */
+export const APPLICATION_TABS = ['new', 'decided', 'final'] as const
 export type ApplicationTab = (typeof APPLICATION_TABS)[number]
 
 /**
- * «Новые» — малый список (≤ 50 по ответу владельца), отдаётся целиком,
- * курсор не используется. «Решённые» — большой, страницы по курсору.
+ * «Новые» и «Окончательные решения» — малые списки (≤ 50 по ответу
+ * владельца), отдаются целиком, курсор не используется. «Решённые» —
+ * большой, страницы по курсору.
  */
 export const listApplicationsSchema = z.object({
   tab: z.enum(APPLICATION_TABS),
@@ -49,19 +52,31 @@ export type ApplicantSummary = {
   avatarUrl: string | null
 }
 
+/** Итоги связанного голосования (APP-08). */
+export type ApplicationVoteResult = {
+  id: string
+  closedAt: string | null
+  options: VoteOptionResult[]
+  totalBallots: number
+}
+
 export type ApplicationListItem = {
   id: string
   status: ApplicationStatus
   submittedAt: string
   decidedAt: string | null
   applicant: ApplicantSummary
+  /** Вкладка `final`: итоги четырёх вариантов голосования. */
+  vote?: ApplicationVoteResult
 }
 
 export type ApplicationListResponse = Page<ApplicationListItem> & {
   /** Число новых заявок для счётчика вкладки. */
   newCount: number
+  /** Число заявок, ждущих окончательного решения; только администратору. */
+  finalCount?: number
   /**
-   * «Новые»: заявок больше порога малого списка, показаны самые старые.
+   * «Новые» и `final`: заявок больше порога малого списка, показаны самые старые.
    * Список не обрезается молча — интерфейс сообщает об этом.
    */
   truncated: boolean
@@ -79,6 +94,8 @@ export type ApplicationDetails = {
   decisionNote: string | null
   decidedBy: { gameNickname: string } | null
   equipmentLinks: string[]
+  /** Последнее связанное голосование (APP-05, 07, 08). */
+  vote?: ApplicationVoteResult
   applicant: ApplicantSummary & {
     displayName: string
     about: string | null
