@@ -307,6 +307,151 @@ export type Database = {
           },
         ]
       }
+      vote_ballots: {
+        Row: {
+          created_at: string
+          id: string
+          option_id: string
+          updated_at: string
+          vote_id: string
+          voter_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          id?: string
+          option_id: string
+          updated_at?: string
+          vote_id: string
+          voter_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          option_id?: string
+          updated_at?: string
+          vote_id?: string
+          voter_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'vote_ballots_vote_id_fkey'
+            columns: ['vote_id']
+            isOneToOne: false
+            referencedRelation: 'votes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'vote_ballots_vote_id_option_id_fkey'
+            columns: ['vote_id', 'option_id']
+            isOneToOne: false
+            referencedRelation: 'vote_options'
+            referencedColumns: ['vote_id', 'id']
+          },
+          {
+            foreignKeyName: 'vote_ballots_voter_id_fkey'
+            columns: ['voter_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      vote_options: {
+        Row: {
+          id: string
+          label: string
+          normalized_label: string
+          position: number
+          vote_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          id?: string
+          label: string
+          normalized_label: string
+          position: number
+          vote_id: string
+        }
+        Update: {
+          id?: string
+          label?: string
+          normalized_label?: string
+          position?: number
+          vote_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'vote_options_vote_id_fkey'
+            columns: ['vote_id']
+            isOneToOne: false
+            referencedRelation: 'votes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      votes: {
+        Row: {
+          application_id: string | null
+          closed_at: string | null
+          closed_by: string | null
+          context: string
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          title: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          application_id?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          context?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          context?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'votes_application_id_fkey'
+            columns: ['application_id']
+            isOneToOne: false
+            referencedRelation: 'join_applications'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'votes_closed_by_fkey'
+            columns: ['closed_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'votes_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
