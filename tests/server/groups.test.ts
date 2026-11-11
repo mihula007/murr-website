@@ -411,7 +411,7 @@ describe('group templates (GRP-12–15)', () => {
             { userId: b.user.id, isLeader: true },
           ],
         },
-        { name: 'Пати 2', members: [{ userId: c.user.id }] },
+        { name: 'Пати 2', members: [{ userId: c.user.id, isLeader: false }] },
       ],
     })
     expect(saved.items).toHaveLength(1)
@@ -459,13 +459,15 @@ describe('group templates (GRP-12–15)', () => {
       {
         name: 'Шаблон',
         groups: [
-          { name: 'Пати 1', members: [{ userId: a.user.id }] },
-          { name: 'Пати 2', members: [{ userId: a.user.id }] },
+          { name: 'Пати 1', members: [{ userId: a.user.id, isLeader: false }] },
+          { name: 'Пати 2', members: [{ userId: a.user.id, isLeader: false }] },
         ],
       },
       {
         name: 'Шаблон',
-        groups: [{ name: 'Пати', members: [{ userId: reader.id }] }],
+        groups: [
+          { name: 'Пати', members: [{ userId: reader.id, isLeader: false }] },
+        ],
       },
     ]) {
       await rejects(
@@ -493,7 +495,9 @@ describe('group templates (GRP-12–15)', () => {
     const other = await roleActor('officer')
     const saved = await saveGroupTemplate(deps, officer.actor, {
       name: 'Основа',
-      groups: [{ name: 'Пати', members: [{ userId: a.user.id }] }],
+      groups: [
+        { name: 'Пати', members: [{ userId: a.user.id, isLeader: false }] },
+      ],
     })
     const { groups } = await createGroup(deps, officer.actor, {
       eventId: event.id,

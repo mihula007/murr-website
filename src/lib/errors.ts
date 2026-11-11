@@ -45,6 +45,11 @@ export type FieldErrorCode =
   | 'password_mismatch'
   | 'invalid_code'
   | 'current_password_required'
+  | 'not_member'
+  | 'not_in_group'
+  | 'one_leader'
+  | 'duplicate_member'
+  | 'before_from'
 
 /**
  * Единственная ошибка, которую видит интерфейс. `fields` — ошибки полей:
@@ -121,6 +126,11 @@ const MESSAGES: Record<ClientErrorCode | FieldErrorCode, string> = {
   password_mismatch: 'Пароли не совпадают',
   invalid_code: 'Код — 6 цифр из письма',
   current_password_required: 'Введите текущий пароль',
+  not_member: 'Назначить можно только участника клана',
+  not_in_group: 'Лидер выбирается из участников этой группы',
+  one_leader: 'У группы может быть только один лидер',
+  duplicate_member: 'Участник может быть только в одной группе',
+  before_from: 'Дата «по» раньше даты «с»',
 }
 
 function lookup(code: string) {

@@ -27,6 +27,10 @@ const groupNameSchema = z
   .min(1, 'required')
   .max(GROUP_LIMITS.name, 'too_long')
 
+/** Поле названия группы в формах создания и переименования. */
+export const groupNameFormSchema = z.object({ name: groupNameSchema })
+export type GroupNameForm = z.input<typeof groupNameFormSchema>
+
 export const createGroupSchema = z.object({
   eventId: z.guid('not_found'),
   name: groupNameSchema,
@@ -92,7 +96,7 @@ export const saveGroupTemplateSchema = z
             .array(
               z.object({
                 userId: z.guid('invalid'),
-                isLeader: z.boolean().default(false),
+                isLeader: z.boolean(),
               }),
             )
             .max(500, 'too_many'),

@@ -246,11 +246,11 @@ describe('event page (EVT-06)', () => {
     respond({ 'events/get': () => details() })
     await renderApp({ role: 'member', path: `/events/${EVENT_ID}` })
     expect(
-      await screen.findByRole('list', { name: 'Приду' }),
+      await screen.findByRole('list', { name: 'Придут' }),
     ).toHaveTextContent('Анна')
-    fireEvent.mouseDown(screen.getByRole('tab', { name: /Без ответа/ }))
+    fireEvent.mouseDown(screen.getByRole('tab', { name: /Не отметились/ }))
     expect(
-      await screen.findByRole('list', { name: 'Без ответа' }),
+      await screen.findByRole('list', { name: 'Не отметились' }),
     ).toHaveTextContent('Борис')
   })
 })

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { CalendarPlus, Plus } from 'lucide-react'
 import { z } from 'zod'
@@ -21,6 +22,7 @@ import { pagingOf, VirtualList } from '@/components/virtual-list'
 import { errorMessage, type AppError } from '@/lib/errors'
 import { formatWeekdayTimeMsk } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
+import { GroupTemplatesDialog } from './groups/group-templates-dialog'
 import { useActiveEvents, useEnsureWeeklyEvents, usePastEvents } from './api'
 import { EventCard } from './event-card'
 
@@ -53,6 +55,7 @@ const sectionTitleClass =
  */
 function WeeklyEvents() {
   const ensure = useEnsureWeeklyEvents()
+  const [templates, setTemplates] = useState(false)
 
   async function run() {
     try {
@@ -92,16 +95,26 @@ function WeeklyEvents() {
           )
         })}
       </ul>
-      <Button
-        type="button"
-        variant="secondary"
-        className="justify-self-start max-xs:w-full max-xs:justify-self-stretch"
-        disabled={ensure.isPending}
-        onClick={() => void run()}
-      >
-        <CalendarPlus size={18} aria-hidden="true" />
-        {ensure.isPending ? 'Создаём…' : 'Создать постоянные события недели'}
-      </Button>
+      <div className="flex flex-wrap gap-2 max-xs:grid">
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={ensure.isPending}
+          onClick={() => void run()}
+        >
+          <CalendarPlus size={18} aria-hidden="true" />
+          {ensure.isPending ? 'Создаём…' : 'Создать постоянные события недели'}
+        </Button>
+        {/* Библиотека групп открывается и из расписания (GRP-12). */}
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => setTemplates(true)}
+        >
+          Шаблоны групп
+        </Button>
+      </div>
+      <GroupTemplatesDialog open={templates} onOpenChange={setTemplates} />
     </Card>
   )
 }
