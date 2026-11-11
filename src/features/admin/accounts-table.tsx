@@ -40,7 +40,7 @@ function RoleCell({ account }: { account: AccountListItem }) {
   const lock = roleLockReason(account)
   const hintId = `role-lock-${account.id}`
   return (
-    <div className="grid max-w-[240px] gap-1 max-[760px]:max-w-none">
+    <div className="grid max-w-[240px] gap-1 max-[900px]:max-w-none">
       <Select
         aria-label={`Роль ${account.gameNickname}`}
         aria-describedby={lock ? hintId : undefined}
@@ -90,13 +90,13 @@ const columns = column.columns([
  */
 const MOBILE_CELL: Record<string, { cell: string; label: string }> = {
   gameNickname: {
-    cell: 'max-[760px]:order-1 max-[760px]:col-span-full max-[760px]:text-base',
-    label: 'max-[760px]:hidden',
+    cell: 'max-[900px]:order-1 max-[900px]:col-span-full max-[900px]:text-base',
+    label: 'max-[900px]:hidden',
   },
-  displayName: { cell: 'max-[760px]:order-2', label: '' },
-  joinedOn: { cell: 'max-[760px]:order-3', label: '' },
-  email: { cell: 'max-[760px]:order-4 max-[760px]:col-span-full', label: '' },
-  role: { cell: 'max-[760px]:order-5 max-[760px]:col-span-full', label: '' },
+  displayName: { cell: 'max-[900px]:order-2', label: '' },
+  joinedOn: { cell: 'max-[900px]:order-3', label: '' },
+  email: { cell: 'max-[900px]:order-4 max-[900px]:col-span-full', label: '' },
+  role: { cell: 'max-[900px]:order-5 max-[900px]:col-span-full', label: '' },
 }
 
 /**
@@ -104,7 +104,7 @@ const MOBILE_CELL: Record<string, { cell: string; label: string }> = {
  * колонки — видимым текстом в ячейке (без горизонтальной прокрутки на 375 px).
  */
 const tableClass =
-  'w-full border-collapse text-left text-[13px] max-[760px]:block [&_td]:border-b [&_td]:border-border [&_td]:px-2 [&_td]:py-3 [&_td]:align-middle [&_th]:border-b [&_th]:border-border [&_th]:px-2 [&_th]:py-3 [&_th]:font-semibold [&_th]:text-muted-foreground max-[760px]:[&_tbody]:grid max-[760px]:[&_tbody]:gap-2.5 max-[760px]:[&_thead]:hidden max-[760px]:[&_tr]:grid max-[760px]:[&_tr]:grid-cols-2 max-[760px]:[&_tr]:gap-x-4 max-[760px]:[&_tr]:gap-y-2.5 max-[760px]:[&_tr]:rounded-xl max-[760px]:[&_tr]:border max-[760px]:[&_tr]:border-border max-[760px]:[&_tr]:bg-surface-inset max-[760px]:[&_tr]:p-3.5 max-[760px]:[&_td]:grid max-[760px]:[&_td]:gap-1 max-[760px]:[&_td]:border-0 max-[760px]:[&_td]:p-0'
+  'w-full border-collapse text-left text-[13px] max-[900px]:block [&_td]:border-b [&_td]:border-border [&_td]:px-2 [&_td]:py-3 [&_td]:align-middle [&_th]:border-b [&_th]:border-border [&_th]:px-2 [&_th]:py-3 [&_th]:font-semibold [&_th]:text-muted-foreground max-[900px]:[&_tbody]:grid max-[900px]:[&_tbody]:gap-2.5 max-[900px]:[&_thead]:hidden max-[900px]:[&_tr]:grid max-[900px]:[&_tr]:grid-cols-2 max-[900px]:[&_tr]:gap-x-4 max-[900px]:[&_tr]:gap-y-2.5 max-[900px]:[&_tr]:rounded-xl max-[900px]:[&_tr]:border max-[900px]:[&_tr]:border-border max-[900px]:[&_tr]:bg-surface-inset max-[900px]:[&_tr]:p-3.5 max-[900px]:[&_td]:grid max-[900px]:[&_td]:gap-1 max-[900px]:[&_td]:border-0 max-[900px]:[&_td]:p-0'
 
 /** Таблица аккаунтов с выбором роли и подтверждением (ADM-04–06, ADM-08). */
 export function AccountsTable({ accounts }: { accounts: AccountListItem[] }) {
@@ -138,7 +138,7 @@ export function AccountsTable({ accounts }: { accounts: AccountListItem[] }) {
                 <td key={cell.id} className={MOBILE_CELL[cell.column.id]?.cell}>
                   <span
                     className={cn(
-                      'hidden text-xs text-muted-foreground max-[760px]:block',
+                      'hidden text-xs text-muted-foreground max-[900px]:block',
                       MOBILE_CELL[cell.column.id]?.label,
                     )}
                   >

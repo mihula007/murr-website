@@ -28,7 +28,7 @@ export function AdminPage() {
         title="Администрирование"
         description="Роли аккаунтов: смена роли, блокировка (статус «Чтец») и восстановление."
       />
-      <Card className="grid gap-4 max-[760px]:border-0 max-[760px]:bg-none max-[760px]:p-0">
+      <Card className="grid gap-4 max-[900px]:border-0 max-[900px]:bg-none max-[900px]:p-0">
         <h2 className="text-xl font-bold">Аккаунты</h2>
         {content}
       </Card>
