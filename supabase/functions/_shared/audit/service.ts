@@ -33,6 +33,10 @@ const DETAIL_KEYS = new Set([
   'visited',
   'missed',
   'unmarked',
+  'publication_id',
+  'listing_id',
+  'category',
+  'status',
 ])
 
 type DetailValue = string | number | boolean | null | string[]

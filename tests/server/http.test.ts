@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import {
@@ -95,6 +96,13 @@ describe('api function over HTTP', () => {
       'activity/member',
       'activity/rating',
       'activity/month-top',
+      'publications/list',
+      'publications/get',
+      'publications/upload-url',
+      'publications/discard-uploads',
+      'publications/save',
+      'publications/unpublish',
+      'publications/delete',
     ]) {
       expect(await call(route)).toEqual({
         status: 401,
@@ -216,6 +224,8 @@ describe('direct access around the api', () => {
       'votes',
       'vote_options',
       'vote_ballots',
+      'publications',
+      'publication_attachments',
     ]) {
       const response = await fetch(
         `${env('API_URL')}/rest/v1/${table}?select=*`,
@@ -245,6 +255,40 @@ describe('direct access around the api', () => {
     const download = await client.storage.from('avatars').download(path)
     expect(download.data).toBeNull()
     const list = await client.storage.from('avatars').list(owner.id)
+    expect(list.data ?? []).toHaveLength(0)
+  })
+
+  it('does not let a user read or list publication images directly from Storage', async () => {
+    const path = `uploads/${randomUUID()}/1-${randomUUID()}.png`
+    const { token } = await deps.storage.createUploadUrl(
+      'publication-images',
+      path,
+    )
+    const client = createClient(env('API_URL'), env('ANON_KEY'), {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+    await client.storage
+      .from('publication-images')
+      .uploadToSignedUrl(
+        path,
+        token,
+        new Blob([PNG_BYTES], { type: 'image/png' }),
+        {
+          contentType: 'image/png',
+        },
+      )
+    const reader = await createAuthUser()
+    await client.auth.signInWithPassword({
+      email: reader.email,
+      password: 'test-password-1',
+    })
+    const download = await client.storage
+      .from('publication-images')
+      .download(path)
+    expect(download.data).toBeNull()
+    const list = await client.storage
+      .from('publication-images')
+      .list(path.split('/').slice(0, 2).join('/'))
     expect(list.data ?? []).toHaveLength(0)
   })
 })

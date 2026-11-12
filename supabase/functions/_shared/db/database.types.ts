@@ -554,8 +554,10 @@ export type Database = {
           author_id: string | null
           category: string
           content: NonNullable<Json>
+          cover_url: string | null
           created_at: string
           discussion_enabled: boolean
+          excerpt: string
           id: string
           published_at: string | null
           search_text: string
@@ -569,8 +571,10 @@ export type Database = {
           author_id?: string | null
           category: string
           content: NonNullable<Json>
+          cover_url?: string | null
           created_at?: string
           discussion_enabled?: boolean
+          excerpt: string
           id?: string
           published_at?: string | null
           search_text: string
@@ -583,8 +587,10 @@ export type Database = {
           author_id?: string | null
           category?: string
           content?: NonNullable<Json>
+          cover_url?: string | null
           created_at?: string
           discussion_enabled?: boolean
+          excerpt?: string
           id?: string
           published_at?: string | null
           search_text?: string
@@ -704,8 +710,10 @@ export type Database = {
           author_id: string | null
           category: string
           content: NonNullable<Json>
+          cover_url: string | null
           created_at: string
           discussion_enabled: boolean
+          excerpt: string
           id: string
           published_at: string | null
           search_text: string
@@ -720,8 +728,10 @@ export type Database = {
           author_id?: string | null
           category: string
           content: NonNullable<Json>
+          cover_url?: string | null
           created_at?: string
           discussion_enabled?: boolean
+          excerpt: string
           id?: string
           published_at?: string | null
           search_text: string
@@ -735,8 +745,10 @@ export type Database = {
           author_id?: string | null
           category?: string
           content?: NonNullable<Json>
+          cover_url?: string | null
           created_at?: string
           discussion_enabled?: boolean
+          excerpt?: string
           id?: string
           published_at?: string | null
           search_text?: string

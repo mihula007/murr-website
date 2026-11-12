@@ -32,34 +32,34 @@ values
   ('00000000-0000-0000-0000-000000000081', 'А', 'Alpha8', 1, 'officer'),
   ('00000000-0000-0000-0000-000000000082', 'Б', 'Beta8', 1, 'member');
 
-insert into app.publications (id, category, title, content, search_text, status, author_id, published_at)
+insert into app.publications (id, category, title, content, search_text, excerpt, status, author_id, published_at)
 values
-  ('00000000-0000-0000-0000-0000000008a1', 'news', 'Опубликовано', '{"type":"doc"}', 'опубликовано',
+  ('00000000-0000-0000-0000-0000000008a1', 'news', 'Опубликовано', '{"type":"doc"}', 'опубликовано', '',
     'published', '00000000-0000-0000-0000-000000000081', now()),
-  ('00000000-0000-0000-0000-0000000008a2', 'guide', 'Черновик', '{"type":"doc"}', 'черновик',
+  ('00000000-0000-0000-0000-0000000008a2', 'guide', 'Черновик', '{"type":"doc"}', 'черновик', '',
     'draft', '00000000-0000-0000-0000-000000000081', null);
 
 select throws_ok(
-  $$insert into app.publications (category, title, content, search_text, status, author_id)
-    values ('poem', 'Т', '{}', 'т', 'draft', '00000000-0000-0000-0000-000000000081')$$,
+  $$insert into app.publications (category, title, content, search_text, excerpt, status, author_id)
+    values ('poem', 'Т', '{}', 'т', '', 'draft', '00000000-0000-0000-0000-000000000081')$$,
   '23514', null, 'неизвестная категория публикации отклоняется (PUB-02)'
 );
 
 select throws_ok(
-  $$insert into app.publications (category, title, content, search_text, status, author_id)
-    values ('news', '', '{}', '', 'draft', '00000000-0000-0000-0000-000000000081')$$,
+  $$insert into app.publications (category, title, content, search_text, excerpt, status, author_id)
+    values ('news', '', '{}', '', '', 'draft', '00000000-0000-0000-0000-000000000081')$$,
   '23514', null, 'пустой заголовок отклоняется (PUB-03)'
 );
 
 select throws_ok(
-  $$insert into app.publications (category, title, content, search_text, status, author_id)
-    values ('news', 'Т', '"<p>html</p>"', 'т', 'draft', '00000000-0000-0000-0000-000000000081')$$,
+  $$insert into app.publications (category, title, content, search_text, excerpt, status, author_id)
+    values ('news', 'Т', '"<p>html</p>"', 'т', '', 'draft', '00000000-0000-0000-0000-000000000081')$$,
   '23514', null, 'содержимое — только JSON-объект, не строка HTML (Q-57)'
 );
 
 select throws_ok(
-  $$insert into app.publications (category, title, content, search_text, status, author_id)
-    values ('news', 'Т', '{}', 'т', 'published', '00000000-0000-0000-0000-000000000081')$$,
+  $$insert into app.publications (category, title, content, search_text, excerpt, status, author_id)
+    values ('news', 'Т', '{}', 'т', '', 'published', '00000000-0000-0000-0000-000000000081')$$,
   '23514', null, 'опубликованный материал имеет время публикации'
 );
 
@@ -84,16 +84,16 @@ select throws_ok(
   '23514', null, 'не больше 10 вложений на публикацию'
 );
 
-insert into app.market_listings (id, category, title, content, search_text, status, author_id, published_at)
+insert into app.market_listings (id, category, title, content, search_text, excerpt, status, author_id, published_at)
 values
-  ('00000000-0000-0000-0000-0000000008b1', 'sale', 'Продам', '{"type":"doc"}', 'продам',
+  ('00000000-0000-0000-0000-0000000008b1', 'sale', 'Продам', '{"type":"doc"}', 'продам', '',
     'published', '00000000-0000-0000-0000-000000000082', now()),
-  ('00000000-0000-0000-0000-0000000008b2', 'buy', 'Куплю', '{"type":"doc"}', 'куплю',
+  ('00000000-0000-0000-0000-0000000008b2', 'buy', 'Куплю', '{"type":"doc"}', 'куплю', '',
     'draft', '00000000-0000-0000-0000-000000000082', null);
 
 select throws_ok(
-  $$insert into app.market_listings (category, title, content, search_text, status, author_id)
-    values ('auction', 'Т', '{}', 'т', 'draft', '00000000-0000-0000-0000-000000000082')$$,
+  $$insert into app.market_listings (category, title, content, search_text, excerpt, status, author_id)
+    values ('auction', 'Т', '{}', 'т', '', 'draft', '00000000-0000-0000-0000-000000000082')$$,
   '23514', null, 'неизвестная категория объявления отклоняется (MKT-02)'
 );
 

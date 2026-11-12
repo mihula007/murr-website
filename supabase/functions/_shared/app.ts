@@ -58,6 +58,15 @@ import {
 } from './groups/service.ts'
 import { createApiHandler, type Route } from './http/handler.ts'
 import {
+  createPublicationUpload,
+  deletePublication,
+  discardPublicationUploads,
+  getPublication,
+  listPublications,
+  savePublication,
+  unpublishPublication,
+} from './publications/service.ts'
+import {
   countRoster,
   listReaders,
   listRoster,
@@ -155,6 +164,19 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'activity/member': ({ actor, body }) => activityMember(deps, actor, body),
     'activity/rating': ({ actor }) => attendanceRating(deps, actor),
     'activity/month-top': ({ actor }) => monthTop(deps, actor),
+    'publications/list': ({ actor, body }) =>
+      listPublications(deps, actor, body),
+    'publications/get': ({ actor, body }) => getPublication(deps, actor, body),
+    'publications/upload-url': ({ actor, body }) =>
+      createPublicationUpload(deps, actor, body),
+    'publications/discard-uploads': ({ actor, body }) =>
+      discardPublicationUploads(deps, actor, body),
+    'publications/save': ({ actor, body }) =>
+      savePublication(deps, actor, body),
+    'publications/unpublish': ({ actor, body }) =>
+      unpublishPublication(deps, actor, body),
+    'publications/delete': ({ actor, body }) =>
+      deletePublication(deps, actor, body),
     'roster/count': () => countRoster(deps),
     'roster/stats': ({ actor }) => rosterStats(deps, actor),
     'roster/list': ({ actor }) => listRoster(deps, actor),

@@ -15,6 +15,9 @@ create table app.publications (
   content jsonb not null check (jsonb_typeof(content) = 'object'),
   -- Заголовок, анонс, текст и имена вложений в нижнем регистре; пишет сервис.
   search_text text not null,
+  -- Карточка ленты: анонс или начало текста и первое изображение по URL.
+  excerpt text not null check (char_length(excerpt) <= 300),
+  cover_url text check (char_length(cover_url) <= 2000),
   status text not null check (status in ('draft', 'published')),
   show_author boolean not null default true,
   discussion_enabled boolean not null default false,
@@ -56,6 +59,8 @@ create table app.market_listings (
   summary text check (char_length(summary) between 1 and 300),
   content jsonb not null check (jsonb_typeof(content) = 'object'),
   search_text text not null,
+  excerpt text not null check (char_length(excerpt) <= 300),
+  cover_url text check (char_length(cover_url) <= 2000),
   status text not null check (status in ('draft', 'published')),
   discussion_enabled boolean not null default false,
   -- Удаление автора: объявление остаётся без связи (MKT-12), черновики — нет.

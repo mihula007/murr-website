@@ -93,6 +93,8 @@ const MESSAGES: Record<ClientErrorCode | FieldErrorCode, string> = {
   validation_failed: 'Проверьте поля формы.',
   avatar_invalid:
     'Аватар не принят: нужен JPEG, PNG или WebP до 500 КБ. Выберите файл ещё раз.',
+  publication_file_invalid:
+    'Изображение не принято: нужен JPEG, PNG или WebP до 1 МБ. Загрузите файл ещё раз.',
   internal: 'Сервер не смог выполнить действие. Попробуйте ещё раз позже.',
   // Auth
   invalid_credentials: 'Неверный email или пароль.',

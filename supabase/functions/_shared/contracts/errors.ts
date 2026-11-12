@@ -16,6 +16,8 @@ export const API_ERRORS = {
   primary_admin: 409,
   validation_failed: 422,
   avatar_invalid: 422,
+  /** Вложение публикации не прошло проверку типа, размера или владельца. */
+  publication_file_invalid: 422,
   internal: 500,
 } as const
 
