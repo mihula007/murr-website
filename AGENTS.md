@@ -204,7 +204,8 @@ Next.js и TanStack Start в выбранную основу не входят.
 Структура клиента: `src/routes/` только объявляет маршруты; страницы и их
 логика — в доменных модулях `src/features/<домен>/` (`auth`, `registration`,
 `account`, `applications`, `votes`, `roster`, `admin`, `catalog`, `home`,
-`not-found`, `sections`, `dev`, `activity`); общие элементы форм — `src/components/form/`;
+`not-found`, `sections`, `dev`, `activity`, `publications`, `market`,
+`content` — общий редактор, показ и экраны материалов); общие элементы форм — `src/components/form/`;
 подтверждение действия с ответом сервера — `ConfirmActionDialog`
 (`src/components/confirm-action-dialog.tsx`); иконка класса — `ClassIcon`
 (`src/features/catalog/`, файлы `src/assets/class-icons/<slug>.webp`);
@@ -372,6 +373,18 @@ starts_at)`.
   участника (Q-49), период — по дате начала МСК (Q-50); чтецы остаются в
   истории и сводке, но не в рейтинге (Q-53). Шаблоны групп — общая
   библиотека офицеров и администраторов, не больше 20 (GRP-12).
+  Этап 8: таблицы `publications`, `publication_attachments`, `market_listings`
+  и модули `publications`, `market` (права раздельные: публикации — офицер
+  свои, администратор любые; рынок — член и офицер свои, администратор любые).
+  Содержимое — JSON Tiptap, проверяемый только `@contracts/rich-text`
+  (Q-57); `search_text`, `excerpt`, `cover_url` вычисляет сервис при
+  сохранении. Снятие с публикации возвращает в черновики; правка с
+  `expectedUpdatedAt`, другая версия — `state_conflict`. Вложения — приватный
+  bucket `publication-images`, загрузка в `uploads/<userId>/`, проверка
+  сигнатуры при привязке, удаление файлов после коммита. Чужой черновик —
+  `not_found`. Аудит: создание, изменение, публикация, снятие и удаление
+  (категории `publications`, `market`; в `details` — id, заголовок,
+  категория, статус).
 - Прикладные таблицы не открываются через Data API: браузер не получает
   к ним GRANT, RLS включён без политик (запрет по умолчанию).
 - CI проверяет изменения на push и pull request. Публикация Pages
