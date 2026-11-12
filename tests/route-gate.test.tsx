@@ -17,10 +17,10 @@ describe('контроль доступа к маршрутам', () => {
     expect(screen.getByRole('link', { name: 'Войти' })).toBeVisible()
   })
 
-  it('член клана видит заглушку раздела', async () => {
-    await renderApp({ role: 'member', path: '/publications' })
+  it('офицер видит заглушку ещё не сделанного раздела', async () => {
+    await renderApp({ role: 'officer', path: '/broadcast' })
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Публикации' }),
+      await screen.findByRole('heading', { level: 1, name: 'Рассылка' }),
     ).toBeVisible()
     expect(screen.getByText('Раздел в разработке')).toBeVisible()
   })
