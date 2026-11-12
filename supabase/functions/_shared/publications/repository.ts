@@ -132,6 +132,16 @@ export const publicationRepository = {
     return row?.content ?? null
   },
 
+  /** Родитель обсуждения под блокировкой чтения: запись ждёт снятия и удаления. */
+  lockShared(tx: Executor, id: string) {
+    return tx
+      .selectFrom('app.publications')
+      .where('id', '=', id)
+      .select(['id', 'title', 'author_id', 'status', 'discussion_enabled'])
+      .forShare()
+      .executeTakeFirst()
+  },
+
   /** Строка под блокировкой правки (одна правка за раз, `FOR UPDATE`). */
   async lock(tx: Executor, id: string) {
     return tx

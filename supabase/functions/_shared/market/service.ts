@@ -17,6 +17,7 @@ import {
   type RichDocument,
 } from '../contracts/rich-text.ts'
 import { withTransaction } from '../db/client.ts'
+import { withMessageCounts } from '../discussions/counts.ts'
 import { ApiError } from '../http/errors.ts'
 import { numberedPage, pageWindow } from '../http/numbered-page.ts'
 import { parseBody } from '../http/validation.ts'
@@ -107,7 +108,11 @@ export async function listListings(
       offset: 0,
       limit: SMALL_LIST_LIMIT + 1,
     })
-    const items = rows.slice(0, SMALL_LIST_LIMIT).map(toCard)
+    const items = await withMessageCounts(
+      deps.db,
+      'market',
+      rows.slice(0, SMALL_LIST_LIMIT).map(toCard),
+    )
     return {
       ...numberedPage(items, items.length, 1),
       truncated: rows.length > SMALL_LIST_LIMIT,
@@ -119,7 +124,11 @@ export async function listListings(
     repo.count(deps.db, filter),
   ])
   return {
-    ...numberedPage(rows.map(toCard), total, input.page),
+    ...numberedPage(
+      await withMessageCounts(deps.db, 'market', rows.map(toCard)),
+      total,
+      input.page,
+    ),
     truncated: false,
     canCreate: true,
   }
@@ -136,7 +145,7 @@ async function loadDetails(
   }
   const content = await repo.content(deps.db, id)
   return {
-    ...toCard(row),
+    ...(await withMessageCounts(deps.db, 'market', [toCard(row)]))[0]!,
     content: content as unknown as RichDocument,
     createdAt: iso(row.created_at),
     publishedAt: row.published_at ? iso(row.published_at) : null,

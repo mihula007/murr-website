@@ -127,6 +127,8 @@ export type VoteSummary = {
   totalBallots: number
   /** Вариант текущего пользователя; null — не голосовал. */
   myOptionId: string | null
+  /** Сообщений в обсуждении (VOT-13, DSC-01). */
+  messageCount?: number
 }
 
 /** Голос для офицера и администратора (Q-16); null ник — удалённый участник. */

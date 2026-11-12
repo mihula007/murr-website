@@ -90,6 +90,8 @@ export type MaterialCard<C extends string> = {
   updatedAt: string
   author: MaterialAuthor
   discussionEnabled: boolean
+  /** Сообщений в обсуждении (PUB-08, MKT-10, DSC-01). */
+  messageCount?: number
 }
 
 export type MaterialDetails<C extends string> = MaterialCard<C> & {

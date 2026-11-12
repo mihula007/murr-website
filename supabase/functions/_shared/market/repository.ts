@@ -135,6 +135,16 @@ export const listingRepository = {
     return row?.content ?? null
   },
 
+  /** Родитель обсуждения под блокировкой чтения: запись ждёт снятия и удаления. */
+  lockShared(tx: Executor, id: string) {
+    return tx
+      .selectFrom('app.market_listings')
+      .where('id', '=', id)
+      .select(['id', 'title', 'author_id', 'status', 'discussion_enabled'])
+      .forShare()
+      .executeTakeFirst()
+  },
+
   /** Строка под блокировкой правки (`FOR UPDATE`). */
   async lock(tx: Executor, id: string) {
     return tx

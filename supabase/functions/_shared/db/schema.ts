@@ -45,6 +45,10 @@ export type DB = {
     Generated['publication_attachments']
   >
   'app.market_listings': KyselyTable<Generated['market_listings']>
+  'app.discussion_threads': KyselyTable<Generated['discussion_threads']>
+  'app.discussion_messages': KyselyTable<Generated['discussion_messages']>
+  'app.discussion_reactions': KyselyTable<Generated['discussion_reactions']>
+  'app.discussion_reads': KyselyTable<Generated['discussion_reads']>
   'auth.users': AuthUsersTable
 }
 

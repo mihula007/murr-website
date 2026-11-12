@@ -18,6 +18,7 @@ import {
 } from '../contracts/votes.ts'
 import { withTransaction, type Executor } from '../db/client.ts'
 import { decodeCursor, splitPage } from '../http/cursor.ts'
+import { withMessageCounts } from '../discussions/counts.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
@@ -60,7 +61,7 @@ async function summarize(
     voteRepository.totals(db, ids),
     voteRepository.choicesOf(db, ids, viewerId),
   ])
-  return rows.map((row) => {
+  const summaries = rows.map((row): VoteSummary => {
     const options = withLeaders(totals.filter((t) => t.vote_id === row.id))
     return {
       id: row.id,
@@ -84,6 +85,7 @@ async function summarize(
       myOptionId: choices.get(row.id) ?? null,
     }
   })
+  return withMessageCounts(db, 'vote', summaries)
 }
 
 export async function listVotes(

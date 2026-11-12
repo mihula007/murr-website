@@ -23,6 +23,7 @@ import {
 } from '../contracts/rich-text.ts'
 import { withTransaction } from '../db/client.ts'
 import { isUniqueViolation } from '../db/errors.ts'
+import { withMessageCounts } from '../discussions/counts.ts'
 import { ApiError } from '../http/errors.ts'
 import { numberedPage, pageWindow } from '../http/numbered-page.ts'
 import { parseBody } from '../http/validation.ts'
@@ -120,7 +121,11 @@ async function toCards(
   const coverOf = new Map(
     covers.map((cover) => [cover.publication_id, urls.get(cover.path) ?? null]),
   )
-  return rows.map((row) => toCard(viewer, row, coverOf.get(row.id) ?? null))
+  return withMessageCounts(
+    deps.db,
+    'publication',
+    rows.map((row) => toCard(viewer, row, coverOf.get(row.id) ?? null)),
+  )
 }
 
 /**
@@ -196,13 +201,11 @@ async function loadDetails(
     attachments.map((file) => file.path),
   )
   const firstFile = attachments[0]
-  const card = toCard(
-    viewer,
-    row,
-    firstFile ? (urls.get(firstFile.path) ?? null) : null,
-  )
+  const [card] = await withMessageCounts(deps.db, 'publication', [
+    toCard(viewer, row, firstFile ? (urls.get(firstFile.path) ?? null) : null),
+  ])
   return {
-    ...card,
+    ...card!,
     content: content as unknown as RichDocument,
     createdAt: iso(row.created_at),
     publishedAt: row.published_at ? iso(row.published_at) : null,

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import {
   createAuthUser,
+  createProfiledUser,
   env,
   PNG_BYTES,
   registration,
@@ -108,6 +109,14 @@ describe('api function over HTTP', () => {
       'market/save',
       'market/unpublish',
       'market/delete',
+      'discussions/list',
+      'discussions/changes',
+      'discussions/send',
+      'discussions/edit',
+      'discussions/react',
+      'discussions/mark-read',
+      'discussions/readers',
+      'discussions/reactions',
     ]) {
       expect(await call(route)).toEqual({
         status: 401,
@@ -140,6 +149,39 @@ describe('api function over HTTP', () => {
       status: 200,
       body: { count: 0 },
     })
+  })
+
+  it('lets members discuss an event and forbids readers over HTTP', async () => {
+    const member = await createProfiledUser(db, 'member')
+    const reader = await createProfiledUser(db, 'reader')
+    const event = await db
+      .insertInto('app.events')
+      .values({
+        title: 'Рейд',
+        event_type: 'pve',
+        description: 'Описание',
+        starts_at: '2030-01-01T17:00:00Z',
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow()
+    const thread = { parent: 'event', parentId: event.id }
+    const memberToken = await signIn(member.email)
+    const sent = await call(
+      'discussions/send',
+      { ...thread, body: 'Привет' },
+      memberToken,
+    )
+    expect(sent.status).toBe(200)
+    expect(sent.body).toMatchObject({ body: 'Привет', mine: true })
+    const page = await call('discussions/list', thread, memberToken)
+    expect(page.body.items).toHaveLength(1)
+    const readerToken = await signIn(reader.email)
+    for (const route of ['discussions/list', 'discussions/send']) {
+      expect(await call(route, { ...thread, body: 'Т' }, readerToken)).toEqual({
+        status: 403,
+        body: { error: 'forbidden' },
+      })
+    }
   })
 
   it('returns 404 for an unknown route', async () => {

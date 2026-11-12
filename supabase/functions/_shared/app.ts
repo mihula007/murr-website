@@ -23,6 +23,16 @@ import {
 import { listClasses } from './catalog/service.ts'
 import { createDb, type Db } from './db/client.ts'
 import {
+  discussionChanges,
+  editMessage,
+  listDiscussion,
+  markDiscussionRead,
+  messageReaders,
+  messageReactions,
+  reactToMessage,
+  sendMessage,
+} from './discussions/service.ts'
+import {
   closeEvent,
   createEvent,
   deleteEvent,
@@ -190,6 +200,18 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'market/unpublish': ({ actor, body }) =>
       unpublishListing(deps, actor, body),
     'market/delete': ({ actor, body }) => deleteListing(deps, actor, body),
+    'discussions/list': ({ actor, body }) => listDiscussion(deps, actor, body),
+    'discussions/changes': ({ actor, body }) =>
+      discussionChanges(deps, actor, body),
+    'discussions/send': ({ actor, body }) => sendMessage(deps, actor, body),
+    'discussions/edit': ({ actor, body }) => editMessage(deps, actor, body),
+    'discussions/react': ({ actor, body }) => reactToMessage(deps, actor, body),
+    'discussions/mark-read': ({ actor, body }) =>
+      markDiscussionRead(deps, actor, body),
+    'discussions/readers': ({ actor, body }) =>
+      messageReaders(deps, actor, body),
+    'discussions/reactions': ({ actor, body }) =>
+      messageReactions(deps, actor, body),
     'roster/count': () => countRoster(deps),
     'roster/stats': ({ actor }) => rosterStats(deps, actor),
     'roster/list': ({ actor }) => listRoster(deps, actor),

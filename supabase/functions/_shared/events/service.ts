@@ -37,6 +37,7 @@ import {
 import { MEMBER_LIST_LIMIT, SMALL_LIST_LIMIT } from '../contracts/paging.ts'
 import { withTransaction, type Executor } from '../db/client.ts'
 import { decodeCursor, splitPage } from '../http/cursor.ts'
+import { withMessageCounts } from '../discussions/counts.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
@@ -103,7 +104,7 @@ async function summarize(
     eventRepository.answersOf(db, ids, viewer.userId),
   ])
   const now = deps.now()
-  return rows.map((row) => {
+  const summaries = rows.map((row) => {
     const eventCounts = emptyCounts()
     for (const count of counts) {
       if (count.eventId === row.id) {
@@ -133,6 +134,7 @@ async function summarize(
       canManage: row.closed_at === null && canManageEvent(viewer, row),
     }
   })
+  return withMessageCounts(db, 'event', summaries)
 }
 
 export async function listEvents(

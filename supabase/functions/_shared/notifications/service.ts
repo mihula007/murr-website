@@ -1,8 +1,12 @@
 import type { Executor } from '../db/client.ts'
 import { notificationRepository } from './repository.ts'
 
-/** Виды личных уведомлений; совпадают с CHECK в миграции этапа 4. */
-export type NotificationKind = 'application_accepted' | 'application_rejected'
+/** Виды личных уведомлений; совпадают с CHECK в миграциях этапов 4 и 9. */
+export type NotificationKind =
+  | 'application_accepted'
+  | 'application_rejected'
+  | 'discussion_mention'
+  | 'discussion_reply'
 
 export type ObjectRef = { kind: string; id: string }
 
