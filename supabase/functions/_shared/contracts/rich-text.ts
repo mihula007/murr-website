@@ -55,6 +55,10 @@ export const TEXT_SIZE_LABELS: Record<TextSize, string> = {
 export const TEXT_ALIGNS = ['left', 'center', 'right', 'justify'] as const
 export type TextAlign = (typeof TEXT_ALIGNS)[number]
 
+/** Выравнивание ячейки таблицы (атрибут Tiptap). */
+export const CELL_ALIGNS = ['left', 'center', 'right'] as const
+export type CellAlign = (typeof CELL_ALIGNS)[number]
+
 export const VIDEO_PROVIDERS = ['youtube', 'vk'] as const
 export type VideoProvider = (typeof VIDEO_PROVIDERS)[number]
 
@@ -170,6 +174,7 @@ export type RichMark =
         target?: '_blank' | null | undefined
         rel?: string | null | undefined
         class?: null | undefined
+        title?: string | null | undefined
       }
     }
   | { type: 'tone'; attrs: { tone: TextTone } }
@@ -219,6 +224,7 @@ export type RichCell = {
         colspan?: number | undefined
         rowspan?: number | undefined
         colwidth?: number[] | null | undefined
+        align?: CellAlign | null | undefined
       }
     | undefined
   content: RichParagraph[]
@@ -273,6 +279,7 @@ const markSchema: z.ZodType<RichMark> = z.discriminatedUnion('type', [
       target: z.literal('_blank').nullish(),
       rel: z.string().max(64).nullish(),
       class: z.null().optional(),
+      title: z.string().max(RICH_TEXT_LIMITS.altText).nullish(),
     }),
   }),
   z.strictObject({
@@ -356,6 +363,7 @@ const cellSchema: z.ZodType<RichCell> = z.strictObject({
       colspan: z.number().int().min(1).max(RICH_TEXT_LIMITS.tableColumns),
       rowspan: z.number().int().min(1).max(RICH_TEXT_LIMITS.tableRows),
       colwidth: z.array(z.number().int().min(1).max(2000)).max(10).nullable(),
+      align: z.enum(CELL_ALIGNS).nullable(),
     })
     .partial()
     .optional(),
