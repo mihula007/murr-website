@@ -44,6 +44,12 @@ public = false
 file_size_limit = "500KiB"
 allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
 
+# Изображения публикаций (Q-11, PUB-13): приватно, доступ — подписанные ссылки `api`.
+[storage.buckets.publication-images]
+public = false
+file_size_limit = "1MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
+
 [storage.analytics]
 enabled = false
 

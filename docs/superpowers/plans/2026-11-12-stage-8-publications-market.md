@@ -106,11 +106,11 @@
 
 ## Задача 3. Схема БД и pgTAP
 
-- [ ] `create extension if not exists pg_trgm` (в схеме `extensions`).
-- [ ] `app.publications`: `id`, `category` CHECK (`article`, `announcement`, `news`, `guide`, `rules`), `title`, `summary`, `content jsonb`, `search_text`, `status` CHECK (`draft`, `published`), `show_author`, `discussion_enabled`, `author_id → profiles ON DELETE SET NULL`, `CHECK (author_id IS NOT NULL OR status = 'published')`, `created_at`, `updated_at`, `published_at`; индексы `(status, updated_at DESC, id DESC)`, `(author_id, status, updated_at DESC)`, GIN `search_text gin_trgm_ops`.
-- [ ] `app.publication_attachments`: `publication_id ON DELETE CASCADE`, `path UNIQUE`, `file_name`, `size`, `content_type`, `position`, `UNIQUE (publication_id, position)`.
-- [ ] `app.market_listings`: как публикации без `show_author` и вложений; категории `sale`, `buy`, `trade`, `service`, `free`.
-- [ ] RLS без политик, прав браузерным ролям нет; bucket в `config.toml`; pgTAP; `npm run supabase:types`; коммит `feat: add publications and market schema`.
+- [x] `create extension if not exists pg_trgm` (в схеме `extensions`).
+- [x] `app.publications`: `id`, `category` CHECK (`article`, `announcement`, `news`, `guide`, `rules`), `title`, `summary`, `content jsonb`, `search_text`, `status` CHECK (`draft`, `published`), `show_author`, `discussion_enabled`, `author_id → profiles ON DELETE SET NULL`, `CHECK (author_id IS NOT NULL OR status = 'published')`, `created_at`, `updated_at`, `published_at`; индексы `(status, updated_at DESC, id DESC)`, `(author_id, status, updated_at DESC)`, GIN `search_text gin_trgm_ops`.
+- [x] `app.publication_attachments`: `publication_id ON DELETE CASCADE`, `path UNIQUE`, `file_name`, `size`, `content_type`, `position`, `UNIQUE (publication_id, position)`.
+- [x] `app.market_listings`: как публикации без `show_author` и вложений; категории `sale`, `buy`, `trade`, `service`, `free`.
+- [x] RLS без политик, прав браузерным ролям нет; bucket в `config.toml` (проверка — Vitest конфигурации, как у аватаров); pgTAP; `npm run supabase:types`; коммит `feat: add publications and market schema`.
 
 ## Задача 4. Нумерованные страницы (Q-55)
 

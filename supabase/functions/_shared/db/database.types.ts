@@ -549,6 +549,60 @@ export type Database = {
           },
         ]
       }
+      market_listings: {
+        Row: {
+          author_id: string | null
+          category: string
+          content: NonNullable<Json>
+          created_at: string
+          discussion_enabled: boolean
+          id: string
+          published_at: string | null
+          search_text: string
+          status: string
+          summary: string | null
+          title: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          author_id?: string | null
+          category: string
+          content: NonNullable<Json>
+          created_at?: string
+          discussion_enabled?: boolean
+          id?: string
+          published_at?: string | null
+          search_text: string
+          status: string
+          summary?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          category?: string
+          content?: NonNullable<Json>
+          created_at?: string
+          discussion_enabled?: boolean
+          id?: string
+          published_at?: string | null
+          search_text?: string
+          status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'market_listings_author_id_fkey'
+            columns: ['author_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       profiles: {
         Row: {
           about: string | null
@@ -602,6 +656,102 @@ export type Database = {
             columns: ['class_id']
             isOneToOne: false
             referencedRelation: 'character_classes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      publication_attachments: {
+        Row: {
+          content_type: string
+          file_name: string
+          id: string
+          path: string
+          position: number
+          publication_id: string
+          size: number
+        }
+        ComputedFields: never
+        Insert: {
+          content_type: string
+          file_name: string
+          id?: string
+          path: string
+          position: number
+          publication_id: string
+          size: number
+        }
+        Update: {
+          content_type?: string
+          file_name?: string
+          id?: string
+          path?: string
+          position?: number
+          publication_id?: string
+          size?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'publication_attachments_publication_id_fkey'
+            columns: ['publication_id']
+            isOneToOne: false
+            referencedRelation: 'publications'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      publications: {
+        Row: {
+          author_id: string | null
+          category: string
+          content: NonNullable<Json>
+          created_at: string
+          discussion_enabled: boolean
+          id: string
+          published_at: string | null
+          search_text: string
+          show_author: boolean
+          status: string
+          summary: string | null
+          title: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          author_id?: string | null
+          category: string
+          content: NonNullable<Json>
+          created_at?: string
+          discussion_enabled?: boolean
+          id?: string
+          published_at?: string | null
+          search_text: string
+          show_author?: boolean
+          status: string
+          summary?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          category?: string
+          content?: NonNullable<Json>
+          created_at?: string
+          discussion_enabled?: boolean
+          id?: string
+          published_at?: string | null
+          search_text?: string
+          show_author?: boolean
+          status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'publications_author_id_fkey'
+            columns: ['author_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
         ]

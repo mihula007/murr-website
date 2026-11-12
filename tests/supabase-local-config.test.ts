@@ -47,6 +47,13 @@ describe('local Supabase configuration', () => {
     expect(bucket).toContain('"image/jpeg", "image/png", "image/webp"')
   })
 
+  it('keeps the publication images bucket private and limited to 1 MB images (Q-11)', () => {
+    const bucket = section('storage.buckets.publication-images')
+    expect(bucket).toMatch(/^public = false$/m)
+    expect(bucket).toMatch(/^file_size_limit = "1MiB"$/m)
+    expect(bucket).toContain('"image/jpeg", "image/png", "image/webp"')
+  })
+
   it('exposes only the public schema through the Data API', () => {
     expect(section('api')).toMatch(/^schemas = \["public"\]$/m)
   })
