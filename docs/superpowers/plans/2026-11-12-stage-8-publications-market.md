@@ -84,7 +84,7 @@
 | `tests/server/{publications,market}.test.ts`, `tests/rich-text.test.ts` | Матрица «роль × операция», XSS-набор на схеме                                                                  |
 | `src/features/content/`                                                 | Общие: редактор (лениво), панель инструментов, рендерер, галерея, предпросмотр, разбор видео-ссылок            |
 | `src/features/publications/`, `src/features/market/`                    | Ленты, страница материала, страница редактора, `query-keys.ts`                                                 |
-| `src/components/pagination.tsx` (+ история)                             | Нумерованная навигация по страницам; на узком экране — «‹ 3 из 12 ›»                                           |
+| `src/components/ui/pagination.tsx` (+ история)                          | Нумерованная навигация по страницам; на узком экране — «‹ 3 из 12 ›»                                           |
 | `src/components/ui/*` (+ истории)                                       | Нужные shadcn-компоненты панели (`toggle`, `toggle-group`, `popover`, `dropdown-menu` — что ещё нет) через CLI |
 | `src/routes/{publications,market}.tsx`                                  | Вместо заглушек; `IMPLEMENTED` в `sections.tsx`                                                                |
 | `e2e/publications.spec.ts`, `e2e/market.spec.ts`                        | E2E-04 (без обсуждения), E2E-05, desktop + mobile                                                              |
@@ -114,9 +114,9 @@
 
 ## Задача 4. Нумерованные страницы (Q-55)
 
-- [ ] `NumberedPage<T>` и `numberedPageRequestShape` (`page ≥ 1`, размер 50 фиксирован сервером) в `paging.ts`; помощник репозитория: выборка страницы и `count(*)` по тем же условиям; страница за пределами — пустой `items` с верным `pageCount` (клиент переходит на последнюю).
-- [ ] `src/components/pagination.tsx` с историей Storybook: номера с многоточием, «назад/вперёд», `aria-current`; на 375 px — компактный вид без горизонтальной прокрутки.
-- [ ] Vitest помощника и компонента; коммит `feat: add numbered pagination`.
+- [x] `NumberedPage<T>` и `numberedPageRequestShape` (`page ≥ 1`, размер 50 фиксирован сервером) в `paging.ts`; помощник репозитория: выборка страницы и `count(*)` по тем же условиям; страница за пределами — пустой `items` с верным `pageCount` (клиент переходит на последнюю).
+- [x] `src/components/ui/pagination.tsx` с историей Storybook: номера с многоточием, «назад/вперёд», `aria-current`; на 375 px — компактный вид без горизонтальной прокрутки.
+- [x] Vitest помощника и компонента; коммит `feat: add numbered pagination`.
 
 ## Задача 5. Сервис публикаций
 

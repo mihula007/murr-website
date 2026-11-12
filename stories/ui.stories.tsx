@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Button } from '../src/components/ui/button'
 import { Input, Textarea } from '../src/components/ui/input'
+import { Pagination } from '../src/components/ui/pagination'
 import { Select } from '../src/components/ui/select'
 import {
   Badge,
@@ -105,5 +107,20 @@ export const Table: Story = {
         </tbody>
       </DataTable>
     </Card>
+  ),
+}
+
+function PaginationDemo({ pageCount }: { pageCount: number }) {
+  const [page, setPage] = useState(1)
+  return <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
+}
+
+export const Pages: Story = {
+  name: 'Нумерованные страницы',
+  render: () => (
+    <div className="grid gap-6">
+      <PaginationDemo pageCount={5} />
+      <PaginationDemo pageCount={24} />
+    </div>
   ),
 }

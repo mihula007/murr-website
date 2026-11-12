@@ -40,3 +40,21 @@ export type PageRequest = {
 
 /** Страница большого списка; `nextCursor: null` — страниц больше нет. */
 export type Page<T> = { items: T[]; nextCursor: string | null }
+
+/**
+ * Нумерованные страницы — исключение для лент публикаций и рынка (Q-55):
+ * номер страницы вместо курсора, размер фиксирован сервером.
+ */
+export const NUMBERED_PAGE_SIZE = 50
+
+export const numberedPageRequestShape = {
+  page: z.number().int().min(1, 'invalid').max(100_000, 'invalid').default(1),
+}
+
+/** Страница ленты: `pageCount ≥ 1`, номер за пределами — пустой `items`. */
+export type NumberedPage<T> = {
+  items: T[]
+  page: number
+  pageCount: number
+  total: number
+}
