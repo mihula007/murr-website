@@ -137,6 +137,193 @@ export type Database = {
         }
         Relationships: []
       }
+      discussion_messages: {
+        Row: {
+          author_id: string | null
+          body: string
+          changed_at: string
+          created_at: string
+          edited_at: string | null
+          id: string
+          reply_to_id: string | null
+          thread_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          author_id?: string | null
+          body: string
+          changed_at?: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          reply_to_id?: string | null
+          thread_id: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          changed_at?: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          reply_to_id?: string | null
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'discussion_messages_author_id_fkey'
+            columns: ['author_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'discussion_messages_reply_to_id_fkey'
+            columns: ['reply_to_id']
+            isOneToOne: false
+            referencedRelation: 'discussion_messages'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'discussion_messages_thread_id_fkey'
+            columns: ['thread_id']
+            isOneToOne: false
+            referencedRelation: 'discussion_threads'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      discussion_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          message_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'discussion_reactions_message_id_fkey'
+            columns: ['message_id']
+            isOneToOne: false
+            referencedRelation: 'discussion_messages'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'discussion_reactions_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      discussion_reads: {
+        Row: {
+          read_up_to: string
+          thread_id: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          read_up_to: string
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          read_up_to?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'discussion_reads_thread_id_fkey'
+            columns: ['thread_id']
+            isOneToOne: false
+            referencedRelation: 'discussion_threads'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'discussion_reads_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      discussion_threads: {
+        Row: {
+          created_at: string
+          event_id: string | null
+          id: string
+          market_listing_id: string | null
+          publication_id: string | null
+          vote_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          market_listing_id?: string | null
+          publication_id?: string | null
+          vote_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          market_listing_id?: string | null
+          publication_id?: string | null
+          vote_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'discussion_threads_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: true
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'discussion_threads_market_listing_id_fkey'
+            columns: ['market_listing_id']
+            isOneToOne: true
+            referencedRelation: 'market_listings'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'discussion_threads_publication_id_fkey'
+            columns: ['publication_id']
+            isOneToOne: true
+            referencedRelation: 'publications'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'discussion_threads_vote_id_fkey'
+            columns: ['vote_id']
+            isOneToOne: true
+            referencedRelation: 'votes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       event_activity_records: {
         Row: {
           class_id: number
