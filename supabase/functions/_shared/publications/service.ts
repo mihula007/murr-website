@@ -336,7 +336,8 @@ export async function savePublication(
           throw new ApiError('not_found')
         }
         if (!canManagePublication(editor, row.author_id)) {
-          throw new ApiError('forbidden')
+          // Чужой черновик не раскрывается даже существованием.
+          throw new ApiError(row.status === 'draft' ? 'not_found' : 'forbidden')
         }
         if (
           input.expectedUpdatedAt &&
@@ -432,7 +433,7 @@ export async function unpublishPublication(
       throw new ApiError('not_found')
     }
     if (!canManagePublication(editor, row.author_id)) {
-      throw new ApiError('forbidden')
+      throw new ApiError(row.status === 'draft' ? 'not_found' : 'forbidden')
     }
     if (row.status !== 'published') {
       throw new ApiError('state_conflict')
@@ -464,7 +465,7 @@ export async function deletePublication(
       throw new ApiError('not_found')
     }
     if (!canManagePublication(editor, row.author_id)) {
-      throw new ApiError('forbidden')
+      throw new ApiError(row.status === 'draft' ? 'not_found' : 'forbidden')
     }
     const files = await repo.attachments(tx, [id])
     await repo.delete(tx, id)

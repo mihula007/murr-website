@@ -58,6 +58,13 @@ import {
 } from './groups/service.ts'
 import { createApiHandler, type Route } from './http/handler.ts'
 import {
+  deleteListing,
+  getListing,
+  listListings,
+  saveListing,
+  unpublishListing,
+} from './market/service.ts'
+import {
   createPublicationUpload,
   deletePublication,
   discardPublicationUploads,
@@ -177,6 +184,12 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       unpublishPublication(deps, actor, body),
     'publications/delete': ({ actor, body }) =>
       deletePublication(deps, actor, body),
+    'market/list': ({ actor, body }) => listListings(deps, actor, body),
+    'market/get': ({ actor, body }) => getListing(deps, actor, body),
+    'market/save': ({ actor, body }) => saveListing(deps, actor, body),
+    'market/unpublish': ({ actor, body }) =>
+      unpublishListing(deps, actor, body),
+    'market/delete': ({ actor, body }) => deleteListing(deps, actor, body),
     'roster/count': () => countRoster(deps),
     'roster/stats': ({ actor }) => rosterStats(deps, actor),
     'roster/list': ({ actor }) => listRoster(deps, actor),

@@ -103,6 +103,11 @@ describe('api function over HTTP', () => {
       'publications/save',
       'publications/unpublish',
       'publications/delete',
+      'market/list',
+      'market/get',
+      'market/save',
+      'market/unpublish',
+      'market/delete',
     ]) {
       expect(await call(route)).toEqual({
         status: 401,
@@ -226,6 +231,7 @@ describe('direct access around the api', () => {
       'vote_ballots',
       'publications',
       'publication_attachments',
+      'market_listings',
     ]) {
       const response = await fetch(
         `${env('API_URL')}/rest/v1/${table}?select=*`,
