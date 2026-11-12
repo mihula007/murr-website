@@ -50,6 +50,12 @@ export type FieldErrorCode =
   | 'one_leader'
   | 'duplicate_member'
   | 'before_from'
+  | 'empty'
+  | 'too_large'
+  | 'too_many_media'
+  | 'too_deep'
+  | 'unsafe_url'
+  | 'invalid_video'
 
 /**
  * Единственная ошибка, которую видит интерфейс. `fields` — ошибки полей:
@@ -133,6 +139,12 @@ const MESSAGES: Record<ClientErrorCode | FieldErrorCode, string> = {
   one_leader: 'У группы может быть только один лидер',
   duplicate_member: 'Участник может быть только в одной группе',
   before_from: 'Дата «по» раньше даты «с»',
+  empty: 'Добавьте текст, изображение, таблицу или вложение',
+  too_large: 'Материал слишком большой: сократите текст или таблицы',
+  too_many_media: 'Слишком много изображений и видео в тексте',
+  too_deep: 'Слишком глубокая вложенность списков',
+  unsafe_url: 'Недопустимый адрес ссылки или изображения',
+  invalid_video: 'Поддерживаются только ролики YouTube и VK',
 }
 
 function lookup(code: string) {

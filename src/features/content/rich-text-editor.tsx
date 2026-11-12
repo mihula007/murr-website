@@ -53,7 +53,11 @@ export default function RichTextEditor({
 
   // Значение снаружи (сброс формы, загрузка черновика) заменяет документ.
   useEffect(() => {
-    if (editor && JSON.stringify(editor.getJSON()) !== JSON.stringify(value)) {
+    if (
+      editor &&
+      !editor.isDestroyed &&
+      JSON.stringify(editor.getJSON()) !== JSON.stringify(value)
+    ) {
       editor.commands.setContent(value as JSONContent, {
         emitUpdate: false,
       })

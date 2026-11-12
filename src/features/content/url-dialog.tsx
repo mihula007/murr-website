@@ -71,6 +71,8 @@ export function UrlDialog({
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
+    // Диалог в портале, но событие React всплывает к форме материала.
+    event.stopPropagation()
     const url = value.trim()
     const chain = editor.chain().focus()
     if (mode === 'link' && isSafeLinkHref(url)) {

@@ -13,6 +13,18 @@ import { activityRoute, ratingRoute } from '@/routes/activity'
 import { applicationRoute, applicationsRoute } from '@/routes/applications'
 import { adminRoute } from '@/routes/admin'
 import { authRoutes } from '@/routes/auth'
+import {
+  createListingRoute,
+  editListingRoute,
+  listingRoute,
+  marketRoute,
+} from '@/routes/market'
+import {
+  createPublicationRoute,
+  editPublicationRoute,
+  publicationRoute,
+  publicationsRoute,
+} from '@/routes/publications'
 import { rosterRoute } from '@/routes/roster'
 import { sectionRoutes } from '@/routes/sections'
 import { createVoteRoute, voteRoute, votesRoute } from '@/routes/votes'
@@ -54,6 +66,14 @@ export const routeTree = rootRoute.addChildren([
   editEventRoute,
   activityRoute,
   ratingRoute,
+  publicationsRoute,
+  createPublicationRoute,
+  publicationRoute,
+  editPublicationRoute,
+  marketRoute,
+  createListingRoute,
+  listingRoute,
+  editListingRoute,
   ...authRoutes,
   ...sectionRoutes,
   ...devRoutes,
