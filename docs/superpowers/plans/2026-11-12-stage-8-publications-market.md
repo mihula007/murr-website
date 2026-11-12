@@ -77,7 +77,7 @@
 | `supabase/config.toml`                                                  | bucket `publication-images` (1 МиБ, JPEG/PNG/WebP, приватный)                                                  |
 | `supabase/tests/database/stage8_publications_market.test.sql`           | pgTAP: нет доступа Data API, `CHECK`, `ON DELETE`                                                              |
 | `supabase/functions/_shared/contracts/rich-text.ts`                     | zod-схема документа, лимиты, разбор ссылок YouTube/VK                                                          |
-| `supabase/functions/_shared/rich-text/`                                 | Извлечение текста для поиска, проверка «непустого» содержимого                                                 |
+| (там же)                                                                | Извлечение текста для поиска, проверка «непустого» содержимого — общие для клиента и сервера                   |
 | `supabase/functions/_shared/contracts/{publications,market}.ts`         | Схемы запросов, категории, типы ответов, `LIMITS`                                                              |
 | `supabase/functions/_shared/contracts/paging.ts`                        | Тип нумерованной страницы `NumberedPage<T>` (Q-55)                                                             |
 | `supabase/functions/_shared/{publications,market}/`                     | `service.ts`, `repository.ts`; файлы публикаций — `publications/files.ts`                                      |
@@ -99,10 +99,10 @@
 
 ## Задача 2. Формат документа и XSS-набор (до схемы БД)
 
-- [ ] `@contracts/rich-text`: zod-схема узлов и меток по белому списку, совпадающая с расширениями Tiptap (имена узлов и атрибутов — как в JSON Tiptap); `parseVideoUrl` для YouTube/VK; лимиты.
-- [ ] `_shared/rich-text`: `extractText(doc)` для `search_text`, `hasMeaningfulContent(doc)` (PUB-03).
-- [ ] Vitest `tests/rich-text.test.ts`: XSS-набор — `javascript:`/`data:`/`vbscript:` в ссылках и изображениях (включая регистр, пробелы, сущности), неизвестные узлы и атрибуты (`onerror`, `style`, `class`), `iframe` как узел, видео с чужим доменом или испорченным идентификатором, вложенные таблицы, превышение лимитов глубины и размера — всё отклоняется; корректные документы проходят.
-- [ ] Коммит `feat: add rich text document contract`.
+- [x] `@contracts/rich-text`: zod-схема узлов и меток по белому списку, совпадающая с расширениями Tiptap (имена узлов и атрибутов — как в JSON Tiptap); `parseVideoUrl` для YouTube/VK; лимиты.
+- [x] `extractText(doc)` для `search_text`, `hasMeaningfulContent(doc)` (PUB-03) — там же, в `@contracts/rich-text` (нужны и клиенту).
+- [x] Vitest `tests/rich-text.test.ts`: XSS-набор — `javascript:`/`data:`/`vbscript:` в ссылках и изображениях (включая регистр, пробелы, сущности), неизвестные узлы и атрибуты (`onerror`, `style`, `class`), `iframe` как узел, видео с чужим доменом или испорченным идентификатором, вложенные таблицы, превышение лимитов глубины и размера — всё отклоняется; корректные документы проходят.
+- [x] Коммит `feat: add rich text document contract`.
 
 ## Задача 3. Схема БД и pgTAP
 
