@@ -71,6 +71,9 @@ export function useThreadPolling(ref: ThreadRef, since: string | null) {
       return changes
     },
     enabled: since !== null,
+    // Ветка только что загружена: первый опрос — через интервал, а не сразу.
+    initialData: null,
+    initialDataUpdatedAt: () => Date.now(),
     refetchInterval: DISCUSSION_LIMITS.pollMs,
     refetchIntervalInBackground: false,
     staleTime: DISCUSSION_LIMITS.pollMs,

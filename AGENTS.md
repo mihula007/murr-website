@@ -205,7 +205,8 @@ Next.js и TanStack Start в выбранную основу не входят.
 логика — в доменных модулях `src/features/<домен>/` (`auth`, `registration`,
 `account`, `applications`, `votes`, `roster`, `admin`, `catalog`, `home`,
 `not-found`, `sections`, `dev`, `activity`, `publications`, `market`,
-`content` — общий редактор, показ и экраны материалов); общие элементы форм — `src/components/form/`;
+`content` — общий редактор, показ и экраны материалов, `discussions` —
+ветки обсуждений); общие элементы форм — `src/components/form/`;
 подтверждение действия с ответом сервера — `ConfirmActionDialog`
 (`src/components/confirm-action-dialog.tsx`); иконка класса — `ClassIcon`
 (`src/features/catalog/`, файлы `src/assets/class-icons/<slug>.webp`);
@@ -385,6 +386,18 @@ starts_at)`.
   `not_found`. Аудит: создание, изменение, публикация, снятие и удаление
   (категории `publications`, `market`; в `details` — id, заголовок,
   категория, статус).
+  Этап 9: таблицы `discussion_threads` (одна строка на родителя: событие,
+  голосование, публикация или объявление; `CHECK` одного родителя, каскад
+  от родителя), `discussion_messages`, `discussion_reactions`,
+  `discussion_reads` и модуль `discussions`. Доступ к ветке следует
+  родителю (`discussions/parents.ts`): писать можно в незавершённые событие
+  и голосование, в опубликованный материал с включённым обсуждением; запись
+  блокирует родителя `FOR SHARE`. Прочтение — одна отметка «прочитано до»
+  на пользователя и ветку. Упоминания `@ник` и ответы — уведомления
+  `discussion_mention`/`discussion_reply` через `notify`. Открытая ветка
+  опрашивает `discussions/changes` раз в 30 с только при видимой вкладке
+  (Q-58), Realtime не используется; аудита нет (Q-63). Ветка грузится
+  страницами вверх (`ReverseVirtualList` в `virtual-list.tsx`).
 - Прикладные таблицы не открываются через Data API: браузер не получает
   к ним GRANT, RLS включён без политик (запрет по умолчанию).
 - CI проверяет изменения на push и pull request. Публикация Pages

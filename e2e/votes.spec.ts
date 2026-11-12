@@ -213,11 +213,13 @@ test('обычное голосование: создание, правка, з�
   await page.getByRole('button', { name: 'Завершить' }).click()
   await confirm(page, 'Завершить')
 
-  // В истории — итоги и свой голос, без кнопок (VOT-12).
+  // В истории — итоги и свой голос, без кнопок голоса и управления (VOT-12);
+  // остаётся только обсуждение для чтения (DSC-13).
   await memberPage.goto('./#/votes?tab=history')
   const card = memberPage.getByRole('listitem').filter({ hasText: renamed })
   await expect(card.getByText('ваш выбор')).toBeVisible()
-  await expect(card.getByRole('button')).toHaveCount(0)
+  await expect(card.getByRole('button')).toHaveCount(1)
+  await expect(card.getByRole('button')).toHaveText(/^Обсуждение \(\d+\)$/)
   expect(await hasHorizontalScroll(memberPage)).toBe(false)
   await memberPage.context().close()
 })
