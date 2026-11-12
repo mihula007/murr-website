@@ -11,6 +11,7 @@ import { toast } from '@/components/ui/toaster'
 import type { AppError } from '@/lib/errors'
 import { formatDateTimeMsk } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
+import { DiscussionDialog } from '@/features/discussions/discussion-dialog'
 import { Gallery } from './gallery'
 import { authorLabel } from './material-card'
 import {
@@ -133,6 +134,19 @@ export function MaterialPage({
       <Card className="grid gap-4 p-4 sm:p-6">
         <MaterialContent section={section} material={data} />
       </Card>
+      {/* Обсуждение — при включённом флаге или если история уже есть (DSC-14). */}
+      {data.discussionEnabled || (data.messageCount ?? 0) > 0 ? (
+        <div>
+          <DiscussionDialog
+            thread={{
+              parent: section.kind === 'market' ? 'market' : 'publication',
+              parentId: data.id,
+            }}
+            title={data.title}
+            messageCount={data.messageCount}
+          />
+        </div>
+      ) : null}
       {data.canManage ? (
         <div className="flex flex-wrap gap-2 max-xs:grid max-xs:grid-cols-1">
           <Link

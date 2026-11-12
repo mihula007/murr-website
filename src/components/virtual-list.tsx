@@ -1,12 +1,14 @@
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
+  useRef,
   useState,
   useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
 } from 'react'
-import { useWindowVirtualizer } from '@tanstack/react-virtual'
+import { useVirtualizer, useWindowVirtualizer } from '@tanstack/react-virtual'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -157,6 +159,120 @@ export function useWindowList({
     measureElement: virtualizer.measureElement,
     before,
     after,
+  }
+}
+
+/** Расстояние до низа, при котором блок считается прокрученным до конца, px. */
+const BOTTOM_THRESHOLD = 48
+
+/**
+ * Виртуализатор внутри прокручиваемого блока для ленты, растущей вверх
+ * (ветка обсуждения): строки идут от старых к новым, при открытии блок
+ * прокручен вниз, старые страницы догружаются при прокрутке к началу без
+ * сдвига видимого текста, новые строки в конце прокручивают блок вниз,
+ * только если он уже был внизу.
+ */
+export function useElementList({
+  count,
+  estimateSize,
+  gap,
+  getItemKey,
+  paging,
+}: {
+  count: number
+  estimateSize: number
+  gap: number
+  getItemKey: (index: number) => string
+  paging: Paging
+}) {
+  const [element, setScrollElement] = useState<HTMLElement | null>(null)
+  const [atBottom, setAtBottom] = useState(true)
+
+  // oxlint-disable-next-line react/incompatible-library
+  const virtualizer = useVirtualizer({
+    count,
+    getScrollElement: () => element,
+    estimateSize: () => estimateSize,
+    gap,
+    overscan: 6,
+    getItemKey,
+    // Размер до первого измерения (и в jsdom, где размеров нет).
+    initialRect: { width: 360, height: 480 },
+  })
+  const items = virtualizer.getVirtualItems()
+  const total = virtualizer.getTotalSize()
+  const first = items[0]
+  const last = items.at(-1)
+  const before = first ? first.start : 0
+  const after = last ? Math.max(0, total - last.end) : 0
+
+  const firstKey = count > 0 ? getItemKey(0) : null
+  const lastKey = count > 0 ? getItemKey(count - 1) : null
+  const anchor = useRef({
+    firstKey: null as string | null,
+    lastKey: null as string | null,
+    total: 0,
+    atBottom: true,
+  })
+
+  const scrollToEnd = useCallback(() => {
+    if (element) {
+      element.scrollTop = element.scrollHeight
+    }
+  }, [element])
+
+  useLayoutEffect(() => {
+    if (!element) {
+      return
+    }
+    const previous = anchor.current
+    if (previous.lastKey === null && lastKey !== null) {
+      scrollToEnd()
+    } else if (previous.firstKey !== firstKey && previous.lastKey === lastKey) {
+      // Сверху добавились старые строки — сохраняем видимое место.
+      element.scrollTop += total - previous.total
+    } else if (
+      previous.atBottom &&
+      (previous.lastKey !== lastKey || previous.total !== total)
+    ) {
+      // Новые строки или измеренная высота — остаёмся внизу.
+      scrollToEnd()
+    }
+    anchor.current = { ...previous, firstKey, lastKey, total }
+  }, [element, firstKey, lastKey, total, scrollToEnd])
+
+  useEffect(() => {
+    if (!element) {
+      return undefined
+    }
+    const onScroll = () => {
+      const bottom =
+        element.scrollHeight - element.scrollTop - element.clientHeight <
+        BOTTOM_THRESHOLD
+      anchor.current.atBottom = bottom
+      setAtBottom(bottom)
+    }
+    element.addEventListener('scroll', onScroll, { passive: true })
+    return () => element.removeEventListener('scroll', onScroll)
+  }, [element])
+
+  // Дошли до самой старой загруженной строки — запрашиваем более старые.
+  const { hasMore, loadingMore, loadError, onLoadMore } = paging
+  const reachedStart = first !== undefined && first.index === 0
+  useEffect(() => {
+    if (reachedStart && hasMore && !loadingMore && !loadError) {
+      onLoadMore()
+    }
+  }, [reachedStart, hasMore, loadingMore, loadError, onLoadMore])
+
+  return {
+    setScrollElement,
+    items,
+    measureElement: virtualizer.measureElement,
+    before,
+    after,
+    atBottom,
+    scrollToEnd,
   }
 }
 
@@ -319,5 +435,99 @@ export function VirtualSpacerRow({
         className="h-(--virtual-space) border-0! p-0! max-[900px]:hidden"
       />
     </tr>
+  )
+}
+
+type ReverseVirtualListProps<T> = {
+  /** От старых к новым. */
+  items: readonly T[]
+  getKey: (item: T) => string
+  renderItem: (item: T) => ReactNode
+  label: string
+  estimateSize: number
+  paging: Paging
+  /** Классы прокручиваемого блока: высота задаётся снаружи. */
+  className?: string | undefined
+  /** Блок дошёл до низа или ушёл от него (отметка прочтения). */
+  onAtBottomChange?: ((atBottom: boolean) => void) | undefined
+  /** Смена значения прокручивает к последней строке (своё сообщение). */
+  scrollToEndKey?: unknown
+}
+
+/**
+ * Лента в прокручиваемом блоке, растущая вверх (`useElementList`):
+ * догрузка старых строк сверху, новые — снизу.
+ */
+export function ReverseVirtualList<T>({
+  items,
+  getKey,
+  renderItem,
+  label,
+  estimateSize,
+  paging,
+  className,
+  onAtBottomChange,
+  scrollToEndKey,
+}: ReverseVirtualListProps<T>) {
+  const {
+    setScrollElement,
+    items: virtualItems,
+    measureElement,
+    before,
+    after,
+    atBottom,
+    scrollToEnd,
+  } = useElementList({
+    count: items.length,
+    estimateSize,
+    gap: GAP.sm,
+    getItemKey: (index) => {
+      const item = items[index]
+      return item ? getKey(item) : String(index)
+    },
+    paging,
+  })
+
+  useEffect(() => {
+    onAtBottomChange?.(atBottom)
+  }, [atBottom, onAtBottomChange])
+
+  useLayoutEffect(() => {
+    if (scrollToEndKey !== undefined) {
+      scrollToEnd()
+    }
+  }, [scrollToEndKey, scrollToEnd])
+
+  return (
+    <div
+      ref={setScrollElement}
+      className={cn('overflow-y-auto overscroll-contain', className)}
+    >
+      <LoadMore paging={paging} />
+      <ul
+        aria-label={label}
+        style={
+          {
+            '--virtual-before': `${before}px`,
+            '--virtual-after': `${after}px`,
+          } as CSSProperties
+        }
+        className="m-0 grid list-none gap-2 px-0 pt-(--virtual-before) pb-(--virtual-after)"
+      >
+        {virtualItems.map((row) => {
+          const item = items[row.index]
+          return item === undefined ? null : (
+            <li
+              key={getKey(item)}
+              data-index={row.index}
+              ref={measureElement}
+              className="min-w-0"
+            >
+              {renderItem(item)}
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }

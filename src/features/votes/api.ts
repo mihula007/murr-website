@@ -13,6 +13,7 @@ import type {
   VoteListResponse,
 } from '@contracts/votes'
 import { applicationKeys } from '@/features/applications/query-keys'
+import { discussionKeys } from '@/features/discussions/query-keys'
 import { callApi } from '@/lib/supabase/api'
 import { voteKeys } from './query-keys'
 
@@ -116,6 +117,8 @@ export function useCloseVote() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: voteKeys.lists }),
         refreshApplication(queryClient, vote.applicationId),
+        // Ветка завершённого голосования — только для чтения (DSC-13).
+        queryClient.invalidateQueries({ queryKey: discussionKeys.all }),
       ])
     },
   })

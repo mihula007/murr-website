@@ -15,6 +15,7 @@ import type {
   PublicationUploadResponse,
 } from '@contracts/publications'
 import type { RichDocument } from '@contracts/rich-text'
+import { discussionKeys } from '@/features/discussions/query-keys'
 import { callApi } from '@/lib/supabase/api'
 import { uploadToSignedUrl } from '@/lib/supabase/uploads'
 import type { MaterialSection } from './section'
@@ -81,7 +82,11 @@ function useMaterialMutation<TVariables, TResult>(
       } else if (id) {
         queryClient.removeQueries({ queryKey: section.keys.detail(id) })
       }
-      await queryClient.invalidateQueries({ queryKey: section.keys.lists })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: section.keys.lists }),
+        // Флаг обсуждения, снятие и удаление меняют запись в ветку (DSC-14).
+        queryClient.invalidateQueries({ queryKey: discussionKeys.all }),
+      ])
     },
   })
 }

@@ -23,6 +23,16 @@ export function formatDateTimeMsk(iso: string) {
   return `${formatDate(msk.date)}, ${msk.time} МСК`
 }
 
+/** Время по Москве `ЧЧ:ММ` — подпись сообщения обсуждения. */
+export function formatTimeMsk(iso: string) {
+  return utcToMoscow(iso).time
+}
+
+/** Дата по Москве `ДД.ММ.ГГГГ` — разделитель дней в обсуждении (DSC-02). */
+export function formatDateMsk(iso: string) {
+  return formatDate(utcToMoscow(iso).date)
+}
+
 /** День недели и время по Москве: `суббота, 20:00 МСК`. */
 export function formatWeekdayTimeMsk(weekday: number, time: string) {
   return `${WEEKDAY_LABELS[weekday] ?? ''}, ${time} МСК`

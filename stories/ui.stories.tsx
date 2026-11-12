@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Button } from '../src/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '../src/components/ui/context-menu'
 import { Input, Textarea } from '../src/components/ui/input'
 import { Pagination } from '../src/components/ui/pagination'
 import { Select } from '../src/components/ui/select'
@@ -28,6 +36,24 @@ export const Actions: Story = {
     </div>
   ),
 }
+export const ContextMenus: Story = {
+  name: 'Контекстное меню',
+  render: () => (
+    <ContextMenu>
+      <ContextMenuTrigger className="block max-w-sm rounded-xl border border-dashed border-border-strong p-6 text-sm text-muted-foreground">
+        Правый клик или долгое нажатие по этой области
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuLabel>Сообщение</ContextMenuLabel>
+        <ContextMenuItem>Ответить</ContextMenuItem>
+        <ContextMenuItem>Изменить</ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem disabled>Недоступно</ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  ),
+}
+
 export const Surfaces: Story = {
   name: 'Карточки и статусы',
   render: () => (

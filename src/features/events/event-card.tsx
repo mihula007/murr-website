@@ -277,8 +277,11 @@ export function EventCard({
         </time>
       </p>
       <Counts event={event} />
-      <p className="m-0 text-xs text-muted-foreground">
-        Автор: {eventAuthor(event)}
+      <p className="m-0 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+        <span>Автор: {eventAuthor(event)}</span>
+        {event.messageCount ? (
+          <span>Сообщений в обсуждении: {event.messageCount}</span>
+        ) : null}
       </p>
       <Attendance event={event} />
       {event.canManage ? (

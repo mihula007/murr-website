@@ -17,6 +17,7 @@ import type {
 } from '@contracts/groups'
 import { callApi } from '@/lib/supabase/api'
 import { activityKeys } from '@/features/activity/query-keys'
+import { discussionKeys } from '@/features/discussions/query-keys'
 import { eventKeys } from './query-keys'
 
 /**
@@ -99,6 +100,8 @@ export function useCloseEvent() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: eventKeys.lists }),
         queryClient.invalidateQueries({ queryKey: activityKeys.all }),
+        // Ветка закрытого события — только для чтения (DSC-13).
+        queryClient.invalidateQueries({ queryKey: discussionKeys.all }),
       ])
     },
   })

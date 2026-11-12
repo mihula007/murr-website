@@ -11,6 +11,7 @@ import { toast } from '@/components/ui/toaster'
 import { errorMessage, type AppError } from '@/lib/errors'
 import { formatDate } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
+import { DiscussionDialog } from '@/features/discussions/discussion-dialog'
 import { useCastBallot, useCloseVote, useDeleteVote } from './api'
 import { EditVoteDialog } from './edit-vote-dialog'
 import { voteKeys } from './query-keys'
@@ -338,6 +339,13 @@ export function VoteCard({
       {isActive && isManager ? (
         <Management vote={vote} onDeleted={onDeleted} />
       ) : null}
+
+      <DiscussionDialog
+        thread={{ parent: 'vote', parentId: vote.id }}
+        title={vote.title}
+        messageCount={vote.messageCount}
+        className="justify-self-start max-xs:justify-self-stretch"
+      />
     </Card>
   )
 }

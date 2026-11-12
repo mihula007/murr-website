@@ -57,6 +57,9 @@ export function MaterialCard({
         <p className="m-0 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>Обновлено {formatDateTimeMsk(item.updatedAt)}</span>
           {author ? <span>{author}</span> : null}
+          {item.messageCount ? (
+            <span>Сообщений в обсуждении: {item.messageCount}</span>
+          ) : null}
         </p>
       </div>
       {item.coverUrl ? (
