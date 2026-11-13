@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { hasRole, MANAGER_ROLES, useAccess } from '@/app/access'
+import { PrepareBroadcastLink } from '@/features/broadcast/prepare-broadcast-link'
 import { useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Check, ChevronRight } from 'lucide-react'
 import {
@@ -225,6 +227,8 @@ export function EventCard({
   onDeleted,
   className,
 }: EventCardProps) {
+  const { role } = useAccess()
+  const canPrepare = event.closedAt === null && hasRole(role, MANAGER_ROLES)
   return (
     <Card className={cn('grid min-w-0 content-start gap-3', className)}>
       <div className="flex flex-wrap items-center gap-2">
@@ -284,6 +288,13 @@ export function EventCard({
         ) : null}
       </p>
       <Attendance event={event} />
+      {canPrepare ? (
+        <PrepareBroadcastLink
+          source="event"
+          id={event.id}
+          className="justify-self-start max-xs:justify-self-stretch"
+        />
+      ) : null}
       {event.canManage ? (
         <Management event={event} onDeleted={onDeleted} />
       ) : null}

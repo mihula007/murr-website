@@ -52,6 +52,7 @@ import {
   useRenameGroup,
   useSetGroupLeader,
 } from '../groups-api'
+import { PrepareBroadcastLink } from '@/features/broadcast/prepare-broadcast-link'
 import { GroupNameDialog } from './group-name-dialog'
 import { GroupTemplatesDialog } from './group-templates-dialog'
 
@@ -476,6 +477,13 @@ function GroupCard({ board, group }: { board: Board; group: EventGroup }) {
           ))}
         </ol>
       )}
+      {board.editable && members.length > 0 ? (
+        <PrepareBroadcastLink
+          source="group"
+          id={group.id}
+          className="justify-self-start max-xs:justify-self-stretch"
+        />
+      ) : null}
       <GroupNameDialog
         open={renaming}
         onOpenChange={setRenaming}

@@ -12,6 +12,7 @@ import { errorMessage, type AppError } from '@/lib/errors'
 import { formatDate } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
 import { DiscussionDialog } from '@/features/discussions/discussion-dialog'
+import { PrepareBroadcastLink } from '@/features/broadcast/prepare-broadcast-link'
 import { useCastBallot, useCloseVote, useDeleteVote } from './api'
 import { EditVoteDialog } from './edit-vote-dialog'
 import { voteKeys } from './query-keys'
@@ -340,12 +341,17 @@ export function VoteCard({
         <Management vote={vote} onDeleted={onDeleted} />
       ) : null}
 
-      <DiscussionDialog
-        thread={{ parent: 'vote', parentId: vote.id }}
-        title={vote.title}
-        messageCount={vote.messageCount}
-        className="justify-self-start max-xs:justify-self-stretch"
-      />
+      <div className="flex flex-wrap gap-2 max-xs:grid">
+        <DiscussionDialog
+          thread={{ parent: 'vote', parentId: vote.id }}
+          title={vote.title}
+          messageCount={vote.messageCount}
+          className="max-xs:w-full"
+        />
+        {isActive && isManager ? (
+          <PrepareBroadcastLink source="vote" id={vote.id} />
+        ) : null}
+      </div>
     </Card>
   )
 }

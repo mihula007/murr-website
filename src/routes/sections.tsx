@@ -29,6 +29,7 @@ const IMPLEMENTED: readonly string[] = [
   'rating',
   'publications',
   'market',
+  'broadcast',
 ]
 
 export const sectionRoutes = NAV_SECTIONS.filter(
