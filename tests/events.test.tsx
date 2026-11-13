@@ -222,9 +222,10 @@ describe('answers (EVT-04, EVT-05, Q-43)', () => {
         list([summary({ canAnswer: false, myAnswer: 'yes' })]),
     })
     await renderApp({ role: 'member', path: '/events' })
-    expect(
-      await screen.findByText(/Событие началось: ответы больше не принимаются/),
-    ).toBeVisible()
+    // В списке причину показывает метка «Идёт», своё решение остаётся.
+    expect(await screen.findByText('Идёт')).toBeVisible()
+    expect(screen.getByText('Ваше решение:')).toBeVisible()
+    expect(screen.queryByText(/ответы больше не принимаются/)).toBeNull()
     expect(screen.queryByRole('button', { name: '50/50' })).toBeNull()
   })
 

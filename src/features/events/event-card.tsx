@@ -153,7 +153,17 @@ function TallyCell({
  * с числами; после — те же ячейки без нажатия, сохранённое решение и
  * «Изменить решение»; прежний ответ действует до нового выбора.
  */
-export function EventAnswers({ event }: { event: EventSummary }) {
+export function EventAnswers({
+  event,
+  compact = false,
+}: {
+  event: EventSummary
+  /**
+   * Карточка в списке: после начала причина закрытия ответов не пишется —
+   * её показывают метки «Идёт» и «Закрыто»; остаётся только своё решение.
+   */
+  compact?: boolean
+}) {
   const queryClient = useQueryClient()
   const respond = useRespondToEvent()
   const [changing, setChanging] = useState(false)
@@ -257,6 +267,15 @@ export function EventAnswers({ event }: { event: EventSummary }) {
             Изменить решение
           </Button>
         </div>
+      ) : compact ? (
+        mine ? (
+          <p className="m-0 text-sm">
+            Ваше решение:{' '}
+            <strong className="text-primary">
+              {EVENT_ANSWER_LABELS[mine]}
+            </strong>
+          </p>
+        ) : null
       ) : (
         <p className="m-0 flex items-start gap-2 text-sm text-muted-foreground">
           <Lock size={14} aria-hidden="true" className="mt-1 flex-none" />
@@ -393,7 +412,7 @@ export function EventCard({ event, className }: EventCardProps) {
           />
         </Link>
       </h2>
-      <p className="m-0 line-clamp-3 break-words whitespace-pre-line text-muted-foreground">
+      <p className="m-0 line-clamp-2 break-words whitespace-pre-line text-muted-foreground">
         {event.description}
       </p>
       <p className="m-0 flex items-center gap-1.5 text-sm text-foreground">
@@ -412,7 +431,7 @@ export function EventCard({ event, className }: EventCardProps) {
           <span>Сообщений в обсуждении: {event.messageCount}</span>
         ) : null}
       </p>
-      <EventAnswers event={event} />
+      <EventAnswers event={event} compact />
     </Card>
   )
 }
