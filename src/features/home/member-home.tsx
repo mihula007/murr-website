@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, CalendarDays, Trophy, Users, Vote } from 'lucide-react'
+import { ArrowRight, Trophy, Users, Vote } from 'lucide-react'
 import type { MonthTopRow } from '@contracts/activity'
 import type { RosterMember } from '@contracts/roster'
 import { MANAGER_ROLES, ROLE_LABELS, hasRole, useAccess } from '@/app/access'
@@ -17,9 +17,10 @@ import { EventCard } from '@/features/events/event-card'
 import { useRoster } from '@/features/roster/api'
 import { formatMonth } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
-import { activeVotesLabel, eventsLabel, membersLabel } from './plural'
+import { NextEventHero } from './next-event-hero'
+import { activeVotesLabel, membersLabel } from './plural'
 
-/** Карточек ближайших событий на главной (HOM-07). */
+/** Карточек событий после ближайшего на главной (HOM-07). */
 const HOME_EVENTS = 3
 /** Имена в кратком составе: администраторы и офицеры (HOM-07, ROS-08). */
 const ROSTER_LEADERS = 6
@@ -28,68 +29,34 @@ const sectionClass = 'mt-12 grid gap-4'
 const headClass = 'flex flex-wrap items-end justify-between gap-3'
 const titleClass = 'm-0 text-2xl font-bold tracking-[-.02em]'
 
-/** Число актуальных событий рядом с численностью (HOM-07). */
-export function ActiveEventsStat() {
-  const events = useActiveEvents()
-  if (events.isError) {
-    return null
-  }
-  const count = events.data?.activeCount
-  return (
-    <section
-      aria-label="Актуальные события"
-      className="grid min-w-[150px] gap-0.5 rounded-xl border border-border bg-surface-inset/80 px-4 py-3"
-    >
-      <strong className="text-2xl text-primary" aria-live="polite">
-        {count ?? '—'}
-      </strong>
-      <span className="text-xs text-muted-foreground">
-        {count === undefined ? 'ивентов скоро' : eventsLabel(count)}
-      </span>
-    </section>
-  )
-}
-
 /**
- * Ближайшие события: тот же запрос и та же карточка с ответом, что в
- * расписании, — главная не хранит вторую копию ответа (HOM-08).
+ * События после ближайшего (оно — первый экран): тот же запрос и та же
+ * карточка с ответом, что в расписании, — главная не хранит вторую копию
+ * ответа (HOM-08). Если дальше ничего нет, блок не выводится.
  */
 function UpcomingEvents() {
   const events = useActiveEvents()
+  const later = events.data?.items.slice(1, 1 + HOME_EVENTS) ?? []
+  if (later.length === 0) {
+    return null
+  }
   return (
     <section aria-labelledby="home-events" className={sectionClass}>
       <div className={headClass}>
-        <div>
-          <h2 id="home-events" className={titleClass}>
-            Ближайшие ивенты
-          </h2>
-          <p className="m-0 mt-1 text-sm text-muted-foreground">
-            Выбирай активность и занимай место в пати.
-          </p>
-        </div>
+        <h2 id="home-events" className={titleClass}>
+          Дальше в расписании
+        </h2>
         <Button asChild variant="secondary">
-          <Link to="/events">
+          <Link to="/events" search={{ tab: 'active' }}>
             Все ивенты <ArrowRight aria-hidden="true" size={16} />
           </Link>
         </Button>
       </div>
-      {events.isPending ? (
-        <LoadingState label="Загрузка событий…" rows={2} />
-      ) : events.isError ? (
-        <ErrorState onRetry={() => void events.refetch()} />
-      ) : events.data.items.length === 0 ? (
-        <EmptyState
-          icon={<CalendarDays size={22} />}
-          title="Актуальных событий нет"
-          description="Новые ивенты появятся в расписании."
-        />
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {events.data.items.slice(0, HOME_EVENTS).map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
-      )}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {later.map((event) => (
+          <EventCard key={event.id} event={event} />
+        ))}
+      </div>
     </section>
   )
 }
@@ -277,11 +244,15 @@ function VotesCard() {
   )
 }
 
-/** Главная внутренних ролей (HOM-07–09): события, топ, состав, голосования. */
+/**
+ * Главная внутренних ролей (HOM-07–09): ближайшее событие с ответом, затем
+ * следующие события, топ, состав и голосования.
+ */
 export function MemberHome() {
   const { role } = useAccess()
   return (
     <>
+      <NextEventHero />
       <UpcomingEvents />
       <MonthTop canSeeActivity={hasRole(role, MANAGER_ROLES)} />
       <div className="mt-12 grid gap-4 lg:grid-cols-2">

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, CalendarClock } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import type { EventDetails } from '@contracts/events'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
@@ -9,13 +9,13 @@ import { Card } from '@/components/ui/surfaces'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useMediaQuery } from '@/components/virtual-list'
 import { DiscussionThread } from '@/features/discussions/discussion-thread'
-import { formatEventStartMsk } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
 import { useEvent } from './api'
 import {
   EventActions,
   EventAnswers,
   EventBadges,
+  EventStart,
   eventAuthor,
 } from './event-card'
 import { EventGroupsSection } from './groups/event-groups'
@@ -74,7 +74,6 @@ function EventOverview({
   event: EventDetails
   onDeleted: () => void
 }) {
-  const start = formatEventStartMsk(event.startsAt)
   return (
     <div className="mb-6 grid items-start gap-x-4 gap-y-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
       <header className="grid min-w-0 gap-3">
@@ -85,16 +84,7 @@ function EventOverview({
         <h1 className="m-0 text-[40px] leading-[1.1] font-bold break-words max-sm:text-[30px]">
           {event.title}
         </h1>
-        <p className="m-0 flex items-start gap-2 text-xl leading-snug text-highlight max-sm:text-lg">
-          <CalendarClock
-            size={22}
-            aria-hidden="true"
-            className="mt-0.5 flex-none text-primary"
-          />
-          <time dateTime={event.startsAt}>
-            {start.day}, <strong className="font-bold">{start.time}</strong>
-          </time>
-        </p>
+        <EventStart startsAt={event.startsAt} />
         {event.description ? (
           <p className="m-0 max-w-[65ch] break-words whitespace-pre-line text-muted-foreground">
             {event.description}

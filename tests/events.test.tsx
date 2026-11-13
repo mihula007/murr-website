@@ -114,6 +114,7 @@ beforeEach(() => {
   toast.mockReset()
 })
 afterEach(() => {
+  vi.useRealTimers()
   process.env.TZ = originalTz
 })
 
@@ -258,6 +259,9 @@ describe('event page (EVT-06)', () => {
   })
 
   it('titles the page with the event name and spells out the start', async () => {
+    // Только Date: «Сегодня»/«Завтра» зависят от текущего дня по Москве.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-01T12:00:00.000Z'))
     respond({ 'events/get': () => details() })
     await renderApp({ role: 'member', path: `/events/${EVENT_ID}` })
     expect(
@@ -266,6 +270,7 @@ describe('event page (EVT-06)', () => {
     expect(screen.getByText(/^Суббота, 14 ноября 2026,/)).toHaveTextContent(
       'Суббота, 14 ноября 2026, 20:00 МСК',
     )
+    vi.useRealTimers()
     expect(
       screen.queryByRole('button', { name: /^Управление событием/ }),
     ).toBeNull()
@@ -286,6 +291,14 @@ describe('Moscow time display (Q-44)', () => {
       day: 'Воскресенье, 15 ноября 2026',
       time: '01:00 МСК',
     })
+    // 23:30 МСК 14.11 — «сегодня» для 15.11 по Москве ещё не наступило.
+    const now = new Date('2026-11-14T20:30:00.000Z')
+    expect(formatEventStartMsk('2026-11-14T22:00:00.000Z', now).day).toBe(
+      'Завтра, 15 ноября',
+    )
+    expect(formatEventStartMsk('2026-11-14T20:45:00.000Z', now).day).toBe(
+      'Сегодня, 14 ноября',
+    )
   })
 })
 

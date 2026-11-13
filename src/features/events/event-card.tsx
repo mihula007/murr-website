@@ -27,7 +27,11 @@ import {
 import { Badge, Card, LiveBadge } from '@/components/ui/surfaces'
 import { toast } from '@/components/ui/toaster'
 import { errorMessage, type AppError } from '@/lib/errors'
-import { formatDateMsk, formatDateTimeMsk } from '@/lib/format-date'
+import {
+  formatDateMsk,
+  formatDateTimeMsk,
+  formatEventStartMsk,
+} from '@/lib/format-date'
 import { cn } from '@/lib/utils'
 import { useDeleteEvent, useRespondToEvent } from './api'
 import { eventKeys } from './query-keys'
@@ -61,6 +65,39 @@ export function EventBadges({ event }: { event: EventSummary }) {
         </Badge>
       ) : null}
     </div>
+  )
+}
+
+/**
+ * Начало события крупной строкой (страница события, главная): «Сегодня» и
+ * «Завтра» словом, время — жирным.
+ */
+export function EventStart({
+  startsAt,
+  className,
+}: {
+  startsAt: string
+  className?: string
+}) {
+  // Момент монтирования: «Сегодня»/«Завтра» не пересчитываются каждую отрисовку.
+  const [now] = useState(() => new Date())
+  const start = formatEventStartMsk(startsAt, now)
+  return (
+    <p
+      className={cn(
+        'm-0 flex items-start gap-2 text-xl leading-snug text-highlight max-sm:text-lg',
+        className,
+      )}
+    >
+      <CalendarClock
+        size={22}
+        aria-hidden="true"
+        className="mt-0.5 flex-none text-primary"
+      />
+      <time dateTime={startsAt}>
+        {start.day}, <strong className="font-bold">{start.time}</strong>
+      </time>
+    </p>
   )
 }
 

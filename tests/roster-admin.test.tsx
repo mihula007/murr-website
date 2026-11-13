@@ -278,11 +278,7 @@ describe('home page count (HOM-04)', () => {
 
   it('shows the roster count to member', async () => {
     await renderApp({ role: 'member', path: '/' })
-    const stat = await screen.findByRole('region', {
-      name: 'Численность клана',
-    })
-    expect(await within(stat).findByText('3')).toBeVisible()
-    expect(within(stat).getByText('участника')).toBeVisible()
+    expect(await screen.findByText(/^3 участника в клане/)).toBeVisible()
   })
 
   it('declines the members label', () => {

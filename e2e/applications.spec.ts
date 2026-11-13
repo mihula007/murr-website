@@ -36,12 +36,17 @@ async function signedInPage(browser: Browser, email: string) {
   return page
 }
 
+/**
+ * Численность на главной: плитка у гостя и кандидата, фраза «N участников
+ * в клане, …» под ближайшим событием у внутренних ролей.
+ */
 async function memberCount(page: Page) {
   const value = page
     .getByRole('region', { name: 'Численность клана' })
     .locator('strong')
-  await expect(value).toHaveText(/^\d+$/, { timeout: 15_000 })
-  return Number(await value.textContent())
+    .or(page.getByText(/ в клане/))
+  await expect(value).toHaveText(/^\d+/, { timeout: 15_000 })
+  return Number(/^\d+/.exec((await value.textContent()) ?? '')?.[0])
 }
 
 /** Офицер открывает заявку кандидата из очереди «Новые» и решает её. */

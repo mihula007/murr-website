@@ -1,11 +1,10 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight } from 'lucide-react'
 import { INTERNAL_ROLES, hasRole, useAccess } from '@/app/access'
 import { Button } from '@/components/ui/button'
 import { useMe } from '@/features/account/use-me'
 import { ApplicantPath } from '@/features/applications/applicant-path'
 import { useRosterCount } from '@/features/roster/api'
-import { ActiveEventsStat, MemberHome } from './member-home'
+import { MemberHome } from './member-home'
 import { membersLabel } from './plural'
 
 /**
@@ -34,9 +33,9 @@ function MembersStat() {
 }
 
 /**
- * Главная: приветствие и численность для всех; вход для гостя, путь кандидата
- * (HOM-04–06); события, топ месяца, состав и голосования — внутренним ролям
- * (HOM-07–09).
+ * Главная: гостю, кандидату и чтецу — приветствие, численность, вход или
+ * путь кандидата (HOM-04–06); внутренним ролям первый экран — ближайшее
+ * событие, затем топ месяца, состав и голосования (HOM-07–09).
  */
 export function HomePage() {
   const { status, role } = useAccess()
@@ -44,6 +43,9 @@ export function HomePage() {
   const me = useMe()
   const applicant =
     role === 'applicant' && me.data?.state === 'ready' ? me.data : null
+  if (internal) {
+    return <MemberHome />
+  }
   return (
     <>
       <section className="max-w-2xl py-3">
@@ -56,22 +58,11 @@ export function HomePage() {
           <span className="text-primary">Вместе с Murr</span>
         </h1>
         <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-muted-foreground">
-          {internal
-            ? 'Дом для тех, кто идёт в бой плечом к плечу. Планируй ивенты, собирай пати и знакомься с сокланами.'
-            : 'Готовим общее пространство для участников. Здесь появятся новости, встречи и жизнь гильдии.'}
+          Готовим общее пространство для участников. Здесь появятся новости,
+          встречи и жизнь гильдии.
         </p>
-        {internal ? (
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild>
-              <Link to="/events">
-                Посмотреть ивенты <ArrowRight aria-hidden="true" size={16} />
-              </Link>
-            </Button>
-          </div>
-        ) : null}
         <div className="mt-7 flex flex-wrap gap-3">
           <MembersStat />
-          {internal ? <ActiveEventsStat /> : null}
         </div>
         {status === 'guest' ? (
           <div className="mt-6 flex flex-wrap gap-3">
@@ -91,7 +82,6 @@ export function HomePage() {
           className="mt-8 max-w-[920px]"
         />
       ) : null}
-      {internal ? <MemberHome /> : null}
     </>
   )
 }
