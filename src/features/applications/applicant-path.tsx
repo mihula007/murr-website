@@ -36,7 +36,7 @@ const TITLES: Record<ApplicationStatus, string> = {
 }
 
 const stepClass = {
-  done: 'border-success-border [&>strong]:text-success-foreground',
+  done: 'border-live-border [&>strong]:text-live',
   active:
     'border-primary bg-accent text-accent-foreground [&>strong]:text-primary',
   todo: '',

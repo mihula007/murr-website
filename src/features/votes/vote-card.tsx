@@ -31,7 +31,7 @@ export type VoteCardData = Omit<VoteDetails, 'ballots' | 'ballotsTruncated'>
  * (`.vote-choice-yes` и т. д.): «За» — успех, «Против» — опасность.
  */
 const APPLICATION_OPTION_CLASS: Record<string, string> = {
-  За: 'border-success-border text-success-foreground',
+  За: 'border-live-border text-live',
   Против: 'border-destructive text-destructive',
 }
 

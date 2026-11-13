@@ -21,6 +21,7 @@ import {
   Badge,
   Card,
   Field,
+  LiveBadge,
   Notice,
   Table as DataTable,
 } from '../src/components/ui/surfaces'
@@ -80,7 +81,10 @@ export const Surfaces: Story = {
   render: () => (
     <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
       <Card>
-        <Badge>Событие</Badge>
+        <div className="flex flex-wrap gap-2">
+          <Badge>Событие</Badge>
+          <LiveBadge>Идёт</LiveBadge>
+        </div>
         <h2 className="mt-3 text-xl font-bold">Встреча гильдии</h2>
         <p className="mt-2 text-muted-foreground">
           Карточка для содержимого и действий.

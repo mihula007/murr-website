@@ -25,6 +25,32 @@ export function Badge({ className, ...props }: ComponentProps<'span'>) {
   )
 }
 
+/**
+ * Метка состояния «сейчас» (идёт, онлайн): зелёная, с пульсирующей точкой.
+ * Пульсация отключается при `prefers-reduced-motion`.
+ */
+export function LiveBadge({
+  className,
+  children,
+  ...props
+}: ComponentProps<'span'>) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border border-live-border bg-live-surface px-2 py-1 text-2xs font-semibold text-live',
+        className,
+      )}
+      {...props}
+    >
+      <span
+        aria-hidden="true"
+        className="size-1.5 rounded-full bg-live animate-live-pulse motion-reduce:animate-none"
+      />
+      {children}
+    </span>
+  )
+}
+
 export function Notice({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div

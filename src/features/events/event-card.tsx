@@ -24,7 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Badge, Card } from '@/components/ui/surfaces'
+import { Badge, Card, LiveBadge } from '@/components/ui/surfaces'
 import { toast } from '@/components/ui/toaster'
 import { errorMessage, type AppError } from '@/lib/errors'
 import { formatDateMsk, formatDateTimeMsk } from '@/lib/format-date'
@@ -40,10 +40,15 @@ export function eventAuthor(event: EventSummary) {
   return event.recurring ? 'Автоматически' : 'Пользователь удалён'
 }
 
-/** Метки типа, постоянного выпуска и закрытия события. */
+/**
+ * Метки события: «Идёт» (началось, не закрыто — зелёная метка «сейчас»),
+ * тип, постоянный выпуск и закрытие.
+ */
 export function EventBadges({ event }: { event: EventSummary }) {
+  const live = !event.canAnswer && event.closedAt === null
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {live ? <LiveBadge>Идёт</LiveBadge> : null}
       <Badge>{EVENT_TYPE_LABELS[event.type]}</Badge>
       {event.recurring ? (
         <Badge className="border-border text-muted-foreground">
