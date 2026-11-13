@@ -257,6 +257,10 @@ export async function setRole(
     if (!target) {
       throw new ApiError('not_found')
     }
+    // Удаляемый аккаунт не меняет роль: удаление не обходит запрет Q-73.
+    if (await userRepository.deletionPending(tx, userId)) {
+      throw new ApiError('state_conflict')
+    }
     const previousRole = target.access_role as AccessRole
     if (previousRole === role) {
       return { userId, role, joinedOn: target.joined_on }
@@ -296,6 +300,10 @@ export async function restoreReader(
     const target = await profileRepository.findByIdForUpdate(tx, userId)
     if (!target) {
       throw new ApiError('not_found')
+    }
+    // Удаляемый аккаунт не меняет роль: удаление не обходит запрет Q-73.
+    if (await userRepository.deletionPending(tx, userId)) {
+      throw new ApiError('state_conflict')
     }
     if (target.access_role !== 'reader') {
       throw new ApiError('state_conflict')

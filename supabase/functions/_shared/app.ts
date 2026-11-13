@@ -13,6 +13,7 @@ import {
   setRole,
 } from './accounts/service.ts'
 import { listAudit } from './audit/service.ts'
+import { deleteAccount, pendingDeletions } from './deletion/service.ts'
 import {
   decideApplication,
   finalDecideApplication,
@@ -258,6 +259,8 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'accounts/get': ({ actor, body }) => getAccount(deps, actor, body),
     'accounts/set-password': ({ actor, body }) =>
       setPassword(deps, actor, body),
+    'accounts/delete': ({ actor, body }) => deleteAccount(deps, actor, body),
+    'accounts/deletions': ({ actor }) => pendingDeletions(deps, actor),
     'audit/list': ({ actor, body }) => listAudit(deps, actor, body),
     'broadcasts/prefill': ({ actor, body }) =>
       prefillBroadcast(deps, actor, body),

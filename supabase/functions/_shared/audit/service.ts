@@ -46,7 +46,8 @@ const DETAIL_KEYS = new Set([
 type DetailValue = string | number | boolean | null | string[]
 
 export type AuditPerson = {
-  id: string
+  /** null — связи с профилем нет (запись об удалении пользователя). */
+  id: string | null
   role?: AccessRole | null
   nickname: string | null
   email: string | null

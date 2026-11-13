@@ -109,3 +109,34 @@ export type RoleChangeResult = {
   role: AccessRole
   joinedOn: string | null
 }
+
+/** Этапы безвозвратного удаления: файлы → БД → Auth (проект удаления). */
+export const DELETION_STAGES = ['files', 'database', 'auth'] as const
+export type DeletionStage = (typeof DELETION_STAGES)[number]
+
+/**
+ * Начать или продолжить удаление (Q-73, Q-74). Ник цели вводится для
+ * подтверждения безвозвратного действия.
+ */
+export const deleteAccountSchema = z.object({
+  userId: z.guid('not_found'),
+  confirmNickname: z.string('required').trim().min(1, 'required').max(40),
+})
+export type DeleteAccountRequest = z.input<typeof deleteAccountSchema>
+export type DeleteAccountResult = { userId: string }
+
+/** Незавершённое удаление — для повтора администратором. */
+export type PendingDeletion = {
+  userId: string
+  nickname: string
+  email: string
+  stage: DeletionStage
+  lastError: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type PendingDeletionsResponse = {
+  items: PendingDeletion[]
+  truncated: boolean
+}

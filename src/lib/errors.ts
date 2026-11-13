@@ -56,6 +56,9 @@ export type FieldErrorCode =
   | 'too_deep'
   | 'unsafe_url'
   | 'invalid_video'
+  | 'file_type'
+  | 'file_too_large'
+  | 'nickname_mismatch'
 
 /**
  * Единственная ошибка, которую видит интерфейс. `fields` — ошибки полей:
@@ -96,6 +99,9 @@ const MESSAGES: Record<ClientErrorCode | FieldErrorCode, string> = {
     'У пользователя есть заявка на рассмотрении: решение принимается в разделе «Заявки».',
   last_admin: 'Нельзя понизить последнего администратора.',
   primary_admin: 'Основного администратора нельзя понизить.',
+  account_deleted: 'Аккаунт удалён администратором. Вход невозможен.',
+  deletion_incomplete:
+    'Удаление не завершено. Доступ аккаунта закрыт — нажмите «Повторить».',
   validation_failed: 'Проверьте поля формы.',
   avatar_invalid:
     'Аватар не принят: нужен JPEG, PNG или WebP до 500 КБ. Выберите файл ещё раз.',
@@ -145,6 +151,9 @@ const MESSAGES: Record<ClientErrorCode | FieldErrorCode, string> = {
   too_deep: 'Слишком глубокая вложенность списков',
   unsafe_url: 'Недопустимый адрес ссылки или изображения',
   invalid_video: 'Поддерживаются только ролики YouTube и VK',
+  file_type: 'Этот тип файла не поддерживается',
+  file_too_large: 'Файл больше 20 МБ',
+  nickname_mismatch: 'Ник не совпадает',
 }
 
 function lookup(code: string) {

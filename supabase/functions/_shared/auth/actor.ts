@@ -12,7 +12,12 @@ export type UserActor = {
   emailConfirmed: boolean
   profile: ProfileRow | null
 }
-export type Actor = GuestActor | UserActor
+/**
+ * Аккаунт удаляется или удалён, а сеанс ещё жив (Q-74): любой доступ закрыт,
+ * в том числе «завершение регистрации» после удаления профиля.
+ */
+export type DeletedActor = { kind: 'deleted'; userId: string }
+export type Actor = GuestActor | UserActor | DeletedActor
 export type ProfiledActor = UserActor & { profile: ProfileRow }
 
 export const GUEST: GuestActor = { kind: 'guest' }
@@ -22,6 +27,9 @@ export async function loadActor(db: Executor, userId: string): Promise<Actor> {
   const user = await userRepository.findById(db, userId)
   if (!user) {
     return GUEST
+  }
+  if (await userRepository.deletionPending(db, userId)) {
+    return { kind: 'deleted', userId }
   }
   const profile = await profileRepository.findById(db, userId)
   return {
@@ -34,6 +42,9 @@ export async function loadActor(db: Executor, userId: string): Promise<Actor> {
 }
 
 export function requireUser(actor: Actor): UserActor {
+  if (actor.kind === 'deleted') {
+    throw new ApiError('account_deleted')
+  }
   if (actor.kind !== 'user') {
     throw new ApiError('not_authenticated')
   }

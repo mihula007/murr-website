@@ -17,4 +17,14 @@ export const userRepository = {
       .where('email', '=', email)
       .executeTakeFirst()
   },
+
+  /** Идёт удаление аккаунта (служебная запись этапа 11). */
+  async deletionPending(db: Executor, id: string) {
+    const row = await db
+      .selectFrom('app.user_deletions')
+      .select('user_id')
+      .where('user_id', '=', id)
+      .executeTakeFirst()
+    return !!row
+  },
 }
