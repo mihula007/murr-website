@@ -16,6 +16,15 @@ import {
 } from './applications/service.ts'
 import { GUEST, loadActor } from './auth/actor.ts'
 import {
+  deleteBroadcastTemplate,
+  deleteDraft,
+  listBroadcastTemplates,
+  listDrafts,
+  prefillBroadcast,
+  saveBroadcastTemplate,
+  saveDraft,
+} from './broadcasts/service.ts'
+import {
   bearerToken,
   createTokenVerifier,
   type TokenVerifier,
@@ -234,6 +243,17 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'accounts/set-role': ({ actor, body }) => setRole(deps, actor, body),
     'accounts/restore-reader': ({ actor, body }) =>
       restoreReader(deps, actor, body),
+    'broadcasts/prefill': ({ actor, body }) =>
+      prefillBroadcast(deps, actor, body),
+    'broadcasts/drafts': ({ actor }) => listDrafts(deps, actor),
+    'broadcasts/save-draft': ({ actor, body }) => saveDraft(deps, actor, body),
+    'broadcasts/delete-draft': ({ actor, body }) =>
+      deleteDraft(deps, actor, body),
+    'broadcasts/templates': ({ actor }) => listBroadcastTemplates(deps, actor),
+    'broadcasts/save-template': ({ actor, body }) =>
+      saveBroadcastTemplate(deps, actor, body),
+    'broadcasts/delete-template': ({ actor, body }) =>
+      deleteBroadcastTemplate(deps, actor, body),
   }
 }
 

@@ -37,6 +37,9 @@ const DETAIL_KEYS = new Set([
   'listing_id',
   'category',
   'status',
+  'draft_id',
+  'channels',
+  'source_kind',
 ])
 
 type DetailValue = string | number | boolean | null | string[]
