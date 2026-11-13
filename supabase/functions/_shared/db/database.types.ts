@@ -955,6 +955,33 @@ export type Database = {
           },
         ]
       }
+      section_views: {
+        Row: {
+          section: string
+          seen_at: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          section: string
+          seen_at: string
+          user_id: string
+        }
+        Update: {
+          section?: string
+          seen_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'section_views_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       user_notifications: {
         Row: {
           actor_id: string | null
