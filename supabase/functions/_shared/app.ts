@@ -68,6 +68,13 @@ import {
 } from './groups/service.ts'
 import { createApiHandler, type Route } from './http/handler.ts'
 import {
+  listNotifications,
+  markSectionSeen,
+  notificationSummary,
+  readAllNotifications,
+  readNotification,
+} from './notifications/service.ts'
+import {
   deleteListing,
   getListing,
   listListings,
@@ -212,6 +219,13 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       messageReaders(deps, actor, body),
     'discussions/reactions': ({ actor, body }) =>
       messageReactions(deps, actor, body),
+    'notifications/summary': ({ actor }) => notificationSummary(deps, actor),
+    'notifications/list': ({ actor }) => listNotifications(deps, actor),
+    'notifications/read': ({ actor, body }) =>
+      readNotification(deps, actor, body),
+    'notifications/read-all': ({ actor }) => readAllNotifications(deps, actor),
+    'notifications/section-seen': ({ actor, body }) =>
+      markSectionSeen(deps, actor, body),
     'roster/count': () => countRoster(deps),
     'roster/stats': ({ actor }) => rosterStats(deps, actor),
     'roster/list': ({ actor }) => listRoster(deps, actor),

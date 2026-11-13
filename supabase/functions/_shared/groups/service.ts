@@ -20,6 +20,7 @@ import { EVENT_MANAGERS, eventGroups, lockOpen } from '../events/service.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
+import { notify } from '../notifications/service.ts'
 import { groupRepository } from './repository.ts'
 
 /*
@@ -29,6 +30,36 @@ import { groupRepository } from './repository.ts'
  * а закрытие, которое берёт ту же блокировку, видит окончательный состав.
  * Закрытое событие — `state_conflict` (GRP-16). В аудит не пишутся (Q-54).
  */
+
+type EventRef = { id: string; title: string }
+
+/**
+ * Уведомления участнику о группе события (NTF-03): «добавлен в группу» и
+ * «назначен пати-лидером». Источник — событие: перенос между группами и
+ * повтор не создают второго уведомления; себе — не уведомляет (NTF-04).
+ */
+async function notifyGroup(
+  tx: Executor,
+  actorId: string,
+  event: EventRef,
+  kind: 'group_added' | 'group_leader',
+  userId: string,
+  groupName: string,
+) {
+  const target = { kind: 'event', id: event.id }
+  await notify(tx, {
+    recipientId: userId,
+    actorId,
+    kind,
+    title:
+      kind === 'group_added'
+        ? 'Вы добавлены в группу'
+        : 'Вы назначены пати-лидером',
+    body: `${event.title} · ${groupName}`,
+    target,
+    source: target,
+  })
+}
 
 const isInternal = (role: string | undefined) =>
   role !== undefined && (INTERNAL_ROLES as readonly string[]).includes(role)
@@ -46,12 +77,12 @@ async function lockGroup(tx: Executor, groupId: string) {
   if (!group) {
     throw new ApiError('not_found')
   }
-  await lockOpen(tx, group.event_id, 'update')
+  const event = await lockOpen(tx, group.event_id, 'update')
   // Группу могли удалить, пока ждали блокировку события.
   if (!(await groupRepository.findGroup(tx, groupId))) {
     throw new ApiError('not_found')
   }
-  return group
+  return { group, event }
 }
 
 /** Новая группа в конце списка (GRP-03). */
@@ -87,7 +118,7 @@ export async function renameGroup(
   requireRole(actor, EVENT_MANAGERS)
   const input = parseBody(renameGroupSchema, body)
   return withTransaction(deps.db, async (tx) => {
-    const group = await lockGroup(tx, input.groupId)
+    const { group } = await lockGroup(tx, input.groupId)
     await groupRepository.renameGroup(tx, group.id, input.name)
     return groupsResponse(tx, group.event_id)
   })
@@ -102,7 +133,7 @@ export async function deleteGroup(
   requireRole(actor, EVENT_MANAGERS)
   const { groupId } = parseBody(groupIdSchema, body)
   return withTransaction(deps.db, async (tx) => {
-    const group = await lockGroup(tx, groupId)
+    const { group } = await lockGroup(tx, groupId)
     await groupRepository.deleteGroup(tx, group.id)
     return groupsResponse(tx, group.event_id)
   })
@@ -119,12 +150,15 @@ export async function moveMember(
   actor: Actor,
   body: unknown,
 ): Promise<EventGroupsResponse> {
-  requireRole(actor, EVENT_MANAGERS)
+  const manager = requireRole(actor, EVENT_MANAGERS)
   const input = parseBody(moveMemberSchema, body)
   return withTransaction(deps.db, async (tx) => {
-    await lockOpen(tx, input.eventId, 'update')
+    const event = await lockOpen(tx, input.eventId, 'update')
+    const group =
+      input.groupId === null
+        ? null
+        : await groupRepository.findGroup(tx, input.groupId)
     if (input.groupId !== null) {
-      const group = await groupRepository.findGroup(tx, input.groupId)
       if (!group || group.event_id !== input.eventId) {
         throw new ApiError('not_found')
       }
@@ -160,6 +194,16 @@ export async function moveMember(
         position,
         isLeader: current?.group_id === input.groupId && current.is_leader,
       })
+      if (!current && group) {
+        await notifyGroup(
+          tx,
+          manager.userId,
+          event,
+          'group_added',
+          input.userId,
+          group.name,
+        )
+      }
     }
     return groupsResponse(tx, input.eventId)
   })
@@ -171,10 +215,10 @@ export async function setGroupLeader(
   actor: Actor,
   body: unknown,
 ): Promise<EventGroupsResponse> {
-  requireRole(actor, EVENT_MANAGERS)
+  const manager = requireRole(actor, EVENT_MANAGERS)
   const input = parseBody(setLeaderSchema, body)
   return withTransaction(deps.db, async (tx) => {
-    const group = await lockGroup(tx, input.groupId)
+    const { group, event } = await lockGroup(tx, input.groupId)
     if (input.userId !== null) {
       const membership = await groupRepository.membership(
         tx,
@@ -186,6 +230,16 @@ export async function setGroupLeader(
       }
     }
     await groupRepository.setLeader(tx, group.id, input.userId)
+    if (input.userId !== null) {
+      await notifyGroup(
+        tx,
+        manager.userId,
+        event,
+        'group_leader',
+        input.userId,
+        group.name,
+      )
+    }
     return groupsResponse(tx, group.event_id)
   })
 }
@@ -314,10 +368,10 @@ export async function applyGroupTemplate(
   actor: Actor,
   body: unknown,
 ): Promise<EventGroupsResponse> {
-  requireRole(actor, EVENT_MANAGERS)
+  const manager = requireRole(actor, EVENT_MANAGERS)
   const input = parseBody(applyGroupTemplateSchema, body)
   return withTransaction(deps.db, async (tx) => {
-    await lockOpen(tx, input.eventId, 'update')
+    const event = await lockOpen(tx, input.eventId, 'update')
     const template = (await loadTemplates(tx)).find(
       (item) => item.id === input.templateId,
     )
@@ -325,20 +379,39 @@ export async function applyGroupTemplate(
       throw new ApiError('not_found')
     }
     const coming = await groupRepository.yesAnswers(tx, input.eventId)
+    const groups = template.groups.map((group) => ({
+      name: group.name,
+      members: group.members
+        .filter((member) => coming.has(member.userId))
+        .map((member) => ({
+          userId: member.userId,
+          isLeader: member.isLeader,
+        })),
+    }))
     await groupRepository.deleteGroupsOf(tx, input.eventId)
-    await groupRepository.insertGroups(
-      tx,
-      input.eventId,
-      template.groups.map((group) => ({
-        name: group.name,
-        members: group.members
-          .filter((member) => coming.has(member.userId))
-          .map((member) => ({
-            userId: member.userId,
-            isLeader: member.isLeader,
-          })),
-      })),
-    )
+    await groupRepository.insertGroups(tx, input.eventId, groups)
+    for (const group of groups) {
+      for (const member of group.members) {
+        await notifyGroup(
+          tx,
+          manager.userId,
+          event,
+          'group_added',
+          member.userId,
+          group.name,
+        )
+        if (member.isLeader) {
+          await notifyGroup(
+            tx,
+            manager.userId,
+            event,
+            'group_leader',
+            member.userId,
+            group.name,
+          )
+        }
+      }
+    }
     return groupsResponse(tx, input.eventId)
   })
 }

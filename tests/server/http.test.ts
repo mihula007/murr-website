@@ -54,6 +54,11 @@ describe('api function over HTTP', () => {
       'applications/get',
       'applications/decide',
       'applications/resubmit',
+      'notifications/summary',
+      'notifications/list',
+      'notifications/read',
+      'notifications/read-all',
+      'notifications/section-seen',
       'roster/stats',
       'roster/list',
       'roster/readers',
@@ -184,6 +189,49 @@ describe('api function over HTTP', () => {
     }
   })
 
+  it('serves the bell to a member and forbids a reader over HTTP', async () => {
+    const member = await createProfiledUser(db, 'member')
+    const reader = await createProfiledUser(db, 'reader')
+    await db
+      .insertInto('app.user_notifications')
+      .values({
+        recipient_id: member.id,
+        kind: 'role_changed',
+        title: 'Ваша роль изменена',
+        source_kind: 'test',
+        source_id: '1',
+      })
+      .execute()
+    const memberToken = await signIn(member.email)
+    const summary = await call('notifications/summary', {}, memberToken)
+    expect(summary).toEqual({
+      status: 200,
+      body: {
+        unreadCount: 1,
+        sections: { events: 0, votes: 0, publications: 0, market: 0 },
+      },
+    })
+    const list = await call('notifications/list', {}, memberToken)
+    const [item] = list.body.items as { id: string }[]
+    expect(
+      await call('notifications/read', { id: item!.id }, memberToken),
+    ).toEqual({ status: 200, body: { unreadCount: 0 } })
+    expect(
+      await call(
+        'notifications/section-seen',
+        { section: 'applications' },
+        memberToken,
+      ),
+    ).toEqual({ status: 403, body: { error: 'forbidden' } })
+    const readerToken = await signIn(reader.email)
+    for (const route of ['notifications/summary', 'notifications/list']) {
+      expect(await call(route, {}, readerToken)).toEqual({
+        status: 403,
+        body: { error: 'forbidden' },
+      })
+    }
+  })
+
   it('returns 404 for an unknown route', async () => {
     expect((await call('account/unknown')).status).toBe(404)
   })
@@ -268,6 +316,7 @@ describe('direct access around the api', () => {
     const token = await signIn(user.email)
     for (const table of [
       'user_notifications',
+      'section_views',
       'votes',
       'vote_options',
       'vote_ballots',

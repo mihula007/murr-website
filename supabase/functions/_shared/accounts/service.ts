@@ -18,6 +18,7 @@ import { decodeCursor, splitPage } from '../http/cursor.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { joinedOnAfterRoleChange, moscowDate } from '../membership.ts'
+import { notify } from '../notifications/service.ts'
 import { nicknameCursor, nicknameKey } from '../roster/cursor.ts'
 import { accountRepository } from './repository.ts'
 
@@ -61,6 +62,15 @@ const ROLE_AUDIT = {
   restored: { action: 'reader_restored', summary: 'Восстановление чтеца' },
 } as const
 
+/** Названия ролей в уведомлении о смене роли (NTF-03). */
+const ROLE_NAMES: Record<AccessRole, string> = {
+  applicant: 'Кандидат',
+  reader: 'Чтец',
+  member: 'Член клана',
+  officer: 'Офицер',
+  admin: 'Администратор',
+}
+
 /**
  * Записывает новую роль и дату вступления (правило — `membership.ts`) и аудит
  * в открытой транзакции; профиль цели уже заблокирован.
@@ -103,6 +113,16 @@ async function applyRole(
       },
     },
     details: { user_id: target.id, previous_role: previousRole, role },
+  })
+  // Каждая смена — отдельное уведомление; источник включает время смены.
+  await notify(tx, {
+    recipientId: target.id,
+    actorId: executor.userId,
+    kind: 'role_changed',
+    title: 'Ваша роль изменена',
+    body: `${ROLE_NAMES[previousRole]} → ${ROLE_NAMES[role]}`,
+    target: { kind: 'account', id: target.id },
+    source: { kind: 'role_change', id: `${target.id}:${now.toISOString()}` },
   })
   return { userId: target.id, role, joinedOn }
 }
