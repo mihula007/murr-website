@@ -1,14 +1,32 @@
 import type { PropsWithChildren } from 'react'
+import { useRouterState } from '@tanstack/react-router'
+import { cn } from '@/lib/utils'
 import { Header } from './header'
 
+/** Страницы с иллюстрацией в полную силу: главная, вход и регистрация. */
+const SHOWCASE_PATHS = ['/', '/login', '/register', '/reset-password']
+
+const isShowcase = (pathname: string) =>
+  SHOWCASE_PATHS.includes(pathname) || pathname.startsWith('/register/')
+
 export function AppShell({ children }: PropsWithChildren) {
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  const showcase = isShowcase(pathname)
   return (
     <div className="relative isolate flex min-h-svh flex-col">
       {/* Фон под шапкой: высота картинки — 55vw (110% ширины, пропорции 2:1),
-          низ плавно уходит в цвет страницы, без резкой границы. */}
+          низ плавно уходит в цвет страницы, без резкой границы. На рабочих
+          страницах — приглушённая полоса: иллюстрация не спорит с текстом. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[calc(95px+55vw)] bg-(image:--image-site) bg-size-[110%_auto] bg-position-[calc(50%-2vw)_95px] bg-no-repeat mask-b-from-70%"
+        className={cn(
+          'pointer-events-none absolute inset-x-0 top-0 -z-10 bg-(image:--image-site) bg-size-[110%_auto] bg-position-[calc(50%-2vw)_95px] bg-no-repeat',
+          showcase
+            ? 'h-[calc(95px+55vw)] mask-b-from-70%'
+            : 'h-[calc(95px+min(26vw,320px))] opacity-35 mask-b-from-0%',
+        )}
       />
       <a
         href="#main-content"
