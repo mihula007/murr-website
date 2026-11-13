@@ -669,7 +669,9 @@ export function BroadcastPage({ source, id }: Partial<BroadcastSearch>) {
   const navigate = useNavigate()
   const target = source && id ? { source, id } : null
   const prefill = usePrefill(target)
-  const clearSource = () => void navigate({ to: '/broadcast', search: {} })
+  // Черновик сохранён — форма чистая: переход без вопроса о потере данных.
+  const clearSource = () =>
+    void navigate({ to: '/broadcast', search: {}, ignoreBlocker: true })
 
   let form
   if (target && prefill.isPending) {
