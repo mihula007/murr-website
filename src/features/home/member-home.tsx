@@ -86,7 +86,7 @@ function UpcomingEvents() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {events.data.items.slice(0, HOME_EVENTS).map((event) => (
-            <EventCard key={event.id} event={event} linkToPage />
+            <EventCard key={event.id} event={event} />
           ))}
         </div>
       )}

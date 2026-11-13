@@ -23,6 +23,35 @@ export function formatDateTimeMsk(iso: string) {
   return `${formatDate(msk.date)}, ${msk.time} МСК`
 }
 
+const MONTH_GENITIVE = [
+  'января',
+  'февраля',
+  'марта',
+  'апреля',
+  'мая',
+  'июня',
+  'июля',
+  'августа',
+  'сентября',
+  'октября',
+  'ноября',
+  'декабря',
+]
+
+/**
+ * Начало события по Москве словами для заголовка (EVT-06):
+ * `{ day: 'Суббота, 14 ноября 2026', time: '20:00 МСК' }`.
+ */
+export function formatEventStartMsk(iso: string) {
+  const msk = utcToMoscow(iso)
+  const [year, month, day] = msk.date.split('-')
+  const weekday = WEEKDAY_LABELS[msk.weekday] ?? ''
+  return {
+    day: `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${Number(day)} ${MONTH_GENITIVE[Number(month) - 1] ?? ''} ${year}`,
+    time: `${msk.time} МСК`,
+  }
+}
+
 /** Время по Москве `ЧЧ:ММ` — подпись сообщения обсуждения. */
 export function formatTimeMsk(iso: string) {
   return utcToMoscow(iso).time

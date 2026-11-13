@@ -63,6 +63,12 @@ function count(page: Page, label: string) {
     .filter({ hasText: new RegExp(`^${label}:`) })
 }
 
+/** Действие из меню «⋯» события: «Изменить», «Подготовить рассылку», «Удалить». */
+async function manageEvent(page: Page, action: string) {
+  await page.getByRole('button', { name: /^Управление событием/ }).click()
+  await page.getByRole('menuitem', { name: action, exact: true }).click()
+}
+
 async function choose(page: Page, label: string) {
   await page.getByRole('button', { name: label, exact: true }).click()
   await expect(page.getByText('Ваше решение:')).toBeVisible()
@@ -99,7 +105,7 @@ test('событие: создание, правка, ответы и удале
   await page.goto(`./#/events/${id}`)
   await expect(page.getByText(/, 21:30 МСК$/)).toBeVisible()
   await choose(page, 'Приду')
-  await page.getByRole('link', { name: 'Редактировать' }).click()
+  await manageEvent(page, 'Изменить')
   const edit = page.getByRole('form', { name: 'Редактирование события' })
   await expect(edit.getByLabel('Название')).toHaveValue(title)
   await edit.getByLabel('Описание').fill('Сбор у ворот')
@@ -120,22 +126,19 @@ test('событие: создание, правка, ответы и удале
   expect(await answerCount(id!)).toBe(2)
   // Член клана не управляет событием.
   await expect(
-    memberPage.getByRole('link', { name: 'Редактировать' }),
+    memberPage.getByRole('button', { name: /^Управление событием/ }),
   ).toHaveCount(0)
-  await expect(memberPage.getByRole('button', { name: 'Удалить' })).toHaveCount(
-    0,
-  )
   expect(await hasHorizontalScroll(memberPage)).toBe(false)
   await memberPage.context().close()
 
   // Удаление: отказ сохраняет, согласие удаляет с ответами (приёмка 5).
   await page.reload()
-  await page.getByRole('button', { name: 'Удалить' }).click()
+  await manageEvent(page, 'Удалить')
   const dialog = page.getByRole('alertdialog')
   await dialog.getByRole('button', { name: 'Отмена' }).click()
   await expect(dialog).toBeHidden()
   expect(await eventId(title)).toBe(id)
-  await page.getByRole('button', { name: 'Удалить' }).click()
+  await manageEvent(page, 'Удалить')
   await dialog.getByRole('button', { name: 'Удалить', exact: true }).click()
   await expect(page).toHaveURL(/#\/events\?tab=active/)
   expect(await eventId(title)).toBeUndefined()

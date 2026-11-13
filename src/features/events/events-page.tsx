@@ -149,7 +149,7 @@ export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
           >
             {active.data.items.map((event) => (
               <li key={event.id} className="min-w-0">
-                <EventCard event={event} linkToPage className="h-full" />
+                <EventCard event={event} className="h-full" />
               </li>
             ))}
           </ul>
@@ -173,7 +173,7 @@ export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
         columns={1}
         gap="md"
         paging={pagingOf(past)}
-        renderItem={(event) => <EventCard event={event} linkToPage />}
+        renderItem={(event) => <EventCard event={event} />}
       />
     )
   }

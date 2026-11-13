@@ -91,7 +91,8 @@ test('E2E-07: подготовка рассылки из события, гол�
 
   // Из события (BRC-02).
   await page.goto(`./#/events/${eventId}`)
-  await prepare(page).first().click()
+  await page.getByRole('button', { name: /^Управление событием/ }).click()
+  await page.getByRole('menuitem', { name: 'Подготовить рассылку' }).click()
   await expect(page.getByLabel('Тема (необязательно)')).toHaveValue(title)
   await expect(page.getByLabel('Текст рассылки')).toHaveValue(/Тип: PvE/)
   for (const channel of ['Telegram', 'ВКонтакте', 'MAX']) {

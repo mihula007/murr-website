@@ -7,7 +7,7 @@ import type {
   EventTemplate,
 } from '@contracts/events'
 import { AppError } from '@/lib/errors'
-import { formatDateTimeMsk } from '@/lib/format-date'
+import { formatDateTimeMsk, formatEventStartMsk } from '@/lib/format-date'
 import { dataCalls } from './support/api-calls'
 import { renderApp } from './support/render-app'
 
@@ -131,7 +131,9 @@ describe('schedule (EVT-01)', () => {
     expect(counts.getByText(/Приду:/)).toHaveTextContent('Приду: 2')
     expect(screen.queryByText('Создать ивент')).toBeNull()
     expect(screen.queryByText('Постоянные события')).toBeNull()
-    expect(card.queryByRole('link', { name: 'Редактировать' })).toBeNull()
+    expect(
+      card.queryByRole('button', { name: /^Управление событием/ }),
+    ).toBeNull()
   })
 
   it('offers creation, weekly events and management to an officer', async () => {
@@ -157,9 +159,9 @@ describe('schedule (EVT-01)', () => {
       await screen.findByRole('link', { name: /Создать ивент/ }),
     ).toBeVisible()
     expect(screen.getByText('Автор: Автоматически')).toBeVisible()
-    expect(screen.getAllByRole('link', { name: 'Редактировать' })).toHaveLength(
-      2,
-    )
+    expect(
+      screen.getAllByRole('button', { name: /^Управление событием/ }),
+    ).toHaveLength(2)
     fireEvent.click(
       screen.getByRole('button', { name: /Создать постоянные события недели/ }),
     )
@@ -254,6 +256,20 @@ describe('event page (EVT-06)', () => {
       await screen.findByRole('list', { name: 'Не отметились' }),
     ).toHaveTextContent('Борис')
   })
+
+  it('titles the page with the event name and spells out the start', async () => {
+    respond({ 'events/get': () => details() })
+    await renderApp({ role: 'member', path: `/events/${EVENT_ID}` })
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Рейд' }),
+    ).toBeVisible()
+    expect(screen.getByText(/^Суббота, 14 ноября 2026,/)).toHaveTextContent(
+      'Суббота, 14 ноября 2026, 20:00 МСК',
+    )
+    expect(
+      screen.queryByRole('button', { name: /^Управление событием/ }),
+    ).toBeNull()
+  })
 })
 
 describe('Moscow time display (Q-44)', () => {
@@ -266,6 +282,10 @@ describe('Moscow time display (Q-44)', () => {
     expect(formatDateTimeMsk('2026-11-14T22:00:00.000Z')).toBe(
       '15.11.2026, 01:00 МСК',
     )
+    expect(formatEventStartMsk('2026-11-14T22:00:00.000Z')).toEqual({
+      day: 'Воскресенье, 15 ноября 2026',
+      time: '01:00 МСК',
+    })
   })
 })
 
