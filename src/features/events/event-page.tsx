@@ -63,12 +63,12 @@ export function EventPage({ id }: { id: string }) {
 
   let content
   if (event.isPending) {
-    content = <LoadingState label="Загружаем событие…" />
+    content = <LoadingState label="Загружаем ивент…" />
   } else if (event.isError) {
     content =
       event.error.code === 'not_found' ? (
         <ErrorState
-          title="Событие не найдено"
+          title="Ивент не найден"
           message="Возможно, его удалили или ссылка устарела."
         />
       ) : (
@@ -79,7 +79,6 @@ export function EventPage({ id }: { id: string }) {
     content = (
       <div className="grid gap-4">
         <EventCard
-          className="mx-auto w-full max-w-[720px]"
           event={data}
           onDeleted={() =>
             void navigate({ to: '/events', search: { tab: 'active' } })
@@ -97,9 +96,9 @@ export function EventPage({ id }: { id: string }) {
         search={{ tab: 'active' }}
         className={cn(linkButtonClass, 'mb-3 inline-flex items-center gap-1.5')}
       >
-        <ArrowLeft size={16} aria-hidden="true" /> К расписанию
+        <ArrowLeft size={16} aria-hidden="true" /> К ивентам
       </Link>
-      <PageHeader eyebrow="Клан" title="Событие" />
+      <PageHeader eyebrow="Клан" title="Ивент" />
       {content}
     </section>
   )

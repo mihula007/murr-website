@@ -1,15 +1,21 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { Check, ChevronRight, Crown } from 'lucide-react'
+import { Check, ChevronRight, Crown, MoreHorizontal } from 'lucide-react'
 import type { VoteDetails, VoteOptionResult } from '@contracts/votes'
 import { hasRole, MANAGER_ROLES, useAccess } from '@/app/access'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Badge, Card, Notice } from '@/components/ui/surfaces'
 import { toast } from '@/components/ui/toaster'
 import { errorMessage, type AppError } from '@/lib/errors'
-import { formatDate } from '@/lib/format-date'
+import { formatDateMsk } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
 import { DiscussionDialog } from '@/features/discussions/discussion-dialog'
 import { PrepareBroadcastLink } from '@/features/broadcast/prepare-broadcast-link'
@@ -115,14 +121,14 @@ function Ballot({ vote }: { vote: VoteCardData }) {
 
   if (mine && !changing) {
     return (
-      <div className="grid gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border pt-3">
         <p className="m-0 text-sm">
           Ваше решение: <strong className="text-primary">{mine.label}</strong>
         </p>
         <Button
           type="button"
           variant="secondary"
-          className="w-full"
+          size="sm"
           onClick={() => setChanging(true)}
         >
           Изменить решение
@@ -136,7 +142,7 @@ function Ballot({ vote }: { vote: VoteCardData }) {
       <legend className="mb-2 text-sm font-semibold">
         {mine ? 'Выберите новое решение' : 'Ваше решение'}
       </legend>
-      <div className="grid grid-cols-2 gap-2 max-xs:grid-cols-1">
+      <div className="grid grid-cols-2 gap-2">
         {vote.options.map((option) => (
           <Button
             key={option.id}
@@ -188,33 +194,34 @@ function Management({
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-2 border-t border-border pt-3 max-xs:grid-cols-1">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => setPending('edit')}
-        >
-          Изменить
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => setPending('close')}
-        >
-          Завершить
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="text-destructive"
-          onClick={() => setPending('delete')}
-        >
-          Удалить
-        </Button>
-      </div>
+      {/* Управление — в меню «⋯», чтобы не спорить с голосованием на карточке. */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="ml-auto max-xs:ml-0"
+            aria-label={`Управление голосованием «${vote.title}»`}
+          >
+            <MoreHorizontal aria-hidden="true" size={18} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setPending('edit')}>
+            Изменить
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setPending('close')}>
+            Завершить
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-destructive data-highlighted:text-destructive"
+            onSelect={() => setPending('delete')}
+          >
+            Удалить
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <EditVoteDialog
         key={`${vote.id}-${pending === 'edit'}`}
         vote={vote}
@@ -284,10 +291,10 @@ export function VoteCard({
     <Card className={cn('grid min-w-0 gap-4', className)}>
       <div className="grid gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge>{vote.kind === 'application' ? 'По заявке' : 'Обычное'}</Badge>
+          {vote.kind === 'application' ? <Badge>По заявке</Badge> : null}
           {isActive ? null : (
             <Badge className="border-border text-muted-foreground">
-              Завершено {formatDate(vote.closedAt)}
+              Завершено {formatDateMsk(vote.closedAt)}
             </Badge>
           )}
         </div>
@@ -327,7 +334,7 @@ export function VoteCard({
         myOptionId={vote.myOptionId}
       />
       <p className="m-0 text-xs text-muted-foreground">
-        Голосов: {vote.totalBallots} · создано {formatDate(vote.createdAt)}
+        Голосов: {vote.totalBallots} · создано {formatDateMsk(vote.createdAt)}
         {vote.createdBy ? ` · ${vote.createdBy.gameNickname}` : ''}
       </p>
 
@@ -337,19 +344,17 @@ export function VoteCard({
         <Notice>Голосование завершено: решение изменить нельзя.</Notice>
       )}
 
-      {isActive && isManager ? (
-        <Management vote={vote} onDeleted={onDeleted} />
-      ) : null}
-
-      <div className="flex flex-wrap gap-2 max-xs:grid">
+      <div className="flex flex-wrap items-center gap-2">
         <DiscussionDialog
           thread={{ parent: 'vote', parentId: vote.id }}
           title={vote.title}
           messageCount={vote.messageCount}
-          className="max-xs:w-full"
         />
         {isActive && isManager ? (
-          <PrepareBroadcastLink source="vote" id={vote.id} />
+          <>
+            <PrepareBroadcastLink source="vote" id={vote.id} />
+            <Management vote={vote} onDeleted={onDeleted} />
+          </>
         ) : null}
       </div>
     </Card>

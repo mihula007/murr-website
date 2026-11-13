@@ -47,12 +47,12 @@ export function sortByText<T>(read: (row: T) => string) {
 }
 
 /**
- * Таблица: на узком экране строка — карточка, подпись столбца — видимый
- * текст в ячейке; ячейка с `data-title` — заголовок карточки. Без горизонтальной
+ * Таблица: на узком экране строка — карточка в три колонки (короче лента
+ * на телефоне), подпись столбца — видимый текст в ячейке; ячейка с `data-title` — заголовок карточки. Без горизонтальной
  * прокрутки на 375 px.
  */
 const tableClass =
-  'w-full border-collapse text-left text-[13px] max-[900px]:block [&_td]:border-b [&_td]:border-border [&_td]:px-2 [&_td]:py-2.5 [&_td]:align-middle [&_th]:border-b [&_th]:border-border [&_th]:px-2 [&_th]:py-2.5 [&_th]:font-semibold [&_th]:text-muted-foreground max-[900px]:[&_tbody]:grid max-[900px]:[&_tbody]:gap-2.5 max-[900px]:[&_thead]:hidden max-[900px]:[&_tr]:grid max-[900px]:[&_tr]:grid-cols-2 max-[900px]:[&_tr]:gap-x-4 max-[900px]:[&_tr]:gap-y-2 max-[900px]:[&_tr]:rounded-xl max-[900px]:[&_tr]:border max-[900px]:[&_tr]:border-border max-[900px]:[&_tr]:bg-surface-inset max-[900px]:[&_tr]:p-3 max-[900px]:[&_td]:grid max-[900px]:[&_td]:gap-0.5 max-[900px]:[&_td]:border-0 max-[900px]:[&_td]:p-0 max-[900px]:[&_td[data-title]]:col-span-full max-[900px]:[&_td[data-title]]:text-base'
+  'w-full border-collapse text-left text-[13px] max-[900px]:block [&_td]:border-b [&_td]:border-border [&_td]:px-2 [&_td]:py-2.5 [&_td]:align-middle [&_th]:border-b [&_th]:border-border [&_th]:px-2 [&_th]:py-2.5 [&_th]:font-semibold [&_th]:text-muted-foreground max-[900px]:[&_tbody]:grid max-[900px]:[&_tbody]:gap-2.5 max-[900px]:[&_thead]:hidden max-[900px]:text-sm max-[900px]:[&_tr]:grid max-[900px]:[&_tr]:grid-cols-3 max-[900px]:[&_tr]:gap-x-3 max-[900px]:[&_tr]:gap-y-2 max-[900px]:[&_tr]:rounded-xl max-[900px]:[&_tr]:border max-[900px]:[&_tr]:border-border max-[900px]:[&_tr]:bg-surface-inset max-[900px]:[&_tr]:p-3 max-[900px]:[&_td]:grid max-[900px]:[&_td]:gap-0.5 max-[900px]:[&_td]:border-0 max-[900px]:[&_td]:p-0 max-[900px]:[&_td[data-title]]:col-span-full max-[900px]:[&_td[data-title]]:flex max-[900px]:[&_td[data-title]]:items-baseline max-[900px]:[&_td[data-title]]:gap-1 max-[900px]:[&_td[data-title]]:text-base'
 
 /** Подпись столбца в карточке узкого экрана; у первой ячейки не нужна. */
 function MobileLabel({ text, first }: { text: string; first: boolean }) {

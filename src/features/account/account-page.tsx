@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from '@tanstack/react-router'
+import { ChevronDown } from 'lucide-react'
 import type { MeResponse } from '@contracts/account'
 import { useAccess } from '@/app/access'
 import { ErrorState } from '@/components/states/error-state'
@@ -19,9 +20,26 @@ import { useMe } from './use-me'
 
 type ReadyMe = Extract<MeResponse, { state: 'ready' }>
 
-/** Раскрывающийся блок кабинета (`<details>`) с золотым заголовком. */
+/**
+ * Раскрывающийся блок кабинета (`<details>`) с золотым заголовком. Вместо
+ * системного треугольника — шеврон lucide, как в остальных раскрывающихся
+ * элементах интерфейса.
+ */
 const disclosureClass =
-  'border-y border-border py-3 [&>summary]:cursor-pointer [&>summary]:font-bold [&>summary]:text-primary open:[&>summary]:mb-3'
+  'group border-y border-border py-3 [&>summary]:flex [&>summary]:min-h-11 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-3 [&>summary]:font-bold [&>summary]:text-primary [&>summary::-webkit-details-marker]:hidden open:[&>summary]:mb-3'
+
+function DisclosureSummary({ children }: { children: string }) {
+  return (
+    <summary>
+      {children}
+      <ChevronDown
+        aria-hidden="true"
+        size={18}
+        className="flex-none transition-transform duration-200 group-open:rotate-180"
+      />
+    </summary>
+  )
+}
 
 function Dashboard({ me }: { me: ReadyMe }) {
   const navigate = useNavigate()
@@ -42,18 +60,20 @@ function Dashboard({ me }: { me: ReadyMe }) {
   })
 
   return (
-    <section>
+    <section className="mx-auto w-full max-w-[620px]">
       <PageHeader
         title="Личный кабинет"
         description="Профиль, статус и безопасность аккаунта."
       />
-      <Card className="mx-auto grid w-full max-w-[620px] gap-4">
+      <Card className="grid gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-2xl font-bold">
               Привет, {profile.displayName}!
             </h2>
-            <p className="text-muted-foreground">Статус аккаунта и заявки</p>
+            {profile.role === 'applicant' ? (
+              <p className="text-muted-foreground">Статус аккаунта и заявки</p>
+            ) : null}
           </div>
           <Badge>{status}</Badge>
         </div>
@@ -74,7 +94,7 @@ function Dashboard({ me }: { me: ReadyMe }) {
         <p className="break-words text-muted-foreground">{me.email}</p>
 
         <details className={disclosureClass}>
-          <summary>Личная информация</summary>
+          <DisclosureSummary>Личная информация</DisclosureSummary>
           {editing ? (
             <ProfileForm
               profile={profile}
@@ -95,10 +115,6 @@ function Dashboard({ me }: { me: ReadyMe }) {
                 <div>
                   <dt>Игровой никнейм</dt>
                   <dd>{profile.gameNickname}</dd>
-                </div>
-                <div>
-                  <dt>Электронная почта</dt>
-                  <dd className="break-words">{me.email}</dd>
                 </div>
                 <div>
                   <dt>Класс персонажа</dt>
@@ -139,7 +155,7 @@ function Dashboard({ me }: { me: ReadyMe }) {
           open={passwordOpen}
           onToggle={(event) => setPasswordOpen(event.currentTarget.open)}
         >
-          <summary>Смена пароля</summary>
+          <DisclosureSummary>Смена пароля</DisclosureSummary>
           {passwordOpen ? (
             <PasswordForm
               email={me.email}

@@ -19,6 +19,15 @@ export function membersLabel(count: number) {
   return pluralRu(count, ['участник', 'участника', 'участников'])
 }
 
+/** «голосование идёт / голосования идут / голосований идут». */
+export function activeVotesLabel(count: number) {
+  return pluralRu(count, [
+    'голосование идёт',
+    'голосования идут',
+    'голосований идут',
+  ])
+}
+
 /** «ивент скоро / ивента скоро / ивентов скоро». */
 export function eventsLabel(count: number) {
   return pluralRu(count, ['ивент скоро', 'ивента скоро', 'ивентов скоро'])

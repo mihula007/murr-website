@@ -25,11 +25,15 @@ type MobileNavProps = {
  * нет внутренних разделов, бургер не нужен — в шапке остаются логотип и вход.
  */
 export function MobileNav({ categories, counts }: MobileNavProps) {
-  const [open, setOpen] = useState(false)
+  // Меню помнит адрес, на котором его открыли: переход назад/вперёд или по
+  // ссылке со страницы закрывает его, не оставляя панель поверх новой страницы.
+  const [openedAt, setOpenedAt] = useState<string | null>(null)
   const { pathname, section: active } = useActiveSection()
   if (categories.length === 0) {
     return null
   }
+  const open = openedAt === pathname
+  const setOpen = (next: boolean) => setOpenedAt(next ? pathname : null)
   const close = () => setOpen(false)
 
   return (

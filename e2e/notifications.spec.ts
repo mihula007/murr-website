@@ -110,6 +110,10 @@ test('приёмка NTF 1–2: одно уведомление о приёме,
   await bell(page).click()
   await panel(page).getByRole('button', { name: 'Прочитать все' }).click()
   await expect(bell(page)).toHaveAccessibleName('Уведомления')
+  // Непрочитанных не осталось — кнопка скрыта.
+  await expect(
+    panel(page).getByRole('button', { name: 'Прочитать все' }),
+  ).toHaveCount(0)
   await expect(
     panel(page).getByRole('button', { name: /Упоминание 2/ }),
   ).toBeVisible()
@@ -193,7 +197,7 @@ test('приёмка NTF 4: переход к событию и к удалён�
     .getByRole('button', { name: new RegExp(`${gone} · Пати 1`) })
     .click()
   await expect(page).toHaveURL(new RegExp(`#/events/${goneId}$`))
-  await expect(page.getByText('Событие не найдено')).toBeVisible()
+  await expect(page.getByText('Ивент не найден')).toBeVisible()
   await expect(bell(page)).toHaveAccessibleName('Уведомления')
 })
 

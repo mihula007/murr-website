@@ -113,19 +113,22 @@ function NotificationPanel({ role, onClose }: NotificationPanelProps) {
   const unreadCount = list.data?.unreadCount ?? 0
   return (
     <>
-      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+      <div className="flex min-h-[53px] items-center justify-between gap-3 border-b border-border px-4 py-3">
         <h2 className="m-0 text-[13px] font-black tracking-[0.13em] uppercase">
           Уведомления
         </h2>
-        <Button
-          variant="ghost"
-          className="h-auto gap-1.5 px-2 py-1 text-[13px]"
-          disabled={unreadCount === 0 || readAll.isPending}
-          onClick={() => readAll.mutate(undefined, { onError: showError })}
-        >
-          <CheckCheck aria-hidden="true" size={16} />
-          Прочитать все
-        </Button>
+        {/* Читать нечего — кнопки нет: пустая панель без лишнего действия. */}
+        {unreadCount > 0 ? (
+          <Button
+            variant="ghost"
+            className="h-auto gap-1.5 px-2 py-1 text-[13px]"
+            disabled={readAll.isPending}
+            onClick={() => readAll.mutate(undefined, { onError: showError })}
+          >
+            <CheckCheck aria-hidden="true" size={16} />
+            Прочитать все
+          </Button>
+        ) : null}
       </div>
       <div className="max-h-[min(70svh,520px)] overflow-y-auto p-1.5">
         {list.isPending ? (

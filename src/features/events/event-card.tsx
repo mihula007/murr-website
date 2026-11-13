@@ -16,7 +16,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Badge, Card, Notice } from '@/components/ui/surfaces'
 import { toast } from '@/components/ui/toaster'
 import { errorMessage, type AppError } from '@/lib/errors'
-import { formatDate, formatDateTimeMsk } from '@/lib/format-date'
+import { formatDateMsk, formatDateTimeMsk } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
 import { useDeleteEvent, useRespondToEvent } from './api'
 import { eventKeys } from './query-keys'
@@ -104,15 +104,15 @@ function Attendance({ event }: { event: EventSummary }) {
 
   if (mine && !changing) {
     return (
-      <div className="grid gap-2">
-        <Notice>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border pt-3">
+        <p className="m-0 text-sm">
           Ваше решение:{' '}
           <strong className="text-primary">{EVENT_ANSWER_LABELS[mine]}</strong>
-        </Notice>
+        </p>
         <Button
           type="button"
           variant="secondary"
-          className="w-full"
+          size="sm"
           onClick={() => setChanging(true)}
         >
           Изменить решение
@@ -126,15 +126,16 @@ function Attendance({ event }: { event: EventSummary }) {
       <legend className="mb-2 text-sm font-semibold">
         {mine ? 'Выберите новое решение' : 'Ваше решение'}
       </legend>
-      <div className="grid grid-cols-3 gap-2 max-xs:grid-cols-1">
+      {/* До ответа три варианта равны: золотом выделяется только выбранный. */}
+      <div className="grid grid-cols-3 gap-2">
         {EVENT_ANSWERS.map((answer) => (
           <Button
             key={answer}
             type="button"
-            variant={answer === 'yes' ? 'default' : 'secondary'}
+            variant={answer === mine ? 'default' : 'secondary'}
             disabled={respond.isPending}
             aria-pressed={answer === mine}
-            className="min-w-0"
+            className="min-w-0 px-2"
             onClick={() => void choose(answer)}
           >
             {answer === mine ? <Check size={16} aria-hidden="true" /> : null}
@@ -170,7 +171,7 @@ function Management({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-2 border-t border-border pt-3 max-xs:grid-cols-1">
+      <div className="grid grid-cols-2 gap-2 border-t border-border pt-3">
         <Link
           to="/events/$id/edit"
           params={{ id: event.id }}
@@ -240,7 +241,7 @@ export function EventCard({
         ) : null}
         {event.closedAt ? (
           <Badge className="border-border text-muted-foreground">
-            Закрыто {formatDate(event.closedAt)}
+            Закрыто {formatDateMsk(event.closedAt)}
           </Badge>
         ) : null}
       </div>

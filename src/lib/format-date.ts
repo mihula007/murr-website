@@ -28,9 +28,13 @@ export function formatTimeMsk(iso: string) {
   return utcToMoscow(iso).time
 }
 
-/** Дата по Москве `ДД.ММ.ГГГГ` — разделитель дней в обсуждении (DSC-02). */
-export function formatDateMsk(iso: string) {
-  return formatDate(utcToMoscow(iso).date)
+/**
+ * Дата метки времени по Москве `ДД.ММ.ГГГГ` (создание, подача, решение,
+ * закрытие; разделитель дней в обсуждении, DSC-02). `formatDate` для меток
+ * времени не подходит: между 00:00 и 03:00 МСК дата в UTC — ещё вчерашняя.
+ */
+export function formatDateMsk(iso: string | null | undefined) {
+  return iso ? formatDate(utcToMoscow(iso).date) : '—'
 }
 
 /** День недели и время по Москве: `суббота, 20:00 МСК`. */

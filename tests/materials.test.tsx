@@ -196,9 +196,7 @@ describe('material editor', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить черновик' }))
     expect(
-      await screen.findByText(
-        'Добавьте текст, изображение, таблицу или вложение',
-      ),
+      await screen.findByText('Добавьте текст, изображение или таблицу'),
     ).toBeInTheDocument()
     expect(callApi).not.toHaveBeenCalledWith(
       'publications/save',

@@ -88,9 +88,9 @@ export async function exportActivityWorkbook(
         ],
       },
       {
-        name: 'История мероприятий',
+        name: 'История ивентов',
         rows: [
-          ['Дата', 'Мероприятие', 'Участник', 'Класс', 'Группа', 'Посещение'],
+          ['Дата', 'Ивент', 'Участник', 'Класс', 'Группа', 'Посещение'],
           ...history.map((row) => [
             formatDate(row.dateMsk),
             row.eventTitle,

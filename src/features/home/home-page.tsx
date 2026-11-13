@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { ArrowRight } from 'lucide-react'
 import { INTERNAL_ROLES, hasRole, useAccess } from '@/app/access'
 import { Button } from '@/components/ui/button'
 import { useMe } from '@/features/account/use-me'
@@ -62,7 +63,9 @@ export function HomePage() {
         {internal ? (
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild>
-              <Link to="/events">Посмотреть ивенты ↗</Link>
+              <Link to="/events">
+                Посмотреть ивенты <ArrowRight aria-hidden="true" size={16} />
+              </Link>
             </Button>
           </div>
         ) : null}

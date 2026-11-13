@@ -46,6 +46,12 @@ async function confirm(page: Page, label: string) {
   await expect(dialog).toBeHidden()
 }
 
+/** Управление голосованием — в меню «⋯» карточки. */
+async function manageVote(page: Page, action: string) {
+  await page.getByRole('button', { name: /^Управление голосованием/ }).click()
+  await page.getByRole('menuitem', { name: action, exact: true }).click()
+}
+
 async function openVote(page: Page, title: string) {
   await page.goto('./#/votes')
   await page.getByRole('link', { name: title }).click()
@@ -105,7 +111,7 @@ test('E2E-01: вступление через голосование и реше
       .getByRole('list', { name: 'Голоса участников' })
       .getByText(member.nickname),
   ).toBeVisible()
-  await officerPage.getByRole('button', { name: 'Завершить' }).click()
+  await manageVote(officerPage, 'Завершить')
   await confirm(officerPage, 'Завершить')
   await expect(
     officerPage.getByText('Голосование завершено: решение изменить нельзя.'),
@@ -196,13 +202,13 @@ test('обычное голосование: создание, правка, з�
   await choose(memberPage, 'Позже')
   // Член клана не управляет голосованием.
   await expect(
-    memberPage.getByRole('button', { name: 'Завершить' }),
+    memberPage.getByRole('button', { name: /^Управление голосованием/ }),
   ).toHaveCount(0)
 
   // Правка темы сохраняет голоса (VOT-08).
   const renamed = `${title} (изм.)`
   await page.reload()
-  await page.getByRole('button', { name: 'Изменить', exact: true }).click()
+  await manageVote(page, 'Изменить')
   const dialog = page.getByRole('dialog')
   await dialog.getByLabel('Тема').fill(renamed)
   await dialog.getByRole('button', { name: 'Сохранить' }).click()
@@ -210,7 +216,7 @@ test('обычное голосование: создание, правка, з�
   await expect(page.getByRole('heading', { name: renamed })).toBeVisible()
   await expect(page.getByText(/^Голосов: 1/)).toBeVisible()
 
-  await page.getByRole('button', { name: 'Завершить' }).click()
+  await manageVote(page, 'Завершить')
   await confirm(page, 'Завершить')
 
   // В истории — итоги и свой голос, без кнопок голоса и управления (VOT-12);
@@ -237,7 +243,7 @@ test('удаление активного голосования возвращ�
   await page.getByRole('button', { name: 'Передать на голосование' }).click()
   await confirm(page, 'Передать')
   await page.getByRole('link', { name: 'Открыть голосование' }).click()
-  await page.getByRole('button', { name: 'Удалить' }).click()
+  await manageVote(page, 'Удалить')
   await confirm(page, 'Удалить')
   await expect(page).toHaveURL(/#\/votes/)
 

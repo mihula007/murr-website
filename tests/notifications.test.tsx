@@ -140,7 +140,7 @@ describe('колокольчик (NTF-01, NTF-02, NTF-05)', () => {
     await renderApp({ role: 'member' })
     fireEvent.click(await bell())
     expect(await screen.findByText('Уведомлений пока нет.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Прочитать все' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Прочитать все' })).toBeNull()
   })
 })
 

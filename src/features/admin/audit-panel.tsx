@@ -25,6 +25,22 @@ const CATEGORY_OPTIONS = [
   })),
 ]
 
+/** Тип объекта аудита по-русски; служебный код в интерфейс не выводится. */
+const TARGET_LABELS: Partial<Record<string, string>> = {
+  profile: 'аккаунт',
+  account: 'аккаунт',
+  user: 'аккаунт',
+  join_application: 'заявка',
+  event: 'ивент',
+  event_template: 'шаблон ивента',
+  group_template: 'шаблон групп',
+  vote: 'голосование',
+  publication: 'публикация',
+  market_listing: 'объявление',
+  broadcast_draft: 'черновик рассылки',
+  broadcast_template: 'шаблон рассылки',
+}
+
 function roleLabel(role: string | null) {
   return role && role in ROLE_LABELS
     ? ROLE_LABELS[role as keyof typeof ROLE_LABELS]
@@ -50,9 +66,9 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
           Объект: {entry.target.nickname ?? '—'}
           {entry.target.email ? ` · ${entry.target.email}` : ''}
         </span>
-      ) : entry.target ? (
+      ) : entry.target && TARGET_LABELS[entry.target.kind] ? (
         <span className="text-muted-foreground">
-          Объект: {entry.target.kind}
+          Объект: {TARGET_LABELS[entry.target.kind]}
         </span>
       ) : null}
       {typeof entry.details.title === 'string' ? (
@@ -66,8 +82,6 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
               roleLabel(actor.role) ? ` (${roleLabel(actor.role)})` : ''
             }${actor.email ? ` · ${actor.email}` : ''}`
           : 'Исполнитель: система'}
-        {' · '}
-        {entry.action}
       </span>
     </article>
   )

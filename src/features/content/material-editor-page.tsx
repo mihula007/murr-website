@@ -376,14 +376,15 @@ function MaterialEditor({
                           ? { describedBy: 'material-content-error' }
                           : {})}
                       />
-                      {error ? (
-                        <small
-                          id="material-content-error"
-                          className="text-xs text-destructive"
-                        >
-                          {error}
-                        </small>
-                      ) : null}
+                      {/* Строка ошибки зарезервирована: когда ошибка
+                          исчезает при вводе, кнопки под редактором не
+                          сдвигаются из-под курсора. */}
+                      <small
+                        id="material-content-error"
+                        className="min-h-lh text-xs text-destructive"
+                      >
+                        {error}
+                      </small>
                     </div>
                   )
                 }}

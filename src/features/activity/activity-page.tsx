@@ -53,7 +53,7 @@ type View = (typeof VIEWS)[number]
 const VIEW_LABELS: Record<View, string> = {
   summary: 'Сводка',
   history: 'История',
-  event: 'По мероприятию',
+  event: 'По ивенту',
   member: 'По участнику',
 }
 
@@ -130,11 +130,16 @@ const summaryColumns: ActivityColumns<ActivitySummaryRow> =
     summaryColumn.accessor('unmarked', { header: 'Не отметился' }),
     summaryColumn.accessor('percent', {
       header: 'Посещения',
-      cell: (info) => (
-        <strong className="text-primary tabular-nums">
-          {info.getValue()}%
-        </strong>
-      ),
+      // Без записей процент не определён: «—», как в рейтинге (ACT-15).
+      cell: (info) => {
+        const row = info.row.original
+        const total = row.visited + row.missed + row.unmarked
+        return (
+          <strong className="text-primary tabular-nums">
+            {total === 0 ? '—' : `${info.getValue()}%`}
+          </strong>
+        )
+      },
     }),
   ])
 
@@ -146,7 +151,7 @@ const historyColumns: ActivityColumns<ActivityHistoryRow> =
       cell: (info) => formatDate(info.getValue()),
     }),
     historyColumn.accessor('eventTitle', {
-      header: 'Мероприятие',
+      header: 'Ивент',
       cell: (info) => <span className="break-words">{info.getValue()}</span>,
     }),
     historyColumn.accessor('gameNickname', {
@@ -209,7 +214,7 @@ type MemberRow = ActivityMemberResponse['items'][number]
 const memberColumn = activityColumns<MemberRow>()
 const memberColumns: ActivityColumns<MemberRow> = memberColumn.columns([
   memberColumn.accessor('eventTitle', {
-    header: 'Мероприятие',
+    header: 'Ивент',
     cell: (info) => (
       <strong className="break-words text-foreground">{info.getValue()}</strong>
     ),
@@ -262,8 +267,7 @@ function SummaryPanel({ filters, search }: PanelProps) {
   return (
     <div className="grid gap-3">
       <p className="m-0 text-sm text-muted-foreground">
-        Участников: {rows.length} · мероприятий в периоде:{' '}
-        {summary.data.eventCount}
+        Участников: {rows.length} · ивентов в периоде: {summary.data.eventCount}
       </p>
       <DataTable
         label="Сводка участников"
@@ -296,7 +300,7 @@ function HistoryPanel({ filters, search }: PanelProps) {
   }
   return (
     <VirtualDataTable
-      label="История мероприятий"
+      label="История ивентов"
       columns={historyColumns}
       data={history.data.pages.flatMap((page) => page.items)}
       getRowId={(row) => `${row.eventId}:${row.userId}`}
@@ -304,7 +308,7 @@ function HistoryPanel({ filters, search }: PanelProps) {
       empty={
         <EmptyState
           title="Нет записей"
-          description="Нет закрытых мероприятий для выбранных фильтров."
+          description="Нет закрытых ивентов для выбранных фильтров."
         />
       }
     />
@@ -324,7 +328,7 @@ function EventDetails({
 }) {
   const event = useActivityEvent(eventId, classId)
   if (event.isPending) {
-    return <LoadingState label="Загружаем мероприятие…" />
+    return <LoadingState label="Загружаем ивент…" />
   }
   if (event.isError) {
     return <ErrorState onRetry={() => void event.refetch()} />
@@ -344,7 +348,7 @@ function EventDetails({
           {event.data.event.title} · {formatDate(event.data.event.dateMsk)}
         </h3>
         <Button type="button" variant="secondary" size="sm" onClick={onBack}>
-          Другое мероприятие
+          Другой ивент
         </Button>
       </div>
       <Stats
@@ -356,14 +360,14 @@ function EventDetails({
         ]}
       />
       <DataTable
-        label="Состав мероприятия"
+        label="Состав ивента"
         columns={eventRowColumns}
         data={rows}
         getRowId={(row) => row.userId}
         empty={
           <EmptyState
             title="Нет записей"
-            description="Нет записей по выбранному мероприятию и фильтрам."
+            description="Нет записей по выбранному ивенту и фильтрам."
           />
         }
       />
@@ -395,7 +399,7 @@ function EventPanel({
     )
   }
   if (events.isPending) {
-    return <LoadingState label="Загружаем мероприятия…" />
+    return <LoadingState label="Загружаем ивенты…" />
   }
   if (events.isError) {
     return <ErrorState onRetry={() => void events.refetch()} />
@@ -404,18 +408,18 @@ function EventPanel({
   if (items.length === 0) {
     return (
       <EmptyState
-        title="Нет закрытых мероприятий"
-        description="В выбранном периоде нет закрытых мероприятий."
+        title="Нет закрытых ивентов"
+        description="В выбранном периоде нет закрытых ивентов."
       />
     )
   }
   return (
     <div className="grid gap-2">
       <p className="m-0 text-sm text-muted-foreground">
-        Выберите мероприятие: показаны новые сверху.
+        Выберите ивент: показаны новые сверху.
       </p>
       <VirtualList<ActivityEventOption>
-        label="Закрытые мероприятия"
+        label="Закрытые ивенты"
         items={items}
         getKey={(item) => item.id}
         estimateSize={52}
@@ -468,11 +472,11 @@ function MemberPanel({
       <div className="grid gap-3">
         <Stats
           items={[
-            ['мероприятий', stats.total],
+            ['ивентов', stats.total],
             ['посетил', stats.visited],
             ['не посетил', stats.missed],
             ['не отметился', stats.unmarked],
-            ['посещения', `${stats.percent}%`],
+            ['посещения', stats.total === 0 ? '—' : `${stats.percent}%`],
           ]}
         />
         <VirtualDataTable
@@ -608,7 +612,7 @@ export function ActivityPage(search: Partial<ActivitySearch>) {
       <PageHeader
         eyebrow="Управление"
         title="Учёт активности"
-        description="Посещение закрытых мероприятий: в группе — «Посетил», вне группы с ответом — «Не посетил», без ответа — «Не отметился»."
+        description="Посещение закрытых ивентов: в группе — «Посетил», вне группы с ответом — «Не посетил», без ответа — «Не отметился»."
       />
       <Card className="mb-4 grid gap-3">
         <h2 className={sectionTitleClass}>Фильтры</h2>
@@ -658,7 +662,7 @@ export function ActivityPage(search: Partial<ActivitySearch>) {
             <Input
               id="activity-search"
               type="search"
-              placeholder="Участник или мероприятие"
+              placeholder="Участник или ивент"
               maxLength={40}
               value={text}
               onChange={(change) => setText(change.target.value)}

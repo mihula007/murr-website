@@ -98,7 +98,7 @@ function ResubmitForm({ me }: { me: ReadyMe }) {
   const { dialog } = useUnsavedChangesGuard(isDirty)
 
   return (
-    <Card className="mx-auto grid w-full max-w-[620px] gap-4">
+    <Card className="grid gap-4">
       <section aria-labelledby="resubmit-profile" className="grid gap-3">
         <h2 id="resubmit-profile" className="text-lg font-bold">
           Данные из профиля
@@ -243,7 +243,7 @@ export function ResubmitPage() {
     return <Navigate to="/account" />
   }
   return (
-    <section>
+    <section className="mx-auto w-full max-w-[620px]">
       <PageHeader
         title="Новая заявка"
         description="Прежняя заявка отклонена. Проверьте данные профиля и при желании добавьте ссылки на снаряжение."

@@ -134,7 +134,7 @@ export function CreateVotePage() {
   const serverFields = serverError?.fields ?? {}
 
   return (
-    <section>
+    <section className="mx-auto w-full max-w-[620px]">
       <Link
         to="/votes"
         search={{ tab: 'active' }}
@@ -143,7 +143,7 @@ export function CreateVotePage() {
         <ArrowLeft size={16} aria-hidden="true" /> К голосованиям
       </Link>
       <PageHeader eyebrow="Клан" title="Новое голосование" />
-      <Card className="mx-auto w-full max-w-[620px]">
+      <Card>
         <form
           noValidate
           aria-label="Новое голосование"

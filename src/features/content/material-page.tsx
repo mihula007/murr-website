@@ -126,8 +126,9 @@ export function MaterialPage({
   }
   const data = material.data
 
+  // Ширина колонки чтения ограничена: строки статьи не растягиваются на весь экран.
   return (
-    <section className="grid gap-4">
+    <section className="mx-auto grid w-full max-w-[860px] gap-4">
       <div>
         <BackToFeed section={section} />
       </div>

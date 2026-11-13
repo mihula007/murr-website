@@ -80,7 +80,7 @@ export function VotePage({ id }: { id: string }) {
   } else {
     const data = vote.data
     content = (
-      <div className="mx-auto grid w-full max-w-[720px] gap-4">
+      <div className="grid gap-4">
         <VoteCard
           vote={data}
           onDeleted={() =>
@@ -102,7 +102,7 @@ export function VotePage({ id }: { id: string }) {
   }
 
   return (
-    <section>
+    <section className="mx-auto w-full max-w-[720px]">
       <Link
         to="/votes"
         search={{ tab: 'active' }}

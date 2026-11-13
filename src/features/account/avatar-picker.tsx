@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from 'react'
+import { ImageUp } from 'lucide-react'
 import { fieldAria } from '@/components/form/form-field'
 import { Avatar } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
-import { inputClass } from '@/components/ui/input'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 type AvatarPickerProps = {
@@ -48,11 +48,13 @@ export function AvatarPicker({
     <div className="flex min-w-0 items-center gap-4">
       <Avatar size="md" name={name} src={shown} alt="Предпросмотр аватара" />
       <div className="grid min-w-0 flex-1 gap-2">
+        {/* Системная кнопка файла («Choose File») скрыта: её заменяет
+            кнопка интерфейса — подпись того же поля, фокус виден на ней. */}
         <input
           {...fieldAria(id, error, hint)}
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          className={cn(inputClass, 'py-2 text-[13px]')}
+          className="peer sr-only"
           disabled={busy}
           onChange={(event) => {
             const selected = event.target.files?.[0]
@@ -62,11 +64,22 @@ export function AvatarPicker({
             event.target.value = ''
           }}
         />
+        <label
+          htmlFor={id}
+          className={cn(
+            buttonVariants({ variant: 'secondary', size: 'sm' }),
+            'justify-self-start peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-50',
+          )}
+        >
+          <ImageUp aria-hidden="true" size={14} />
+          {shown ? 'Заменить фото' : 'Выбрать фото'}
+        </label>
         {onRemove && shown ? (
           <Button
             type="button"
             variant="secondary"
             size="sm"
+            className="justify-self-start"
             onClick={onRemove}
           >
             Убрать фото

@@ -231,6 +231,18 @@
   * {
     @apply border-border;
   }
+  /* Место под полосу прокрутки всегда занято: шапка и контент не сдвигаются
+     при переходе между короткими и длинными страницами. */
+  html {
+    scrollbar-gutter: stable;
+  }
+  /* На телефоне подписи и метаданные (`text-xs`) крупнее: 12 px читается с
+     трудом на расстоянии вытянутой руки. */
+  @media (width < 40rem) {
+    :root {
+      --text-xs: 13px;
+    }
+  }
   body {
     @apply m-0 min-w-[320px] bg-background font-sans text-base text-foreground antialiased;
   }

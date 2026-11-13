@@ -23,7 +23,7 @@ insert into app.character_classes (slug, name, sort_order) values
   ('wanderer', 'Странник', 3),
   ('priest', 'Жрец', 4),
   ('archer', 'Лучник', 5),
-  ('paladin', 'Палладин', 6),
+  ('paladin', 'Паладин', 6),
   ('mage', 'Маг', 7),
   ('warrior', 'Воин', 8),
   ('gunner', 'Стрелок', 9),

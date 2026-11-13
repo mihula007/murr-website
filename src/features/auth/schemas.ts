@@ -10,6 +10,7 @@ export const emailSchema = z
   .string()
   .trim()
   .toLowerCase()
+  .min(1, 'required')
   .pipe(z.email('invalid_email'))
 
 /** Новый пароль: не короче `LIMITS.passwordMin`. */

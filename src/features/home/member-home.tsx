@@ -12,11 +12,12 @@ import { Badge, Card } from '@/components/ui/surfaces'
 import { useMonthTop } from '@/features/activity/api'
 import { ClassIcon } from '@/features/catalog/class-icon'
 import { useActiveEvents } from '@/features/events/api'
+import { useActiveVotes } from '@/features/votes/api'
 import { EventCard } from '@/features/events/event-card'
 import { useRoster } from '@/features/roster/api'
 import { formatMonth } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
-import { eventsLabel, membersLabel } from './plural'
+import { activeVotesLabel, eventsLabel, membersLabel } from './plural'
 
 /** Карточек ближайших событий на главной (HOM-07). */
 const HOME_EVENTS = 3
@@ -244,12 +245,29 @@ function RosterBrief() {
 }
 
 function VotesCard() {
+  // Тот же кеш, что у раздела «Голосование»: отдельной операции нет.
+  const votes = useActiveVotes()
+  const count = votes.data?.activeCount
+  const waiting =
+    votes.data?.items.filter((vote) => vote.myOptionId === null).length ?? 0
   return (
     <Card className="grid content-start gap-3">
       <h2 className="m-0 text-xl font-bold">Голосования</h2>
-      <p className="m-0 text-sm text-muted-foreground">
-        Решения клана и приём новых участников. Только для участников клана.
-      </p>
+      {count === undefined || count === 0 ? (
+        <p className="m-0 text-sm text-muted-foreground">
+          {count === 0
+            ? 'Сейчас голосований нет.'
+            : 'Решения клана и приём новых участников.'}
+        </p>
+      ) : (
+        <p className="m-0 text-sm text-muted-foreground">
+          <strong className="text-2xl text-primary tabular-nums">
+            {count}
+          </strong>{' '}
+          {activeVotesLabel(count)}
+          {waiting > 0 ? ` · без вашего голоса: ${waiting}` : ''}
+        </p>
+      )}
       <Button asChild className="justify-self-start">
         <Link to="/votes">
           <Vote aria-hidden="true" size={16} /> К голосованиям

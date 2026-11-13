@@ -3,7 +3,13 @@ import { Header } from './header'
 
 export function AppShell({ children }: PropsWithChildren) {
   return (
-    <div className="flex min-h-svh flex-col bg-(image:--image-site) bg-size-[110%_auto] bg-position-[calc(50%-2vw)_95px] bg-no-repeat">
+    <div className="relative isolate flex min-h-svh flex-col">
+      {/* Фон под шапкой: высота картинки — 55vw (110% ширины, пропорции 2:1),
+          низ плавно уходит в цвет страницы, без резкой границы. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[calc(95px+55vw)] bg-(image:--image-site) bg-size-[110%_auto] bg-position-[calc(50%-2vw)_95px] bg-no-repeat mask-b-from-70%"
+      />
       <a
         href="#main-content"
         onClick={(event) => {

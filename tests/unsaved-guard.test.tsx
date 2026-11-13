@@ -105,7 +105,7 @@ describe('useUnsavedChangesGuard', () => {
     edit()
     leave()
     await screen.findByRole('alertdialog')
-    fireEvent.click(screen.getByRole('button', { name: 'Уйти' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Уйти без сохранения' }))
     expect(
       await screen.findByRole('heading', { name: 'Другая страница' }),
     ).toBeVisible()
@@ -130,7 +130,7 @@ describe('useUnsavedChangesGuard', () => {
     leave()
     await screen.findByRole('alertdialog')
     expect(window.location.hash).toBe('#/form')
-    fireEvent.click(screen.getByRole('button', { name: 'Уйти' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Уйти без сохранения' }))
     await waitFor(() => expect(window.location.hash).toBe('#/account'))
     expect(router.state.location.pathname).toBe('/account')
   })

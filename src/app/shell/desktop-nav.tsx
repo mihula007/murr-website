@@ -22,12 +22,17 @@ type DesktopNavProps = {
 
 /** Меню категорий от `lg`: одновременно раскрыта одна категория (HOM-03). */
 export function DesktopNav({ categories, counts }: DesktopNavProps) {
-  const [openId, setOpenId] = useState<string | null>(null)
+  // Открытая категория привязана к адресу: смена страницы любым способом
+  // (ссылка, «Назад», переход по адресу) закрывает выпадающее меню.
+  const [opened, setOpened] = useState<{ id: string; path: string } | null>(
+    null,
+  )
+  const { pathname, section: active } = useActiveSection()
+  const openId = opened?.path === pathname ? opened.id : null
   const openIdRef = useRef(openId)
   useLayoutEffect(() => {
     openIdRef.current = openId
   }, [openId])
-  const { pathname, section: active } = useActiveSection()
 
   return (
     <nav
@@ -48,8 +53,12 @@ export function DesktopNav({ categories, counts }: DesktopNavProps) {
           open={openId === category.id}
           onOpenChange={(open) =>
             // Закрытие первой категории при открытии второй не должно сбросить вторую.
-            setOpenId((current) =>
-              open ? category.id : current === category.id ? null : current,
+            setOpened((current) =>
+              open
+                ? { id: category.id, path: pathname }
+                : current?.id === category.id
+                  ? null
+                  : current,
             )
           }
         >

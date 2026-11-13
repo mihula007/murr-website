@@ -11,7 +11,7 @@ export function TabsList({
   return (
     <TabsPrimitive.List
       className={cn(
-        'flex max-w-full gap-1 overflow-x-auto border-b border-border',
+        'flex max-w-full gap-1 overflow-x-auto overflow-y-hidden border-b border-border',
         className,
       )}
       {...props}

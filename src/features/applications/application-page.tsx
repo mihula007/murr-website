@@ -15,7 +15,7 @@ import { Button, linkButtonClass } from '@/components/ui/button'
 import { Badge, Card, Notice } from '@/components/ui/surfaces'
 import { toast } from '@/components/ui/toaster'
 import { APPLICATION_STATUS } from '@/features/account/status-labels'
-import { formatDate } from '@/lib/format-date'
+import { formatDate, formatDateMsk } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
 import { useApplication, useSubmitToVote, type DecisionKind } from './api'
 import { DecisionDialog, type Decision } from './decision-dialog'
@@ -57,7 +57,7 @@ function VoteResult({ vote }: { vote: ApplicationVoteResult }) {
       <p className="text-sm text-muted-foreground">
         Голосов: {vote.totalBallots} ·{' '}
         {vote.closedAt
-          ? `завершено ${formatDate(vote.closedAt)}`
+          ? `завершено ${formatDateMsk(vote.closedAt)}`
           : 'голосование идёт'}
       </p>
       <Link
@@ -96,7 +96,7 @@ function ApplicationCard({ details }: { details: ApplicationDetails }) {
       : null
 
   return (
-    <Card className="mx-auto grid w-full max-w-[720px] gap-4">
+    <Card className="grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3.5">
           <Avatar
@@ -122,7 +122,7 @@ function ApplicationCard({ details }: { details: ApplicationDetails }) {
         </div>
         <div>
           <dt>Подана</dt>
-          <dd>{formatDate(details.submittedAt)}</dd>
+          <dd>{formatDateMsk(details.submittedAt)}</dd>
         </div>
       </dl>
 
@@ -184,7 +184,7 @@ function ApplicationCard({ details }: { details: ApplicationDetails }) {
           <dl className={detailsListClass}>
             <div>
               <dt>Дата решения</dt>
-              <dd>{formatDate(details.decidedAt)}</dd>
+              <dd>{formatDateMsk(details.decidedAt)}</dd>
             </div>
             <div>
               <dt>Решил</dt>
@@ -237,7 +237,7 @@ function ApplicationCard({ details }: { details: ApplicationDetails }) {
       <ConfirmActionDialog
         open={submitting}
         onOpenChange={setSubmitting}
-        title={`Передать заявку ${applicant.gameNickname} на голосование?`}
+        title={`Передать заявку «${applicant.gameNickname}» на голосование?`}
         description="Будет создано голосование «За», «Против», «Воздержаться», «Конфликт». Участники увидят только ник и класс кандидата. Заявка покинет очередь новых."
         confirmLabel="Передать"
         pendingLabel="Передаём…"
@@ -281,7 +281,7 @@ export function ApplicationPage({ id }: { id: string }) {
   }
 
   return (
-    <section>
+    <section className="mx-auto w-full max-w-[720px]">
       <Link
         to="/applications"
         search={{ tab: 'new' }}

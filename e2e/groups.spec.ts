@@ -133,7 +133,7 @@ test('E2E-03: группы, лидер, закрытие, учёт активн�
   await page.goto(
     `./#/activity?view=history&q=${encodeURIComponent(event.title)}`,
   )
-  const history = page.getByRole('table', { name: 'История мероприятий' })
+  const history = page.getByRole('table', { name: 'История ивентов' })
   await expect(history).toBeVisible()
   // Поиск истории — на сервере (ник или мероприятие): новый ник даёт одну
   // строку, прокрутка виртуализированного списка не нужна.
@@ -160,7 +160,7 @@ test('E2E-03: группы, лидер, закрытие, учёт активн�
   // «По мероприятию» (ACT-07): поиск — по названию события.
   await page.getByLabel('Поиск', { exact: true }).fill(event.title)
   await expect(page).toHaveURL(/q=E2E/)
-  await page.getByRole('tab', { name: 'По мероприятию' }).click()
+  await page.getByRole('tab', { name: 'По ивенту' }).click()
   await page.getByRole('button', { name: new RegExp(event.title) }).click()
   await expect(
     page.getByRole('heading', { name: new RegExp(event.title) }),
@@ -177,7 +177,7 @@ test('E2E-03: группы, лидер, закрытие, учёт активн�
   expect(bytes.subarray(0, 2).toString()).toBe('PK')
   const text = bytes.toString('utf8')
   expect(text).toContain('name="Рейтинг"')
-  expect(text).toContain('name="История мероприятий"')
+  expect(text).toContain('name="История ивентов"')
   expect(text).toContain(event.title)
   expect(text).toContain(anna.nickname)
   expect(text).not.toContain(gone.nickname)

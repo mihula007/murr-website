@@ -8,6 +8,8 @@ import {
   AlertDialogFooter,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 /**
  * Защита от потери несохранённых данных (Q-17). Пока `isDirty`, внутренний
@@ -37,10 +39,20 @@ export function useUnsavedChangesGuard(isDirty: boolean) {
           Изменения на этой странице не сохранены и будут потеряны.
         </AlertDialogDescription>
         <AlertDialogFooter>
-          <AlertDialogCancel>Остаться</AlertDialogCancel>
-          <AlertDialogAction onClick={() => blocker.proceed?.()}>
-            Уйти
+          {/* Безопасный выбор — главный: «Остаться» выделена и получает
+              фокус, потеря изменений — второстепенное действие. */}
+          <AlertDialogAction
+            className={cn(
+              buttonVariants({ variant: 'secondary' }),
+              'text-destructive',
+            )}
+            onClick={() => blocker.proceed?.()}
+          >
+            Уйти без сохранения
           </AlertDialogAction>
+          <AlertDialogCancel className={buttonVariants()}>
+            Остаться
+          </AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

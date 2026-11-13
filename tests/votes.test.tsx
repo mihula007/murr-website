@@ -88,7 +88,9 @@ describe('votes list (VOT-01)', () => {
     expect(card.getByLabelText('Башня: 2 из 3')).toBeVisible()
     // Член клана не создаёт и не управляет (ACL-04).
     expect(screen.queryByText('Создать голосование')).toBeNull()
-    expect(card.queryByRole('button', { name: 'Завершить' })).toBeNull()
+    expect(
+      card.queryByRole('button', { name: /^Управление голосованием/ }),
+    ).toBeNull()
   })
 
   it('offers management to an officer', async () => {
@@ -97,8 +99,12 @@ describe('votes list (VOT-01)', () => {
     expect(
       await screen.findByRole('link', { name: /Создать голосование/ }),
     ).toBeVisible()
+    fireEvent.keyDown(
+      screen.getByRole('button', { name: /^Управление голосованием/ }),
+      { key: 'Enter' },
+    )
     for (const name of ['Изменить', 'Завершить', 'Удалить']) {
-      expect(screen.getByRole('button', { name })).toBeVisible()
+      expect(await screen.findByRole('menuitem', { name })).toBeVisible()
     }
   })
 
@@ -121,7 +127,9 @@ describe('votes list (VOT-01)', () => {
     expect(await screen.findByText(/Завершено 11\.11\.2026/)).toBeVisible()
     expect(screen.getByText('ваш выбор')).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Башня' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Изменить' })).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: /^Управление голосованием/ }),
+    ).toBeNull()
   })
 
   it('is closed to applicants and readers', async () => {
@@ -227,7 +235,11 @@ describe('vote page', () => {
       'votes/list': () => list([]),
     })
     await renderApp({ role: 'officer', path: `/votes/${VOTE_ID}` })
-    fireEvent.click(await screen.findByRole('button', { name: 'Завершить' }))
+    fireEvent.keyDown(
+      await screen.findByRole('button', { name: /^Управление голосованием/ }),
+      { key: 'Enter' },
+    )
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Завершить' }))
     const dialog = await screen.findByRole('alertdialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Завершить' }))
     await waitFor(() =>

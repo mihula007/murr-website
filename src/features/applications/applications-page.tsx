@@ -17,7 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { pagingOf, VirtualList } from '@/components/virtual-list'
 import { APPLICATION_STATUS } from '@/features/account/status-labels'
 import { SMALL_LIST_LIMIT } from '@contracts/paging'
-import { formatDate } from '@/lib/format-date'
+import { formatDateMsk } from '@/lib/format-date'
 import {
   useDecidedApplications,
   useFinalApplications,
@@ -50,8 +50,8 @@ function QueueCard({ item }: { item: ApplicationListItem }) {
           {applicant.gameNickname}
         </strong>
         <small className="text-muted-foreground">
-          {applicant.className} · подана {formatDate(item.submittedAt)}
-          {item.decidedAt ? ` · решение ${formatDate(item.decidedAt)}` : ''}
+          {applicant.className} · подана {formatDateMsk(item.submittedAt)}
+          {item.decidedAt ? ` · решение ${formatDateMsk(item.decidedAt)}` : ''}
         </small>
         {item.vote ? (
           <small className="break-words text-foreground">
