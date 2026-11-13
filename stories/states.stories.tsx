@@ -21,7 +21,6 @@ function StatesExample() {
   return (
     <div className="grid max-w-3xl gap-8">
       <PageHeader
-        eyebrow="Клан"
         title="Ивенты"
         description="Расписание событий и отметки участников."
         actions={<Button>Создать событие</Button>}

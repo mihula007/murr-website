@@ -97,7 +97,6 @@ export function VotesPage({ tab = 'active' }: Partial<VotesSearch>) {
     <section>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <PageHeader
-          eyebrow="Клан"
           title="Голосование"
           description="Решения клана: голосуйте и меняйте решение, пока голосование открыто."
         />

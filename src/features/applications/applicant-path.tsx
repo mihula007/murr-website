@@ -76,9 +76,7 @@ export function ApplicantPath({
     <section aria-labelledby="applicant-path-title" className="@container">
       <Card className={cn('grid gap-4', className)}>
         <div className="grid gap-1.5">
-          <p className="text-xs font-extrabold tracking-[.2em] text-primary uppercase">
-            Путь в клан
-          </p>
+          <p className="text-sm font-semibold text-primary">Путь в клан</p>
           <h2 id="applicant-path-title" className="text-xl font-bold">
             {title}
           </h2>

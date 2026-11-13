@@ -44,8 +44,7 @@ import {
   useUpdateEvent,
 } from './api'
 
-const sectionTitleClass =
-  'm-0 text-xs font-extrabold tracking-[0.16em] text-primary uppercase'
+const sectionTitleClass = 'm-0 text-base font-bold text-foreground'
 
 const TYPE_OPTIONS = EVENT_TYPES.map((type) => ({
   value: type,
@@ -502,7 +501,6 @@ export function CreateEventPage() {
     <section className="mx-auto w-full max-w-[860px]">
       <BackLink />
       <PageHeader
-        eyebrow="Клан"
         title="Создать ивент"
         description="Заполните основные сведения об ивенте."
       />
@@ -549,7 +547,7 @@ export function EditEventPage({ id }: { id: string }) {
   return (
     <section className="mx-auto w-full max-w-[860px]">
       <BackLink />
-      <PageHeader eyebrow="Клан" title="Редактировать ивент" />
+      <PageHeader title="Редактировать ивент" />
       <div className="grid gap-4">{content}</div>
     </section>
   )

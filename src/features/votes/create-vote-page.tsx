@@ -142,7 +142,7 @@ export function CreateVotePage() {
       >
         <ArrowLeft size={16} aria-hidden="true" /> К голосованиям
       </Link>
-      <PageHeader eyebrow="Клан" title="Новое голосование" />
+      <PageHeader title="Новое голосование" />
       <Card>
         <form
           noValidate

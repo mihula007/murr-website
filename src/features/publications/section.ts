@@ -18,7 +18,6 @@ export const publicationsSection: MaterialSection<PublicationCategory> = {
   withFiles: true,
   withAuthorToggle: true,
   texts: {
-    eyebrow: 'Сообщество',
     title: 'Публикации',
     description: 'Статьи, объявления, новости, гайды и правила клана.',
     create: 'Новая публикация',

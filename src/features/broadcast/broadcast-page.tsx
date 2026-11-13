@@ -721,7 +721,6 @@ export function BroadcastPage({ source, id }: Partial<BroadcastSearch>) {
   return (
     <section className="grid gap-5">
       <PageHeader
-        eyebrow="Управление"
         title="Рассылка"
         description="Подготовка сообщений для Telegram, ВКонтакте и MAX. Отправка появится после подключения ботов."
       />

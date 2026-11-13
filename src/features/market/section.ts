@@ -18,7 +18,6 @@ export const marketSection: MaterialSection<MarketCategory> = {
   withFiles: false,
   withAuthorToggle: false,
   texts: {
-    eyebrow: 'Сообщество',
     title: 'Внутри клана',
     description:
       'Торговые объявления участников: продажа, покупка, обмен и услуги. Цену и контакт укажите в тексте.',

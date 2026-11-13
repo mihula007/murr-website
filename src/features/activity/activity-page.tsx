@@ -70,8 +70,7 @@ export const activitySearchSchema = z.object({
 export type ActivitySearch = z.output<typeof activitySearchSchema>
 
 const ALL = 'all'
-const sectionTitleClass =
-  'm-0 text-xs font-extrabold tracking-[0.16em] text-primary uppercase'
+const sectionTitleClass = 'm-0 text-base font-bold text-foreground'
 
 const STATUS_CLASS: Record<AttendanceStatus, string> = {
   visited: 'text-primary',
@@ -610,7 +609,6 @@ export function ActivityPage(search: Partial<ActivitySearch>) {
   return (
     <section>
       <PageHeader
-        eyebrow="Управление"
         title="Учёт активности"
         description="Посещение закрытых ивентов: в группе — «Посетил», вне группы с ответом — «Не посетил», без ответа — «Не отметился»."
       />

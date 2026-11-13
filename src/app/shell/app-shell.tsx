@@ -48,7 +48,7 @@ export function AppShell({ children }: PropsWithChildren) {
       </main>
       <footer className="border-t border-border py-[25px] text-xs text-muted-foreground">
         <div className="mx-auto flex w-full max-w-[1240px] flex-wrap justify-between gap-x-6 gap-y-1 px-[22px] max-sm:px-[14px]">
-          <span>Murr клан · Сила в единстве</span>
+          <span>Murr клан</span>
           <span>Место, где собирается гильдия.</span>
         </div>
       </footer>

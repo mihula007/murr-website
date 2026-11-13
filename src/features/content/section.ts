@@ -26,7 +26,6 @@ export type MaterialSection<C extends string = string> = {
   /** Флаг скрытия подписи есть только у публикаций (MKT-03). */
   withAuthorToggle: boolean
   texts: {
-    eyebrow: string
     title: string
     description: string
     create: string

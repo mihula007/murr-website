@@ -56,8 +56,7 @@ import { PrepareBroadcastLink } from '@/features/broadcast/prepare-broadcast-lin
 import { GroupNameDialog } from './group-name-dialog'
 import { GroupTemplatesDialog } from './group-templates-dialog'
 
-const sectionTitleClass =
-  'm-0 text-xs font-extrabold tracking-[0.16em] text-primary uppercase'
+const sectionTitleClass = 'm-0 text-base font-bold text-foreground'
 
 /** Ошибка операции с группами — уведомлением; конфликт — с подсказкой. */
 function reportError(error: unknown) {

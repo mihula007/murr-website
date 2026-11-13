@@ -4,16 +4,17 @@ import { cn } from '@/lib/utils'
 type PageHeaderProps = {
   title: ReactNode
   description?: ReactNode
-  eyebrow?: ReactNode
   actions?: ReactNode
   className?: string
 }
 
-/** Заголовок страницы по образцу `.page-title`/`.sub` прототипа. */
+/**
+ * Заголовок страницы: заголовок, описание и действия. Надзаголовка нет —
+ * раздел уже отмечен в меню (решение владельца 14.11.2026).
+ */
 export function PageHeader({
   title,
   description,
-  eyebrow,
   actions,
   className,
 }: PageHeaderProps) {
@@ -25,11 +26,6 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0 space-y-2">
-        {eyebrow ? (
-          <p className="text-xs font-extrabold tracking-[.2em] text-primary uppercase">
-            {eyebrow}
-          </p>
-        ) : null}
         <h1 className="text-[32px] leading-tight font-bold break-words max-sm:text-[26px]">
           {title}
         </h1>

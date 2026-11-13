@@ -412,7 +412,7 @@ export function MessageItem({
   return (
     <div className="grid gap-2">
       {dateLabel ? (
-        <div className="flex items-center gap-3 text-2xs tracking-[0.12em] text-muted-foreground uppercase">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <hr className="m-0 h-px flex-1 border-0 bg-border" />
           <span>{dateLabel}</span>
           <hr className="m-0 h-px flex-1 border-0 bg-border" />

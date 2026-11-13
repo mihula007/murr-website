@@ -49,10 +49,7 @@ export function HomePage() {
   return (
     <>
       <section className="max-w-2xl py-3">
-        <p className="text-xs font-extrabold tracking-[.2em] text-primary uppercase">
-          ✦ Сила в единстве ✦
-        </p>
-        <h1 className="mt-4 text-[clamp(38px,5vw,58px)] leading-[1.03] font-bold tracking-[-.04em]">
+        <h1 className="text-[clamp(38px,5vw,58px)] leading-[1.03] font-bold tracking-[-.04em]">
           Легенда продолжается
           <br />
           <span className="text-primary">Вместе с Murr</span>

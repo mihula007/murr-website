@@ -46,8 +46,7 @@ const EMPTY = {
   },
 } as const
 
-const sectionTitleClass =
-  'm-0 text-xs font-extrabold tracking-[0.16em] text-primary uppercase'
+const sectionTitleClass = 'm-0 text-base font-bold text-foreground'
 
 /**
  * Постоянные события создаются расписанием по понедельникам в 00:00 МСК;
@@ -182,7 +181,6 @@ export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
     <section>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <PageHeader
-          eyebrow="Клан"
           title="Ивенты"
           description="Расписание клана: отвечайте «Приду», «Не приду» или «50/50» до начала события. Время — московское."
         />

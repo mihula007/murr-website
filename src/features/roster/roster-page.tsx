@@ -54,7 +54,7 @@ function StatsPanel({ roster }: { roster: RosterStatsResponse }) {
       <div className="flex min-w-[76px] flex-col">
         <span
           id="roster-stats-title"
-          className="mb-2.5 text-2xs font-extrabold tracking-[.16em] text-primary uppercase max-sm:tracking-[.1em]"
+          className="mb-2 text-sm font-semibold text-muted-foreground"
         >
           В составе
         </span>
@@ -295,7 +295,6 @@ export function RosterPage({
   return (
     <section>
       <PageHeader
-        eyebrow="Клан"
         title="Состав"
         description="Текущие участники клана: члены, офицеры и администраторы."
       />

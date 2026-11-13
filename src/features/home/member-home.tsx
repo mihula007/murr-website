@@ -101,10 +101,7 @@ function MonthTop({ canSeeActivity }: { canSeeActivity: boolean }) {
     <section aria-labelledby="home-top" className={sectionClass}>
       <div className={headClass}>
         <div>
-          <p className="m-0 text-xs font-extrabold tracking-[.2em] text-primary uppercase">
-            Активность клана
-          </p>
-          <h2 id="home-top" className={cn(titleClass, 'mt-1')}>
+          <h2 id="home-top" className={titleClass}>
             Топ-5 посещаемости за месяц
           </h2>
           {top.data ? (

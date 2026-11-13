@@ -20,8 +20,7 @@ import {
 } from './event-card'
 import { EventGroupsSection } from './groups/event-groups'
 
-const discussionTitleClass =
-  'm-0 text-xs font-extrabold tracking-[0.16em] text-primary uppercase'
+const discussionTitleClass = 'm-0 text-base font-bold text-foreground'
 
 /**
  * Группы и обсуждение события (DSC-01): на широком экране чат — колонкой

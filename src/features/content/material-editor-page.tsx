@@ -512,7 +512,6 @@ export function MaterialEditorPage({
         <BackToFeed section={section} />
       </div>
       <PageHeader
-        eyebrow={section.texts.title}
         title={id ? section.texts.editTitle : section.texts.newTitle}
       />
       {id ? (
