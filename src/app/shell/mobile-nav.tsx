@@ -44,11 +44,12 @@ export function MobileNav({ categories, counts }: MobileNavProps) {
       >
         <Menu aria-hidden="true" size={22} />
         <NavBadge
+          dot
           count={sumCounts(
             categories.flatMap((category) => category.sections),
             counts,
           )}
-          className="pointer-events-none absolute -top-0.5 -right-0.5"
+          className="pointer-events-none absolute top-1.5 right-1.5 ring-2 ring-surface-header"
         />
       </SheetTrigger>
       <SheetContent closeLabel="Закрыть меню">

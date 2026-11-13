@@ -141,11 +141,12 @@ test('приёмка NTF 3: счётчик раздела отделён от к
   const trigger = isMobile
     ? page.getByRole('banner').getByRole('button', { name: 'Открыть меню' })
     : page.getByRole('banner').getByRole('button', { name: /^Клан/ })
-  await expect(trigger.getByText('1', { exact: true })).toBeVisible()
+  // На категории и кнопке меню — точка «есть новое», число — у раздела.
+  await expect(trigger.getByText('есть новое')).toHaveCount(1)
   await expect(bell(page)).toHaveAccessibleName('Уведомления')
 
   await page.goto('./#/events')
-  await expect(trigger.getByText('1', { exact: true })).toHaveCount(0)
+  await expect(trigger.getByText('есть новое')).toHaveCount(0)
   const summary = await callApi(
     'notifications/summary',
     await accessToken(member.email),

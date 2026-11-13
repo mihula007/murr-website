@@ -131,6 +131,7 @@ function MiscExample() {
         <Avatar name="Мурка" />
         <NavBadge count={7} />
         <NavBadge count={120} />
+        <NavBadge dot count={5} />
       </div>
       <div className="grid gap-2">
         <Skeleton className="h-6 w-1/2" />

@@ -145,11 +145,14 @@ describe('колокольчик (NTF-01, NTF-02, NTF-05)', () => {
 })
 
 describe('счётчики разделов (NTF-09–11)', () => {
-  it('категория показывает сумму, открытие раздела снимает его новизну', async () => {
+  it('категория показывает точку, число — у раздела', async () => {
     await renderApp({ role: 'member' })
     const nav = screen.getByRole('navigation', { name: 'Основная навигация' })
     const clan = await within(nav).findByRole('button', { name: /Клан/ })
-    await waitFor(() => expect(within(clan).getByText('3')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(within(clan).getByText('есть новое')).toBeInTheDocument(),
+    )
+    expect(within(clan).queryByText('3')).toBeNull()
     expect(callApi.mock.calls.map(([route]) => route)).not.toContain(
       'notifications/section-seen',
     )
