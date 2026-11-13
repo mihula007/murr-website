@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Menu } from 'lucide-react'
-import type { NavCategory } from '@/app/navigation'
+import { sumCounts, type NavCategory } from '@/app/navigation'
 import { NavBadge } from '@/components/ui/nav-badge'
 import {
   Sheet,
@@ -35,10 +35,17 @@ export function MobileNav({ categories, counts }: MobileNavProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
-        className="-ml-2 grid size-[42px] flex-none cursor-pointer place-items-center rounded-lg border border-transparent bg-transparent text-foreground hover:border-border-strong hover:bg-secondary hover:text-highlight data-[state=open]:border-border-strong data-[state=open]:bg-secondary data-[state=open]:text-highlight lg:hidden"
+        className="relative -ml-2 grid size-[42px] flex-none cursor-pointer place-items-center rounded-lg border border-transparent bg-transparent text-foreground hover:border-border-strong hover:bg-secondary hover:text-highlight data-[state=open]:border-border-strong data-[state=open]:bg-secondary data-[state=open]:text-highlight lg:hidden"
         aria-label="Открыть меню"
       >
         <Menu aria-hidden="true" size={22} />
+        <NavBadge
+          count={sumCounts(
+            categories.flatMap((category) => category.sections),
+            counts,
+          )}
+          className="pointer-events-none absolute -top-0.5 -right-0.5"
+        />
       </SheetTrigger>
       <SheetContent closeLabel="Закрыть меню">
         <SheetTitle className="uppercase">Murr клан</SheetTitle>

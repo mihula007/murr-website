@@ -135,3 +135,14 @@ export function canAccessPath(role: AccessRole, path: string) {
   const section = findSectionByPath(path)
   return section ? hasRole(role, section.roles) : true
 }
+
+/** Сумма счётчиков новизны разделов категории (или всех категорий). */
+export function sumCounts(
+  sections: readonly { id: string }[],
+  counts: Partial<Record<string, number>> | undefined,
+) {
+  return sections.reduce(
+    (total, section) => total + (counts?.[section.id] ?? 0),
+    0,
+  )
+}

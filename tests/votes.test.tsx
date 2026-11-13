@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ApplicationDetails } from '@contracts/applications'
 import type { VoteDetails, VoteListResponse } from '@contracts/votes'
 import { AppError } from '@/lib/errors'
+import { dataCalls } from './support/api-calls'
 import { renderApp } from './support/render-app'
 
 const callApi = vi.hoisted(() =>
@@ -129,7 +130,7 @@ describe('votes list (VOT-01)', () => {
       expect(await screen.findByText('Нет доступа')).toBeVisible()
       view.unmount()
     }
-    expect(callApi).not.toHaveBeenCalled()
+    expect(dataCalls(callApi)).toEqual([])
   })
 })
 
@@ -160,7 +161,7 @@ describe('ballot (VOT-05, VOT-06)', () => {
     expect(
       screen.getByRole('button', { name: 'Изменить решение' }),
     ).toBeVisible()
-    expect(callApi).toHaveBeenCalledTimes(2)
+    expect(dataCalls(callApi)).toHaveLength(2)
   })
 
   it('reports a vote closed meanwhile', async () => {
@@ -270,7 +271,7 @@ describe('create vote (VOT-02, VOT-03)', () => {
     })
     fireEvent.click(form.getByRole('button', { name: 'Создать голосование' }))
     expect(await form.findByText('Такое значение уже есть')).toBeVisible()
-    expect(callApi).not.toHaveBeenCalled()
+    expect(dataCalls(callApi)).toEqual([])
   })
 
   it('creates a vote and opens it', async () => {

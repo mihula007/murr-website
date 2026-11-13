@@ -2,6 +2,8 @@ import { Link } from '@tanstack/react-router'
 import { useAccess } from '@/app/access'
 import { visibleNavigation } from '@/app/navigation'
 import eyeIcon from '@/assets/murrclan-eye.png'
+import { NotificationBell } from '@/features/notifications/notification-bell'
+import { useHeaderNotifications } from '@/features/notifications/use-header-notifications'
 import { AccountButton } from './account-button'
 import { DesktopNav } from './desktop-nav'
 import { MobileNav } from './mobile-nav'
@@ -9,10 +11,11 @@ import { MobileNav } from './mobile-nav'
 export function Header() {
   const { role } = useAccess()
   const categories = visibleNavigation(role)
+  const notifications = useHeaderNotifications()
   return (
     <header className="sticky top-0 z-30 border-b border-border-strong bg-surface-header/93 backdrop-blur-[14px]">
       <div className="mx-auto flex h-[76px] w-full max-w-[1240px] items-center gap-7 px-[22px] max-lg:gap-2.5 max-[560px]:h-[66px] max-[560px]:px-3.5">
-        <MobileNav categories={categories} />
+        <MobileNav categories={categories} counts={notifications.counts} />
         <Link
           to="/"
           className="flex min-w-0 flex-[0_1_auto] items-center gap-3 text-[13px] font-black tracking-[0.13em] whitespace-nowrap text-foreground uppercase no-underline max-[560px]:gap-2.5"
@@ -32,8 +35,11 @@ export function Header() {
             </small>
           </span>
         </Link>
-        <DesktopNav categories={categories} />
-        <div className="ml-auto flex flex-none items-center lg:ml-0">
+        <DesktopNav categories={categories} counts={notifications.counts} />
+        <div className="ml-auto flex flex-none items-center gap-2 lg:ml-0">
+          {notifications.showBell && (
+            <NotificationBell unreadCount={notifications.unreadCount} />
+          )}
           <AccountButton />
         </div>
       </div>

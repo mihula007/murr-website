@@ -8,6 +8,7 @@ import type {
 } from '@contracts/events'
 import { AppError } from '@/lib/errors'
 import { formatDateTimeMsk } from '@/lib/format-date'
+import { dataCalls } from './support/api-calls'
 import { renderApp } from './support/render-app'
 
 const callApi = vi.hoisted(() =>
@@ -176,7 +177,7 @@ describe('schedule (EVT-01)', () => {
       expect(await screen.findByText('Нет доступа')).toBeVisible()
       view.unmount()
     }
-    expect(callApi).not.toHaveBeenCalled()
+    expect(dataCalls(callApi)).toEqual([])
   })
 })
 

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import type { NavCategory } from '@/app/navigation'
+import { sumCounts, type NavCategory } from '@/app/navigation'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +16,7 @@ const navLinkClass =
 
 type DesktopNavProps = {
   categories: NavCategory[]
-  /** Счётчики новых записей по id раздела; данные появятся на этапе 10. */
+  /** Счётчики новых записей по id раздела (NTF-09). */
   counts?: Partial<Record<string, number>>
 }
 
@@ -57,7 +57,10 @@ export function DesktopNav({ categories, counts }: DesktopNavProps) {
             className={navLinkClass}
             data-active={active?.category === category.id ? '' : undefined}
           >
-            {category.label}
+            <span className="inline-flex items-center gap-1.5">
+              {category.label}
+              <NavBadge count={sumCounts(category.sections, counts)} />
+            </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align={category.id === 'management' ? 'end' : 'start'}

@@ -11,6 +11,11 @@ import {
 } from '../src/components/ui/context-menu'
 import { Input, Textarea } from '../src/components/ui/input'
 import { Pagination } from '../src/components/ui/pagination'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '../src/components/ui/popover'
 import { Select } from '../src/components/ui/select'
 import {
   Badge,
@@ -54,6 +59,22 @@ export const ContextMenus: Story = {
   ),
 }
 
+export const Popovers: Story = {
+  name: 'Всплывающая панель',
+  render: () => (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="secondary">Открыть панель</Button>
+      </PopoverTrigger>
+      <PopoverContent className="gap-2 p-4">
+        <p className="m-0 text-sm font-bold">Уведомления</p>
+        <p className="m-0 text-sm text-muted-foreground">
+          Escape или клик вне панели закрывают её.
+        </p>
+      </PopoverContent>
+    </Popover>
+  ),
+}
 export const Surfaces: Story = {
   name: 'Карточки и статусы',
   render: () => (
