@@ -130,7 +130,7 @@ describe('schedule (EVT-01)', () => {
     expect(card.getByText('Автор: Офицер')).toBeVisible()
     const counts = within(card.getByRole('list', { name: 'Ответы участников' }))
     expect(counts.getByText(/Приду:/)).toHaveTextContent('Приду: 2')
-    expect(screen.queryByText('Создать ивент')).toBeNull()
+    expect(screen.queryByText('Создать событие')).toBeNull()
     expect(screen.queryByText('Постоянные события')).toBeNull()
     expect(
       card.queryByRole('button', { name: /^Управление событием/ }),
@@ -157,7 +157,7 @@ describe('schedule (EVT-01)', () => {
     })
     await renderApp({ role: 'officer', path: '/events' })
     expect(
-      await screen.findByRole('link', { name: /Создать ивент/ }),
+      await screen.findByRole('link', { name: /Создать событие/ }),
     ).toBeVisible()
     expect(screen.getByText('Автор: Автоматически')).toBeVisible()
     expect(
@@ -320,7 +320,7 @@ describe('event form and templates (EVT-03, EVT-11–13)', () => {
     const form = within(
       await screen.findByRole('form', { name: 'Новое событие' }),
     )
-    fireEvent.click(form.getByRole('button', { name: 'Создать ивент' }))
+    fireEvent.click(form.getByRole('button', { name: 'Создать событие' }))
     await waitFor(() =>
       expect(form.getAllByText('Заполните поле').length).toBeGreaterThanOrEqual(
         4,
@@ -368,7 +368,7 @@ describe('event form and templates (EVT-03, EVT-11–13)', () => {
     fireEvent.change(form.getByLabelText('Описание'), {
       target: { value: 'Собираемся у портала' },
     })
-    fireEvent.click(form.getByRole('button', { name: 'Создать ивент' }))
+    fireEvent.click(form.getByRole('button', { name: 'Создать событие' }))
     await waitFor(() =>
       expect(callApi).toHaveBeenCalledWith('events/create', {
         title: 'Рейд',

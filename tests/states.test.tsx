@@ -11,13 +11,13 @@ describe('общие состояния страницы', () => {
   it('PageHeader показывает заголовок, подзаголовок и действия', () => {
     render(
       <PageHeader
-        title="Ивенты"
+        title="События"
         description="Расписание клана"
         actions={<button type="button">Создать</button>}
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Ивенты' }),
+      screen.getByRole('heading', { level: 1, name: 'События' }),
     ).toBeVisible()
     expect(screen.getByText('Расписание клана')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Создать' })).toBeVisible()

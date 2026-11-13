@@ -36,7 +36,7 @@ export const NAV_SECTIONS = [
   {
     id: 'events',
     path: '/events',
-    label: 'Ивенты',
+    label: 'События',
     category: 'clan',
     roles: INTERNAL_ROLES,
   },

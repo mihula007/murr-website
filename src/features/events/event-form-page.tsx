@@ -66,7 +66,7 @@ function BackLink() {
       search={{ tab: 'active' }}
       className={cn(linkButtonClass, 'mb-3 inline-flex items-center gap-1.5')}
     >
-      <ArrowLeft size={16} aria-hidden="true" /> К ивентам
+      <ArrowLeft size={16} aria-hidden="true" /> К событиям
     </Link>
   )
 }
@@ -457,7 +457,7 @@ function EventForm({ event, initial }: EventFormProps) {
                 : 'Сохранить изменения'
               : pending
                 ? 'Создаём…'
-                : 'Создать ивент'}
+                : 'Создать событие'}
           </Button>
           <Button
             type="button"
@@ -501,8 +501,8 @@ export function CreateEventPage() {
     <section className="mx-auto w-full max-w-[860px]">
       <BackLink />
       <PageHeader
-        title="Создать ивент"
-        description="Заполните основные сведения об ивенте."
+        title="Создать событие"
+        description="Заполните основные сведения о событии."
       />
       <div className="grid gap-4">
         <EventForm key={fill?.key ?? 0} initial={fill?.fields} />
@@ -547,7 +547,7 @@ export function EditEventPage({ id }: { id: string }) {
   return (
     <section className="mx-auto w-full max-w-[860px]">
       <BackLink />
-      <PageHeader title="Редактировать ивент" />
+      <PageHeader title="Редактировать событие" />
       <div className="grid gap-4">{content}</div>
     </section>
   )

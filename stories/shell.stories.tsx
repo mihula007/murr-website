@@ -96,7 +96,7 @@ function MenuExample() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuItem aria-current="page">
-            Ивенты
+            События
             <NavBadge count={3} />
           </DropdownMenuItem>
           <DropdownMenuItem>Голосование</DropdownMenuItem>

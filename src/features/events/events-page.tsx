@@ -118,7 +118,7 @@ function WeeklyEvents() {
   )
 }
 
-/** Раздел «Ивенты»: актуальные и прошедшие события (EVT-01). */
+/** Раздел «События»: актуальные и прошедшие события (EVT-01). */
 // Типы поиска TanStack Router в компоненте маршрута необязательны: значения
 // по умолчанию — те же, что у схемы.
 export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
@@ -181,7 +181,7 @@ export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
     <section>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <PageHeader
-          title="Ивенты"
+          title="События"
           description="Расписание клана: отвечайте «Приду», «Не приду» или «50/50» до начала события. Время — московское."
         />
         {isManager ? (
@@ -189,7 +189,7 @@ export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
             to="/events/new"
             className={cn(buttonVariants(), 'mb-4 no-underline max-xs:w-full')}
           >
-            <Plus size={18} aria-hidden="true" /> Создать ивент
+            <Plus size={18} aria-hidden="true" /> Создать событие
           </Link>
         ) : null}
       </div>

@@ -124,7 +124,7 @@ describe('главная внутренних ролей (HOM-07–09, ACT-12, R
       within(hero).getByRole('group', { name: 'Ваше решение' }),
     ).toBeInTheDocument()
     expect(
-      within(hero).getByText('12 участников в клане, 4 ивента скоро.'),
+      within(hero).getByText('12 участников в клане, 4 события скоро.'),
     ).toBeInTheDocument()
     const later = screen.getByRole('region', { name: 'Дальше в расписании' })
     for (const title of ['Рейд 2', 'Рейд 3', 'Рейд 4']) {
@@ -198,11 +198,11 @@ describe('главная внутренних ролей (HOM-07–09, ACT-12, R
 describe('подписи главной', () => {
   it('склоняет число событий и пишет месяц словами', () => {
     expect([1, 2, 5, 11, 22].map(eventsLabel)).toEqual([
-      'ивент скоро',
-      'ивента скоро',
-      'ивентов скоро',
-      'ивентов скоро',
-      'ивента скоро',
+      'событие скоро',
+      'события скоро',
+      'событий скоро',
+      'событий скоро',
+      'события скоро',
     ])
     expect(formatMonth('2026-01')).toBe('январь 2026')
     expect(formatMonth('2026-12')).toBe('декабрь 2026')

@@ -48,7 +48,7 @@ function UpcomingEvents() {
         </h2>
         <Button asChild variant="secondary">
           <Link to="/events" search={{ tab: 'active' }}>
-            Все ивенты <ArrowRight aria-hidden="true" size={16} />
+            Все события <ArrowRight aria-hidden="true" size={16} />
           </Link>
         </Button>
       </div>
