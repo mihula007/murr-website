@@ -29,13 +29,16 @@ test('состав приходит целиком, аккаунты догру�
   await signInUi(page, admin.email)
   await expectSignedIn(page)
 
+  // Главная тоже читает состав (краткий состав, этап 10): запросы считаются
+  // с чистой загрузки страницы состава.
+  await page.goto('./#/roster')
   let rosterRequests = 0
   page.on('request', (request) => {
     if (request.url().endsWith('/functions/v1/api/roster/list')) {
       rosterRequests++
     }
   })
-  await page.goto('./#/roster')
+  await page.reload()
   const roster = page.getByRole('list', { name: 'Участники' })
   await expect(roster.getByRole('listitem').first()).toBeVisible()
   const total = Number(

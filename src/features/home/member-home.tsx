@@ -83,7 +83,7 @@ function UpcomingEvents() {
           description="Новые ивенты появятся в расписании."
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {events.data.items.slice(0, HOME_EVENTS).map((event) => (
             <EventCard key={event.id} event={event} linkToPage />
           ))}

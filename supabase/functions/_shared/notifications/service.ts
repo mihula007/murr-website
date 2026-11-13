@@ -17,10 +17,7 @@ import {
 import type { Executor } from '../db/client.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
-import {
-  notificationRepository,
-  sectionViewRepository,
-} from './repository.ts'
+import { notificationRepository, sectionViewRepository } from './repository.ts'
 
 export type { NotificationKind }
 

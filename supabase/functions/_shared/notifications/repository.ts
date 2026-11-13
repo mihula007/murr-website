@@ -216,13 +216,16 @@ export const sectionViewRepository = {
       .where('user_id', '=', userId)
       .where('section', 'in', sections)
       .execute()
-    return new Map(
-      rows.map((row) => [row.section as NewsSection, row.seen_at]),
-    )
+    return new Map(rows.map((row) => [row.section as NewsSection, row.seen_at]))
   },
 
   /** Поднимает отметку раздела до `now`, не опуская её. */
-  async markSeen(db: Executor, userId: string, section: NewsSection, now: Date) {
+  async markSeen(
+    db: Executor,
+    userId: string,
+    section: NewsSection,
+    now: Date,
+  ) {
     await db
       .insertInto('app.section_views')
       .values({ user_id: userId, section, seen_at: now.toISOString() })
