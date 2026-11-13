@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountListItem } from '@contracts/accounts'
 import type { RosterMember } from '@contracts/roster'
 import { createQueryClient } from '@/app/query-client'
-import { membersLabel } from '@/features/home/home-page'
+import { membersLabel } from '@/features/home/plural'
 import { AppError } from '@/lib/errors'
 import { renderApp } from './support/render-app'
 
@@ -256,8 +256,8 @@ describe('roster page', () => {
 })
 
 describe('home page count (HOM-04)', () => {
-  it.each(['guest', 'reader', 'member'] as const)(
-    'shows the roster count to %s',
+  it.each(['guest', 'reader'] as const)(
+    'shows the roster count without the roster to %s',
     async (role) => {
       await renderApp({ role, path: '/' })
       expect(await screen.findByText('3')).toBeVisible()
@@ -265,6 +265,15 @@ describe('home page count (HOM-04)', () => {
       expect(screen.queryByText('Альфа')).toBeNull()
     },
   )
+
+  it('shows the roster count to member', async () => {
+    await renderApp({ role: 'member', path: '/' })
+    const stat = await screen.findByRole('region', {
+      name: 'Численность клана',
+    })
+    expect(await within(stat).findByText('3')).toBeVisible()
+    expect(within(stat).getByText('участника')).toBeVisible()
+  })
 
   it('declines the members label', () => {
     expect([1, 2, 5, 11, 12, 21, 104].map(membersLabel)).toEqual([

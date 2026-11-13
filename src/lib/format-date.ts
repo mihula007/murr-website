@@ -37,3 +37,25 @@ export function formatDateMsk(iso: string) {
 export function formatWeekdayTimeMsk(weekday: number, time: string) {
   return `${WEEKDAY_LABELS[weekday] ?? ''}, ${time} МСК`
 }
+
+const MONTH_NAMES = [
+  'январь',
+  'февраль',
+  'март',
+  'апрель',
+  'май',
+  'июнь',
+  'июль',
+  'август',
+  'сентябрь',
+  'октябрь',
+  'ноябрь',
+  'декабрь',
+]
+
+/** Месяц `ГГГГ-ММ` словами: `ноябрь 2026` (топ-5 месяца на главной). */
+export function formatMonth(month: string) {
+  const [year, number] = month.split('-')
+  const name = MONTH_NAMES[Number(number) - 1]
+  return name ? `${name} ${year}` : month
+}
