@@ -186,3 +186,16 @@ export function signOut() {
     }
   })
 }
+
+/**
+ * Локальный выход без запроса к серверу: сеанс удалённого аккаунта
+ * (`account_deleted`) на сервере уже недействителен или будет удалён.
+ */
+export function signOutLocally() {
+  return run(async () => {
+    const { error } = await requireSupabase().auth.signOut({ scope: 'local' })
+    if (error) {
+      throw error
+    }
+  })
+}

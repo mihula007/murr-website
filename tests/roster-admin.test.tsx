@@ -14,6 +14,11 @@ vi.mock('@/lib/supabase/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   callApi,
 }))
+const toast = vi.hoisted(() => vi.fn<(message: string) => void>())
+vi.mock('@/components/ui/toaster', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  toast,
+}))
 
 type Handler = (body: unknown) => unknown
 function respond(routes: Record<string, Handler>) {
@@ -100,6 +105,11 @@ beforeEach(() => {
 function chooseOption(trigger: HTMLElement, option: string) {
   fireEvent.keyDown(trigger, { key: 'ArrowDown' })
   fireEvent.click(screen.getByRole('option', { name: option }))
+}
+
+function openMenu(name: string) {
+  const trigger = screen.getByRole('button', { name })
+  fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false })
 }
 
 async function openReaders() {
@@ -313,8 +323,10 @@ function account(
 
 describe('admin accounts', () => {
   beforeEach(() => {
+    routes['accounts/deletions'] = () => ({ items: [], truncated: false })
     routes['accounts/list'] = () => ({
       nextCursor: null,
+      total: 4,
       items: [
         account('a1', 'Глава', 'admin', { isPrimaryAdmin: true }),
         account('a2', 'Зам', 'admin'),
@@ -332,7 +344,17 @@ describe('admin accounts', () => {
     expect(await screen.findByRole('table')).toBeVisible()
     expect(
       screen.getAllByRole('columnheader').map((th) => th.textContent),
-    ).toEqual(['Ник', 'Имя', 'Email', 'Роль', 'Дата вступления'])
+    ).toEqual([
+      'Ник',
+      'Имя',
+      'Email',
+      'Класс',
+      'Роль',
+      'Заявка',
+      'Дата вступления',
+      'Действия',
+    ])
+    expect(screen.getByText('Аккаунтов: 4')).toBeVisible()
     expect(screen.getByText('m1@example.test')).toBeVisible()
     expect(screen.getAllByText('01.11.2026')[0]).toBeVisible()
 
@@ -394,6 +416,170 @@ describe('admin accounts', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Отмена' }))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
     expect(roleSelect('Зам')).toHaveTextContent('Администратор')
+  })
+
+  it('sends search and sort to the server (ADM-02)', async () => {
+    await renderApp({ role: 'admin', path: '/admin' })
+    await screen.findByRole('table')
+    fireEvent.change(
+      screen.getByLabelText('Поиск по нику, имени, email и классу'),
+      { target: { value: 'бо' } },
+    )
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith(
+        'accounts/list',
+        expect.objectContaining({ search: 'бо', sort: 'nickname' }),
+      ),
+    )
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'По возрастанию — сменить на убывание',
+      }),
+    )
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith(
+        'accounts/list',
+        expect.objectContaining({ search: 'бо', direction: 'desc' }),
+      ),
+    )
+  })
+
+  it('offers no deletion for admins and requires the nickname (Q-73)', async () => {
+    routes['accounts/delete'] = () => ({ userId: 'm1' })
+    await renderApp({ role: 'admin', path: '/admin' })
+    await screen.findByRole('table')
+    // Основной администратор: ни пароля, ни удаления.
+    expect(
+      screen.queryByRole('button', { name: 'Действия с Глава' }),
+    ).toBeNull()
+    openMenu('Действия с Зам')
+    expect(
+      screen.queryByRole('menuitem', { name: 'Удалить навсегда' }),
+    ).toBeNull()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+
+    openMenu('Действия с Боец')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Удалить навсегда' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Удалить навсегда' }),
+    )
+    expect(await within(dialog).findByText('Ник не совпадает')).toBeVisible()
+    expect(callApi).not.toHaveBeenCalledWith(
+      'accounts/delete',
+      expect.anything(),
+    )
+    fireEvent.change(
+      within(dialog).getByLabelText('Введите ник «Боец» для подтверждения'),
+      { target: { value: 'Боец' } },
+    )
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Удалить навсегда' }),
+    )
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('accounts/delete', {
+        userId: 'm1',
+        confirmNickname: 'Боец',
+      }),
+    )
+  })
+
+  it('changes a password without showing it in the toast (ADM-07)', async () => {
+    routes['accounts/set-password'] = () => ({ userId: 'm1' })
+    await renderApp({ role: 'admin', path: '/admin' })
+    await screen.findByRole('table')
+    openMenu('Действия с Боец')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Сменить пароль' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText('Новый пароль'), {
+      target: { value: 'secret-pass-1' },
+    })
+    fireEvent.change(within(dialog).getByLabelText('Повторите пароль'), {
+      target: { value: 'secret-pass-1' },
+    })
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Сменить пароль' }),
+    )
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('accounts/set-password', {
+        userId: 'm1',
+        password: 'secret-pass-1',
+      }),
+    )
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith(
+        'Боец: пароль изменён, сеансы завершены',
+      ),
+    )
+    expect(JSON.stringify(toast.mock.calls)).not.toContain('secret-pass-1')
+  })
+
+  it('shows pending deletions with a retry (Q-74)', async () => {
+    routes['accounts/deletions'] = () => ({
+      truncated: false,
+      items: [
+        {
+          userId: 'x1',
+          nickname: 'Ушедший',
+          email: 'x1@example.test',
+          stage: 'auth',
+          lastError: 'auth_failed',
+          createdAt: '2026-11-13T10:00:00Z',
+          updatedAt: '2026-11-13T10:00:00Z',
+        },
+      ],
+    })
+    routes['accounts/delete'] = () => ({ userId: 'x1' })
+    await renderApp({ role: 'admin', path: '/admin' })
+    const region = await screen.findByRole('region', {
+      name: 'Незавершённые удаления',
+    })
+    fireEvent.click(within(region).getByRole('button', { name: 'Повторить' }))
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Повторить' }))
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('accounts/delete', {
+        userId: 'x1',
+        confirmNickname: 'Ушедший',
+      }),
+    )
+  })
+
+  it('shows the audit log with category filter (ADM-10, ADM-12)', async () => {
+    routes['audit/list'] = () => ({
+      nextCursor: null,
+      items: [
+        {
+          id: 2,
+          createdAt: '2026-11-13T10:00:00Z',
+          category: 'broadcast',
+          action: 'broadcast_draft_saved',
+          summary: 'Сохранение черновика рассылки',
+          actor: { nickname: 'Зам', role: 'officer', email: 'z@example.test' },
+          target: {
+            kind: 'broadcast_draft',
+            id: 'd1',
+            nickname: null,
+            email: null,
+          },
+          details: { title: 'Сбор' },
+        },
+      ],
+    })
+    await renderApp({ role: 'admin', path: '/admin?tab=audit' })
+    expect(
+      await screen.findByText('Сохранение черновика рассылки'),
+    ).toBeVisible()
+    expect(
+      screen.getByText(/Исполнитель: Зам \(Офицер\) · z@example\.test/),
+    ).toBeVisible()
+    chooseOption(screen.getByRole('combobox', { name: 'Раздел' }), 'Рассылка')
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith(
+        'audit/list',
+        expect.objectContaining({ category: 'broadcast' }),
+      ),
+    )
   })
 
   it('is closed to officers', async () => {

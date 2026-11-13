@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from 'react'
+import { MoreHorizontal } from 'lucide-react'
 import {
   createColumnHelper,
   tableFeatures,
@@ -8,6 +9,13 @@ import type { AccountListItem } from '@contracts/accounts'
 import type { AccessRole } from '@contracts/account'
 import { ROLE_LABELS } from '@/app/access'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/surfaces'
 import { toast } from '@/components/ui/toaster'
@@ -18,6 +26,7 @@ import {
   VirtualSpacerRow,
   type Paging,
 } from '@/components/virtual-list'
+import { APPLICATION_STATUS } from '@/features/account/status-labels'
 import { useSession } from '@/features/auth/session'
 import { formatDate } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
@@ -30,6 +39,9 @@ const ROLE_OPTIONS = (
 
 /** Почему роль аккаунта нельзя выбрать здесь; `null` — можно. */
 export function roleLockReason(account: AccountListItem) {
+  if (account.deletionPending) {
+    return 'Идёт удаление аккаунта'
+  }
   if (account.isPrimaryAdmin) {
     return 'Основной администратор: роль не меняется'
   }
@@ -43,6 +55,73 @@ type RoleChange = { account: AccountListItem; role: AccessRole }
 const RoleChangeContext = createContext<(change: RoleChange) => void>(
   () => undefined,
 )
+
+/** Действие строки: карточка, новый пароль, удаление. */
+export type AccountAction = 'card' | 'password' | 'delete'
+type ActionHandler = (account: AccountListItem, action: AccountAction) => void
+const ActionContext = createContext<{
+  selfId: string | undefined
+  onAction: ActionHandler
+}>({ selfId: undefined, onAction: () => undefined })
+
+/** Пароль меняется не себе и не основному администратору (Q-72). */
+export function canChangePassword(account: AccountListItem, selfId?: string) {
+  return (
+    account.id !== selfId && !account.isPrimaryAdmin && !account.deletionPending
+  )
+}
+
+/** Удаляется только не-администратор и не сам исполнитель (Q-73). */
+export function canDelete(account: AccountListItem, selfId?: string) {
+  return account.id !== selfId && account.role !== 'admin'
+}
+
+function ActionsCell({ account }: { account: AccountListItem }) {
+  const { selfId, onAction } = useContext(ActionContext)
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={() => onAction(account, 'card')}
+      >
+        Карточка
+      </Button>
+      {canChangePassword(account, selfId) || canDelete(account, selfId) ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              aria-label={`Действия с ${account.gameNickname}`}
+            >
+              <MoreHorizontal aria-hidden="true" size={18} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {canChangePassword(account, selfId) ? (
+              <DropdownMenuItem onSelect={() => onAction(account, 'password')}>
+                Сменить пароль
+              </DropdownMenuItem>
+            ) : null}
+            {canDelete(account, selfId) ? (
+              <DropdownMenuItem
+                className="text-destructive data-highlighted:text-destructive"
+                onSelect={() => onAction(account, 'delete')}
+              >
+                {account.deletionPending
+                  ? 'Повторить удаление'
+                  : 'Удалить навсегда'}
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+    </div>
+  )
+}
 
 function RoleCell({ account }: { account: AccountListItem }) {
   const requestChange = useContext(RoleChangeContext)
@@ -83,13 +162,26 @@ const columns = column.columns([
     header: 'Email',
     cell: (info) => <span className="break-all">{info.getValue()}</span>,
   }),
+  column.accessor('className', { header: 'Класс' }),
   column.accessor('role', {
     header: 'Роль',
     cell: (info) => <RoleCell account={info.row.original} />,
   }),
+  column.accessor('applicationStatus', {
+    header: 'Заявка',
+    cell: (info) => {
+      const status = info.getValue()
+      return status ? APPLICATION_STATUS[status].label : '—'
+    },
+  }),
   column.accessor('joinedOn', {
     header: 'Дата вступления',
     cell: (info) => formatDate(info.getValue()),
+  }),
+  column.display({
+    id: 'actions',
+    header: 'Действия',
+    cell: (info) => <ActionsCell account={info.row.original} />,
   }),
 ])
 
@@ -103,9 +195,15 @@ const MOBILE_CELL: Record<string, { cell: string; label: string }> = {
     label: 'max-[900px]:hidden',
   },
   displayName: { cell: 'max-[900px]:order-2', label: '' },
-  joinedOn: { cell: 'max-[900px]:order-3', label: '' },
-  email: { cell: 'max-[900px]:order-4 max-[900px]:col-span-full', label: '' },
-  role: { cell: 'max-[900px]:order-5 max-[900px]:col-span-full', label: '' },
+  className: { cell: 'max-[900px]:order-3', label: '' },
+  applicationStatus: { cell: 'max-[900px]:order-4', label: '' },
+  joinedOn: { cell: 'max-[900px]:order-5', label: '' },
+  email: { cell: 'max-[900px]:order-6 max-[900px]:col-span-full', label: '' },
+  role: { cell: 'max-[900px]:order-7 max-[900px]:col-span-full', label: '' },
+  actions: {
+    cell: 'max-[900px]:order-8 max-[900px]:col-span-full',
+    label: 'max-[900px]:hidden',
+  },
 }
 
 /**
@@ -125,9 +223,11 @@ const NARROW_GAP = 10
 export function AccountsTable({
   accounts,
   paging,
+  onAction,
 }: {
   accounts: AccountListItem[]
   paging: Paging
+  onAction: ActionHandler
 }) {
   const table = useTable({ features, columns, data: accounts })
   const rows = table.getRowModel().rows
@@ -140,7 +240,7 @@ export function AccountsTable({
     after,
   } = useWindowList({
     count: rows.length,
-    estimateSize: narrow ? 210 : 64,
+    estimateSize: narrow ? 300 : 64,
     gap: narrow ? NARROW_GAP : 0,
     getItemKey: (index) => rows[index]?.id ?? String(index),
     paging,
@@ -154,96 +254,101 @@ export function AccountsTable({
   const toReader = change?.role === 'reader'
 
   return (
-    <RoleChangeContext.Provider value={setChange}>
-      <table className={tableClass}>
-        <thead>
-          {table.getHeaderGroups().map((group) => (
-            <tr key={group.id}>
-              {group.headers.map((header) => (
-                <th key={header.id} scope="col">
-                  {header.isPlaceholder ? null : (
-                    <table.FlexRender header={header} />
-                  )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody ref={setListElement}>
-          <VirtualSpacerRow height={spacer(before)} colSpan={columns.length} />
-          {virtualItems.map((item) => {
-            const row = rows[item.index]
-            if (!row) {
-              return null
-            }
-            return (
-              <tr key={row.id} data-index={item.index} ref={measureElement}>
-                {row.getAllCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    className={MOBILE_CELL[cell.column.id]?.cell}
-                  >
-                    <span
-                      className={cn(
-                        'hidden text-xs text-muted-foreground max-[900px]:block',
-                        MOBILE_CELL[cell.column.id]?.label,
-                      )}
-                    >
-                      {String(cell.column.columnDef.header)}
-                    </span>
-                    <table.FlexRender cell={cell} />
-                  </td>
+    <ActionContext.Provider value={{ selfId: userId, onAction }}>
+      <RoleChangeContext.Provider value={setChange}>
+        <table className={tableClass}>
+          <thead>
+            {table.getHeaderGroups().map((group) => (
+              <tr key={group.id}>
+                {group.headers.map((header) => (
+                  <th key={header.id} scope="col">
+                    {header.isPlaceholder ? null : (
+                      <table.FlexRender header={header} />
+                    )}
+                  </th>
                 ))}
               </tr>
+            ))}
+          </thead>
+          <tbody ref={setListElement}>
+            <VirtualSpacerRow
+              height={spacer(before)}
+              colSpan={columns.length}
+            />
+            {virtualItems.map((item) => {
+              const row = rows[item.index]
+              if (!row) {
+                return null
+              }
+              return (
+                <tr key={row.id} data-index={item.index} ref={measureElement}>
+                  {row.getAllCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      className={MOBILE_CELL[cell.column.id]?.cell}
+                    >
+                      <span
+                        className={cn(
+                          'hidden text-xs text-muted-foreground max-[900px]:block',
+                          MOBILE_CELL[cell.column.id]?.label,
+                        )}
+                      >
+                        {String(cell.column.columnDef.header)}
+                      </span>
+                      <table.FlexRender cell={cell} />
+                    </td>
+                  ))}
+                </tr>
+              )
+            })}
+            <VirtualSpacerRow height={spacer(after)} colSpan={columns.length} />
+          </tbody>
+        </table>
+        <LoadMore paging={paging} />
+        <ConfirmActionDialog
+          open={change !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setChange(null)
+            }
+          }}
+          title={
+            change
+              ? toReader
+                ? `Заблокировать ${change.account.gameNickname}?`
+                : `Сменить роль ${change.account.gameNickname}?`
+              : ''
+          }
+          description={
+            change ? (
+              <>
+                {ROLE_LABELS[change.account.role]} →{' '}
+                <Badge>{ROLE_LABELS[change.role]}</Badge>
+                {toReader
+                  ? ' Пользователь выйдет из состава и сохранит доступ только к своему профилю.'
+                  : null}
+                {isSelf
+                  ? ' Это ваш аккаунт: доступ изменится сразу после подтверждения.'
+                  : null}
+              </>
+            ) : null
+          }
+          confirmLabel={toReader ? 'Заблокировать' : 'Сменить роль'}
+          pendingLabel="Сохраняем…"
+          onConfirm={async () => {
+            if (!change) {
+              return
+            }
+            await setRole.mutateAsync({
+              userId: change.account.id,
+              role: change.role,
+            })
+            toast(
+              `${change.account.gameNickname}: ${ROLE_LABELS[change.role].toLowerCase()}`,
             )
-          })}
-          <VirtualSpacerRow height={spacer(after)} colSpan={columns.length} />
-        </tbody>
-      </table>
-      <LoadMore paging={paging} />
-      <ConfirmActionDialog
-        open={change !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setChange(null)
-          }
-        }}
-        title={
-          change
-            ? toReader
-              ? `Заблокировать ${change.account.gameNickname}?`
-              : `Сменить роль ${change.account.gameNickname}?`
-            : ''
-        }
-        description={
-          change ? (
-            <>
-              {ROLE_LABELS[change.account.role]} →{' '}
-              <Badge>{ROLE_LABELS[change.role]}</Badge>
-              {toReader
-                ? ' Пользователь выйдет из состава и сохранит доступ только к своему профилю.'
-                : null}
-              {isSelf
-                ? ' Это ваш аккаунт: доступ изменится сразу после подтверждения.'
-                : null}
-            </>
-          ) : null
-        }
-        confirmLabel={toReader ? 'Заблокировать' : 'Сменить роль'}
-        pendingLabel="Сохраняем…"
-        onConfirm={async () => {
-          if (!change) {
-            return
-          }
-          await setRole.mutateAsync({
-            userId: change.account.id,
-            role: change.role,
-          })
-          toast(
-            `${change.account.gameNickname}: ${ROLE_LABELS[change.role].toLowerCase()}`,
-          )
-        }}
-      />
-    </RoleChangeContext.Provider>
+          }}
+        />
+      </RoleChangeContext.Provider>
+    </ActionContext.Provider>
   )
 }
