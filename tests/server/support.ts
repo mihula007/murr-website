@@ -32,7 +32,9 @@ export function adminClient() {
 /** Очищает прикладные данные; справочник классов остаётся. */
 export async function resetAppData(db: Db) {
   await sql`truncate app.audit_log, app.application_equipment_links,
-    app.join_applications, app.profiles, app.user_deletions restart identity cascade`.execute(db)
+    app.join_applications, app.profiles, app.user_deletions restart identity cascade`.execute(
+    db,
+  )
 }
 
 export const TEST_PASSWORD = 'test-password-1'

@@ -414,7 +414,10 @@ describe('user deletion: data rules (ADM-08, table of stage 11)', () => {
       ['app.section_views', 'user_id'],
       ['app.discussion_reads', 'user_id'],
     ] as const) {
-      expect(await count(table, column, id), table).toBe(0)
+      expect({ table, rows: await count(table, column, id) }).toEqual({
+        table,
+        rows: 0,
+      })
     }
     expect(await count('app.publications', 'id', data.draft)).toBe(0)
     // Сохраняемое — без автора.
