@@ -112,6 +112,90 @@ export type Database = {
           },
         ]
       }
+      broadcast_drafts: {
+        Row: {
+          attachments: NonNullable<Json>
+          author_id: string
+          body: string
+          channels: string[]
+          created_at: string
+          id: string
+          source_id: string | null
+          source_kind: string | null
+          subject: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          attachments?: NonNullable<Json>
+          author_id: string
+          body: string
+          channels: string[]
+          created_at?: string
+          id?: string
+          source_id?: string | null
+          source_kind?: string | null
+          subject?: string | null
+        }
+        Update: {
+          attachments?: NonNullable<Json>
+          author_id?: string
+          body?: string
+          channels?: string[]
+          created_at?: string
+          id?: string
+          source_id?: string | null
+          source_kind?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'broadcast_drafts_author_id_fkey'
+            columns: ['author_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      broadcast_templates: {
+        Row: {
+          author_id: string
+          body: string
+          channels: string[]
+          created_at: string
+          id: string
+          name: string
+          subject: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          author_id: string
+          body: string
+          channels: string[]
+          created_at?: string
+          id?: string
+          name: string
+          subject?: string | null
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          channels?: string[]
+          created_at?: string
+          id?: string
+          name?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'broadcast_templates_author_id_fkey'
+            columns: ['author_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       character_classes: {
         Row: {
           id: number
@@ -976,6 +1060,51 @@ export type Database = {
           {
             foreignKeyName: 'section_views_user_id_fkey'
             columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      user_deletions: {
+        Row: {
+          cleanup_paths: string[]
+          created_at: string
+          email: string
+          last_error: string | null
+          nickname: string
+          requested_by: string | null
+          stage: string
+          updated_at: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          cleanup_paths?: string[]
+          created_at?: string
+          email: string
+          last_error?: string | null
+          nickname: string
+          requested_by?: string | null
+          stage: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cleanup_paths?: string[]
+          created_at?: string
+          email?: string
+          last_error?: string | null
+          nickname?: string
+          requested_by?: string | null
+          stage?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'user_deletions_requested_by_fkey'
+            columns: ['requested_by']
             isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
