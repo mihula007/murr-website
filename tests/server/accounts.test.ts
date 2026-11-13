@@ -101,7 +101,7 @@ describe('accounts/list', () => {
     const { items: accounts, nextCursor } = await listAccounts(deps, actor, {})
     expect(accounts).toHaveLength(3)
     expect(nextCursor).toBeNull()
-    expect(accounts.find((a) => a.id === admin.id)).toEqual({
+    expect(accounts.find((a) => a.id === admin.id)).toMatchObject({
       id: admin.id,
       gameNickname: admin.nickname,
       displayName: 'Тест',
@@ -110,6 +110,8 @@ describe('accounts/list', () => {
       joinedOn: '2026-01-01',
       isPrimaryAdmin: true,
       hasActiveApplication: false,
+      applicationStatus: null,
+      deletionPending: false,
     })
     expect(accounts.find((a) => a.id === applicant.id)).toMatchObject({
       role: 'applicant',

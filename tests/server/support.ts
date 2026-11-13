@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { sql } from 'kysely'
 import type { AppDeps } from '../../supabase/functions/_shared/app.ts'
 import { loadActor } from '../../supabase/functions/_shared/auth/actor.ts'
+import { createAuthAdminGateway } from '../../supabase/functions/_shared/auth/admin-gateway.ts'
 import { createStorageGateway } from '../../supabase/functions/_shared/storage/gateway.ts'
 import {
   createDb,
@@ -88,6 +89,7 @@ export function testDeps(db: Db): AppDeps {
   return {
     db,
     storage: createStorageGateway(env('API_URL'), env('SERVICE_ROLE_KEY')),
+    authAdmin: createAuthAdminGateway(env('API_URL'), env('SERVICE_ROLE_KEY')),
     now: () => new Date(),
   }
 }

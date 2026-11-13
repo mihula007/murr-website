@@ -1,17 +1,18 @@
-import type { ProfiledActor } from '../auth/actor.ts'
+import { z } from 'zod'
+import type { AppDeps } from '../app.ts'
+import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
+import {
+  auditListSchema,
+  type AuditCategory,
+  type AuditListResponse,
+} from '../contracts/audit.ts'
 import type { Executor } from '../db/client.ts'
 import type { AccessRole } from '../db/schema.ts'
+import { decodeCursor, splitPage } from '../http/cursor.ts'
+import { parseBody } from '../http/validation.ts'
 import { auditRepository } from './repository.ts'
 
-export type AuditCategory =
-  | 'applications'
-  | 'participants'
-  | 'profiles'
-  | 'events'
-  | 'votes'
-  | 'publications'
-  | 'market'
-  | 'broadcast'
+export type { AuditCategory }
 
 /** Разрешённые ключи details: без паролей, кодов, токенов и текстов анкеты. */
 const DETAIL_KEYS = new Set([
@@ -103,4 +104,52 @@ export async function writeAudit(tx: Executor, event: AuditEvent) {
   })
   await auditRepository.trimToLatest(tx)
   return row.id
+}
+
+/** Курсор журнала: `[id]` последней записи (id растёт со временем). */
+const auditCursor = z.tuple([z.number().int().positive()])
+
+/** Журнал действий администратора (ADM-10, ADM-12, Q-68). */
+export async function listAudit(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<AuditListResponse> {
+  requireRole(actor, ['admin'])
+  const input = parseBody(auditListSchema, body ?? {})
+  const rows = await auditRepository.list(deps.db, {
+    category: input.category,
+    search: input.search,
+    beforeId: input.cursor ? decodeCursor(auditCursor, input.cursor)[0] : null,
+    limit: input.limit + 1,
+  })
+  const page = splitPage(rows, input.limit, (row) => [Number(row.id)])
+  return {
+    nextCursor: page.nextCursor,
+    items: page.rows.map((row) => ({
+      id: Number(row.id),
+      createdAt: row.created_at,
+      category: row.category as AuditCategory,
+      action: row.action,
+      summary: row.summary,
+      actor:
+        row.actor_nickname || row.actor_email
+          ? {
+              nickname: row.actor_nickname,
+              role: row.actor_role,
+              email: row.actor_email,
+            }
+          : null,
+      target:
+        row.target_kind && row.target_id
+          ? {
+              kind: row.target_kind,
+              id: row.target_id,
+              nickname: row.target_nickname,
+              email: row.target_email,
+            }
+          : null,
+      details: row.details as Record<string, unknown>,
+    })),
+  }
 }

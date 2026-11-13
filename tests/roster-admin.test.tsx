@@ -299,10 +299,14 @@ function account(
     gameNickname: nickname,
     displayName: `Имя ${nickname}`,
     email: `${id}@example.test`,
+    className: 'Воин',
     role,
+    registeredAt: '2026-10-01T10:00:00Z',
     joinedOn: role === 'applicant' ? null : '2026-11-01',
+    applicationStatus: null,
     isPrimaryAdmin: false,
     hasActiveApplication: false,
+    deletionPending: false,
     ...extra,
   }
 }

@@ -1,16 +1,23 @@
+import { z } from 'zod'
+import { avatarUrl } from '../account/avatars.ts'
 import { profileRepository } from '../account/repository.ts'
 import type { AppDeps } from '../app.ts'
 import { applicationRepository } from '../applications/repository.ts'
 import { auditPerson, writeAudit } from '../audit/service.ts'
 import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
 import { userRepository } from '../auth/repository.ts'
-import type { AccessRole } from '../contracts/account.ts'
+import type { AccessRole, ApplicationStatus } from '../contracts/account.ts'
 import {
+  accountIdSchema,
   accountsListSchema,
   restoreReaderSchema,
+  setPasswordSchema,
   setRoleSchema,
+  type AccountCard,
+  type AccountListItem,
   type AccountsListResponse,
   type RoleChangeResult,
+  type SetPasswordResult,
 } from '../contracts/accounts.ts'
 import { withTransaction, type Executor } from '../db/client.ts'
 import type { ProfileRow } from '../db/schema.ts'
@@ -19,41 +26,143 @@ import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { joinedOnAfterRoleChange, moscowDate } from '../membership.ts'
 import { notify } from '../notifications/service.ts'
-import { nicknameCursor, nicknameKey } from '../roster/cursor.ts'
-import { accountRepository } from './repository.ts'
+import { accountRepository, type AccountKey } from './repository.ts'
 
 /** Восстанавливают чтеца офицер и администратор (ACL-06, ADM-09). */
 const READER_KEEPERS = ['officer', 'admin'] as const
 
-/** Страница таблицы аккаунтов администратора; поиск — этап 11, на сервере. */
+/** Курсор таблицы аккаунтов: `[значение сортировки, id]`. */
+const accountCursor = z
+  .tuple([z.union([z.string().max(400), z.number()]), z.guid()])
+  .transform(([value, id]): AccountKey => ({ value, id }))
+
+type AccountRow = NonNullable<
+  Awaited<ReturnType<typeof accountRepository.findById>>
+>
+
+function accountItem(row: AccountRow): AccountListItem {
+  return {
+    id: row.id,
+    gameNickname: row.game_nickname,
+    displayName: row.display_name,
+    email: row.email ?? '',
+    className: row.class_name,
+    role: row.access_role as AccessRole,
+    registeredAt: row.created_at,
+    joinedOn: row.joined_on,
+    applicationStatus: (row.application_status ??
+      null) as ApplicationStatus | null,
+    isPrimaryAdmin: row.is_primary_admin,
+    hasActiveApplication: Boolean(row.has_active_application),
+    deletionPending: Boolean(row.deletion_pending),
+  }
+}
+
+/**
+ * Таблица аккаунтов администратора (ADM-01, ADM-02): поиск по нику, имени,
+ * email и классу, сортировка и курсор — на сервере; `total` — по поиску.
+ */
 export async function listAccounts(
   deps: AppDeps,
   actor: Actor,
   body: unknown,
 ): Promise<AccountsListResponse> {
   requireRole(actor, ['admin'])
-  const { cursor, limit } = parseBody(accountsListSchema, body ?? {})
-  const rows = await accountRepository.listPage(
-    deps.db,
-    cursor ? decodeCursor(nicknameCursor, cursor) : null,
-    limit + 1,
-  )
-  const page = splitPage(rows, limit, (row) =>
-    nicknameKey(row.game_nickname, row.id),
-  )
+  const input = parseBody(accountsListSchema, body ?? {})
+  const query = {
+    search: input.search,
+    sort: input.sort,
+    direction: input.direction,
+  }
+  const [rows, total] = await Promise.all([
+    accountRepository.listPage(
+      deps.db,
+      query,
+      input.cursor ? decodeCursor(accountCursor, input.cursor) : null,
+      input.limit + 1,
+    ),
+    accountRepository.count(deps.db, input.search),
+  ])
+  const page = splitPage(rows, input.limit, (row) => [row.sort_key, row.id])
   return {
     nextCursor: page.nextCursor,
-    items: page.rows.map((row) => ({
-      id: row.id,
-      gameNickname: row.game_nickname,
-      displayName: row.display_name,
-      email: row.email ?? '',
-      role: row.access_role as AccessRole,
-      joinedOn: row.joined_on,
-      isPrimaryAdmin: row.is_primary_admin,
-      hasActiveApplication: Boolean(row.has_active_application),
-    })),
+    total,
+    items: page.rows.map(accountItem),
   }
+}
+
+/** Раскрытая карточка аккаунта со всеми данными (ADM-03). */
+export async function getAccount(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<AccountCard> {
+  requireRole(actor, ['admin'])
+  const { userId } = parseBody(accountIdSchema, body)
+  const [row, card, links] = await Promise.all([
+    accountRepository.findById(deps.db, userId),
+    accountRepository.card(deps.db, userId),
+    accountRepository.latestApplicationLinks(deps.db, userId),
+  ])
+  if (!row || !card) {
+    throw new ApiError('not_found')
+  }
+  return {
+    ...accountItem(row),
+    city: card.city,
+    birthDate: card.birth_date,
+    about: card.about,
+    avatarUrl: await avatarUrl(deps.storage, card.avatar_path),
+    equipmentLinks: links,
+    passwordSet: card.password_set,
+  }
+}
+
+/**
+ * Новый пароль другого аккаунта (ADM-07, Q-72): не свой и не основного
+ * администратора. Auth завершает все сеансы цели; пароль не пишется в аудит.
+ */
+export async function setPassword(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<SetPasswordResult> {
+  const admin = requireRole(actor, ['admin'])
+  const { userId, password } = parseBody(setPasswordSchema, body)
+  if (userId === admin.userId) {
+    throw new ApiError('forbidden')
+  }
+  const target = await accountRepository.findById(deps.db, userId)
+  if (!target) {
+    throw new ApiError('not_found')
+  }
+  if (target.is_primary_admin) {
+    throw new ApiError('primary_admin')
+  }
+  if (target.deletion_pending) {
+    throw new ApiError('state_conflict')
+  }
+  await deps.authAdmin.setPassword(userId, password)
+  await withTransaction(deps.db, (tx) =>
+    writeAudit(tx, {
+      category: 'participants',
+      action: 'password_changed',
+      summary: 'Смена пароля аккаунта',
+      actor: auditPerson(admin),
+      target: {
+        kind: 'profile',
+        id: userId,
+        user: {
+          id: userId,
+          role: target.access_role as AccessRole,
+          nickname: target.game_nickname,
+          email: target.email,
+        },
+      },
+      details: { user_id: userId },
+    }),
+  )
+  return { userId }
 }
 
 const ROLE_AUDIT = {

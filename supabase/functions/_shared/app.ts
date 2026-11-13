@@ -5,7 +5,14 @@ import {
   getMe,
   updateProfile,
 } from './account/service.ts'
-import { listAccounts, restoreReader, setRole } from './accounts/service.ts'
+import {
+  getAccount,
+  listAccounts,
+  restoreReader,
+  setPassword,
+  setRole,
+} from './accounts/service.ts'
+import { listAudit } from './audit/service.ts'
 import {
   decideApplication,
   finalDecideApplication,
@@ -15,6 +22,10 @@ import {
   submitApplicationToVote,
 } from './applications/service.ts'
 import { GUEST, loadActor } from './auth/actor.ts'
+import {
+  createAuthAdminGateway,
+  type AuthAdminGateway,
+} from './auth/admin-gateway.ts'
 import {
   deleteBroadcastTemplate,
   deleteDraft,
@@ -128,6 +139,7 @@ export type AppEnv = {
 export type AppDeps = {
   db: Db
   storage: StorageGateway
+  authAdmin: AuthAdminGateway
   now: () => Date
   /** null — выпуск по расписанию не принимается. */
   cronSecret?: string | null
@@ -243,6 +255,10 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'accounts/set-role': ({ actor, body }) => setRole(deps, actor, body),
     'accounts/restore-reader': ({ actor, body }) =>
       restoreReader(deps, actor, body),
+    'accounts/get': ({ actor, body }) => getAccount(deps, actor, body),
+    'accounts/set-password': ({ actor, body }) =>
+      setPassword(deps, actor, body),
+    'audit/list': ({ actor, body }) => listAudit(deps, actor, body),
     'broadcasts/prefill': ({ actor, body }) =>
       prefillBroadcast(deps, actor, body),
     'broadcasts/drafts': ({ actor }) => listDrafts(deps, actor),
@@ -264,6 +280,7 @@ export function createApp(
   const deps: AppDeps = {
     db: createDb(env.dbUrl),
     storage: createStorageGateway(env.supabaseUrl, env.serviceKey),
+    authAdmin: createAuthAdminGateway(env.supabaseUrl, env.serviceKey),
     now: () => new Date(),
     cronSecret: env.cronSecret || null,
   }
