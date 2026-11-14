@@ -1,4 +1,5 @@
-# Local development only. Cloud settings must be configured separately.
+# Локальная разработка; облачный проект переопределяет значения в блоке
+# [remotes.production] в конце файла (`supabase config push`).
 project_id = "murr-website"
 
 [api]
@@ -94,7 +95,7 @@ content_path = "./supabase/templates/recovery.html"
 # Resend SMTP для писем Auth. Локально выключен: письма попадают в Mailpit
 # (http://127.0.0.1:54324). Чтобы проверить Resend локально, заполните
 # переменные AUTH_SMTP_* в .env и поставьте enabled = true, не коммитя это
-# изменение. В облаке SMTP задаётся в настройках проекта (этап 12).
+# изменение. Облачный SMTP включается в [remotes.production] (этап 12).
 [auth.email.smtp]
 enabled = false
 host = "env(AUTH_SMTP_HOST)"
@@ -119,3 +120,26 @@ verify_jwt = false
 
 [analytics]
 enabled = false
+
+# Облачный проект pwmurr (этап 12). Значения выше действуют и в облаке, кроме
+# переопределённых здесь. Секретов в блоке нет: пароль SMTP берётся из env().
+# Перед `npx supabase config push` смотреть `npx supabase config diff`.
+[remotes.production]
+project_id = "fbhndmsmusbqntdymnaz"
+
+[remotes.production.auth]
+site_url = "https://pwmurr.ru"
+additional_redirect_urls = []
+
+[remotes.production.auth.email]
+max_frequency = "60s"
+
+# Облачные значения Supabase по умолчанию вместо повышенных для тестов.
+[remotes.production.auth.rate_limit]
+sign_in_sign_ups = 30
+token_verifications = 30
+
+# Resend (этап 12). Без своего SMTP Free не даёт менять шаблоны писем, и
+# `config push` отклоняется целиком. Перед push заполнить AUTH_SMTP_* в .env.
+[remotes.production.auth.email.smtp]
+enabled = true
