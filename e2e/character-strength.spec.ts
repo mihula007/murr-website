@@ -31,6 +31,7 @@ test('характеристики доступны админу и внутре
     createMember('applicant'),
     createMember('reader'),
   ])
+  await Promise.all(Array.from({ length: 15 }, () => createMember('member')))
   await sql(
     (db) => db`
     update app.profiles set class_id = 1 where id = ${first.id}
@@ -122,6 +123,33 @@ test('характеристики доступны админу и внутре
   await expect(rating).toBeVisible()
   await expect(rating.getByText(first.nickname)).toBeVisible()
   await expect(rating.getByText(second.nickname)).toBeVisible()
+  const scrollArea = rating.getByRole('region', {
+    name: 'Прокручиваемый список рейтинга силы',
+  })
+  const ratingRows = rating.locator('tbody tr')
+  expect(await ratingRows.count()).toBeGreaterThanOrEqual(16)
+  await expect(
+    ratingRows.nth(0).getByRole('cell', { name: 'Место 01' }),
+  ).toBeVisible()
+  await expect(
+    ratingRows.nth(1).getByRole('cell', { name: 'Место 02' }),
+  ).toBeVisible()
+  await expect(ratingRows.nth(0)).toHaveClass(/bg-surface-inset/)
+  await expect(ratingRows.nth(1)).toHaveClass(/bg-surface-from/)
+  expect(
+    await scrollArea.evaluate(
+      (element) => element.scrollHeight > element.clientHeight,
+    ),
+  ).toBe(true)
+  expect(
+    await scrollArea.evaluate((element) => {
+      const bounds = element.getBoundingClientRect()
+      return Array.from(element.querySelectorAll('tbody tr')).filter((row) => {
+        const rowBounds = row.getBoundingClientRect()
+        return rowBounds.top >= bounds.top && rowBounds.bottom <= bounds.bottom
+      }).length
+    }),
+  ).toBeGreaterThanOrEqual(15)
   if (mobile) {
     expect(await hasHorizontalScroll(page)).toBe(false)
   }
@@ -166,4 +194,7 @@ test('характеристики доступны админу и внутре
   await page.getByRole('option', { name: 'Маг', exact: true }).click()
   await expect(rating.getByText(second.nickname)).toBeVisible()
   await expect(rating.getByText(first.nickname)).toHaveCount(0)
+  await expect(
+    rating.locator('tbody tr').nth(0).getByRole('cell', { name: 'Место 01' }),
+  ).toBeVisible()
 })

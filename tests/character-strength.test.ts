@@ -178,6 +178,25 @@ describe('показатели состава и главная', () => {
     await waitFor(() =>
       expect(table.querySelectorAll('tbody tr')).toHaveLength(4),
     )
+    expect(
+      within(table).getByRole('columnheader', { name: 'Номер позиции' }),
+    ).toBeVisible()
+    const rows = Array.from(table.querySelectorAll('tbody tr'))
+    expect(rows.map((row) => row.querySelector('td')?.textContent)).toEqual([
+      '01',
+      '02',
+      '03',
+      '04',
+    ])
+    expect(rows[0]).toHaveClass('bg-surface-inset')
+    expect(rows[1]).toHaveClass('bg-surface-from')
+    expect(rows[0]?.querySelector('td')).toHaveClass('text-highlight')
+    expect(rows[3]?.querySelector('td')).toHaveClass('text-muted-foreground')
+    expect(
+      within(rating).getByRole('region', {
+        name: 'Прокручиваемый список рейтинга силы',
+      }),
+    ).toHaveClass(/overflow-y-auto/)
     const order = () =>
       Array.from(table.querySelectorAll('tbody tr')).map(
         (row) => row.textContent ?? '',
@@ -198,6 +217,11 @@ describe('показатели состава и главная', () => {
     expect(order().join(' ')).toContain('Бета')
     expect(order().join(' ')).toContain('Гамма')
     expect(order().join(' ')).not.toContain('Альфа')
+    expect(
+      Array.from(table.querySelectorAll('tbody tr')).map(
+        (row) => row.querySelector('td')?.textContent,
+      ),
+    ).toEqual(['01', '02'])
     expect(
       callApi.mock.calls.filter(([route]) => route === 'roster/list'),
     ).toHaveLength(1)

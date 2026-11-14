@@ -57,12 +57,15 @@ const columns: ActivityColumns<RosterMember> = [
 ]
 
 const tableClass =
-  'w-full table-fixed border-collapse text-left text-sm [&_td]:border-b [&_td]:border-border [&_td]:px-2 [&_td]:py-2.5 [&_td]:align-middle [&_th]:border-b [&_th]:border-border [&_th]:px-2 [&_th]:py-2.5 [&_th]:font-semibold [&_th]:text-muted-foreground max-[900px]:block max-[900px]:[&_thead]:hidden max-[900px]:[&_tbody]:grid max-[900px]:[&_tbody]:gap-2.5 max-[900px]:[&_tr]:grid max-[900px]:[&_tr]:grid-cols-2 max-[900px]:[&_tr]:gap-x-3 max-[900px]:[&_tr]:rounded-xl max-[900px]:[&_tr]:border max-[900px]:[&_tr]:border-border max-[900px]:[&_tr]:bg-surface-inset max-[900px]:[&_tr]:p-3 max-[900px]:[&_td]:grid max-[900px]:[&_td]:gap-0.5 max-[900px]:[&_td]:border-0 max-[900px]:[&_td]:p-0 max-[900px]:[&_td:first-child]:col-span-full max-[900px]:[&_td:nth-child(2)]:col-span-full'
+  'w-full table-fixed border-collapse text-left text-sm [&_td]:border-b [&_td]:border-border [&_td]:px-2 [&_td]:py-2.5 [&_td]:align-middle [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:border-b [&_th]:border-border [&_th]:bg-surface-to [&_th]:px-2 [&_th]:py-2.5 [&_th]:font-semibold [&_th]:text-muted-foreground [&_th:first-child]:w-10 max-[900px]:block max-[900px]:[&_thead]:hidden max-[900px]:[&_tbody]:grid max-[900px]:[&_tbody]:gap-2.5 max-[900px]:[&_tr]:grid max-[900px]:[&_tr]:grid-cols-[auto_minmax(0,1fr)] max-[900px]:[&_tr]:gap-x-3 max-[900px]:[&_tr]:rounded-xl max-[900px]:[&_tr]:border max-[900px]:[&_tr]:border-border max-[900px]:[&_tr]:p-3 max-[900px]:[&_td]:grid max-[900px]:[&_td]:gap-0.5 max-[900px]:[&_td]:border-0 max-[900px]:[&_td]:p-0 max-[900px]:[&_td:first-child]:col-span-1 max-[900px]:[&_td:nth-child(2)]:col-span-1 max-[900px]:[&_td:nth-child(3)]:col-span-full'
+
+const scrollClass =
+  'max-h-[900px] min-w-0 overflow-y-auto overscroll-contain rounded-xl border border-border max-[900px]:max-h-[2300px]'
 
 function MobileLabel({ text, first }: { text: string; first: boolean }) {
   return (
     <span
-      className={`hidden text-xs text-muted-foreground max-[900px]:block${first ? ' max-[900px]:hidden' : ''}`}
+      className={`hidden text-xs text-muted-foreground max-[900px]:inline${first ? ' max-[900px]:hidden' : ''}`}
     >
       {text}
     </span>
@@ -175,68 +178,90 @@ export function CharacterStrengthRating() {
       {members.length === 0 ? (
         <EmptyState title="Участников не найдено" />
       ) : (
-        <table aria-label="Рейтинг силы" className={tableClass}>
-          <thead>
-            {ratingTable.getHeaderGroups().map((group) => (
-              <tr key={group.id}>
-                {group.headers.map((header) => {
-                  const sorted = header.column.getIsSorted()
-                  const label = String(header.column.columnDef.header)
-                  const sortable = fields.includes(
-                    header.column.id as CharacterStatNumberField,
-                  )
-                  return (
-                    <th
-                      key={header.id}
-                      scope="col"
-                      aria-sort={
-                        sorted === 'asc'
-                          ? 'ascending'
-                          : sorted === 'desc'
-                            ? 'descending'
-                            : 'none'
-                      }
+        <section
+          aria-label="Прокручиваемый список рейтинга силы"
+          className={scrollClass}
+        >
+          <table aria-label="Рейтинг силы" className={tableClass}>
+            <thead>
+              {ratingTable.getHeaderGroups().map((group) => (
+                <tr key={group.id}>
+                  <th scope="col" aria-label="Номер позиции">
+                    №
+                  </th>
+                  {group.headers.map((header) => {
+                    const sorted = header.column.getIsSorted()
+                    const label = String(header.column.columnDef.header)
+                    const sortable = fields.includes(
+                      header.column.id as CharacterStatNumberField,
+                    )
+                    return (
+                      <th
+                        key={header.id}
+                        scope="col"
+                        aria-sort={
+                          sorted === 'asc'
+                            ? 'ascending'
+                            : sorted === 'desc'
+                              ? 'descending'
+                              : 'none'
+                        }
+                      >
+                        {sortable ? (
+                          <button
+                            type="button"
+                            className="inline-flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-semibold text-muted-foreground hover:text-primary"
+                            onClick={header.column.getToggleSortingHandler()}
+                          >
+                            {label}
+                            {sorted === 'asc' ? (
+                              <ArrowUp size={12} aria-hidden="true" />
+                            ) : sorted === 'desc' ? (
+                              <ArrowDown size={12} aria-hidden="true" />
+                            ) : (
+                              <ArrowUpDown size={12} aria-hidden="true" />
+                            )}
+                          </button>
+                        ) : (
+                          label
+                        )}
+                      </th>
+                    )
+                  })}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {ratingTable.getRowModel().rows.map((row, rowIndex) => {
+                const rank = String(rowIndex + 1).padStart(2, '0')
+                return (
+                  <tr
+                    key={row.id}
+                    className={`${rowIndex % 2 === 0 ? 'bg-surface-inset' : 'bg-surface-from'} hover:bg-surface-to`}
+                  >
+                    <td
+                      aria-label={`Место ${rank}`}
+                      className={`text-center text-xs ${rowIndex < 3 ? 'font-extrabold text-highlight' : 'font-semibold text-muted-foreground'}`}
                     >
-                      {sortable ? (
-                        <button
-                          type="button"
-                          className="inline-flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-semibold text-muted-foreground hover:text-primary"
-                          onClick={header.column.getToggleSortingHandler()}
-                        >
-                          {label}
-                          {sorted === 'asc' ? (
-                            <ArrowUp size={12} aria-hidden="true" />
-                          ) : sorted === 'desc' ? (
-                            <ArrowDown size={12} aria-hidden="true" />
-                          ) : (
-                            <ArrowUpDown size={12} aria-hidden="true" />
-                          )}
-                        </button>
-                      ) : (
-                        label
-                      )}
-                    </th>
-                  )
-                })}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {ratingTable.getRowModel().rows.map((row) => (
-              <tr key={row.id}>
-                {row.getAllCells().map((cell, index) => {
-                  const label = String(cell.column.columnDef.header)
-                  return (
-                    <td key={cell.id}>
-                      <MobileLabel text={label} first={index === 0} />
-                      <ratingTable.FlexRender cell={cell} />
+                      {rank}
                     </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    {row.getAllCells().map((cell, index) => {
+                      const label = String(cell.column.columnDef.header)
+                      return (
+                        <td key={cell.id}>
+                          <div className="flex min-w-0 items-baseline gap-1">
+                            <MobileLabel text={label} first={index === 0} />
+                            <ratingTable.FlexRender cell={cell} />
+                          </div>
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </section>
       )}
     </section>
   )
