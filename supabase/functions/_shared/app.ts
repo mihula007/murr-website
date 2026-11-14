@@ -137,6 +137,13 @@ import {
   startMaxLink,
   unlinkMax,
 } from './max/service.ts'
+import { createVkGateway, type VkGateway } from './vk/gateway.ts'
+import {
+  handleVkWebhook,
+  startVkLink,
+  unlinkVk,
+  vkStatus,
+} from './vk/service.ts'
 import {
   castBallot,
   closeVote,
@@ -158,6 +165,29 @@ export type AppEnv = {
   telegram?: TelegramEnv | null
   /** MAX (этап 14); null — интеграция выключена. */
   max?: MaxEnv | null
+  /** ВКонтакте (этап 15); null — интеграция выключена. */
+  vk?: VkEnv | null
+}
+
+/** Настройки бота сообщества ВКонтакте (этап 15). */
+export type VkEnv = {
+  token: string
+  groupId: number
+  /** Короткий адрес сообщества для ссылки `vk.me`; null — `club<ID>`. */
+  groupName: string | null
+  callbackSecret: string
+  siteUrl: string | null
+  /** Фальшивый API в тестах; null — `https://api.vk.com/method`. */
+  apiBase: string | null
+}
+
+/** ВКонтакте для сервисов: шлюз API и настройки сообщества (этап 15). */
+export type VkDeps = {
+  gateway: VkGateway
+  groupId: number
+  groupName: string
+  callbackSecret: string
+  siteUrl: string | null
 }
 
 /** Настройки бота MAX (этап 14). */
@@ -213,6 +243,8 @@ export type AppDeps = {
   telegram?: TelegramDeps | null
   /** null или нет — MAX не подключён (`max_unavailable`). */
   max?: MaxDeps | null
+  /** null или нет — ВКонтакте не подключён (`vk_unavailable`). */
+  vk?: VkDeps | null
   background?: Background
 }
 
@@ -354,6 +386,10 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'max/link-start': ({ actor }) => startMaxLink(deps, actor),
     'max/unlink': ({ actor }) => unlinkMax(deps, actor),
     'max/webhook': ({ headers, body }) => handleMaxWebhook(deps, headers, body),
+    'vk/status': ({ actor }) => vkStatus(deps, actor),
+    'vk/link-start': ({ actor }) => startVkLink(deps, actor),
+    'vk/unlink': ({ actor }) => unlinkVk(deps, actor),
+    'vk/webhook': ({ body }) => handleVkWebhook(deps, body),
   }
 }
 
@@ -387,6 +423,19 @@ export function createApp(
           botUsername: env.max.botUsername,
           webhookSecret: env.max.webhookSecret,
           siteUrl: env.max.siteUrl,
+        }
+      : null,
+    vk: env.vk
+      ? {
+          gateway: createVkGateway({
+            token: env.vk.token,
+            groupId: env.vk.groupId,
+            apiBase: env.vk.apiBase,
+          }),
+          groupId: env.vk.groupId,
+          groupName: env.vk.groupName ?? `club${env.vk.groupId}`,
+          callbackSecret: env.vk.callbackSecret,
+          siteUrl: env.vk.siteUrl,
         }
       : null,
     ...(overrides.background ? { background: overrides.background } : {}),

@@ -1,4 +1,9 @@
-import { createApp, type MaxEnv, type TelegramEnv } from '../_shared/app.ts'
+import {
+  createApp,
+  type MaxEnv,
+  type TelegramEnv,
+  type VkEnv,
+} from '../_shared/app.ts'
 
 function requireEnv(name: string) {
   const value = Deno.env.get(name)
@@ -42,6 +47,24 @@ function maxEnv(): MaxEnv | null {
   }
 }
 
+/** ВКонтакте включается, когда заданы ключ, ID сообщества и секрет Callback API. */
+function vkEnv(): VkEnv | null {
+  const token = Deno.env.get('VK_BOT_TOKEN')
+  const groupId = Number(Deno.env.get('VK_GROUP_ID'))
+  const callbackSecret = Deno.env.get('VK_CALLBACK_SECRET')
+  if (!token || !Number.isInteger(groupId) || groupId <= 0 || !callbackSecret) {
+    return null
+  }
+  return {
+    token,
+    groupId,
+    groupName: Deno.env.get('VK_GROUP_NAME') || null,
+    callbackSecret,
+    siteUrl: Deno.env.get('SITE_URL') || null,
+    apiBase: Deno.env.get('VK_API_BASE') || null,
+  }
+}
+
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void }
 
 // Переменные предоставляет платформа Supabase; секреты не хранятся в коде.
@@ -56,6 +79,7 @@ const { handler } = createApp(
     cronSecret: Deno.env.get('EVENTS_CRON_SECRET') ?? null,
     telegram: telegramEnv(),
     max: maxEnv(),
+    vk: vkEnv(),
   },
   {
     // Задача доделывается после ответа (локально нужен policy = per_worker).

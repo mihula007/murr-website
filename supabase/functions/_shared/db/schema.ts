@@ -63,6 +63,10 @@ export type DB = {
   'app.max_link_codes': KyselyTable<Generated['max_link_codes']>
   'app.max_announcements': KyselyTable<Generated['max_announcements']>
   'app.max_event_messages': KyselyTable<Generated['max_event_messages']>
+  'app.vk_links': KyselyTable<Generated['vk_links']>
+  'app.vk_link_codes': KyselyTable<Generated['vk_link_codes']>
+  'app.vk_announcements': KyselyTable<Generated['vk_announcements']>
+  'app.vk_event_messages': KyselyTable<Generated['vk_event_messages']>
   'auth.users': AuthUsersTable
 }
 

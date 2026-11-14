@@ -390,6 +390,40 @@ async function populate() {
     })
     .execute()
 
+  // ВКонтакте (этап 15): связь, код привязки и активное сообщение анонса.
+  await db
+    .insertInto('app.vk_links')
+    .values({
+      user_id: id,
+      vk_user_id: 999_001,
+      chat_id: 999_001,
+      display_name: 'Жертва',
+    })
+    .execute()
+  await db
+    .insertInto('app.vk_link_codes')
+    .values({
+      user_id: id,
+      code_hash: 'd'.repeat(64),
+      expires_at: new Date().toISOString(),
+    })
+    .execute()
+  const vkAnnouncement = await db
+    .insertInto('app.vk_announcements')
+    .values({ event_id: foreignEvent.id, body: 'Анонс' })
+    .returning('id')
+    .executeTakeFirstOrThrow()
+  await db
+    .insertInto('app.vk_event_messages')
+    .values({
+      event_id: foreignEvent.id,
+      user_id: id,
+      announcement_id: vkAnnouncement.id,
+      chat_id: 999_001,
+      message_id: 1,
+    })
+    .execute()
+
   return {
     admin,
     victim,
@@ -485,6 +519,9 @@ describe('user deletion: data rules (ADM-08, table of stage 11)', () => {
       ['app.max_links', 'user_id'],
       ['app.max_link_codes', 'user_id'],
       ['app.max_event_messages', 'user_id'],
+      ['app.vk_links', 'user_id'],
+      ['app.vk_link_codes', 'user_id'],
+      ['app.vk_event_messages', 'user_id'],
     ] as const) {
       expect({ table, rows: await count(table, column, id) }).toEqual({
         table,

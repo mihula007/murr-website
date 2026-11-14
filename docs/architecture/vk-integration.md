@@ -45,7 +45,7 @@
 
 ## Данные
 
-Миграция `stage15_vk`: `vk_links` (`vk_user_id bigint unique`, `peer_id bigint`), `vk_link_codes`, `vk_announcements`, `vk_event_messages` (`peer_id`, `message_id` — `conversation_message_id`).
+Миграция `stage15_vk`: `vk_links` (`vk_user_id bigint unique`, `chat_id bigint` — `peer_id` диалога), `vk_link_codes`, `vk_announcements`, `vk_event_messages` (`chat_id`, `message_id` — `conversation_message_id`).
 
 ## Операции `api`
 

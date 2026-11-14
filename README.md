@@ -59,7 +59,7 @@ publishable key. Без обеих настроек ленивый клиент 
 имени с этим префиксом останавливает запуск и сборку до обновления явного
 списка разрешений в `src/lib/supabase/config.ts` и шаблона окружения.
 
-Токены Telegram и MAX нужны только для работы ботов, VK не подключён.
+Токены Telegram, MAX и ВКонтакте нужны только для работы ботов.
 Локально хранить их в `.env`; для опубликованных функций — в Supabase Secrets.
 
 ### Первый администратор
@@ -143,6 +143,26 @@ Telegram. Без переменных бота сайт работает, а к�
    регистрируется: `npm run max:webhook -- --functions https://<ref>.supabase.co/functions/v1`
    (`--delete --functions …` — снять, `--list` — показать подписки).
 
+### Бот сообщества ВКонтакте
+
+Привязка и анонсы во ВКонтакте (этап 15,
+[требования](docs/requirements/21-vk.md),
+[проект](docs/architecture/vk-integration.md)) — по тем же правилам, что
+Telegram и MAX; сообщения — простым текстом.
+
+1. В управлении сообществом включите сообщения сообщества и возможности
+   бота, создайте ключ доступа с правом «сообщения сообщества». Заполните в
+   `.env` `VK_BOT_TOKEN`, `VK_GROUP_ID`, при желании `VK_GROUP_NAME`
+   (короткий адрес для ссылки `vk.me`) и `VK_CALLBACK_SECRET` (до 50
+   символов).
+2. Callback API требует публичный адрес, поэтому локально интеграция
+   проверяется тестами с фальшивым API (`npm run test:server`, E2E-10).
+3. Для облака задайте значения в Supabase Secrets, выложите функцию и
+   зарегистрируйте сервер Callback API:
+   `npm run vk:webhook -- --functions https://<ref>.supabase.co/functions/v1`
+   (`--list` — показать серверы, `--delete <id>` — удалить). Функция сама
+   отвечает на подтверждение адреса.
+
 ### Письма Auth
 
 Адрес при регистрации и сброс пароля подтверждаются шестизначным кодом из
@@ -187,10 +207,11 @@ GitHub Actions Secrets использовать для будущих защищ
 | `npm run supabase:env`       | Публичная конфигурация локального стека для `dev`     |
 | `npm run build:e2e`          | Сборка для Playwright с локальным Supabase            |
 | `npm run admin:bootstrap`    | Назначение первого администратора                     |
-| `npm run e2e:functions`      | Функции для Playwright с фальшивыми Telegram и MAX    |
+| `npm run e2e:functions`      | Функции для Playwright с фальшивыми ботами            |
 | `npm run telegram:dev`       | Туннель и вебхук тестового бота Telegram              |
 | `npm run telegram:webhook`   | Вебхук рабочего бота на облачную функцию              |
 | `npm run max:webhook`        | Вебхук бота MAX на облачную функцию                   |
+| `npm run vk:webhook`         | Сервер Callback API ВКонтакте на облачную функцию     |
 
 Браузерные тесты работают по сборке, подключённой к локальному Supabase, на
 desktop и mobile; коды из писем берутся из Mailpit:

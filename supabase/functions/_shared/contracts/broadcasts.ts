@@ -2,13 +2,13 @@ import { z } from 'zod'
 
 /**
  * Рассылки (BRC): черновики, шаблоны и отправка анонса в Telegram и MAX
- * (TGM, MAX). ВКонтакте не подключён, вложений нет (Q-82).
+ * (TGM, MAX, VK). Вложений нет (Q-82).
  */
 export const BROADCAST_CHANNELS = ['telegram', 'vk', 'max'] as const
 export type BroadcastChannel = (typeof BROADCAST_CHANNELS)[number]
 
-/** Каналы, в которые анонс действительно отправляется (MAX-05, Q-97). */
-export const SENDABLE_CHANNELS = ['telegram', 'max'] as const
+/** Каналы, в которые анонс действительно отправляется (MAX-05, VK-05, Q-97, Q-100). */
+export const SENDABLE_CHANNELS = ['telegram', 'vk', 'max'] as const
 export type SendableChannel = (typeof SENDABLE_CHANNELS)[number]
 
 export const BROADCAST_CHANNEL_LABELS: Record<BroadcastChannel, string> = {

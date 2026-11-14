@@ -47,7 +47,12 @@ export function createApiHandler(options: {
         throw new ApiError('validation_failed')
       }
       const actor = await options.resolveActor(request)
-      return json(200, await route({ body, actor, headers: request.headers }))
+      const result = await route({ body, actor, headers: request.headers })
+      // Вебхук ВКонтакте отвечает простым текстом (`ok`, код подтверждения).
+      if (result instanceof Response) {
+        return result
+      }
+      return json(200, result)
     } catch (error) {
       if (error instanceof ApiError) {
         const body: ApiErrorBody = { error: error.code }

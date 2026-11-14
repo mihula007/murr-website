@@ -32,3 +32,17 @@ export function eventHtml(
 
 /** Подпись кнопки «Изменить решение» (TGM-19, Q-76). */
 export const CHANGE_LABEL = 'Изменить решение'
+
+/** Простой текст анонса для ВКонтакте без разметки (VK-06). */
+export function announcementPlain({ subject, body }: AnnouncementText) {
+  return subject ? `${subject}\n\n${body}` : body
+}
+
+/** Простой текст анонса события со строкой ответа (VK-06, VK-07). */
+export function eventPlain(
+  announcement: AnnouncementText,
+  answer: EventAnswer | null,
+) {
+  const base = announcementPlain(announcement)
+  return answer ? `${base}\n\nВаш ответ: ${EVENT_ANSWER_LABELS[answer]}` : base
+}

@@ -111,6 +111,8 @@ const MESSAGES: Record<ClientErrorCode | FieldErrorCode, string> = {
   telegram_unavailable:
     'Telegram не подключён на сервере. Обратитесь к администратору.',
   max_unavailable: 'MAX не подключён на сервере. Обратитесь к администратору.',
+  vk_unavailable:
+    'ВКонтакте не подключён на сервере. Обратитесь к администратору.',
   internal: 'Сервер не смог выполнить действие. Попробуйте ещё раз позже.',
   // Auth
   invalid_credentials: 'Неверный email или пароль.',

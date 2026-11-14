@@ -12,8 +12,10 @@ import {
   type BroadcastDraftsResponse,
   type BroadcastTemplatesResponse,
   type PrefillResponse,
+  SENDABLE_CHANNELS,
   type BroadcastRecipientsResponse,
   type ChannelDelivery,
+  type ChannelRecipients,
   type SendableChannel,
   type SendAnnouncementResponse,
 } from '../contracts/broadcasts.ts'
@@ -30,6 +32,10 @@ import { requireTelegram } from '../telegram/service.ts'
 import { deliverMaxAnnouncement } from '../max/announcements.ts'
 import { maxRepository } from '../max/repository.ts'
 import { requireMax } from '../max/service.ts'
+import type { AnnouncementText } from '../messenger/announcement.ts'
+import { deliverVkAnnouncement } from '../vk/announcements.ts'
+import { vkRepository } from '../vk/repository.ts'
+import { requireVk } from '../vk/service.ts'
 import { voteRepository } from '../votes/repository.ts'
 import { broadcastRepository } from './repository.ts'
 
@@ -308,37 +314,83 @@ export async function deleteBroadcastTemplate(
   return listBroadcastTemplates(deps, user)
 }
 
+/**
+ * Каналы отправки (MAX-05, VK-05): подключён ли бот, число получателей и
+ * доставка. `deliver` вызывается только для настроенного канала.
+ */
+const CHANNELS: Record<
+  SendableChannel,
+  {
+    name: string
+    configured: (deps: AppDeps) => boolean
+    require: (deps: AppDeps) => unknown
+    count: (deps: AppDeps) => Promise<number>
+    deliver: (
+      deps: AppDeps,
+      text: AnnouncementText,
+      eventId: string | null,
+    ) => Promise<ChannelDelivery>
+  }
+> = {
+  telegram: {
+    name: 'Telegram',
+    configured: (deps) => Boolean(deps.telegram),
+    require: requireTelegram,
+    count: (deps) => telegramRepository.recipientCount(deps.db),
+    deliver: (deps, text, eventId) =>
+      deliverAnnouncement(deps, requireTelegram(deps), text, eventId),
+  },
+  vk: {
+    name: 'ВКонтакте',
+    configured: (deps) => Boolean(deps.vk),
+    require: requireVk,
+    count: (deps) => vkRepository.recipientCount(deps.db),
+    deliver: (deps, text, eventId) =>
+      deliverVkAnnouncement(deps, requireVk(deps), text, eventId),
+  },
+  max: {
+    name: 'MAX',
+    configured: (deps) => Boolean(deps.max),
+    require: requireMax,
+    count: (deps) => maxRepository.recipientCount(deps.db),
+    deliver: (deps, text, eventId) =>
+      deliverMaxAnnouncement(deps, requireMax(deps), text, eventId),
+  },
+}
+
 /** Число получателей по каналам для окна подтверждения (TGM-11, MAX-05). */
 export async function broadcastRecipients(
   deps: AppDeps,
   actor: Actor,
 ): Promise<BroadcastRecipientsResponse> {
   requireRole(actor, BROADCAST_MANAGERS)
-  const [telegram, max] = await Promise.all([
-    telegramRepository.recipientCount(deps.db),
-    maxRepository.recipientCount(deps.db),
-  ])
-  return {
-    count: telegram,
-    channels: {
-      telegram: { configured: Boolean(deps.telegram), count: telegram },
-      max: { configured: Boolean(deps.max), count: max },
-    },
-  }
-}
-
-const CHANNEL_NAMES: Record<SendableChannel, string> = {
-  telegram: 'Telegram',
-  max: 'MAX',
+  const counts = await Promise.all(
+    SENDABLE_CHANNELS.map((channel) => CHANNELS[channel].count(deps)),
+  )
+  const channels = Object.fromEntries(
+    SENDABLE_CHANNELS.map((channel, index) => [
+      channel,
+      { configured: CHANNELS[channel].configured(deps), count: counts[index]! },
+    ]),
+  ) as Record<SendableChannel, ChannelRecipients>
+  return { count: channels.telegram.count, channels }
 }
 
 const EMPTY_DELIVERY: ChannelDelivery = { recipients: 0, sent: 0, failed: 0 }
 
+/** «Telegram», «Telegram и MAX», «Telegram, ВКонтакте и MAX». */
+function joinNames(names: string[]) {
+  return names.length > 1
+    ? `${names.slice(0, -1).join(', ')} и ${names.at(-1)}`
+    : (names[0] ?? '')
+}
+
 /**
- * Отправка анонса в выбранные каналы (TGM-11–TGM-24, MAX-05–MAX-12, Q-81,
- * Q-85, Q-92, Q-97): анонс события — с кнопками, только для незакрытого и
- * не начавшегося события; канал не настроен — отказ его кодом; без
- * получателей во всех выбранных каналах — отказ. Одна запись аудита.
+ * Отправка анонса в выбранные каналы (TGM-11–TGM-24, MAX-05–MAX-12,
+ * VK-05–VK-09, Q-81, Q-85, Q-92, Q-97, Q-100): анонс события — с кнопками,
+ * только для незакрытого и не начавшегося события; канал не настроен —
+ * отказ его кодом; без получателей во всех выбранных каналах — отказ.
+ * Одна запись аудита.
  */
 export async function sendAnnouncement(
   deps: AppDeps,
@@ -347,10 +399,9 @@ export async function sendAnnouncement(
 ): Promise<SendAnnouncementResponse> {
   const user = requireRole(actor, BROADCAST_MANAGERS)
   const input = parseBody(sendAnnouncementSchema, body)
-  const telegram = input.channels.includes('telegram')
-    ? requireTelegram(deps)
-    : null
-  const max = input.channels.includes('max') ? requireMax(deps) : null
+  for (const channel of input.channels) {
+    CHANNELS[channel].require(deps)
+  }
   const event = input.eventId
     ? await eventRepository.find(deps.db, input.eventId)
     : null
@@ -363,33 +414,28 @@ export async function sendAnnouncement(
   if (event && parseTimestamp(event.starts_at) <= deps.now()) {
     throw new ApiError('state_conflict', { reason: 'started' })
   }
-  const [telegramCount, maxCount] = await Promise.all([
-    telegram ? telegramRepository.recipientCount(deps.db) : 0,
-    max ? maxRepository.recipientCount(deps.db) : 0,
-  ])
-  if (telegramCount + maxCount === 0) {
+  const counts = await Promise.all(
+    input.channels.map((channel) => CHANNELS[channel].count(deps)),
+  )
+  if (counts.every((count) => count === 0)) {
     throw new ApiError('state_conflict', { reason: 'no_recipients' })
   }
   const text = { subject: input.subject, body: input.body }
   const eventId = event?.id ?? null
   // Каналы независимы (разные боты и лимиты) — отправка параллельно;
   // канал без получателей пропускается (MAX-09).
-  const [telegramResult, maxResult] = await Promise.all([
-    telegram && telegramCount > 0
-      ? deliverAnnouncement(deps, telegram, text, eventId)
-      : null,
-    max && maxCount > 0
-      ? deliverMaxAnnouncement(deps, max, text, eventId)
-      : null,
-  ])
-  const channels: Partial<Record<SendableChannel, ChannelDelivery>> = {}
-  if (telegram) {
-    channels.telegram = telegramResult ?? EMPTY_DELIVERY
-  }
-  if (max) {
-    channels.max = maxResult ?? EMPTY_DELIVERY
-  }
-  const totals = Object.values(channels).reduce<ChannelDelivery>(
+  const results = await Promise.all(
+    input.channels.map((channel, index) =>
+      counts[index]! > 0
+        ? CHANNELS[channel].deliver(deps, text, eventId)
+        : EMPTY_DELIVERY,
+    ),
+  )
+  const channels: Partial<Record<SendableChannel, ChannelDelivery>> =
+    Object.fromEntries(
+      input.channels.map((channel, index) => [channel, results[index]!]),
+    )
+  const totals = results.reduce<ChannelDelivery>(
     (sum, item) => ({
       recipients: sum.recipients + item.recipients,
       sent: sum.sent + item.sent,
@@ -397,12 +443,18 @@ export async function sendAnnouncement(
     }),
     EMPTY_DELIVERY,
   )
-  const names = input.channels.map((channel) => CHANNEL_NAMES[channel])
+  const perChannel = Object.fromEntries(
+    input.channels.flatMap((channel, index) => [
+      [`${channel}_sent`, results[index]!.sent],
+      [`${channel}_failed`, results[index]!.failed],
+    ]),
+  )
+  const names = joinNames(input.channels.map((c) => CHANNELS[c].name))
   await withTransaction(deps.db, (tx) =>
     writeAudit(tx, {
       category: 'broadcast',
       action: 'broadcast_sent',
-      summary: `${event ? 'Отправка анонса события' : 'Отправка анонса'} в ${names.join(' и ')}`,
+      summary: `${event ? 'Отправка анонса события' : 'Отправка анонса'} в ${names}`,
       actor: auditPerson(user),
       ...(event ? { target: { kind: 'event', id: event.id } } : {}),
       details: {
@@ -413,15 +465,7 @@ export async function sendAnnouncement(
         recipients: totals.recipients,
         sent: totals.sent,
         failed: totals.failed,
-        ...(channels.telegram
-          ? {
-              telegram_sent: channels.telegram.sent,
-              telegram_failed: channels.telegram.failed,
-            }
-          : {}),
-        ...(channels.max
-          ? { max_sent: channels.max.sent, max_failed: channels.max.failed }
-          : {}),
+        ...perChannel,
       },
     }),
   )
