@@ -44,10 +44,15 @@ async function setProfile(id: string, values: Record<string, unknown>) {
 
 const CARD_KEYS = [
   'avatarUrl',
+  'bd',
+  'bu',
   'classId',
   'className',
   'gameNickname',
   'id',
+  'hp',
+  'pa',
+  'pz',
   'role',
 ].sort()
 
@@ -105,6 +110,7 @@ describe('roster/list', () => {
     expect((await rosterStats(deps, actor)).total).toBe(3)
     for (const member of roster.items) {
       expect(Object.keys(member).sort()).toEqual(CARD_KEYS)
+      expect(member).not.toHaveProperty('characterStatsSource')
     }
     expect(roster.items.map((member) => member.role)).toEqual([
       'officer',

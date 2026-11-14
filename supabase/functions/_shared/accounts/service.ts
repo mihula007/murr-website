@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { avatarUrl } from '../account/avatars.ts'
-import { profileRepository } from '../account/repository.ts'
+import { profileRepository, type ProfileUpdate } from '../account/repository.ts'
 import type { AppDeps } from '../app.ts'
 import { applicationRepository } from '../applications/repository.ts'
 import { auditPerson, writeAudit } from '../audit/service.ts'
@@ -19,6 +19,12 @@ import {
   type RoleChangeResult,
   type SetPasswordResult,
 } from '../contracts/accounts.ts'
+import {
+  CHARACTER_STAT_LABELS,
+  setCharacterStatSchema,
+  type SetCharacterStatCommand,
+  type SetCharacterStatResult,
+} from '../contracts/character-stats.ts'
 import { withTransaction, type Executor } from '../db/client.ts'
 import type { ProfileRow } from '../db/schema.ts'
 import { decodeCursor, splitPage } from '../http/cursor.ts'
@@ -113,9 +119,107 @@ export async function getAccount(
     birthDate: card.birth_date,
     about: card.about,
     avatarUrl: await avatarUrl(deps.storage, card.avatar_path),
+    pa: card.pa === null ? null : Number(card.pa),
+    pz: card.pz === null ? null : Number(card.pz),
+    bu: card.bu === null ? null : Number(card.bu),
+    hp: card.hp === null ? null : Number(card.hp),
+    bd: card.bd === null ? null : Number(card.bd),
+    characterStatsSource: card.character_stats_source,
     equipmentLinks: links,
     passwordSet: card.password_set,
   }
+}
+
+function characterStatUpdate(
+  command: SetCharacterStatCommand,
+  updatedAt: string,
+): ProfileUpdate {
+  if (command.field === 'source') {
+    return {
+      character_stats_source: command.value,
+      updated_at: updatedAt,
+    }
+  }
+  switch (command.field) {
+    case 'pa':
+      return { pa: command.value, updated_at: updatedAt }
+    case 'pz':
+      return { pz: command.value, updated_at: updatedAt }
+    case 'bu':
+      return { bu: command.value, updated_at: updatedAt }
+    case 'hp':
+      return { hp: command.value, updated_at: updatedAt }
+    case 'bd':
+      return { bd: command.value, updated_at: updatedAt }
+  }
+}
+
+function sameCharacterStat(
+  command: SetCharacterStatCommand,
+  target: ProfileRow,
+) {
+  if (command.field === 'source') {
+    return target.character_stats_source === command.value
+  }
+  const previous = target[command.field]
+  return previous === null
+    ? command.value === null
+    : command.value !== null && Number(previous) === command.value
+}
+
+/** Одно поле характеристик аккаунта (ADM-15): только администратор. */
+export async function setCharacterStat(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<SetCharacterStatResult> {
+  const admin = requireRole(actor, ['admin'])
+  const command = parseBody(setCharacterStatSchema, body)
+
+  return withTransaction(deps.db, async (tx) => {
+    const target = await profileRepository.findByIdForUpdate(tx, command.userId)
+    if (!target) {
+      throw new ApiError('not_found')
+    }
+    if (await userRepository.deletionPending(tx, command.userId)) {
+      throw new ApiError('state_conflict')
+    }
+
+    if (!sameCharacterStat(command, target)) {
+      await profileRepository.update(
+        tx,
+        command.userId,
+        characterStatUpdate(command, deps.now().toISOString()),
+      )
+      const user = await userRepository.findById(tx, command.userId)
+      await writeAudit(tx, {
+        category: 'profiles',
+        action: 'character_stat_changed',
+        summary: 'Изменение характеристики персонажа',
+        actor: auditPerson(admin),
+        target: {
+          kind: 'profile',
+          id: command.userId,
+          user: {
+            id: command.userId,
+            role: target.access_role as AccessRole,
+            nickname: target.game_nickname,
+            email: user?.email ?? null,
+          },
+        },
+        details: {
+          user_id: command.userId,
+          changed_fields: [CHARACTER_STAT_LABELS[command.field]],
+        },
+      })
+    }
+
+    return {
+      userId: command.userId,
+      field: command.field,
+      value: command.value,
+    }
+  })
 }
 
 /**

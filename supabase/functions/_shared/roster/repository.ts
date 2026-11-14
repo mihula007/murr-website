@@ -36,6 +36,11 @@ export const rosterRepository = {
         'c.name as class_name',
         'p.avatar_path',
         'p.access_role',
+        'p.pa',
+        'p.pz',
+        'p.bu',
+        'p.hp',
+        'p.bd',
       ])
       .where('p.access_role', 'in', options.roles)
     if (options.classId !== null) {

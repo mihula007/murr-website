@@ -37,6 +37,11 @@ async function toCards(
     className: row.class_name,
     avatarUrl: row.avatar_path ? (urls.get(row.avatar_path) ?? null) : null,
     role: row.access_role as AccessRole,
+    pa: row.pa === null ? null : Number(row.pa),
+    pz: row.pz === null ? null : Number(row.pz),
+    bu: row.bu === null ? null : Number(row.bu),
+    hp: row.hp === null ? null : Number(row.hp),
+    bd: row.bd === null ? null : Number(row.bd),
   }))
 }
 

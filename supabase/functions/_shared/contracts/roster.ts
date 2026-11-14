@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { AccessRole } from './account.ts'
+import type { CharacterStatFields } from './character-stats.ts'
 import { pageRequestShape, type MemberList, type Page } from './paging.ts'
 
 /** Численность текущего состава (member + officer + admin) — видна всем. */
@@ -9,7 +10,7 @@ export type RosterCountResponse = { count: number }
  * Карточка состава: только ник, класс, аватар и роль (ROS-02). Имя, email,
  * город, дата рождения, рассказ и ссылки не отдаются (ROS-03).
  */
-export type RosterMember = {
+export type RosterMember = CharacterStatFields & {
   id: string
   gameNickname: string
   classId: number

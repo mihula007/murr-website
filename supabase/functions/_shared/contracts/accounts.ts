@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { AccessRole, ApplicationStatus } from './account.ts'
+import type { CharacterStatFields } from './character-stats.ts'
 import { pageRequestShape, type Page } from './paging.ts'
 
 export const ACCESS_ROLES = [
@@ -82,16 +83,17 @@ export const accountIdSchema = z.object({ userId: z.guid('not_found') })
 export type AccountIdRequest = z.input<typeof accountIdSchema>
 
 /** Раскрытая карточка аккаунта (ADM-03): все данные, только администратору. */
-export type AccountCard = AccountListItem & {
-  city: string | null
-  birthDate: string | null
-  about: string | null
-  avatarUrl: string | null
-  /** Ссылки последней заявки на скриншоты; сервер их не запрашивает. */
-  equipmentLinks: string[]
-  /** У аккаунта задан пароль входа. */
-  passwordSet: boolean
-}
+export type AccountCard = AccountListItem &
+  CharacterStatFields & {
+    city: string | null
+    birthDate: string | null
+    about: string | null
+    avatarUrl: string | null
+    /** Ссылки последней заявки на скриншоты; сервер их не запрашивает. */
+    equipmentLinks: string[]
+    /** У аккаунта задан пароль входа. */
+    passwordSet: boolean
+  }
 
 export const setPasswordSchema = z.object({
   userId: z.guid('not_found'),

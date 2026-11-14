@@ -148,6 +148,12 @@ export const accountRepository = {
         'p.birth_date',
         'p.about',
         'p.avatar_path',
+        'p.pa',
+        'p.pz',
+        'p.bu',
+        'p.hp',
+        'p.bd',
+        'p.character_stats_source',
         // Только признак: хеш пароля не выбирается.
         sql<boolean>`coalesce(u.encrypted_password, '') <> ''`.as(
           'password_set',
