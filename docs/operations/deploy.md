@@ -111,9 +111,9 @@ npx supabase link --project-ref fbhndmsmusbqntdymnaz
    6-значные коды, русские письма, `site_url`, 30 писем в час. Без своего
    SMTP Free не даёт менять шаблоны, а встроенная почта пишет только
    участникам организации Supabase.
-10. **Ожидает:** первый администратор — зарегистрироваться на сайте, затем
-    `npm run admin:bootstrap -- …` с `ADMIN_DATABASE_URL` в `.env`
-    (строка подключения облака, секрет).
+10. Первый администратор (Q-32): регистрация на сайте до «Завершите
+    регистрацию», затем `npm run admin:bootstrap -- …` с `ADMIN_DATABASE_URL`
+    в `.env` (строка Session pooler, секрет); после — очистить переменную.
 11. **Ожидает:** рабочий бот Telegram — Secrets `TELEGRAM_BOT_TOKEN`,
     `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET`, затем
     `npm run telegram:webhook -- --functions
