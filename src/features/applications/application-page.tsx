@@ -23,8 +23,7 @@ import { DecisionDialog, type Decision } from './decision-dialog'
 const detailsListClass =
   'm-0 grid grid-cols-2 gap-x-[18px] gap-y-2 max-[560px]:grid-cols-1 [&_dd]:m-0 [&_dd]:break-words [&_dt]:text-xs [&_dt]:text-muted-foreground'
 
-const sectionTitleClass =
-  'text-xs font-extrabold tracking-[0.16em] text-primary uppercase'
+const sectionTitleClass = 'font-sans text-base font-bold text-foreground'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -289,7 +288,7 @@ export function ApplicationPage({ id }: { id: string }) {
       >
         <ArrowLeft size={16} aria-hidden="true" /> К заявкам
       </Link>
-      <PageHeader eyebrow="Управление" title="Заявка" />
+      <PageHeader title="Заявка" />
       {content}
     </section>
   )

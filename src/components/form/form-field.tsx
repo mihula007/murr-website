@@ -17,7 +17,7 @@ export const subformClass =
 /** Заголовок блока формы: золотой, капителью, во всю ширину сетки. */
 export function FormSectionTitle({ children }: { children: ReactNode }) {
   return (
-    <h2 className="col-span-full mt-2 mb-0 text-xs font-extrabold tracking-[0.16em] text-primary uppercase">
+    <h2 className="col-span-full mt-2 mb-0 font-sans text-base font-bold text-primary">
       {children}
     </h2>
   )

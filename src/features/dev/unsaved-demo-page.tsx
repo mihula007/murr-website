@@ -16,7 +16,6 @@ export default function UnsavedDemoPage() {
   return (
     <section className="max-w-xl">
       <PageHeader
-        eyebrow="Только для разработки"
         title="Несохранённые изменения"
         description="Измените поле и попробуйте уйти со страницы."
       />

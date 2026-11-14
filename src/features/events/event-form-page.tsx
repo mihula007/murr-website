@@ -44,8 +44,7 @@ import {
   useUpdateEvent,
 } from './api'
 
-const sectionTitleClass =
-  'm-0 text-xs font-extrabold tracking-[0.16em] text-primary uppercase'
+const sectionTitleClass = 'm-0 font-sans text-base font-bold text-foreground'
 
 const TYPE_OPTIONS = EVENT_TYPES.map((type) => ({
   value: type,
@@ -67,7 +66,7 @@ function BackLink() {
       search={{ tab: 'active' }}
       className={cn(linkButtonClass, 'mb-3 inline-flex items-center gap-1.5')}
     >
-      <ArrowLeft size={16} aria-hidden="true" /> К ивентам
+      <ArrowLeft size={16} aria-hidden="true" /> К событиям
     </Link>
   )
 }
@@ -131,7 +130,7 @@ function TemplateLibrary({ onApply }: TemplateLibraryProps) {
           >
             <div className="flex flex-wrap items-center gap-2">
               <Badge>{EVENT_TYPE_LABELS[template.type]}</Badge>
-              <h3 className="m-0 min-w-0 text-base font-bold break-words">
+              <h3 className="m-0 min-w-0 font-sans text-base font-bold break-words">
                 {template.title}
               </h3>
             </div>
@@ -458,7 +457,7 @@ function EventForm({ event, initial }: EventFormProps) {
                 : 'Сохранить изменения'
               : pending
                 ? 'Создаём…'
-                : 'Создать ивент'}
+                : 'Создать событие'}
           </Button>
           <Button
             type="button"
@@ -502,9 +501,8 @@ export function CreateEventPage() {
     <section className="mx-auto w-full max-w-[860px]">
       <BackLink />
       <PageHeader
-        eyebrow="Клан"
-        title="Создать ивент"
-        description="Заполните основные сведения об ивенте."
+        title="Создать событие"
+        description="Заполните основные сведения о событии."
       />
       <div className="grid gap-4">
         <EventForm key={fill?.key ?? 0} initial={fill?.fields} />
@@ -549,7 +547,7 @@ export function EditEventPage({ id }: { id: string }) {
   return (
     <section className="mx-auto w-full max-w-[860px]">
       <BackLink />
-      <PageHeader eyebrow="Клан" title="Редактировать ивент" />
+      <PageHeader title="Редактировать событие" />
       <div className="grid gap-4">{content}</div>
     </section>
   )

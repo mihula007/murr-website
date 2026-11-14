@@ -28,7 +28,7 @@ export function activeVotesLabel(count: number) {
   ])
 }
 
-/** «ивент скоро / ивента скоро / ивентов скоро». */
+/** «событие скоро / события скоро / событий скоро». */
 export function eventsLabel(count: number) {
-  return pluralRu(count, ['ивент скоро', 'ивента скоро', 'ивентов скоро'])
+  return pluralRu(count, ['событие скоро', 'события скоро', 'событий скоро'])
 }

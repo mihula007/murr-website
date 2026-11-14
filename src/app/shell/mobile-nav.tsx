@@ -44,11 +44,12 @@ export function MobileNav({ categories, counts }: MobileNavProps) {
       >
         <Menu aria-hidden="true" size={22} />
         <NavBadge
+          dot
           count={sumCounts(
             categories.flatMap((category) => category.sections),
             counts,
           )}
-          className="pointer-events-none absolute -top-0.5 -right-0.5"
+          className="pointer-events-none absolute top-1.5 right-1.5 ring-2 ring-surface-header"
         />
       </SheetTrigger>
       <SheetContent closeLabel="Закрыть меню">
@@ -71,7 +72,7 @@ export function MobileNav({ categories, counts }: MobileNavProps) {
             >
               <h2
                 id={`mobile-nav-${category.id}`}
-                className="relative m-0 px-3 py-1 text-2xs font-extrabold tracking-[0.2em] text-muted-foreground uppercase data-active:text-primary"
+                className="relative m-0 px-3 py-1 font-sans text-xs font-semibold text-muted-foreground data-active:text-primary"
                 data-active={active?.category === category.id ? '' : undefined}
               >
                 {category.label}

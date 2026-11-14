@@ -68,7 +68,7 @@ export function DesktopNav({ categories, counts }: DesktopNavProps) {
           >
             <span className="inline-flex items-center gap-1.5">
               {category.label}
-              <NavBadge count={sumCounts(category.sections, counts)} />
+              <NavBadge dot count={sumCounts(category.sections, counts)} />
             </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent

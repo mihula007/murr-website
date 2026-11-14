@@ -7,7 +7,7 @@ import type {
   EventTemplate,
 } from '@contracts/events'
 import { AppError } from '@/lib/errors'
-import { formatDateTimeMsk } from '@/lib/format-date'
+import { formatDateTimeMsk, formatEventStartMsk } from '@/lib/format-date'
 import { dataCalls } from './support/api-calls'
 import { renderApp } from './support/render-app'
 
@@ -114,6 +114,7 @@ beforeEach(() => {
   toast.mockReset()
 })
 afterEach(() => {
+  vi.useRealTimers()
   process.env.TZ = originalTz
 })
 
@@ -129,9 +130,11 @@ describe('schedule (EVT-01)', () => {
     expect(card.getByText('Автор: Офицер')).toBeVisible()
     const counts = within(card.getByRole('list', { name: 'Ответы участников' }))
     expect(counts.getByText(/Приду:/)).toHaveTextContent('Приду: 2')
-    expect(screen.queryByText('Создать ивент')).toBeNull()
+    expect(screen.queryByText('Создать событие')).toBeNull()
     expect(screen.queryByText('Постоянные события')).toBeNull()
-    expect(card.queryByRole('link', { name: 'Редактировать' })).toBeNull()
+    expect(
+      card.queryByRole('button', { name: /^Управление событием/ }),
+    ).toBeNull()
   })
 
   it('offers creation, weekly events and management to an officer', async () => {
@@ -154,12 +157,12 @@ describe('schedule (EVT-01)', () => {
     })
     await renderApp({ role: 'officer', path: '/events' })
     expect(
-      await screen.findByRole('link', { name: /Создать ивент/ }),
+      await screen.findByRole('link', { name: /Создать событие/ }),
     ).toBeVisible()
     expect(screen.getByText('Автор: Автоматически')).toBeVisible()
-    expect(screen.getAllByRole('link', { name: 'Редактировать' })).toHaveLength(
-      2,
-    )
+    expect(
+      screen.getAllByRole('button', { name: /^Управление событием/ }),
+    ).toHaveLength(2)
     fireEvent.click(
       screen.getByRole('button', { name: /Создать постоянные события недели/ }),
     )
@@ -219,9 +222,10 @@ describe('answers (EVT-04, EVT-05, Q-43)', () => {
         list([summary({ canAnswer: false, myAnswer: 'yes' })]),
     })
     await renderApp({ role: 'member', path: '/events' })
-    expect(
-      await screen.findByText(/Событие началось: ответы больше не принимаются/),
-    ).toBeVisible()
+    // В списке причину показывает метка «Идёт», своё решение остаётся.
+    expect(await screen.findByText('Идёт')).toBeVisible()
+    expect(screen.getByText('Ваше решение:')).toBeVisible()
+    expect(screen.queryByText(/ответы больше не принимаются/)).toBeNull()
     expect(screen.queryByRole('button', { name: '50/50' })).toBeNull()
   })
 
@@ -254,6 +258,24 @@ describe('event page (EVT-06)', () => {
       await screen.findByRole('list', { name: 'Не отметились' }),
     ).toHaveTextContent('Борис')
   })
+
+  it('titles the page with the event name and spells out the start', async () => {
+    // Только Date: «Сегодня»/«Завтра» зависят от текущего дня по Москве.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-01T12:00:00.000Z'))
+    respond({ 'events/get': () => details() })
+    await renderApp({ role: 'member', path: `/events/${EVENT_ID}` })
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Рейд' }),
+    ).toBeVisible()
+    expect(screen.getByText(/^Суббота, 14 ноября 2026,/)).toHaveTextContent(
+      'Суббота, 14 ноября 2026, 20:00 МСК',
+    )
+    vi.useRealTimers()
+    expect(
+      screen.queryByRole('button', { name: /^Управление событием/ }),
+    ).toBeNull()
+  })
 })
 
 describe('Moscow time display (Q-44)', () => {
@@ -265,6 +287,18 @@ describe('Moscow time display (Q-44)', () => {
     process.env.TZ = 'Asia/Vladivostok'
     expect(formatDateTimeMsk('2026-11-14T22:00:00.000Z')).toBe(
       '15.11.2026, 01:00 МСК',
+    )
+    expect(formatEventStartMsk('2026-11-14T22:00:00.000Z')).toEqual({
+      day: 'Воскресенье, 15 ноября 2026',
+      time: '01:00 МСК',
+    })
+    // 23:30 МСК 14.11 — «сегодня» для 15.11 по Москве ещё не наступило.
+    const now = new Date('2026-11-14T20:30:00.000Z')
+    expect(formatEventStartMsk('2026-11-14T22:00:00.000Z', now).day).toBe(
+      'Завтра, 15 ноября',
+    )
+    expect(formatEventStartMsk('2026-11-14T20:45:00.000Z', now).day).toBe(
+      'Сегодня, 14 ноября',
     )
   })
 })
@@ -286,7 +320,7 @@ describe('event form and templates (EVT-03, EVT-11–13)', () => {
     const form = within(
       await screen.findByRole('form', { name: 'Новое событие' }),
     )
-    fireEvent.click(form.getByRole('button', { name: 'Создать ивент' }))
+    fireEvent.click(form.getByRole('button', { name: 'Создать событие' }))
     await waitFor(() =>
       expect(form.getAllByText('Заполните поле').length).toBeGreaterThanOrEqual(
         4,
@@ -334,7 +368,7 @@ describe('event form and templates (EVT-03, EVT-11–13)', () => {
     fireEvent.change(form.getByLabelText('Описание'), {
       target: { value: 'Собираемся у портала' },
     })
-    fireEvent.click(form.getByRole('button', { name: 'Создать ивент' }))
+    fireEvent.click(form.getByRole('button', { name: 'Создать событие' }))
     await waitFor(() =>
       expect(callApi).toHaveBeenCalledWith('events/create', {
         title: 'Рейд',

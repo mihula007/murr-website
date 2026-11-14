@@ -112,7 +112,7 @@ export function GroupTemplatesDialog({
             key={template.id}
             className="grid min-w-0 gap-2 rounded-xl border border-border bg-surface-inset p-3"
           >
-            <h3 className="m-0 text-base font-bold break-words">
+            <h3 className="m-0 font-sans text-base font-bold break-words">
               {template.name}
             </h3>
             <p className="m-0 text-sm text-muted-foreground">

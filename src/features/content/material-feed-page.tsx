@@ -161,7 +161,6 @@ export function MaterialFeedPage({
   return (
     <section>
       <PageHeader
-        eyebrow={section.texts.eyebrow}
         title={section.texts.title}
         description={section.texts.description}
         actions={

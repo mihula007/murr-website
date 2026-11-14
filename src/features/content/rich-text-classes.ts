@@ -44,7 +44,7 @@ export const TONE_CLASS: Record<TextTone, string> = {
   highlight: 'text-highlight',
   muted: 'text-muted-foreground',
   danger: 'text-destructive',
-  success: 'text-success-foreground',
+  success: 'text-live',
 }
 
 export const SIZE_CLASS: Record<TextSize, string> = {

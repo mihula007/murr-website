@@ -15,7 +15,7 @@ import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { NavBadge } from '@/components/ui/nav-badge'
-import { Card } from '@/components/ui/surfaces'
+import { Panel } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
 import { pagingOf, VirtualList } from '@/components/virtual-list'
@@ -46,8 +46,7 @@ const EMPTY = {
   },
 } as const
 
-const sectionTitleClass =
-  'm-0 text-xs font-extrabold tracking-[0.16em] text-primary uppercase'
+const sectionTitleClass = 'm-0 font-sans text-base font-bold text-foreground'
 
 /**
  * Постоянные события создаются расписанием по понедельникам в 00:00 МСК;
@@ -71,7 +70,7 @@ function WeeklyEvents() {
   }
 
   return (
-    <Card className="mb-4 grid gap-3">
+    <Panel className="mb-6 grid gap-3">
       <div className="grid gap-1">
         <h2 className={sectionTitleClass}>Постоянные события</h2>
         <p className="m-0 text-sm text-muted-foreground">
@@ -85,7 +84,7 @@ function WeeklyEvents() {
           return (
             <li
               key={id}
-              className="grid gap-0.5 rounded-lg border border-border bg-surface-inset px-3 py-2"
+              className="grid gap-0.5 rounded-lg bg-secondary/70 px-3 py-2"
             >
               <strong>{preset.title}</strong>
               <span className="text-xs text-muted-foreground first-letter:uppercase">
@@ -115,11 +114,11 @@ function WeeklyEvents() {
         </Button>
       </div>
       <GroupTemplatesDialog open={templates} onOpenChange={setTemplates} />
-    </Card>
+    </Panel>
   )
 }
 
-/** Раздел «Ивенты»: актуальные и прошедшие события (EVT-01). */
+/** Раздел «События»: актуальные и прошедшие события (EVT-01). */
 // Типы поиска TanStack Router в компоненте маршрута необязательны: значения
 // по умолчанию — те же, что у схемы.
 export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
@@ -149,7 +148,7 @@ export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
           >
             {active.data.items.map((event) => (
               <li key={event.id} className="min-w-0">
-                <EventCard event={event} linkToPage className="h-full" />
+                <EventCard event={event} className="h-full" />
               </li>
             ))}
           </ul>
@@ -173,7 +172,7 @@ export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
         columns={1}
         gap="md"
         paging={pagingOf(past)}
-        renderItem={(event) => <EventCard event={event} linkToPage />}
+        renderItem={(event) => <EventCard event={event} />}
       />
     )
   }
@@ -182,8 +181,7 @@ export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
     <section>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <PageHeader
-          eyebrow="Клан"
-          title="Ивенты"
+          title="События"
           description="Расписание клана: отвечайте «Приду», «Не приду» или «50/50» до начала события. Время — московское."
         />
         {isManager ? (
@@ -191,7 +189,7 @@ export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
             to="/events/new"
             className={cn(buttonVariants(), 'mb-4 no-underline max-xs:w-full')}
           >
-            <Plus size={18} aria-hidden="true" /> Создать ивент
+            <Plus size={18} aria-hidden="true" /> Создать событие
           </Link>
         ) : null}
       </div>

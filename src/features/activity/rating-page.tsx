@@ -92,12 +92,12 @@ export function RatingPage() {
       <Card className="grid gap-3">
         <div className="grid items-end gap-3 min-[700px]:grid-cols-[minmax(0,1fr)_minmax(220px,320px)]">
           <div className="grid gap-1">
-            <h2 className="m-0 text-xs font-extrabold tracking-[0.16em] text-primary uppercase">
-              Посещение ивентов
+            <h2 className="m-0 font-sans text-base font-bold text-foreground">
+              Посещение событий
             </h2>
             <p className="m-0 text-sm text-muted-foreground">
-              Учитываются завершённые ивенты: {rating.data.eventCount}. Процент
-              — от ивентов, в которых участник был в составе.
+              Учитываются завершённые события: {rating.data.eventCount}. Процент
+              — от событий, в которых участник был в составе.
             </p>
           </div>
           <Input
@@ -138,7 +138,6 @@ export function RatingPage() {
   return (
     <section>
       <PageHeader
-        eyebrow="Сообщество"
         title="Рейтинг посещения"
         description="Посещения, пропуски и пати-лидерство участников клана."
       />

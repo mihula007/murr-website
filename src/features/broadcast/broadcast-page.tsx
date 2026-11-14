@@ -152,7 +152,7 @@ function Templates({
   const serverNameError = save.error?.fields.name ?? save.error?.fields.body
   return (
     <section aria-labelledby="templates-title" className="grid gap-3">
-      <h2 id="templates-title" className="m-0 text-lg font-bold">
+      <h2 id="templates-title" className="m-0 text-xl font-bold">
         Шаблоны
       </h2>
       {templates.isPending ? (
@@ -340,7 +340,7 @@ function Drafts() {
   }
   return (
     <Card className="grid gap-3">
-      <h2 className="m-0 text-lg font-bold">Черновики</h2>
+      <h2 className="m-0 text-xl font-bold">Черновики</h2>
       <p className="m-0 text-xs text-muted-foreground">
         Хранятся последние {BROADCAST_LIMITS.drafts} черновиков; они общие для
         офицеров и администраторов.
@@ -721,7 +721,6 @@ export function BroadcastPage({ source, id }: Partial<BroadcastSearch>) {
   return (
     <section className="grid gap-5">
       <PageHeader
-        eyebrow="Управление"
         title="Рассылка"
         description="Подготовка сообщений для Telegram, ВКонтакте и MAX. Отправка появится после подключения ботов."
       />

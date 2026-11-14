@@ -82,7 +82,7 @@ describe('DropdownMenu', () => {
           <Button>Клан</Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuItem>Ивенты</DropdownMenuItem>
+          <DropdownMenuItem>События</DropdownMenuItem>
           <DropdownMenuItem>Голосование</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>,

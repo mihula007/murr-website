@@ -48,7 +48,7 @@ export function SheetTitle({
   return (
     <SheetPrimitive.Title
       className={cn(
-        'm-0 pr-11 text-[13px] font-black tracking-[0.13em]',
+        'm-0 pr-11 font-sans text-[13px] font-black tracking-[0.13em]',
         className,
       )}
       {...props}

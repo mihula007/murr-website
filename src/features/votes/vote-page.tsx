@@ -11,8 +11,7 @@ import { cn } from '@/lib/utils'
 import { useVote } from './api'
 import { VoteCard } from './vote-card'
 
-const sectionTitleClass =
-  'm-0 text-xs font-extrabold tracking-[0.16em] text-primary uppercase'
+const sectionTitleClass = 'm-0 font-sans text-base font-bold text-foreground'
 
 /** Кто как голосовал — только офицеру и администратору (VOT-07, Q-16). */
 function Ballots({ vote }: { vote: VoteDetails }) {
@@ -66,22 +65,32 @@ export function VotePage({ id }: { id: string }) {
 
   let content
   if (vote.isPending) {
-    content = <LoadingState label="Загружаем голосование…" />
+    content = (
+      <>
+        <PageHeader title="Голосование" />
+        <LoadingState label="Загружаем голосование…" />
+      </>
+    )
   } else if (vote.isError) {
-    content =
-      vote.error.code === 'not_found' ? (
-        <ErrorState
-          title="Голосование не найдено"
-          message="Возможно, его удалили или ссылка устарела."
-        />
-      ) : (
-        <ErrorState onRetry={() => void vote.refetch()} />
-      )
+    content = (
+      <>
+        <PageHeader title="Голосование" />
+        {vote.error.code === 'not_found' ? (
+          <ErrorState
+            title="Голосование не найдено"
+            message="Возможно, его удалили или ссылка устарела."
+          />
+        ) : (
+          <ErrorState onRetry={() => void vote.refetch()} />
+        )}
+      </>
+    )
   } else {
     const data = vote.data
     content = (
       <div className="grid gap-4">
         <VoteCard
+          page
           vote={data}
           onDeleted={() =>
             void navigate({ to: '/votes', search: { tab: 'active' } })
@@ -110,7 +119,6 @@ export function VotePage({ id }: { id: string }) {
       >
         <ArrowLeft size={16} aria-hidden="true" /> К голосованиям
       </Link>
-      <PageHeader eyebrow="Клан" title="Голосование" />
       {content}
     </section>
   )

@@ -155,7 +155,7 @@ describe('roster page', () => {
     await renderApp({ role: 'member', path: '/roster' })
     await screen.findByRole('heading', { name: 'Альфа' })
     expect(
-      screen.queryByRole('button', { name: /Присвоить статус/ }),
+      screen.queryByRole('button', { name: /^Действия с участником/ }),
     ).toBeNull()
     expect(screen.queryByRole('tab', { name: 'Чтецы' })).toBeNull()
     expect(callApi).not.toHaveBeenCalledWith(
@@ -173,7 +173,7 @@ describe('roster page', () => {
     await renderApp({ role: 'officer', path: '/roster' })
     await screen.findByRole('heading', { name: 'Альфа' })
     expect(
-      screen.queryByRole('button', { name: /Присвоить статус/ }),
+      screen.queryByRole('button', { name: /^Действия с участником/ }),
     ).toBeNull()
 
     await openReaders()
@@ -203,11 +203,16 @@ describe('roster page', () => {
     })
     await renderApp({ role: 'admin', path: '/roster' })
     await screen.findByRole('heading', { name: 'Альфа' })
-    const buttons = screen.getAllByRole('button', { name: /Присвоить статус/ })
+    const buttons = screen.getAllByRole('button', {
+      name: /^Действия с участником/,
+    })
     expect(buttons).toHaveLength(1)
     expect(buttons[0]!.closest('li')).toHaveTextContent('Бета')
 
-    fireEvent.click(buttons[0]!)
+    fireEvent.keyDown(buttons[0]!, { key: 'Enter' })
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'Присвоить статус «Чтец»' }),
+    )
     const dialog = await screen.findByRole('alertdialog')
     expect(callApi).not.toHaveBeenCalledWith(
       'accounts/set-role',
@@ -278,11 +283,7 @@ describe('home page count (HOM-04)', () => {
 
   it('shows the roster count to member', async () => {
     await renderApp({ role: 'member', path: '/' })
-    const stat = await screen.findByRole('region', {
-      name: 'Численность клана',
-    })
-    expect(await within(stat).findByText('3')).toBeVisible()
-    expect(within(stat).getByText('участника')).toBeVisible()
+    expect(await screen.findByText(/^3 участника в клане/)).toBeVisible()
   })
 
   it('declines the members label', () => {

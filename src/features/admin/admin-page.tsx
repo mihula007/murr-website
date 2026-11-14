@@ -54,7 +54,6 @@ export function AdminPage(props: Partial<AdminSearch>) {
   return (
     <section>
       <PageHeader
-        eyebrow="Управление"
         title="Администрирование"
         description="Аккаунты: поиск, роли, пароль и удаление. Журнал важных действий."
       />

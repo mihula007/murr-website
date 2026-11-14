@@ -65,7 +65,7 @@ describe('оболочка приложения', () => {
     }
     fireEvent.keyDown(clan, { key: 'Enter' })
     expect(
-      await screen.findByRole('menuitem', { name: 'Ивенты' }),
+      await screen.findByRole('menuitem', { name: 'События' }),
     ).toBeInTheDocument()
     fireEvent.keyDown(community, { key: 'Enter' })
     expect(
@@ -73,7 +73,7 @@ describe('оболочка приложения', () => {
     ).toBeInTheDocument()
     await waitFor(() =>
       expect(
-        screen.queryByRole('menuitem', { name: 'Ивенты' }),
+        screen.queryByRole('menuitem', { name: 'События' }),
       ).not.toBeInTheDocument(),
     )
     expect(screen.getAllByRole('menu')).toHaveLength(1)
@@ -105,10 +105,9 @@ describe('оболочка приложения', () => {
     const burger = await screen.findByRole('button', { name: 'Открыть меню' })
     fireEvent.click(burger)
     const panel = await screen.findByRole('dialog', { name: 'Murr клан' })
-    expect(within(panel).getByRole('link', { name: 'Ивенты' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    )
+    expect(
+      within(panel).getByRole('link', { name: 'События' }),
+    ).toHaveAttribute('aria-current', 'page')
     expect(
       within(panel).queryByRole('link', { name: 'Заявки' }),
     ).not.toBeInTheDocument()

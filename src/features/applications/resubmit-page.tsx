@@ -100,7 +100,7 @@ function ResubmitForm({ me }: { me: ReadyMe }) {
   return (
     <Card className="grid gap-4">
       <section aria-labelledby="resubmit-profile" className="grid gap-3">
-        <h2 id="resubmit-profile" className="text-lg font-bold">
+        <h2 id="resubmit-profile" className="text-xl font-bold">
           Данные из профиля
         </h2>
         <div className="flex min-w-0 items-center gap-3.5">

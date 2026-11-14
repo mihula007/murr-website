@@ -53,7 +53,7 @@ type View = (typeof VIEWS)[number]
 const VIEW_LABELS: Record<View, string> = {
   summary: 'Сводка',
   history: 'История',
-  event: 'По ивенту',
+  event: 'По событию',
   member: 'По участнику',
 }
 
@@ -70,8 +70,7 @@ export const activitySearchSchema = z.object({
 export type ActivitySearch = z.output<typeof activitySearchSchema>
 
 const ALL = 'all'
-const sectionTitleClass =
-  'm-0 text-xs font-extrabold tracking-[0.16em] text-primary uppercase'
+const sectionTitleClass = 'm-0 font-sans text-base font-bold text-foreground'
 
 const STATUS_CLASS: Record<AttendanceStatus, string> = {
   visited: 'text-primary',
@@ -151,7 +150,7 @@ const historyColumns: ActivityColumns<ActivityHistoryRow> =
       cell: (info) => formatDate(info.getValue()),
     }),
     historyColumn.accessor('eventTitle', {
-      header: 'Ивент',
+      header: 'Событие',
       cell: (info) => <span className="break-words">{info.getValue()}</span>,
     }),
     historyColumn.accessor('gameNickname', {
@@ -214,7 +213,7 @@ type MemberRow = ActivityMemberResponse['items'][number]
 const memberColumn = activityColumns<MemberRow>()
 const memberColumns: ActivityColumns<MemberRow> = memberColumn.columns([
   memberColumn.accessor('eventTitle', {
-    header: 'Ивент',
+    header: 'Событие',
     cell: (info) => (
       <strong className="break-words text-foreground">{info.getValue()}</strong>
     ),
@@ -267,7 +266,7 @@ function SummaryPanel({ filters, search }: PanelProps) {
   return (
     <div className="grid gap-3">
       <p className="m-0 text-sm text-muted-foreground">
-        Участников: {rows.length} · ивентов в периоде: {summary.data.eventCount}
+        Участников: {rows.length} · событий в периоде: {summary.data.eventCount}
       </p>
       <DataTable
         label="Сводка участников"
@@ -300,7 +299,7 @@ function HistoryPanel({ filters, search }: PanelProps) {
   }
   return (
     <VirtualDataTable
-      label="История ивентов"
+      label="История событий"
       columns={historyColumns}
       data={history.data.pages.flatMap((page) => page.items)}
       getRowId={(row) => `${row.eventId}:${row.userId}`}
@@ -308,7 +307,7 @@ function HistoryPanel({ filters, search }: PanelProps) {
       empty={
         <EmptyState
           title="Нет записей"
-          description="Нет закрытых ивентов для выбранных фильтров."
+          description="Нет закрытых событий для выбранных фильтров."
         />
       }
     />
@@ -328,7 +327,7 @@ function EventDetails({
 }) {
   const event = useActivityEvent(eventId, classId)
   if (event.isPending) {
-    return <LoadingState label="Загружаем ивент…" />
+    return <LoadingState label="Загружаем событие…" />
   }
   if (event.isError) {
     return <ErrorState onRetry={() => void event.refetch()} />
@@ -344,11 +343,11 @@ function EventDetails({
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="m-0 min-w-0 flex-1 text-base font-bold break-words">
+        <h3 className="m-0 min-w-0 flex-1 font-sans text-base font-bold break-words">
           {event.data.event.title} · {formatDate(event.data.event.dateMsk)}
         </h3>
         <Button type="button" variant="secondary" size="sm" onClick={onBack}>
-          Другой ивент
+          Другое событие
         </Button>
       </div>
       <Stats
@@ -360,14 +359,14 @@ function EventDetails({
         ]}
       />
       <DataTable
-        label="Состав ивента"
+        label="Состав события"
         columns={eventRowColumns}
         data={rows}
         getRowId={(row) => row.userId}
         empty={
           <EmptyState
             title="Нет записей"
-            description="Нет записей по выбранному ивенту и фильтрам."
+            description="Нет записей по выбранному событию и фильтрам."
           />
         }
       />
@@ -399,7 +398,7 @@ function EventPanel({
     )
   }
   if (events.isPending) {
-    return <LoadingState label="Загружаем ивенты…" />
+    return <LoadingState label="Загружаем события…" />
   }
   if (events.isError) {
     return <ErrorState onRetry={() => void events.refetch()} />
@@ -408,18 +407,18 @@ function EventPanel({
   if (items.length === 0) {
     return (
       <EmptyState
-        title="Нет закрытых ивентов"
-        description="В выбранном периоде нет закрытых ивентов."
+        title="Нет закрытых событий"
+        description="В выбранном периоде нет закрытых событий."
       />
     )
   }
   return (
     <div className="grid gap-2">
       <p className="m-0 text-sm text-muted-foreground">
-        Выберите ивент: показаны новые сверху.
+        Выберите событие: показаны новые сверху.
       </p>
       <VirtualList<ActivityEventOption>
-        label="Закрытые ивенты"
+        label="Закрытые события"
         items={items}
         getKey={(item) => item.id}
         estimateSize={52}
@@ -472,7 +471,7 @@ function MemberPanel({
       <div className="grid gap-3">
         <Stats
           items={[
-            ['ивентов', stats.total],
+            ['событий', stats.total],
             ['посетил', stats.visited],
             ['не посетил', stats.missed],
             ['не отметился', stats.unmarked],
@@ -610,9 +609,8 @@ export function ActivityPage(search: Partial<ActivitySearch>) {
   return (
     <section>
       <PageHeader
-        eyebrow="Управление"
         title="Учёт активности"
-        description="Посещение закрытых ивентов: в группе — «Посетил», вне группы с ответом — «Не посетил», без ответа — «Не отметился»."
+        description="Посещение закрытых событий: в группе — «Посетил», вне группы с ответом — «Не посетил», без ответа — «Не отметился»."
       />
       <Card className="mb-4 grid gap-3">
         <h2 className={sectionTitleClass}>Фильтры</h2>
@@ -662,7 +660,7 @@ export function ActivityPage(search: Partial<ActivitySearch>) {
             <Input
               id="activity-search"
               type="search"
-              placeholder="Участник или ивент"
+              placeholder="Участник или событие"
               maxLength={40}
               value={text}
               onChange={(change) => setText(change.target.value)}

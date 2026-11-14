@@ -152,7 +152,7 @@ export function ProfileForm({ profile, email, onDone }: ProfileFormProps) {
         void form.handleSubmit()
       }}
     >
-      <h3 id="profile-form-title" className="text-lg font-bold">
+      <h3 id="profile-form-title" className="text-xl font-bold">
         Личная информация
       </h3>
       <form.Subscribe selector={(state) => state.submissionAttempts > 0}>

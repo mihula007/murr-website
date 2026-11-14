@@ -49,7 +49,7 @@ export function ContextMenuLabel({
   return (
     <ContextMenuPrimitive.Label
       className={cn(
-        'px-3 pt-1.5 pb-0.5 text-2xs tracking-[0.16em] text-muted-foreground uppercase',
+        'px-3 pt-1.5 pb-0.5 text-xs font-semibold text-muted-foreground',
         className,
       )}
       {...props}

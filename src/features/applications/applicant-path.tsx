@@ -36,7 +36,7 @@ const TITLES: Record<ApplicationStatus, string> = {
 }
 
 const stepClass = {
-  done: 'border-success-border [&>strong]:text-success-foreground',
+  done: 'border-live-border [&>strong]:text-live',
   active:
     'border-primary bg-accent text-accent-foreground [&>strong]:text-primary',
   todo: '',
@@ -76,9 +76,7 @@ export function ApplicantPath({
     <section aria-labelledby="applicant-path-title" className="@container">
       <Card className={cn('grid gap-4', className)}>
         <div className="grid gap-1.5">
-          <p className="text-xs font-extrabold tracking-[.2em] text-primary uppercase">
-            Путь в клан
-          </p>
+          <p className="text-sm font-semibold text-primary">Путь в клан</p>
           <h2 id="applicant-path-title" className="text-xl font-bold">
             {title}
           </h2>

@@ -21,7 +21,10 @@ import {
   Badge,
   Card,
   Field,
+  LiveBadge,
   Notice,
+  Panel,
+  tileClass,
   Table as DataTable,
 } from '../src/components/ui/surfaces'
 
@@ -80,7 +83,10 @@ export const Surfaces: Story = {
   render: () => (
     <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
       <Card>
-        <Badge>Событие</Badge>
+        <div className="flex flex-wrap gap-2">
+          <Badge>Событие</Badge>
+          <LiveBadge>Идёт</LiveBadge>
+        </div>
         <h2 className="mt-3 text-xl font-bold">Встреча гильдии</h2>
         <p className="mt-2 text-muted-foreground">
           Карточка для содержимого и действий.
@@ -90,6 +96,16 @@ export const Surfaces: Story = {
         </Button>
       </Card>
       <Notice>Информация, на которую стоит обратить внимание.</Notice>
+      <Panel>
+        <h2 className="m-0 font-sans text-base font-bold">Служебный блок</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Настройки раздела и подсказки: ниже карточки объекта.
+        </p>
+      </Panel>
+      <div className={tileClass}>
+        <strong>Строка участника</strong>
+        <p className="mt-1 text-sm text-muted-foreground">Без рамки.</p>
+      </div>
     </div>
   ),
 }

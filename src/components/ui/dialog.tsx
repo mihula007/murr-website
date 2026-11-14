@@ -8,7 +8,7 @@ export const overlayClass =
   'fixed inset-0 z-60 bg-overlay backdrop-blur-[2px] duration-180 ease-out data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none'
 export const dialogContentClass =
   'fixed top-1/2 left-1/2 z-61 grid max-h-[calc(100svh-28px)] w-[min(calc(100vw-28px),460px)] -translate-1/2 gap-4 overflow-y-auto rounded-2xl border border-border-strong bg-linear-145/srgb from-surface-from to-surface-to p-6 text-foreground shadow-dialog duration-180 ease-out data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-97 data-[state=open]:slide-in-from-bottom-[2%] max-xs:p-5 motion-reduce:animate-none'
-export const dialogTitleClass = 'm-0 text-xl leading-tight font-bold'
+export const dialogTitleClass = 'm-0 text-2xl leading-tight font-bold'
 export const dialogDescriptionClass = 'm-0 text-muted-foreground'
 export const dialogFooterClass =
   'flex flex-wrap justify-end gap-3 max-xs:*:flex-auto'

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { UserRoundX } from 'lucide-react'
+import { MoreHorizontal, UserRoundX } from 'lucide-react'
 import { z } from 'zod'
 import type { RosterMember, RosterStatsResponse } from '@contracts/roster'
 import { ROLE_LABELS, useAccess } from '@/app/access'
@@ -11,15 +11,22 @@ import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { Badge, Card } from '@/components/ui/surfaces'
+import { Badge, tileClass } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
 import { MEMBER_LIST_LIMIT } from '@contracts/paging'
 import { useSetRole } from '@/features/admin/api'
 import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
+import { cn } from '@/lib/utils'
 import { useRoster, useRosterStats } from './api'
 import { ReadersPanel } from './readers-panel'
 
@@ -48,7 +55,7 @@ function StatsPanel({ roster }: { roster: RosterStatsResponse }) {
       <div className="flex min-w-[76px] flex-col">
         <span
           id="roster-stats-title"
-          className="mb-2.5 text-2xs font-extrabold tracking-[.16em] text-primary uppercase max-sm:tracking-[.1em]"
+          className="mb-2 text-sm font-semibold text-muted-foreground"
         >
           В составе
         </span>
@@ -93,10 +100,11 @@ type MemberCardProps = {
   onBlock?: (() => void) | undefined
 }
 
+/** Карточка участника; действие администратора — в меню «⋯» (ROS-07). */
 function MemberCard({ member, onBlock }: MemberCardProps) {
   return (
-    <Card className="flex h-full flex-col gap-4 p-[18px]">
-      <div className="flex min-w-0 items-center gap-3.5">
+    <div className={cn(tileClass, 'flex h-full flex-col gap-4')}>
+      <div className="flex min-w-0 items-start gap-3.5">
         <Avatar
           size="sm"
           name={member.gameNickname}
@@ -117,19 +125,31 @@ function MemberCard({ member, onBlock }: MemberCardProps) {
             {member.className}
           </span>
         </div>
+        {onBlock ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="flex-none px-2"
+                aria-label={`Действия с участником «${member.gameNickname}»`}
+              >
+                <MoreHorizontal size={18} aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={onBlock}>
+                <span className="inline-flex items-center gap-2">
+                  <UserRoundX size={16} aria-hidden="true" />
+                  Присвоить статус «Чтец»
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
-      {onBlock ? (
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="mt-auto self-start"
-          onClick={onBlock}
-        >
-          <UserRoundX size={14} aria-hidden="true" /> Присвоить статус «Чтец»
-        </Button>
-      ) : null}
-    </Card>
+    </div>
   )
 }
 
@@ -276,7 +296,6 @@ export function RosterPage({
   return (
     <section>
       <PageHeader
-        eyebrow="Клан"
         title="Состав"
         description="Текущие участники клана: члены, офицеры и администраторы."
       />

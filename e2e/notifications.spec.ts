@@ -141,11 +141,12 @@ test('приёмка NTF 3: счётчик раздела отделён от к
   const trigger = isMobile
     ? page.getByRole('banner').getByRole('button', { name: 'Открыть меню' })
     : page.getByRole('banner').getByRole('button', { name: /^Клан/ })
-  await expect(trigger.getByText('1', { exact: true })).toBeVisible()
+  // На категории и кнопке меню — точка «есть новое», число — у раздела.
+  await expect(trigger.getByText('есть новое')).toHaveCount(1)
   await expect(bell(page)).toHaveAccessibleName('Уведомления')
 
   await page.goto('./#/events')
-  await expect(trigger.getByText('1', { exact: true })).toHaveCount(0)
+  await expect(trigger.getByText('есть новое')).toHaveCount(0)
   const summary = await callApi(
     'notifications/summary',
     await accessToken(member.email),
@@ -197,7 +198,7 @@ test('приёмка NTF 4: переход к событию и к удалён�
     .getByRole('button', { name: new RegExp(`${gone} · Пати 1`) })
     .click()
   await expect(page).toHaveURL(new RegExp(`#/events/${goneId}$`))
-  await expect(page.getByText('Ивент не найден')).toBeVisible()
+  await expect(page.getByText('Событие не найдено')).toBeVisible()
   await expect(bell(page)).toHaveAccessibleName('Уведомления')
 })
 
@@ -215,7 +216,7 @@ test('главная по ролям: ответ с главной виден в
   await signInUi(page, member.email)
   await expectSignedIn(page)
   await page.goto('./#/')
-  const upcoming = page.getByRole('region', { name: 'Ближайшие ивенты' })
+  const upcoming = page.getByRole('region', { name: 'Ближайшее событие' })
   await expect(upcoming).toBeVisible()
   await expect(
     page.getByRole('region', { name: 'Топ-5 посещаемости за месяц' }),
@@ -226,24 +227,22 @@ test('главная по ролям: ответ с главной виден в
   ).toBeVisible()
   expect(await hasHorizontalScroll(page)).toBe(false)
 
-  // Ответ на первой карточке главной — тот же ответ в расписании (HOM-08).
+  // Ответ в главном событии — тот же ответ в расписании (HOM-08).
   // Начавшиеся события ответа не принимают и идут первыми; локальная БД копит
-  // их от прогона к прогону, поэтому карточки с выбором может не быть.
+  // их от прогона к прогону, поэтому выбора может не быть.
   // Общий запрос главной и расписания проверяет `tests/home.test.tsx`.
   const choices = upcoming.getByRole('group', { name: 'Ваше решение' })
   if ((await choices.count()) === 0) {
     test.info().annotations.push({
       type: 'skip-part',
-      description:
-        'HOM-08: среди трёх ближайших нет события, принимающего ответ',
+      description: 'HOM-08: ближайшее событие уже не принимает ответ',
     })
   } else {
-    const card = choices.first().locator('xpath=ancestor::div[.//h2//a][1]')
-    const href = await card
-      .getByRole('heading')
+    const href = await upcoming
+      .getByRole('heading', { level: 1 })
       .getByRole('link')
       .getAttribute('href')
-    await card.getByRole('button', { name: 'Приду', exact: true }).click()
+    await upcoming.getByRole('button', { name: 'Приду', exact: true }).click()
     // Группа выбора после ответа исчезает; новый участник ответил только здесь.
     await expect(upcoming.getByText('Ваше решение:')).toHaveCount(1)
     await page.goto(`./${href}`)
@@ -263,7 +262,7 @@ test('главная по ролям: ответ с главной виден в
     applicantPage.getByRole('heading', { name: /Легенда продолжается/ }),
   ).toBeVisible()
   await expect(
-    applicantPage.getByRole('region', { name: 'Ближайшие ивенты' }),
+    applicantPage.getByRole('region', { name: 'Ближайшее событие' }),
   ).toHaveCount(0)
   await expect(
     applicantPage.getByRole('heading', { name: 'Состав клана' }),

@@ -182,7 +182,6 @@ export function ApplicationsPage({
   return (
     <section>
       <PageHeader
-        eyebrow="Управление"
         title="Заявки"
         description="Проверка анкет кандидатов: голосование, приём в клан или отказ."
       />

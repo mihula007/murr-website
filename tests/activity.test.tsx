@@ -219,7 +219,7 @@ describe('activity tracking (ACT-04–11, Q-25)', () => {
     })
     expect(within(table).getByText('Чтец')).toBeVisible()
     expect(
-      screen.getByText('Участников: 2 · ивентов в периоде: 2'),
+      screen.getByText('Участников: 2 · событий в периоде: 2'),
     ).toBeVisible()
   })
 
@@ -272,7 +272,7 @@ describe('activity tracking (ACT-04–11, Q-25)', () => {
     expect(fileName).toMatch(/^MurrClan_activity_\d{4}-\d{2}-\d{2}\.xlsx$/)
     expect(sheets.map((sheet) => sheet.name)).toEqual([
       'Рейтинг',
-      'История ивентов',
+      'История событий',
     ])
     // Поиск «бор» — как на экране: в сводке остаётся только Борис.
     expect(sheets[0]!.rows).toEqual([

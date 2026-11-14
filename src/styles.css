@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+/* Шрифт заголовков — Cormorant 700 (решение владельца 14.11.2026), файлы
+   из npm-пакета: браузер грузит только нужные поднаборы (кириллица, латиница). */
+@import '@fontsource/cormorant/700.css';
 
 /*
  * Единственная система стилей — Tailwind. Этот файл содержит только токены
@@ -53,8 +56,12 @@
   --tag-foreground: #e0c17a;
   --notice-border: #806a44;
   --notice-foreground: #e4d5b4;
-  --success-border: #466b55;
-  --success-foreground: #9bd4ac;
+  /* «Живое, сейчас» — зелень глаза с заставки и фона: идёт, придёт,
+     пройдено. Золото остаётся за действиями и навигацией. */
+  --live: #b4e26c;
+  --live-border: #557a2e;
+  --live-surface: #182110;
+  --live-glow: #8fd14f66;
   --input-background: #0d0c0a;
   --input-hover: #a88a51;
   --placeholder: #a99d89;
@@ -138,8 +145,10 @@
   --color-tag-foreground: var(--tag-foreground);
   --color-notice-border: var(--notice-border);
   --color-notice-foreground: var(--notice-foreground);
-  --color-success-border: var(--success-border);
-  --color-success-foreground: var(--success-foreground);
+  --color-live: var(--live);
+  --color-live-border: var(--live-border);
+  --color-live-surface: var(--live-surface);
+  --color-live-glow: var(--live-glow);
   --color-input-background: var(--input-background);
   --color-input-hover: var(--input-hover);
   --color-placeholder: var(--placeholder);
@@ -161,6 +170,7 @@
 
   --font-sans:
     system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Cormorant', Georgia, 'Times New Roman', serif;
   /* Мелкие размеры наследуют общий межстрочный интервал 1.5, как в прототипе. */
   --text-2xs: 11px;
   --text-2xs--line-height: 1.5;
@@ -181,6 +191,7 @@
   --text-shadow-splash-glow: 0 0 30px var(--splash-glow);
 
   --animate-shimmer: shimmer 1.4s linear infinite;
+  --animate-live-pulse: live-pulse 2.4s ease-in-out infinite;
   --animate-splash-drift: splash-drift 13s ease-in-out both;
   --animate-splash-eye: splash-eye-pulse 3.8s ease-in-out infinite;
   --animate-splash-kicker: splash-rise 1s 0.2s both;
@@ -191,6 +202,15 @@
   @keyframes shimmer {
     to {
       background-position: -200% 0;
+    }
+  }
+  @keyframes live-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 var(--live-glow);
+    }
+    50% {
+      box-shadow: 0 0 0 4px transparent;
     }
   }
   @keyframes splash-drift {
@@ -251,6 +271,15 @@
   select,
   textarea {
     font: inherit;
+  }
+  /* Заголовки страниц, разделов, карточек и диалогов — Cormorant; мелкие
+     подписи панелей (до 16 px) возвращают `font-sans`. Цифры — прописные
+     (lining): у Cormorant по умолчанию старостильные, разной высоты, и ники
+     вроде e0e19b94 и даты в заголовках читаются хуже. */
+  h1,
+  h2,
+  h3 {
+    @apply font-heading lining-nums;
   }
   :focus-visible {
     @apply outline-2 outline-offset-3 outline-ring;

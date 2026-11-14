@@ -1,9 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { hasRole, MANAGER_ROLES, useAccess } from '@/app/access'
-import { PrepareBroadcastLink } from '@/features/broadcast/prepare-broadcast-link'
 import { useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, Check, ChevronRight } from 'lucide-react'
+import {
+  CalendarClock,
+  Check,
+  ChevronRight,
+  Lock,
+  MoreHorizontal,
+} from 'lucide-react'
 import {
   EVENT_ANSWER_LABELS,
   EVENT_ANSWERS,
@@ -11,12 +15,23 @@ import {
   type EventAnswer,
   type EventSummary,
 } from '@contracts/events'
+import { hasRole, MANAGER_ROLES, useAccess } from '@/app/access'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
-import { Button, buttonVariants } from '@/components/ui/button'
-import { Badge, Card, Notice } from '@/components/ui/surfaces'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Badge, Card, LiveBadge } from '@/components/ui/surfaces'
 import { toast } from '@/components/ui/toaster'
 import { errorMessage, type AppError } from '@/lib/errors'
-import { formatDateMsk, formatDateTimeMsk } from '@/lib/format-date'
+import {
+  formatDateMsk,
+  formatDateTimeMsk,
+  formatEventStartMsk,
+} from '@/lib/format-date'
 import { cn } from '@/lib/utils'
 import { useDeleteEvent, useRespondToEvent } from './api'
 import { eventKeys } from './query-keys'
@@ -29,22 +44,60 @@ export function eventAuthor(event: EventSummary) {
   return event.recurring ? 'Автоматически' : 'Пользователь удалён'
 }
 
-/** Три счётчика ответов (EVT-01); вместимости нет (Q-07). */
-function Counts({ event }: { event: EventSummary }) {
+/**
+ * Метки события: «Идёт» (началось, не закрыто — зелёная метка «сейчас»),
+ * тип, постоянный выпуск и закрытие.
+ */
+export function EventBadges({ event }: { event: EventSummary }) {
+  const live = !event.canAnswer && event.closedAt === null
   return (
-    <ul
-      aria-label="Ответы участников"
-      className="m-0 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-sm text-muted-foreground"
+    <div className="flex flex-wrap items-center gap-2">
+      {live ? <LiveBadge>Идёт</LiveBadge> : null}
+      <Badge>{EVENT_TYPE_LABELS[event.type]}</Badge>
+      {event.recurring ? (
+        <Badge className="border-border text-muted-foreground">
+          Постоянное
+        </Badge>
+      ) : null}
+      {event.closedAt ? (
+        <Badge className="border-border text-muted-foreground">
+          Закрыто {formatDateMsk(event.closedAt)}
+        </Badge>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * Начало события крупной строкой (страница события, главная): «Сегодня» и
+ * «Завтра» словом, время — жирным.
+ */
+export function EventStart({
+  startsAt,
+  className,
+}: {
+  startsAt: string
+  className?: string
+}) {
+  // Момент монтирования: «Сегодня»/«Завтра» не пересчитываются каждую отрисовку.
+  const [now] = useState(() => new Date())
+  const start = formatEventStartMsk(startsAt, now)
+  return (
+    <p
+      className={cn(
+        'm-0 flex items-start gap-2 text-xl leading-snug text-highlight max-sm:text-lg',
+        className,
+      )}
     >
-      {EVENT_ANSWERS.map((answer) => (
-        <li key={answer}>
-          {EVENT_ANSWER_LABELS[answer]}:{' '}
-          <strong className="text-foreground tabular-nums">
-            {event.counts[answer]}
-          </strong>
-        </li>
-      ))}
-    </ul>
+      <CalendarClock
+        size={22}
+        aria-hidden="true"
+        className="mt-0.5 flex-none text-primary"
+      />
+      <time dateTime={startsAt}>
+        {start.day}, <strong className="font-bold">{start.time}</strong>
+      </time>
+    </p>
   )
 }
 
@@ -58,15 +111,64 @@ function conflictMessage(error: AppError) {
     : 'Событие закрыто'
 }
 
+const tallyCellClass =
+  'grid min-w-0 justify-items-center gap-0.5 rounded-xl border border-border bg-surface-inset px-2 py-2.5 text-center'
+const tallyMineClass = 'border-primary bg-item-highlight'
+
 /**
- * Ответ участника (EVT-04, EVT-05). После выбора — сохранённое решение и
+ * Числа ответов (EVT-01) одной строкой из трёх ячеек: крупное число и
+ * подпись. Для экранных чтецов те же числа — скрытым списком, у кнопок
+ * выбора имя — только сам ответ.
+ */
+function TallyCell({
+  answer,
+  event,
+}: {
+  answer: EventAnswer
+  event: EventSummary
+}) {
+  const mine = event.myAnswer === answer
+  return (
+    <>
+      <span
+        className={cn(
+          'text-2xl leading-none font-bold tabular-nums',
+          mine && 'text-highlight',
+        )}
+      >
+        {event.counts[answer]}
+      </span>
+      <span className="flex items-center gap-1 text-sm text-muted-foreground">
+        {mine ? (
+          <Check size={14} aria-hidden="true" className="text-primary" />
+        ) : null}
+        {EVENT_ANSWER_LABELS[answer]}
+      </span>
+    </>
+  )
+}
+
+/**
+ * Ответ участника (EVT-04, EVT-05) и числа ответов. До выбора — три кнопки
+ * с числами; после — те же ячейки без нажатия, сохранённое решение и
  * «Изменить решение»; прежний ответ действует до нового выбора.
  */
-function Attendance({ event }: { event: EventSummary }) {
+export function EventAnswers({
+  event,
+  compact = false,
+}: {
+  event: EventSummary
+  /**
+   * Карточка в списке: после начала причина закрытия ответов не пишется —
+   * её показывают метки «Идёт» и «Закрыто»; остаётся только своё решение.
+   */
+  compact?: boolean
+}) {
   const queryClient = useQueryClient()
   const respond = useRespondToEvent()
   const [changing, setChanging] = useState(false)
   const mine = event.myAnswer
+  const choosing = event.canAnswer && (!mine || changing)
 
   async function choose(answer: EventAnswer) {
     try {
@@ -84,117 +186,187 @@ function Attendance({ event }: { event: EventSummary }) {
     }
   }
 
-  if (!event.canAnswer) {
+  const counts = (
+    <ul aria-label="Ответы участников" className="sr-only">
+      {EVENT_ANSWERS.map((answer) => (
+        <li key={answer}>
+          {EVENT_ANSWER_LABELS[answer]}: {event.counts[answer]}
+        </li>
+      ))}
+    </ul>
+  )
+
+  if (choosing) {
     return (
-      <Notice>
-        {event.closedAt ? 'Событие закрыто' : 'Событие началось'}: ответы больше
-        не принимаются.
+      <fieldset className="m-0 grid gap-2 border-0 p-0">
+        <legend className="mb-2 text-sm font-semibold">
+          {mine ? 'Выберите новое решение' : 'Ваше решение'}
+        </legend>
+        {counts}
+        <div className="grid grid-cols-3 gap-2">
+          {EVENT_ANSWERS.map((answer) => (
+            <button
+              key={answer}
+              type="button"
+              aria-label={EVENT_ANSWER_LABELS[answer]}
+              aria-pressed={answer === mine}
+              disabled={respond.isPending}
+              className={cn(
+                tallyCellClass,
+                'cursor-pointer text-foreground transition-colors not-disabled:hover:border-input-hover disabled:cursor-not-allowed disabled:opacity-60',
+                answer === mine && tallyMineClass,
+              )}
+              onClick={() => void choose(answer)}
+            >
+              <TallyCell answer={answer} event={event} />
+            </button>
+          ))}
+        </div>
         {mine ? (
-          <>
-            {' '}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={respond.isPending}
+            onClick={() => setChanging(false)}
+          >
+            Оставить «{EVENT_ANSWER_LABELS[mine]}»
+          </Button>
+        ) : null}
+      </fieldset>
+    )
+  }
+
+  return (
+    <div className="grid gap-3">
+      {counts}
+      <div aria-hidden="true" className="grid grid-cols-3 gap-2">
+        {EVENT_ANSWERS.map((answer) => (
+          <div
+            key={answer}
+            className={cn(tallyCellClass, answer === mine && tallyMineClass)}
+          >
+            <TallyCell answer={answer} event={event} />
+          </div>
+        ))}
+      </div>
+      {event.canAnswer ? (
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <p className="m-0 text-sm">
+            Ваше решение:{' '}
+            <strong className="text-primary">
+              {mine ? EVENT_ANSWER_LABELS[mine] : ''}
+            </strong>
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setChanging(true)}
+          >
+            Изменить решение
+          </Button>
+        </div>
+      ) : compact ? (
+        mine ? (
+          <p className="m-0 text-sm">
             Ваше решение:{' '}
             <strong className="text-primary">
               {EVENT_ANSWER_LABELS[mine]}
             </strong>
-          </>
-        ) : null}
-      </Notice>
-    )
-  }
-
-  if (mine && !changing) {
-    return (
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border pt-3">
-        <p className="m-0 text-sm">
-          Ваше решение:{' '}
-          <strong className="text-primary">{EVENT_ANSWER_LABELS[mine]}</strong>
+          </p>
+        ) : null
+      ) : (
+        <p className="m-0 flex items-start gap-2 text-sm text-muted-foreground">
+          <Lock size={14} aria-hidden="true" className="mt-1 flex-none" />
+          <span>
+            {event.closedAt ? 'Событие закрыто' : 'Событие началось'}: ответы
+            больше не принимаются.
+            {mine ? (
+              <>
+                {' '}
+                Ваше решение:{' '}
+                <strong className="text-primary">
+                  {EVENT_ANSWER_LABELS[mine]}
+                </strong>
+              </>
+            ) : null}
+          </span>
         </p>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => setChanging(true)}
-        >
-          Изменить решение
-        </Button>
-      </div>
-    )
-  }
-
-  return (
-    <fieldset className="m-0 grid gap-2 border-0 p-0">
-      <legend className="mb-2 text-sm font-semibold">
-        {mine ? 'Выберите новое решение' : 'Ваше решение'}
-      </legend>
-      {/* До ответа три варианта равны: золотом выделяется только выбранный. */}
-      <div className="grid grid-cols-3 gap-2">
-        {EVENT_ANSWERS.map((answer) => (
-          <Button
-            key={answer}
-            type="button"
-            variant={answer === mine ? 'default' : 'secondary'}
-            disabled={respond.isPending}
-            aria-pressed={answer === mine}
-            className="min-w-0 px-2"
-            onClick={() => void choose(answer)}
-          >
-            {answer === mine ? <Check size={16} aria-hidden="true" /> : null}
-            {EVENT_ANSWER_LABELS[answer]}
-          </Button>
-        ))}
-      </div>
-      {mine ? (
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={respond.isPending}
-          onClick={() => setChanging(false)}
-        >
-          Оставить «{EVENT_ANSWER_LABELS[mine]}»
-        </Button>
-      ) : null}
-    </fieldset>
+      )}
+    </div>
   )
 }
 
-/** Правка и удаление: автор-офицер, любой офицер у постоянных, админ. */
-function Management({
+type Pending = 'delete' | null
+
+/**
+ * Управление событием в меню «⋯» (как у голосований): правка и удаление —
+ * автор-офицер, любой офицер у постоянных, админ (Q-47); рассылка —
+ * офицер и админ у незакрытого события (EVT-15). Без доступных действий
+ * меню не показывается.
+ */
+export function EventActions({
   event,
   onDeleted,
+  className,
 }: {
   event: EventSummary
   onDeleted?: (() => void) | undefined
+  className?: string
 }) {
   const navigate = useNavigate()
-  const [confirming, setConfirming] = useState(false)
+  const { role } = useAccess()
+  const [pending, setPending] = useState<Pending>(null)
   const remove = useDeleteEvent()
+  const canPrepare = event.closedAt === null && hasRole(role, MANAGER_ROLES)
+
+  if (!event.canManage && !canPrepare) {
+    return null
+  }
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-2 border-t border-border pt-3">
-        <Link
-          to="/events/$id/edit"
-          params={{ id: event.id }}
-          className={cn(
-            buttonVariants({ variant: 'secondary', size: 'sm' }),
-            'no-underline',
-          )}
-        >
-          Редактировать
-        </Link>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="text-destructive"
-          onClick={() => setConfirming(true)}
-        >
-          Удалить
-        </Button>
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className={cn('flex-none', className)}
+            aria-label={`Управление событием «${event.title}»`}
+          >
+            <MoreHorizontal aria-hidden="true" size={18} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {event.canManage ? (
+            <DropdownMenuItem asChild>
+              <Link to="/events/$id/edit" params={{ id: event.id }}>
+                Изменить
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
+          {canPrepare ? (
+            <DropdownMenuItem asChild>
+              <Link to="/broadcast" search={{ source: 'event', id: event.id }}>
+                Подготовить рассылку
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
+          {event.canManage ? (
+            <DropdownMenuItem
+              className="text-destructive data-highlighted:text-destructive"
+              onSelect={() => setPending('delete')}
+            >
+              Удалить
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
       <ConfirmActionDialog
-        open={confirming}
-        onOpenChange={setConfirming}
+        open={pending === 'delete'}
+        onOpenChange={(open) => setPending(open ? 'delete' : null)}
         title={`Удалить «${event.title}»?`}
         description="Событие и все ответы участников будут удалены без возможности восстановления."
         confirmLabel="Удалить"
@@ -215,60 +387,32 @@ function Management({
 
 type EventCardProps = {
   event: EventSummary
-  /** В списке название ведёт на страницу события (EVT-06). */
-  linkToPage?: boolean
-  onDeleted?: () => void
   className?: string
 }
 
-/** Карточка события по образцу `.card` расписания прототипа (EVT-01). */
-export function EventCard({
-  event,
-  linkToPage = false,
-  onDeleted,
-  className,
-}: EventCardProps) {
-  const { role } = useAccess()
-  const canPrepare = event.closedAt === null && hasRole(role, MANAGER_ROLES)
+/** Карточка события в расписании и на главной (EVT-01). */
+export function EventCard({ event, className }: EventCardProps) {
   return (
     <Card className={cn('grid min-w-0 content-start gap-3', className)}>
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge>{EVENT_TYPE_LABELS[event.type]}</Badge>
-        {event.recurring ? (
-          <Badge className="border-border text-muted-foreground">
-            Постоянное
-          </Badge>
-        ) : null}
-        {event.closedAt ? (
-          <Badge className="border-border text-muted-foreground">
-            Закрыто {formatDateMsk(event.closedAt)}
-          </Badge>
-        ) : null}
+      <div className="flex items-start justify-between gap-2">
+        <EventBadges event={event} />
+        <EventActions event={event} />
       </div>
-      <h2 className="m-0 text-lg leading-snug font-bold break-words">
-        {linkToPage ? (
-          <Link
-            to="/events/$id"
-            params={{ id: event.id }}
-            className="inline-flex max-w-full items-start gap-1 text-foreground no-underline hover:text-primary"
-          >
-            <span className="min-w-0 break-words">{event.title}</span>
-            <ChevronRight
-              size={18}
-              aria-hidden="true"
-              className="mt-0.5 flex-none text-muted-foreground"
-            />
-          </Link>
-        ) : (
-          event.title
-        )}
+      <h2 className="m-0 text-xl leading-snug font-bold break-words">
+        <Link
+          to="/events/$id"
+          params={{ id: event.id }}
+          className="inline-flex max-w-full items-start gap-1 text-foreground no-underline hover:text-primary"
+        >
+          <span className="min-w-0 break-words">{event.title}</span>
+          <ChevronRight
+            size={18}
+            aria-hidden="true"
+            className="mt-0.5 flex-none text-muted-foreground"
+          />
+        </Link>
       </h2>
-      <p
-        className={cn(
-          'm-0 break-words whitespace-pre-line text-muted-foreground',
-          linkToPage && 'line-clamp-3',
-        )}
-      >
+      <p className="m-0 line-clamp-2 break-words whitespace-pre-line text-muted-foreground">
         {event.description}
       </p>
       <p className="m-0 flex items-center gap-1.5 text-sm text-foreground">
@@ -281,24 +425,13 @@ export function EventCard({
           {formatDateTimeMsk(event.startsAt)}
         </time>
       </p>
-      <Counts event={event} />
       <p className="m-0 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
         <span>Автор: {eventAuthor(event)}</span>
         {event.messageCount ? (
           <span>Сообщений в обсуждении: {event.messageCount}</span>
         ) : null}
       </p>
-      <Attendance event={event} />
-      {canPrepare ? (
-        <PrepareBroadcastLink
-          source="event"
-          id={event.id}
-          className="justify-self-start max-xs:justify-self-stretch"
-        />
-      ) : null}
-      {event.canManage ? (
-        <Management event={event} onDeleted={onDeleted} />
-      ) : null}
+      <EventAnswers event={event} compact />
     </Card>
   )
 }

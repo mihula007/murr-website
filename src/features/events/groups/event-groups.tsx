@@ -56,8 +56,7 @@ import { PrepareBroadcastLink } from '@/features/broadcast/prepare-broadcast-lin
 import { GroupNameDialog } from './group-name-dialog'
 import { GroupTemplatesDialog } from './group-templates-dialog'
 
-const sectionTitleClass =
-  'm-0 text-xs font-extrabold tracking-[0.16em] text-primary uppercase'
+const sectionTitleClass = 'm-0 font-sans text-base font-bold text-foreground'
 
 /** Ошибка операции с группами — уведомлением; конфликт — с подсказкой. */
 function reportError(error: unknown) {
@@ -391,7 +390,7 @@ function GroupCard({ board, group }: { board: Board; group: EventGroup }) {
       className={cn('grid content-start gap-3', isOver && 'border-primary')}
     >
       <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <h3 className="m-0 min-w-0 flex-1 text-base font-bold break-words">
+        <h3 className="m-0 min-w-0 flex-1 font-sans text-base font-bold break-words">
           {group.name}{' '}
           <span className="text-muted-foreground tabular-nums">
             · {group.members.length}
@@ -725,13 +724,13 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
               </Badge>
             </div>
             {event.groups.length === 0 ? (
-              <Card>
+              <div className="rounded-xl border border-dashed border-border p-4">
                 <p className="m-0 text-muted-foreground">
                   {event.canManageGroups
                     ? 'Групп пока нет. Создайте группу или примените шаблон.'
                     : 'Группы ещё не сформированы.'}
                 </p>
-              </Card>
+              </div>
             ) : (
               event.groups.map((group) => (
                 <GroupCard key={group.id} board={board} group={group} />

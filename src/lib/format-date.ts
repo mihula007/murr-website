@@ -23,6 +23,48 @@ export function formatDateTimeMsk(iso: string) {
   return `${formatDate(msk.date)}, ${msk.time} МСК`
 }
 
+const MONTH_GENITIVE = [
+  'января',
+  'февраля',
+  'марта',
+  'апреля',
+  'мая',
+  'июня',
+  'июля',
+  'августа',
+  'сентября',
+  'октября',
+  'ноября',
+  'декабря',
+]
+
+/**
+ * Начало события по Москве словами для заголовка (EVT-06):
+ * `{ day: 'Суббота, 14 ноября 2026', time: '20:00 МСК' }`. С `now` сегодняшний
+ * и завтрашний по Москве день называются словом: `Сегодня, 14 ноября`.
+ */
+export function formatEventStartMsk(iso: string, now?: Date) {
+  const msk = utcToMoscow(iso)
+  const [year, month, day] = msk.date.split('-')
+  const date = `${Number(day)} ${MONTH_GENITIVE[Number(month) - 1] ?? ''}`
+  let relative: string | null = null
+  if (now) {
+    const today = utcToMoscow(now).date
+    const tomorrow = utcToMoscow(
+      new Date(now.getTime() + 24 * 60 * 60 * 1000),
+    ).date
+    relative =
+      msk.date === today ? 'Сегодня' : msk.date === tomorrow ? 'Завтра' : null
+  }
+  const weekday = WEEKDAY_LABELS[msk.weekday] ?? ''
+  return {
+    day: relative
+      ? `${relative}, ${date}`
+      : `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${date} ${year}`,
+    time: `${msk.time} МСК`,
+  }
+}
+
 /** Время по Москве `ЧЧ:ММ` — подпись сообщения обсуждения. */
 export function formatTimeMsk(iso: string) {
   return utcToMoscow(iso).time

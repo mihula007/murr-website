@@ -56,7 +56,10 @@ test('E2E-06: блокировка в чтеца и восстановление
     .filter({ has: adminPage.getByRole('heading', { name: member.nickname }) })
   // Состав — большой список: карточка может быть на следующих страницах.
   await scrollUntilVisible(adminPage, card)
-  await card.getByRole('button', { name: 'Присвоить статус «Чтец»' }).click()
+  await card.getByRole('button', { name: /^Действия с участником/ }).click()
+  await adminPage
+    .getByRole('menuitem', { name: 'Присвоить статус «Чтец»' })
+    .click()
   const blockDialog = adminPage.getByRole('alertdialog')
   await blockDialog.getByRole('button', { name: 'Присвоить «Чтец»' }).click()
   await expect(blockDialog).toBeHidden()
@@ -100,7 +103,7 @@ test('E2E-06: блокировка в чтеца и восстановление
     officerPage.getByRole('list', { name: 'Участники' }),
   ).toBeVisible()
   await expect(
-    officerPage.getByRole('button', { name: 'Присвоить статус «Чтец»' }),
+    officerPage.getByRole('button', { name: /^Действия с участником/ }),
   ).toHaveCount(0)
   await officerPage.getByRole('tab', { name: 'Чтецы' }).click()
   const reader = officerPage

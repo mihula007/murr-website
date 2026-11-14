@@ -114,9 +114,7 @@ function NotificationPanel({ role, onClose }: NotificationPanelProps) {
   return (
     <>
       <div className="flex min-h-[53px] items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <h2 className="m-0 text-[13px] font-black tracking-[0.13em] uppercase">
-          Уведомления
-        </h2>
+        <h2 className="m-0 font-sans text-base font-bold">Уведомления</h2>
         {/* Читать нечего — кнопки нет: пустая панель без лишнего действия. */}
         {unreadCount > 0 ? (
           <Button
