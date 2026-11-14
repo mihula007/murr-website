@@ -66,7 +66,7 @@ export async function prefillBroadcast(
         '',
         event.description,
         '',
-        'Отметьтесь на сайте: «Приду», «50/50» или «Не приду».',
+        'Ответьте кнопками под сообщением или на сайте: «Приду», «50/50» или «Не приду».',
       ].join('\n'),
       recipients: null,
     }

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useForm, useStore } from '@tanstack/react-form'
-import { X } from 'lucide-react'
+import { Send, X } from 'lucide-react'
 import { z } from 'zod'
 import {
   BROADCAST_CHANNEL_LABELS,
@@ -30,7 +30,7 @@ import { Input, Textarea } from '@/components/ui/input'
 import { Badge, Card, Notice } from '@/components/ui/surfaces'
 import { toast } from '@/components/ui/toaster'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
-import { formErrorMessage, fieldMessage } from '@/lib/errors'
+import { AppError, formErrorMessage, fieldMessage } from '@/lib/errors'
 import { formatDateTimeMsk } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
 import {
@@ -40,7 +40,9 @@ import {
   useDrafts,
   usePrefill,
   useSaveBroadcastTemplate,
+  useFetchRecipients,
   useSaveDraft,
+  useSendAnnouncement,
 } from './api'
 
 /** Источник заполнения в адресе: `?source=event&id=…` (BRC-02–04). */
@@ -75,11 +77,31 @@ type FormValues = {
   channels: BroadcastChannel[]
 }
 
-const ALL_CHANNELS = [...BROADCAST_CHANNELS]
+/** Подключён только Telegram; ВКонтакте и MAX недоступны (Q-82, Q-86). */
+const CONNECTED_CHANNELS: readonly BroadcastChannel[] = ['telegram']
+const connectedOnly = (channels: BroadcastChannel[]) =>
+  channels.filter((channel) => CONNECTED_CHANNELS.includes(channel))
 const EMPTY: FormValues = {
   subject: '',
   body: '',
-  channels: ALL_CHANNELS,
+  channels: [...CONNECTED_CHANNELS],
+}
+
+/** Причина отказа отправки (Q-92). */
+function sendRefusal(error: AppError) {
+  if (error.code !== 'state_conflict') {
+    return null
+  }
+  switch (error.fields.reason) {
+    case 'no_recipients':
+      return 'Отправить некому: никто из участников клана не привязал Telegram.'
+    case 'started':
+      return 'Событие уже началось: анонс с кнопками ответа не отправляется.'
+    case 'closed':
+      return 'Событие завершено: анонс с кнопками ответа не отправляется.'
+    default:
+      return null
+  }
 }
 
 function ChannelBadges({ channels }: { channels: BroadcastChannel[] }) {
@@ -262,7 +284,7 @@ function DraftCard({
     <li className="grid gap-2 rounded-xl border border-border bg-surface-inset p-3">
       <div className="grid gap-1.5">
         <Badge className="justify-self-start border-border text-muted-foreground">
-          Черновик · отправка после подключения
+          Черновик
         </Badge>
         <strong className="min-w-0 break-words">
           {draft.subject ?? 'Рассылка без темы'}
@@ -343,7 +365,7 @@ function Drafts() {
   )
 }
 
-/** Форма подготовки (BRC-01, BRC-05–07, BRC-13). */
+/** Форма подготовки и отправки (BRC-01, BRC-05–07, BRC-13, TGM-11–TGM-16). */
 function BroadcastForm({
   initial,
   source,
@@ -356,11 +378,26 @@ function BroadcastForm({
   onSaved: () => void
 }) {
   const save = useSaveDraft()
+  const send = useSendAnnouncement()
+  const fetchRecipients = useFetchRecipients()
+  // Анонс события — с кнопками ответа; связь можно снять (TGM-12).
+  const [eventId, setEventId] = useState(
+    source?.kind === 'event' ? source.id : null,
+  )
+  // Одна проверка формы для двух действий: черновик или отправка.
+  const intent = useRef<'save' | 'send'>('save')
+  const [checking, setChecking] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
+  const [confirmCount, setConfirmCount] = useState<number | null>(null)
   const form = useForm({
     defaultValues: initial,
     validators: { onChange: draftSchema },
     onSubmitInvalid: focusFirstInvalid,
     onSubmit: async ({ value }) => {
+      if (intent.current === 'send') {
+        await confirmSend()
+        return
+      }
       await save
         .mutateAsync({
           subject: value.subject,
@@ -378,6 +415,29 @@ function BroadcastForm({
   })
   const isDirty = useStore(form.store, (state) => state.isDirty)
   const { dialog } = useUnsavedChangesGuard(isDirty)
+  const telegramChosen = useStore(form.store, (state) =>
+    state.values.channels.includes('telegram'),
+  )
+
+  /** После проверки формы — число получателей и подтверждение (TGM-11). */
+  async function confirmSend() {
+    setSendError(null)
+    setChecking(true)
+    try {
+      const { count } = await fetchRecipients()
+      if (count === 0) {
+        setSendError(
+          'Отправить некому: никто из участников клана не привязал Telegram.',
+        )
+      } else {
+        setConfirmCount(count)
+      }
+    } catch (error) {
+      setSendError(formErrorMessage(error as AppError))
+    } finally {
+      setChecking(false)
+    }
+  }
 
   return (
     <div className="grid gap-5">
@@ -389,6 +449,22 @@ function BroadcastForm({
           void form.handleSubmit()
         }}
       >
+        {eventId ? (
+          <Notice className="col-span-full flex flex-wrap items-center justify-between gap-3">
+            <span>
+              Анонс события: в Telegram придёт с кнопками «Приду», «50/50» и «Не
+              приду».
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setEventId(null)}
+            >
+              <X size={14} aria-hidden="true" /> Снять связь
+            </Button>
+          </Notice>
+        ) : null}
         {recipients ? (
           <Notice className="col-span-full">
             Получателей в группе: {recipients.length}. Адреса в мессенджерах
@@ -470,24 +546,43 @@ function BroadcastForm({
                         Каналы
                       </legend>
                       <div className="flex flex-wrap gap-4">
-                        {BROADCAST_CHANNELS.map((channel) => (
-                          <label key={channel} className={checkboxClass}>
-                            <input
-                              type="checkbox"
-                              checked={field.state.value.includes(channel)}
-                              onChange={(event) =>
-                                field.handleChange(
-                                  event.target.checked
-                                    ? [...field.state.value, channel]
-                                    : field.state.value.filter(
-                                        (item) => item !== channel,
-                                      ),
-                                )
-                              }
-                            />
-                            {BROADCAST_CHANNEL_LABELS[channel]}
-                          </label>
-                        ))}
+                        {BROADCAST_CHANNELS.map((channel) => {
+                          const connected = CONNECTED_CHANNELS.includes(channel)
+                          return (
+                            <label
+                              key={channel}
+                              className={cn(
+                                checkboxClass,
+                                !connected &&
+                                  'cursor-not-allowed text-muted-foreground',
+                              )}
+                            >
+                              <input
+                                type="checkbox"
+                                disabled={!connected}
+                                checked={
+                                  connected &&
+                                  field.state.value.includes(channel)
+                                }
+                                onChange={(event) =>
+                                  field.handleChange(
+                                    event.target.checked
+                                      ? [...field.state.value, channel]
+                                      : field.state.value.filter(
+                                          (item) => item !== channel,
+                                        ),
+                                  )
+                                }
+                              />
+                              {BROADCAST_CHANNEL_LABELS[channel]}
+                              {connected ? null : (
+                                <span className="-ml-1 text-xs">
+                                  — не подключено
+                                </span>
+                              )}
+                            </label>
+                          )
+                        })}
                       </div>
                       {error ? (
                         <span role="alert" className="text-xs text-destructive">
@@ -512,36 +607,83 @@ function BroadcastForm({
           <div className="flex flex-wrap items-center gap-3">
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(submitting) => (
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? 'Сохраняем…' : 'Сохранить черновик'}
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  onClick={() => {
+                    intent.current = 'save'
+                  }}
+                >
+                  {submitting && intent.current === 'save'
+                    ? 'Сохраняем…'
+                    : 'Сохранить черновик'}
                 </Button>
               )}
             </form.Subscribe>
             <Button
               type="button"
               variant="secondary"
-              disabled
+              disabled={!telegramChosen || checking}
               aria-describedby="broadcast-send-hint"
+              onClick={() => {
+                intent.current = 'send'
+                void form.handleSubmit()
+              }}
             >
-              Отправить рассылку
+              <Send size={16} aria-hidden="true" />
+              {checking ? 'Проверяем…' : 'Отправить в Telegram'}
             </Button>
           </div>
+          <FormError message={sendError} />
           <p
             id="broadcast-send-hint"
             className="m-0 text-xs text-muted-foreground"
           >
-            Платформы не подключены: сайт сохраняет черновик, но ничего не
-            отправляет.
+            Анонс получат члены, офицеры и администраторы, привязавшие Telegram.
+            После отправки текст не изменить. Черновик при отправке не
+            сохраняется.
           </p>
         </div>
         {dialog}
+        <ConfirmActionDialog
+          open={confirmCount !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setConfirmCount(null)
+            }
+          }}
+          title="Отправить анонс в Telegram?"
+          description={`Получателей: ${confirmCount ?? 0}. ${
+            eventId
+              ? 'Анонс события придёт с кнопками ответа.'
+              : 'Анонс придёт текстом без кнопок.'
+          } Отправленный анонс не редактируется.`}
+          confirmLabel="Отправить"
+          pendingLabel="Отправляем…"
+          errorText={sendRefusal}
+          onConfirm={async () => {
+            const values = form.state.values
+            const result = await send.mutateAsync({
+              subject: values.subject,
+              body: values.body,
+              eventId,
+            })
+            toast(
+              result.failed > 0
+                ? `Отправлено в Telegram: ${result.sent}, не доставлено: ${result.failed}`
+                : `Отправлено в Telegram: ${result.sent}`,
+            )
+            form.reset(EMPTY)
+            onSaved()
+          }}
+        />
       </form>
       <Templates
         current={() => form.state.values}
         onApply={(values) => {
           form.setFieldValue('subject', values.subject)
           form.setFieldValue('body', values.body)
-          form.setFieldValue('channels', values.channels)
+          form.setFieldValue('channels', connectedOnly(values.channels))
           toast('Шаблон применён')
         }}
       />
@@ -549,7 +691,7 @@ function BroadcastForm({
   )
 }
 
-/** «Рассылка»: только подготовка черновиков, без отправки (BRC, Q-22). */
+/** «Рассылка»: черновики, шаблоны и отправка анонса в Telegram (BRC, TGM). */
 export function BroadcastPage({ source, id }: Partial<BroadcastSearch>) {
   const navigate = useNavigate()
   const target = source && id ? { source, id } : null
@@ -583,15 +725,15 @@ export function BroadcastPage({ source, id }: Partial<BroadcastSearch>) {
     const data = target ? prefill.data : undefined
     form = (
       <BroadcastForm
-        // Открытие из другого контекста — новая форма с включёнными каналами
-        // (BRC-05).
+        // Открытие из другого контекста — новая форма с подключёнными
+        // каналами (BRC-05).
         key={target ? `${target.source}:${target.id}` : 'blank'}
         initial={
           data
             ? {
                 subject: data.subject,
                 body: data.body,
-                channels: ALL_CHANNELS,
+                channels: [...CONNECTED_CHANNELS],
               }
             : EMPTY
         }
@@ -606,7 +748,7 @@ export function BroadcastPage({ source, id }: Partial<BroadcastSearch>) {
     <section className="grid gap-5">
       <PageHeader
         title="Рассылка"
-        description="Подготовка сообщений для Telegram, ВКонтакте и MAX. Отправка появится после подключения ботов."
+        description="Анонсы клана в Telegram: отдельные и анонсы событий с кнопками ответа. ВКонтакте и MAX не подключены."
       />
       <div
         className={cn(
