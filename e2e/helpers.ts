@@ -57,3 +57,36 @@ export async function expectInternalMenu(page: Page, visible: boolean) {
     await expect(trigger).toHaveCount(0)
   }
 }
+
+/**
+ * Адрес, который кнопка мессенджера в кабинете открывает в новой вкладке
+ * (Q-103). Внешний сайт мессенджера не загружается: запрос перехватывается,
+ * вкладка закрывается.
+ */
+export async function openedMessengerUrl(
+  page: Page,
+  name: RegExp,
+  pattern: RegExp,
+) {
+  const context = page.context()
+  let resolve!: (url: string) => void
+  const opened = new Promise<string>((done) => {
+    resolve = done
+  })
+  await context.route(pattern, (route) => {
+    resolve(route.request().url())
+    return route.fulfill({ status: 200, body: '' })
+  })
+  await page
+    .getByRole('region', { name: 'Мессенджеры' })
+    .getByRole('button', { name })
+    .click()
+  const url = await opened
+  await context.unroute(pattern)
+  for (const other of context.pages()) {
+    if (other !== page) {
+      await other.close()
+    }
+  }
+  return url
+}

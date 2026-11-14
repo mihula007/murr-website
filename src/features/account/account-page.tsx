@@ -13,9 +13,7 @@ import { FormError } from '@/components/form/form-error'
 import { ApplicantPath } from '@/features/applications/applicant-path'
 import { useSignOut } from '@/features/auth/use-sign-out'
 import { clearDraft } from '@/features/registration/registration-draft'
-import { MaxLinkCard } from '@/features/max/max-link-card'
-import { TelegramLinkCard } from '@/features/telegram/telegram-link-card'
-import { VkLinkCard } from '@/features/vk/vk-link-card'
+import { MessengerLinks } from '@/features/messengers/messenger-links'
 import { formatDate } from '@/lib/format-date'
 import { formErrorMessage } from '@/lib/errors'
 import { PasswordForm } from './password-form'
@@ -170,13 +168,7 @@ function Dashboard({ me }: { me: ReadyMe }) {
         </details>
 
         {/* Мессенджеры — член, офицер и администратор (TGM-01, MAX-01, VK-01). */}
-        {INTERNAL_ROLES.includes(profile.role) ? (
-          <>
-            <TelegramLinkCard />
-            <VkLinkCard />
-            <MaxLinkCard />
-          </>
-        ) : null}
+        {INTERNAL_ROLES.includes(profile.role) ? <MessengerLinks /> : null}
 
         {profile.role === 'applicant' ? (
           <ApplicantPath

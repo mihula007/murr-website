@@ -10,6 +10,7 @@ import {
   ContextMenuTrigger,
 } from '../src/components/ui/context-menu'
 import { Input, Textarea } from '../src/components/ui/input'
+import { MessengerIcon } from '../src/components/ui/messenger-icon'
 import { Pagination } from '../src/components/ui/pagination'
 import {
   Popover,
@@ -184,6 +185,18 @@ export const Pages: Story = {
     <div className="grid gap-6">
       <PaginationDemo pageCount={5} />
       <PaginationDemo pageCount={24} />
+    </div>
+  ),
+}
+
+export const MessengerIcons: Story = {
+  name: 'Логотипы мессенджеров',
+  render: () => (
+    <div className="flex items-center gap-4">
+      <MessengerIcon messenger="telegram" />
+      <MessengerIcon messenger="vk" />
+      <MessengerIcon messenger="max" />
+      <MessengerIcon messenger="max" className="size-10" />
     </div>
   ),
 }

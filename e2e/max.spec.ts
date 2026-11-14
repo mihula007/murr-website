@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { hasHorizontalScroll, skipSplash } from './helpers'
+import { hasHorizontalScroll, openedMessengerUrl, skipSplash } from './helpers'
 import {
   botStarted,
   maxPress,
@@ -48,11 +48,11 @@ test('E2E-09: анонс события в MAX и ответ кнопкой', as
   await signInUi(page, member.email)
   await expectSignedIn(page)
   await page.goto('./#/account')
-  const block = page.getByRole('region', { name: 'MAX' })
-  await block.getByRole('button', { name: 'Привязать MAX' }).click()
-  const href = (await block
-    .getByRole('link', { name: 'Открыть бота' })
-    .getAttribute('href'))!
+  const href = await openedMessengerUrl(
+    page,
+    /^Привязать MAX/,
+    /^https:\/\/max\.ru\//,
+  )
   expect(href).toMatch(/^https:\/\/max\.ru\/murr_e2e_max_bot\?start=/)
   await sendMaxUpdate(
     botStarted(maxUserId, new URL(href).searchParams.get('start')!),
@@ -64,7 +64,11 @@ test('E2E-09: анонс события в MAX и ответ кнопкой', as
       (call.body.text ?? '').includes(member.nickname),
   )
   await page.reload()
-  await expect(block.getByText(`@max${maxUserId}`)).toBeVisible()
+  await expect(
+    page.getByRole('button', {
+      name: new RegExp(`^MAX привязан: @max${maxUserId}`),
+    }),
+  ).toBeVisible()
   expect(await hasHorizontalScroll(page)).toBe(false)
 
   // Анонс события только в MAX через API офицера (MAX-05).

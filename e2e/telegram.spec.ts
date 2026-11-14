@@ -1,5 +1,5 @@
 import { expect, test, type Browser } from '@playwright/test'
-import { hasHorizontalScroll, skipSplash } from './helpers'
+import { hasHorizontalScroll, openedMessengerUrl, skipSplash } from './helpers'
 import {
   accessToken,
   callApi,
@@ -60,11 +60,12 @@ test('E2E-08: анонс события в Telegram и ответ кнопкой
   await signInUi(page, member.email)
   await expectSignedIn(page)
   await page.goto('./#/account')
-  const block = page.getByRole('region', { name: 'Telegram' })
-  await block.getByRole('button', { name: 'Привязать Telegram' }).click()
-  const link = block.getByRole('link', { name: 'Открыть бота' })
-  await expect(link).toHaveAttribute('target', '_blank')
-  const href = (await link.getAttribute('href'))!
+  // Одно нажатие — бот в новой вкладке (Q-103).
+  const href = await openedMessengerUrl(
+    page,
+    /^Привязать Telegram/,
+    /^https:\/\/t\.me\//,
+  )
   expect(href).toMatch(/^https:\/\/t\.me\/murr_e2e_bot\?start=/)
   await sendUpdate(
     startUpdate(chatId, new URL(href).searchParams.get('start')!),
@@ -76,7 +77,11 @@ test('E2E-08: анонс события в Telegram и ответ кнопкой
       (call.params.text ?? '').includes(member.nickname),
   )
   await page.reload()
-  await expect(block.getByText(`@e2e${chatId}`)).toBeVisible()
+  await expect(
+    page.getByRole('button', {
+      name: new RegExp(`^Telegram привязан: @e2e${chatId}`),
+    }),
+  ).toBeVisible()
   expect(await hasHorizontalScroll(page)).toBe(false)
 
   // Анонс события от офицера: подтверждение и кнопки ответа (TGM-11, TGM-18).
