@@ -131,12 +131,12 @@ describe('главная внутренних ролей (HOM-07–09, ACT-12, R
     ).not.toBeInTheDocument()
 
     expect(
-      await screen.findByText('Админ', { selector: 'strong' }),
-    ).toBeInTheDocument()
+      await screen.findAllByText('Админ', { selector: 'strong' }),
+    ).not.toHaveLength(0)
     expect(
-      screen.getByText('Офицер', { selector: 'strong' }),
-    ).toBeInTheDocument()
-    expect(screen.queryByText('Член1')).not.toBeInTheDocument()
+      screen.getAllByText('Офицер', { selector: 'strong' }),
+    ).not.toHaveLength(0)
+    expect(within(events).queryByText('Член1')).not.toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: /К голосованиям/ }),
     ).toHaveAttribute('href', '/votes')

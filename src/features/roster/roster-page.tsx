@@ -3,6 +3,10 @@ import { useNavigate } from '@tanstack/react-router'
 import { MoreHorizontal, UserRoundX } from 'lucide-react'
 import { z } from 'zod'
 import type { RosterMember, RosterStatsResponse } from '@contracts/roster'
+import {
+  CHARACTER_STAT_FIELDS,
+  CHARACTER_STAT_LABELS,
+} from '@contracts/character-stats'
 import { ROLE_LABELS, useAccess } from '@/app/access'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 import { EmptyState } from '@/components/states/empty-state'
@@ -28,6 +32,7 @@ import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
 import { cn } from '@/lib/utils'
 import { useRoster, useRosterStats } from './api'
+import { formatCharacterStat } from './character-stats'
 import { ReadersPanel } from './readers-panel'
 
 const ALL = 'all'
@@ -100,6 +105,24 @@ type MemberCardProps = {
   onBlock?: (() => void) | undefined
 }
 
+function CharacterStatsSummary({ member }: { member: RosterMember }) {
+  return (
+    <dl
+      aria-label={`Характеристика ${member.gameNickname}`}
+      className="m-0 flex flex-wrap gap-x-2.5 gap-y-0.5 text-xs text-muted-foreground"
+    >
+      {CHARACTER_STAT_FIELDS.map((field) => (
+        <div key={field} className="inline-flex gap-1">
+          <dt>{CHARACTER_STAT_LABELS[field]}</dt>
+          <dd className="m-0 font-semibold text-foreground">
+            {formatCharacterStat(field, member[field])}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
 /** Карточка участника; действие администратора — в меню «⋯» (ROS-07). */
 function MemberCard({ member, onBlock }: MemberCardProps) {
   return (
@@ -120,6 +143,7 @@ function MemberCard({ member, onBlock }: MemberCardProps) {
               <Badge>{ROLE_LABELS[member.role]}</Badge>
             ) : null}
           </div>
+          <CharacterStatsSummary member={member} />
           <span className="inline-flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
             <ClassIcon classId={member.classId} className={member.className} />
             {member.className}

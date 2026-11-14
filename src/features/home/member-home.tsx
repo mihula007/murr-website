@@ -18,6 +18,7 @@ import { useRoster } from '@/features/roster/api'
 import { formatMonth } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
 import { activeVotesLabel, eventsLabel, membersLabel } from './plural'
+import { CharacterStrengthRating } from './character-strength-rating'
 
 /** Карточек ближайших событий на главной (HOM-07). */
 const HOME_EVENTS = 3
@@ -285,6 +286,7 @@ export function MemberHome() {
     <>
       <UpcomingEvents />
       <MonthTop canSeeActivity={hasRole(role, MANAGER_ROLES)} />
+      <CharacterStrengthRating />
       <div className="mt-12 grid gap-4 lg:grid-cols-2">
         <RosterBrief />
         <VotesCard />
