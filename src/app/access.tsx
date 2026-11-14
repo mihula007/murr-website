@@ -49,6 +49,7 @@ export type AccessStatus =
 type AccessContextValue = {
   role: AccessRole
   status: AccessStatus
+  nickname?: string
   retry?: () => void
 }
 
@@ -81,7 +82,11 @@ function SessionAccess({ children }: PropsWithChildren) {
     if (me.data.state === 'incomplete') {
       return { role: 'guest', status: 'incomplete' }
     }
-    return { role: me.data.profile.role, status: 'ready' }
+    return {
+      role: me.data.profile.role,
+      status: 'ready',
+      nickname: me.data.profile.gameNickname,
+    }
   }, [session.status, me])
   return <AccessContext value={value}>{children}</AccessContext>
 }

@@ -132,7 +132,7 @@ export async function signInUi(page: Page, email: string, password = PASSWORD) {
 /** Ждёт, что пользователь вошёл и переход после входа завершён. */
 export async function expectSignedIn(page: Page) {
   await expect(
-    page.getByRole('banner').getByRole('link', { name: 'Аккаунт' }),
+    page.getByRole('banner').locator('a[href$="#/account"]'),
   ).toBeVisible({ timeout: 15_000 })
   // Вход завершён, когда приложение само ушло со страницы входа.
   await expect(page).not.toHaveURL(/#\/login/, { timeout: 15_000 })

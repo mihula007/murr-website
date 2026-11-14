@@ -3,7 +3,7 @@ import { useAccess } from '@/app/access'
 import { Button } from '@/components/ui/button'
 
 export function AccountButton() {
-  const { status } = useAccess()
+  const { status, nickname } = useAccess()
   return (
     <Button
       asChild
@@ -13,7 +13,7 @@ export function AccountButton() {
       {status === 'guest' ? (
         <Link to="/login">Вход</Link>
       ) : (
-        <Link to="/account">Аккаунт</Link>
+        <Link to="/account">{nickname || 'Аккаунт'}</Link>
       )}
     </Button>
   )

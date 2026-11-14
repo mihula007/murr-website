@@ -13,10 +13,11 @@ const meMock = vi.hoisted(() => ({ value: {} as unknown }))
 vi.mock('@/features/account/use-me', () => ({ useMe: () => meMock.value }))
 
 function Probe() {
-  const { role, status } = useAccess()
+  const { role, status, nickname } = useAccess()
   return (
     <p>
       {role}:{status}
+      {nickname ? `:${nickname}` : ''}
     </p>
   )
 }
@@ -44,6 +45,18 @@ describe('AccessProvider from the session', () => {
       data: { state: 'ready', profile: { role: 'officer' } },
     })
     expect(screen.getByText('officer:ready')).toBeInTheDocument()
+  })
+
+  it('provides the current nickname from the profile', async () => {
+    await renderAccess(signedIn, {
+      isPending: false,
+      isError: false,
+      data: {
+        state: 'ready',
+        profile: { role: 'member', gameNickname: 'Мурка' },
+      },
+    })
+    expect(screen.getByText('member:ready:Мурка')).toBeInTheDocument()
   })
 
   it('treats an incomplete registration as a guest', async () => {

@@ -163,9 +163,17 @@ test('сессия сохраняется после перезагрузки', 
 
 test('редактирование профиля и смена ника', async ({ page }) => {
   const member = await createMember('member')
+  await page.goto('./#/')
+  await expect(
+    page.getByRole('banner').getByRole('link', { name: 'Вход' }),
+  ).toBeVisible()
   await signInUi(page, member.email)
   await expectSignedIn(page)
-  await page.goto('./#/account')
+  await page
+    .getByRole('banner')
+    .getByRole('link', { name: member.nickname })
+    .click()
+  await expect(page).toHaveURL(/#\/account/)
   await page.getByText('Личная информация', { exact: true }).click()
   await page.getByRole('button', { name: 'Изменить личную информацию' }).click()
   const nickname = uniqueNickname()
@@ -173,6 +181,9 @@ test('редактирование профиля и смена ника', async
   await page.getByLabel('Город').fill('Казань')
   await page.getByRole('button', { name: 'Сохранить профиль' }).click()
   await expect(page.getByText('Личная информация сохранена')).toBeVisible()
+  await expect(
+    page.getByRole('banner').getByRole('link', { name: nickname }),
+  ).toBeVisible()
   await expect(page.getByText(`${nickname} · Оборотень`)).toBeVisible()
   expect(await hasHorizontalScroll(page)).toBe(false)
 })
