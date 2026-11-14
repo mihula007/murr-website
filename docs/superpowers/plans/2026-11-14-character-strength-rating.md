@@ -33,7 +33,7 @@
 
 ---
 
-## Задача 0. Сквозной сценарий до реализации
+## Task 0. Сквозной сценарий до реализации
 
 **Файлы:** создать `e2e/character-strength.spec.ts`.
 
@@ -41,7 +41,7 @@
 - [ ] **Шаг 2: запустить сценарий на локальном Supabase.** `npm run test:e2e -- e2e/character-strength.spec.ts`; он падает на отсутствующем разделе характеристики или рейтинге, а не на настройке окружения.
 - [ ] **Шаг 3: сохранить тестовый коммит.** `test(e2e): specify character strength flow`.
 
-## Задача 1. Поля профиля и схема базы
+## Task 1. Поля профиля и схема базы
 
 **Файлы:** создать `supabase/migrations/20261114140000_stage14_character_stats.sql`, `supabase/tests/database/stage14_character_stats.test.sql`; изменить `supabase/functions/_shared/db/schema.ts`, сгенерировать `supabase/functions/_shared/db/database.types.ts`.
 
@@ -53,7 +53,7 @@
 - [ ] **Шаг 4: применить миграцию локально и проверить pgTAP.** `npx supabase migration up`, затем `npm run supabase:test`; новые проверки проходят, прежние таблицы и данные сохранены.
 - [ ] **Шаг 5: сохранить коммит.** `feat(db): add character strength fields`.
 
-## Задача 2. Общий контракт и операции сервера
+## Task 2. Общий контракт и операции сервера
 
 **Файлы:** создать `supabase/functions/_shared/contracts/character-stats.ts`; изменить `supabase/functions/_shared/contracts/accounts.ts`, `supabase/functions/_shared/contracts/roster.ts`, `supabase/functions/_shared/accounts/service.ts`, `supabase/functions/_shared/accounts/repository.ts`, `supabase/functions/_shared/roster/service.ts`, `supabase/functions/_shared/roster/repository.ts`, `supabase/functions/_shared/app.ts`; проверить в `tests/server/admin.test.ts`, `tests/server/roster.test.ts` или отдельном `tests/server/character-stats.test.ts`.
 
@@ -66,7 +66,7 @@
 - [ ] **Шаг 5: проверить контракт и сервер.** `npm run test:server`; все тесты проходят, а прямые вызовы с недостаточной ролью не возвращают данные и не меняют записи.
 - [ ] **Шаг 6: сохранить коммит.** `feat(api): manage character strength fields`.
 
-## Задача 3. Редактирование в карточке аккаунта
+## Task 3. Редактирование в карточке аккаунта
 
 **Файлы:** изменить `src/features/admin/api.ts`, `src/features/admin/query-keys.ts`, `src/features/admin/account-dialogs.tsx`; создать `src/features/admin/character-stats-fields.tsx` и `tests/admin-character-stats.test.tsx`.
 
@@ -78,7 +78,7 @@
 - [ ] **Шаг 4: проверить сохранение, ошибки и очистку.** `npm test -- tests/admin-character-stats.test.tsx`; поля, сбой, повтор и пустые значения ведут себя как описано.
 - [ ] **Шаг 5: сохранить коммит.** `feat(admin): edit character strength fields`.
 
-## Задача 4. Состав и рейтинг на главной
+## Task 4. Состав и рейтинг на главной
 
 **Файлы:** создать `src/features/roster/character-stats.ts`, `src/features/home/character-strength-rating.tsx`, `stories/character-strength-rating.stories.tsx`, `tests/character-strength.test.ts`; изменить `src/features/roster/roster-page.tsx`, `src/features/home/member-home.tsx`, `tests/roster-admin.test.tsx`, `tests/home.test.tsx`.
 
@@ -92,7 +92,7 @@
 - [ ] **Шаг 6: проверить затронутые тесты и Storybook.** Запустить указанные тесты и `npm run build-storybook`; истории показывают полный и пустой рейтинг на широком и узком экране.
 - [ ] **Шаг 7: сохранить коммит.** `feat(home): show character strength rating`.
 
-## Задача 5. Локальные данные, сквозная проверка и завершение
+## Task 5. Локальные данные, сквозная проверка и завершение
 
 **Файлы:** изменить `scripts/seed-dev.ts` и `docs/requirements/README.md` после успешного прохождения E2E-09.
 
