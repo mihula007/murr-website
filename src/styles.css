@@ -273,11 +273,13 @@
     font: inherit;
   }
   /* Заголовки страниц, разделов, карточек и диалогов — Cormorant; мелкие
-     подписи панелей (до 16 px) возвращают `font-sans`. */
+     подписи панелей (до 16 px) возвращают `font-sans`. Цифры — прописные
+     (lining): у Cormorant по умолчанию старостильные, разной высоты, и ники
+     вроде e0e19b94 и даты в заголовках читаются хуже. */
   h1,
   h2,
   h3 {
-    @apply font-heading;
+    @apply font-heading lining-nums;
   }
   :focus-visible {
     @apply outline-2 outline-offset-3 outline-ring;

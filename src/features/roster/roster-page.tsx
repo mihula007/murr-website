@@ -113,7 +113,7 @@ function MemberCard({ member, onBlock }: MemberCardProps) {
         />
         <div className="grid min-w-0 flex-1 gap-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <h3 className="font-sans text-lg leading-tight font-bold break-words">
+            <h3 className="text-xl leading-tight font-bold break-words">
               {member.gameNickname}
             </h3>
             {member.role !== 'member' ? (
