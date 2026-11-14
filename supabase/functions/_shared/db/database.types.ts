@@ -1065,23 +1065,26 @@ export type Database = {
       }
       telegram_announcements: {
         Row: {
+          body: string
           created_at: string
           event_id: string
           id: string
-          text_html: string
+          subject: string | null
         }
         ComputedFields: never
         Insert: {
+          body: string
           created_at?: string
           event_id: string
           id?: string
-          text_html: string
+          subject?: string | null
         }
         Update: {
+          body?: string
           created_at?: string
           event_id?: string
           id?: string
-          text_html?: string
+          subject?: string | null
         }
         Relationships: [
           {

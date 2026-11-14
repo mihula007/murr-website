@@ -55,12 +55,13 @@ create table app.telegram_link_codes (
   expires_at timestamptz not null
 );
 
--- Текст анонса события: нужен, чтобы перерисовать сообщение со строкой ответа.
--- Отдельные анонсы не хранятся (Q-80).
+-- Тема и текст анонса события: нужны, чтобы перерисовать сообщение со строкой
+-- ответа. HTML строится при отправке. Отдельные анонсы не хранятся (Q-80).
 create table app.telegram_announcements (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references app.events (id) on delete cascade,
-  text_html text not null,
+  subject text,
+  body text not null,
   created_at timestamptz not null default now()
 );
 

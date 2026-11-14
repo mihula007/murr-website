@@ -106,6 +106,10 @@ sender_name = "env(AUTH_SMTP_SENDER_NAME)"
 
 [edge_runtime]
 enabled = true
+# Фоновые задачи (`EdgeRuntime.waitUntil`) доделываются после ответа только
+# при per_worker: обновление сообщения Telegram после ответа на сайте (TGM-21).
+# Без горячей перезагрузки: после правки функции перезапустить functions serve.
+policy = "per_worker"
 deno_version = 2
 
 # Единая функция прикладного API: JWT проверяет сам обработчик, потому что

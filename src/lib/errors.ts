@@ -107,6 +107,8 @@ const MESSAGES: Record<ClientErrorCode | FieldErrorCode, string> = {
     'Аватар не принят: нужен JPEG, PNG или WebP до 500 КБ. Выберите файл ещё раз.',
   publication_file_invalid:
     'Изображение не принято: нужен JPEG, PNG или WebP до 1 МБ. Загрузите файл ещё раз.',
+  telegram_unavailable:
+    'Telegram не подключён на сервере. Обратитесь к администратору.',
   internal: 'Сервер не смог выполнить действие. Попробуйте ещё раз позже.',
   // Auth
   invalid_credentials: 'Неверный email или пароль.',
