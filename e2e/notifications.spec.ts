@@ -216,7 +216,8 @@ test('главная по ролям: ответ с главной виден в
   await signInUi(page, member.email)
   await expectSignedIn(page)
   await page.goto('./#/')
-  const upcoming = page.getByRole('region', { name: 'Ближайшее событие' })
+  // До трёх ближайших событий одинаковыми карточками (HOM-07).
+  const upcoming = page.getByRole('region', { name: 'Ближайшие ивенты' })
   await expect(upcoming).toBeVisible()
   await expect(
     page.getByRole('region', { name: 'Топ-5 посещаемости за месяц' }),
@@ -227,24 +228,28 @@ test('главная по ролям: ответ с главной виден в
   ).toBeVisible()
   expect(await hasHorizontalScroll(page)).toBe(false)
 
-  // Ответ в главном событии — тот же ответ в расписании (HOM-08).
+  // Ответ в карточке главной — тот же ответ в расписании (HOM-08).
   // Начавшиеся события ответа не принимают и идут первыми; локальная БД копит
   // их от прогона к прогону, поэтому выбора может не быть.
   // Общий запрос главной и расписания проверяет `tests/home.test.tsx`.
-  const choices = upcoming.getByRole('group', { name: 'Ваше решение' })
-  if ((await choices.count()) === 0) {
+  const cards = upcoming.locator(':scope > div:last-child > div')
+  const open = cards
+    .filter({ has: page.getByRole('group', { name: 'Ваше решение' }) })
+    .first()
+  if ((await open.count()) === 0) {
     test.info().annotations.push({
       type: 'skip-part',
-      description: 'HOM-08: ближайшее событие уже не принимает ответ',
+      description: 'HOM-08: ближайшие события уже не принимают ответ',
     })
   } else {
-    const href = await upcoming
-      .getByRole('heading', { level: 1 })
+    const href = (await open
+      .getByRole('heading', { level: 2 })
       .getByRole('link')
-      .getAttribute('href')
-    await upcoming.getByRole('button', { name: 'Приду', exact: true }).click()
-    // Группа выбора после ответа исчезает; новый участник ответил только здесь.
-    await expect(upcoming.getByText('Ваше решение:')).toHaveCount(1)
+      .getAttribute('href'))!
+    // Карточка закрепляется ссылкой: после ответа группа выбора исчезает.
+    const card = cards.filter({ has: page.locator(`a[href="${href}"]`) })
+    await card.getByRole('button', { name: 'Приду', exact: true }).click()
+    await expect(card.getByText('Ваше решение:')).toBeVisible()
     await page.goto(`./${href}`)
     await expect(page.getByText('Ваше решение:')).toBeVisible()
   }
@@ -262,7 +267,7 @@ test('главная по ролям: ответ с главной виден в
     applicantPage.getByRole('heading', { name: /Легенда продолжается/ }),
   ).toBeVisible()
   await expect(
-    applicantPage.getByRole('region', { name: 'Ближайшее событие' }),
+    applicantPage.getByRole('region', { name: 'Ближайшие ивенты' }),
   ).toHaveCount(0)
   await expect(
     applicantPage.getByRole('heading', { name: 'Состав клана' }),
