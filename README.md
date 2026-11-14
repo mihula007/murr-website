@@ -127,7 +127,7 @@ npm run admin:bootstrap -- --email you@example.com --nickname Ник --name Им
 
 ### Бот MAX
 
-Привязка аккаунта и анонсы в MAX (этап 14,
+Привязка аккаунта и анонсы в MAX (этап 15,
 [требования](docs/requirements/20-max.md),
 [проект](docs/architecture/max-integration.md)) — по тем же правилам, что
 Telegram. Без переменных бота сайт работает, а кабинет и «Рассылка»
@@ -138,14 +138,14 @@ Telegram. Без переменных бота сайт работает, а к�
    `MAX_WEBHOOK_SECRET` (32+ символа `A-Z a-z 0-9 _ -`).
 2. MAX принимает вебхук только по HTTPS на порту 443 с доверенным
    сертификатом, поэтому локального туннеля для MAX нет: локально интеграция
-   проверяется тестами с фальшивым API (`npm run test:server`, E2E-09).
+   проверяется тестами с фальшивым API (`npm run test:server`, E2E-10).
 3. Для облака значения задаются в Supabase Secrets, затем вебхук
    регистрируется: `npm run max:webhook -- --functions https://<ref>.supabase.co/functions/v1`
    (`--delete --functions …` — снять, `--list` — показать подписки).
 
 ### Бот сообщества ВКонтакте
 
-Привязка и анонсы во ВКонтакте (этап 15,
+Привязка и анонсы во ВКонтакте (этап 16,
 [требования](docs/requirements/21-vk.md),
 [проект](docs/architecture/vk-integration.md)) — по тем же правилам, что
 Telegram и MAX; сообщения — простым текстом.
@@ -156,7 +156,7 @@ Telegram и MAX; сообщения — простым текстом.
    (короткий адрес для ссылки `vk.me`) и `VK_CALLBACK_SECRET` (до 50
    символов).
 2. Callback API требует публичный адрес, поэтому локально интеграция
-   проверяется тестами с фальшивым API (`npm run test:server`, E2E-10).
+   проверяется тестами с фальшивым API (`npm run test:server`, E2E-11).
 3. Для облака задайте значения в Supabase Secrets, выложите функцию и
    зарегистрируйте сервер Callback API:
    `npm run vk:webhook -- --functions https://<ref>.supabase.co/functions/v1`

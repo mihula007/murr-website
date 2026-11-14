@@ -201,7 +201,7 @@ export const vkRepository = {
     }))
   },
 
-  /** `groupId` — только участники группы события (Q-102). */
+  /** `groupId` — только участники группы события (Q-104). */
   async recipientCount(db: Executor, groupId: string | null = null) {
     const row = await recipientsQuery(db, groupId)
       .select((eb) => eb.fn.countAll<string>().as('count'))
@@ -290,7 +290,7 @@ export const vkRepository = {
 /** Заглушка для левого соединения отдельного анонса: ответов нет. */
 const NO_EVENT = '00000000-0000-0000-0000-000000000000'
 
-/** Получатели; с `groupId` — только участники этой группы (Q-102). */
+/** Получатели; с `groupId` — только участники этой группы (Q-104). */
 function recipientsQuery(db: Executor, groupId: string | null) {
   const query = db
     .selectFrom('app.vk_links as l')

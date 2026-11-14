@@ -356,7 +356,7 @@ async function populate() {
       message_id: 1,
     })
     .execute()
-  // MAX (этап 14): связь, код привязки и активное сообщение анонса.
+  // MAX (этап 15): связь, код привязки и активное сообщение анонса.
   await db
     .insertInto('app.max_links')
     .values({
@@ -390,7 +390,7 @@ async function populate() {
     })
     .execute()
 
-  // ВКонтакте (этап 15): связь, код привязки и активное сообщение анонса.
+  // ВКонтакте (этап 16): связь, код привязки и активное сообщение анонса.
   await db
     .insertInto('app.vk_links')
     .values({

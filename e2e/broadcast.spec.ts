@@ -89,7 +89,7 @@ test('E2E-07: подготовка рассылки из события, гол�
   await page.getByRole('menuitem', { name: 'Подготовить рассылку' }).click()
   await expect(page.getByLabel('Тема (необязательно)')).toHaveValue(title)
   await expect(page.getByLabel('Текст рассылки')).toHaveValue(/Тип: PvE/)
-  // Подключены Telegram, ВКонтакте и MAX (Q-97, Q-100).
+  // Подключены Telegram, ВКонтакте и MAX (Q-99, Q-102).
   for (const channel of ['Telegram', 'ВКонтакте', 'MAX']) {
     await expect(page.getByRole('checkbox', { name: channel })).toBeChecked()
   }

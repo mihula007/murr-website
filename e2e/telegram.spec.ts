@@ -60,7 +60,7 @@ test('E2E-08: анонс события в Telegram и ответ кнопкой
   await signInUi(page, member.email)
   await expectSignedIn(page)
   await page.goto('./#/account')
-  // Одно нажатие — бот в новой вкладке (Q-103).
+  // Одно нажатие — бот в новой вкладке (Q-105).
   const href = await openedMessengerUrl(
     page,
     /^Привязать Telegram/,

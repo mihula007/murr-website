@@ -29,7 +29,7 @@ export async function deliverVkAnnouncement(
   vk: VkDeps,
   announcement: AnnouncementText,
   eventId: string | null,
-  /** Анонс группы — только её участникам (Q-102). */
+  /** Анонс группы — только её участникам (Q-104). */
   groupId: string | null = null,
 ): Promise<DeliveryResult> {
   const recipients = await vkRepository.recipients(deps.db, eventId, groupId)

@@ -7,7 +7,7 @@ import { z } from 'zod'
 export const BROADCAST_CHANNELS = ['telegram', 'vk', 'max'] as const
 export type BroadcastChannel = (typeof BROADCAST_CHANNELS)[number]
 
-/** Каналы, в которые анонс действительно отправляется (MAX-05, VK-05, Q-97, Q-100). */
+/** Каналы, в которые анонс действительно отправляется (MAX-05, VK-05, Q-99, Q-102). */
 export const SENDABLE_CHANNELS = ['telegram', 'vk', 'max'] as const
 export type SendableChannel = (typeof SENDABLE_CHANNELS)[number]
 
@@ -91,7 +91,7 @@ export const sendAnnouncementSchema = z.object({
   subject: optionalSubject,
   body: bodySchema,
   eventId: optionalId,
-  /** Анонс группы: только её участникам, без кнопок (TGM-12, Q-102). */
+  /** Анонс группы: только её участникам, без кнопок (TGM-12, Q-104). */
   groupId: optionalId,
   channels: z
     .array(z.enum(SENDABLE_CHANNELS, 'invalid'), 'required')

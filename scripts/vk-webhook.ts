@@ -1,5 +1,5 @@
 // Регистрация сервера Callback API сообщества ВКонтакте на облачную функцию
-// (этап 15). Запуск:
+// (этап 16). Запуск:
 //   npm run vk:webhook -- --functions https://<project>.supabase.co/functions/v1
 //   npm run vk:webhook -- --list
 //   npm run vk:webhook -- --delete <server_id>

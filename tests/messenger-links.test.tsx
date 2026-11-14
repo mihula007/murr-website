@@ -108,7 +108,7 @@ async function section() {
   )
 }
 
-describe('messenger links (Q-103)', () => {
+describe('messenger links (Q-105)', () => {
   it('is shown to members, officers and admins only', async () => {
     me.value = profile('reader')
     await renderApp({ role: 'reader', path: '/account' })

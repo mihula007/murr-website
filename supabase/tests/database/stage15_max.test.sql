@@ -1,4 +1,4 @@
--- Схема этапа 14: связь с MAX, коды привязки, анонсы событий.
+-- Схема этапа 15: связь с MAX, коды привязки, анонсы событий.
 begin;
 create extension if not exists pgtap with schema extensions;
 
@@ -9,7 +9,7 @@ select ok(
     where schemaname = 'app'
       and tablename in ('max_links', 'max_link_codes',
         'max_announcements', 'max_event_messages')),
-  'RLS включён у таблиц этапа 14'
+  'RLS включён у таблиц этапа 15'
 );
 
 select ok(
@@ -20,7 +20,7 @@ select ok(
       'app.max_announcements', 'app.max_event_messages']) as t(name)
     where has_table_privilege(r.role, t.name, 'select,insert,update,delete')
   ),
-  'anon и authenticated не имеют прав на таблицы этапа 14'
+  'anon и authenticated не имеют прав на таблицы этапа 15'
 );
 
 insert into auth.users (id, email, email_confirmed_at, aud, role)

@@ -390,7 +390,7 @@ function joinNames(names: string[]) {
 
 /**
  * Отправка анонса в выбранные каналы (TGM-11–TGM-24, MAX-05–MAX-12,
- * VK-05–VK-09, Q-81, Q-85, Q-92, Q-97, Q-100): анонс события — с кнопками,
+ * VK-05–VK-09, Q-81, Q-85, Q-92, Q-99, Q-102): анонс события — с кнопками,
  * только для незакрытого и не начавшегося события; канал не настроен —
  * отказ его кодом; без получателей во всех выбранных каналах — отказ.
  * Одна запись аудита.
@@ -408,7 +408,7 @@ export async function sendAnnouncement(
   if (input.eventId && input.groupId) {
     throw new ApiError('validation_failed', { groupId: 'invalid' })
   }
-  // Анонс группы: группа незакрытого события, без кнопок (TGM-12, Q-102).
+  // Анонс группы: группа незакрытого события, без кнопок (TGM-12, Q-104).
   const group = input.groupId
     ? await groupRepository.findGroup(deps.db, input.groupId)
     : null
