@@ -106,10 +106,11 @@ npx supabase link --project-ref fbhndmsmusbqntdymnaz
 8. Pages: Source — GitHub Actions; environment `github-pages` — только
    ветка `public`; DNS reg.ru — 4 A и 4 AAAA на GitHub, `www` — CNAME на
    `mihula007.github.io`. **Ожидает:** сертификат и Enforce HTTPS.
-9. **Ожидает:** Resend — домен `pwmurr.ru` (DKIM, SPF, DMARC в reg.ru),
-   ключ с правом только отправки, `AUTH_SMTP_*` в `.env`, затем
-   `config push`. До этого облако шлёт 8-значные коды английскими письмами
-   встроенного SMTP: Free не даёт менять шаблоны без своего SMTP.
+9. Resend — домен `pwmurr.ru` (DKIM, SPF, DMARC в reg.ru), ключ с правом
+   только отправки, `AUTH_SMTP_*` в `.env`, затем `config push`: SMTP,
+   6-значные коды, русские письма, `site_url`, 30 писем в час. Без своего
+   SMTP Free не даёт менять шаблоны, а встроенная почта пишет только
+   участникам организации Supabase.
 10. **Ожидает:** первый администратор — зарегистрироваться на сайте, затем
     `npm run admin:bootstrap -- …` с `ADMIN_DATABASE_URL` в `.env`
     (строка подключения облака, секрет).

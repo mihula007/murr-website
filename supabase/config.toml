@@ -136,6 +136,7 @@ max_frequency = "60s"
 
 # Облачные значения Supabase по умолчанию вместо повышенных для тестов.
 [remotes.production.auth.rate_limit]
+email_sent = 30
 sign_in_sign_ups = 30
 token_verifications = 30
 
