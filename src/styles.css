@@ -256,6 +256,12 @@
   html {
     scrollbar-gutter: stable;
   }
+  /* Radix Select hides the document scrollbar and adds its width as a body
+     margin. The stable gutter above already reserves that space, so cancel
+     this duplicate compensation while a select menu is open. */
+  html body[data-scroll-locked] {
+    margin-right: 0 !important;
+  }
   /* На телефоне подписи и метаданные (`text-xs`) крупнее: 12 px читается с
      трудом на расстоянии вытянутой руки. */
   @media (width < 40rem) {

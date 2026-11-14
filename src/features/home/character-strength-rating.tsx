@@ -87,14 +87,14 @@ export function CharacterStrengthRating() {
 
   if (roster.isPending) {
     return (
-      <section aria-label="Рейтинг силы">
+      <section aria-label="Рейтинг силы" className="mt-12">
         <LoadingState label="Загружаем рейтинг силы…" rows={3} />
       </section>
     )
   }
   if (roster.isError) {
     return (
-      <section aria-label="Рейтинг силы">
+      <section aria-label="Рейтинг силы" className="mt-12">
         <ErrorState onRetry={() => void roster.refetch()} />
       </section>
     )
@@ -116,7 +116,7 @@ export function CharacterStrengthRating() {
   return (
     <section
       aria-label="Рейтинг силы"
-      className="grid min-w-0 gap-3 rounded-2xl border border-border-accent bg-surface-inset/80 p-4"
+      className="mt-12 grid min-w-0 gap-3 rounded-2xl border border-border-accent bg-surface-inset/80 p-4"
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>

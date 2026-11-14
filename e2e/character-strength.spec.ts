@@ -190,8 +190,55 @@ test('характеристики доступны админу и внутре
   expect(names.findIndex((name) => name.includes(first.nickname))).toBeLessThan(
     names.findIndex((name) => name.includes(second.nickname)),
   )
+  const shell = page.locator('#main-content').locator('xpath=..')
+  const layoutBeforeFilter = await shell.evaluate((element) => {
+    const background = element.parentElement?.querySelector(
+      ':scope > [aria-hidden="true"]',
+    )
+    const { left, width } = element.getBoundingClientRect()
+    const backgroundBounds = background?.getBoundingClientRect()
+    return {
+      left,
+      width,
+      backgroundLeft: backgroundBounds?.left,
+      backgroundWidth: backgroundBounds?.width,
+      bodyMarginRight: getComputedStyle(document.body).marginRight,
+    }
+  })
   await rating.getByRole('combobox', { name: 'Класс' }).click()
+  expect(
+    await shell.evaluate((element) => {
+      const background = element.parentElement?.querySelector(
+        ':scope > [aria-hidden="true"]',
+      )
+      const { left, width } = element.getBoundingClientRect()
+      const backgroundBounds = background?.getBoundingClientRect()
+      return {
+        left,
+        width,
+        backgroundLeft: backgroundBounds?.left,
+        backgroundWidth: backgroundBounds?.width,
+        bodyMarginRight: getComputedStyle(document.body).marginRight,
+      }
+    }),
+  ).toEqual(layoutBeforeFilter)
   await page.getByRole('option', { name: 'Маг', exact: true }).click()
+  expect(
+    await shell.evaluate((element) => {
+      const background = element.parentElement?.querySelector(
+        ':scope > [aria-hidden="true"]',
+      )
+      const { left, width } = element.getBoundingClientRect()
+      const backgroundBounds = background?.getBoundingClientRect()
+      return {
+        left,
+        width,
+        backgroundLeft: backgroundBounds?.left,
+        backgroundWidth: backgroundBounds?.width,
+        bodyMarginRight: getComputedStyle(document.body).marginRight,
+      }
+    }),
+  ).toEqual(layoutBeforeFilter)
   await expect(rating.getByText(second.nickname)).toBeVisible()
   await expect(rating.getByText(first.nickname)).toHaveCount(0)
   await expect(

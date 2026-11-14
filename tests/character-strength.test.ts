@@ -174,6 +174,7 @@ describe('показатели состава и главная', () => {
   it('shows a sortable, filterable rating from the same roster response', async () => {
     await renderApp({ role: 'member', path: '/' })
     const rating = await screen.findByRole('region', { name: 'Рейтинг силы' })
+    expect(rating).toHaveClass(/mt-12/)
     const table = within(rating).getByRole('table', { name: 'Рейтинг силы' })
     await waitFor(() =>
       expect(table.querySelectorAll('tbody tr')).toHaveLength(4),
@@ -192,11 +193,10 @@ describe('показатели состава и главная', () => {
     expect(rows[1]).toHaveClass('bg-surface-from')
     expect(rows[0]?.querySelector('td')).toHaveClass('text-highlight')
     expect(rows[3]?.querySelector('td')).toHaveClass('text-muted-foreground')
-    expect(
-      within(rating).getByRole('region', {
-        name: 'Прокручиваемый список рейтинга силы',
-      }),
-    ).toHaveClass(/overflow-y-auto/)
+    const scrollArea = within(rating).getByRole('region', {
+      name: 'Прокручиваемый список рейтинга силы',
+    })
+    expect(scrollArea).toHaveClass(/overflow-y-auto/)
     const order = () =>
       Array.from(table.querySelectorAll('tbody tr')).map(
         (row) => row.textContent ?? '',
