@@ -228,6 +228,20 @@ describe('vote page', () => {
     expect(screen.queryByText('Кто как голосовал')).toBeNull()
   })
 
+  it('titles the page with the vote topic', async () => {
+    respond({ 'votes/get': () => vote() })
+    await renderApp({ role: 'member', path: `/votes/${VOTE_ID}` })
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Куда идём в субботу?',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('heading', { level: 1, name: 'Голосование' }),
+    ).toBeNull()
+  })
+
   it('closes after confirmation', async () => {
     respond({
       'votes/get': () => vote(),

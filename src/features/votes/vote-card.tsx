@@ -272,6 +272,11 @@ type VoteCardProps = {
   vote: VoteCardData
   /** В списке тема ведёт на страницу голосования. */
   linkToPage?: boolean
+  /**
+   * Страница голосования: тема — заголовок страницы (h1) над карточкой,
+   * в карточке остаются итоги, голос и действия.
+   */
+  page?: boolean
   onDeleted?: () => void
   className?: string
 }
@@ -280,6 +285,7 @@ type VoteCardProps = {
 export function VoteCard({
   vote,
   linkToPage = false,
+  page = false,
   onDeleted,
   className,
 }: VoteCardProps) {
@@ -287,47 +293,55 @@ export function VoteCard({
   const isManager = hasRole(role, MANAGER_ROLES)
   const isActive = vote.closedAt === null
 
-  return (
-    <Card className={cn('grid min-w-0 gap-4', className)}>
-      <div className="grid gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          {vote.kind === 'application' ? <Badge>По заявке</Badge> : null}
-          {isActive ? null : (
-            <Badge className="border-border text-muted-foreground">
-              Завершено {formatDateMsk(vote.closedAt)}
-            </Badge>
-          )}
-        </div>
-        <h2 className="m-0 text-xl leading-snug font-bold break-words">
-          {linkToPage ? (
-            <Link
-              to="/votes/$id"
-              params={{ id: vote.id }}
-              className="inline-flex max-w-full items-start gap-1 text-foreground no-underline hover:text-primary"
-            >
-              <span className="min-w-0 break-words">{vote.title}</span>
-              <ChevronRight
-                size={18}
-                aria-hidden="true"
-                className="mt-0.5 flex-none text-muted-foreground"
-              />
-            </Link>
-          ) : (
-            vote.title
-          )}
-        </h2>
-        {vote.applicant ? (
-          <p className="m-0 text-sm text-muted-foreground">
-            Кандидат: {vote.applicant.gameNickname} · {vote.applicant.className}
-          </p>
-        ) : null}
-        {vote.context ? (
-          <p className="m-0 break-words whitespace-pre-line text-muted-foreground">
-            {vote.context}
-          </p>
-        ) : null}
+  const Title = page ? 'h1' : 'h2'
+  const header = (
+    <div className={cn('grid gap-2', page && 'gap-3')}>
+      <div className="flex flex-wrap items-center gap-2">
+        {vote.kind === 'application' ? <Badge>По заявке</Badge> : null}
+        {isActive ? null : (
+          <Badge className="border-border text-muted-foreground">
+            Завершено {formatDateMsk(vote.closedAt)}
+          </Badge>
+        )}
       </div>
-
+      <Title
+        className={
+          page
+            ? 'm-0 text-[52px] leading-[1.02] font-bold break-words max-sm:text-[38px]'
+            : 'm-0 text-xl leading-snug font-bold break-words'
+        }
+      >
+        {linkToPage ? (
+          <Link
+            to="/votes/$id"
+            params={{ id: vote.id }}
+            className="inline-flex max-w-full items-start gap-1 text-foreground no-underline hover:text-primary"
+          >
+            <span className="min-w-0 break-words">{vote.title}</span>
+            <ChevronRight
+              size={18}
+              aria-hidden="true"
+              className="mt-0.5 flex-none text-muted-foreground"
+            />
+          </Link>
+        ) : (
+          vote.title
+        )}
+      </Title>
+      {vote.applicant ? (
+        <p className="m-0 text-sm text-muted-foreground">
+          Кандидат: {vote.applicant.gameNickname} · {vote.applicant.className}
+        </p>
+      ) : null}
+      {vote.context ? (
+        <p className="m-0 break-words whitespace-pre-line text-muted-foreground">
+          {vote.context}
+        </p>
+      ) : null}
+    </div>
+  )
+  const body = (
+    <>
       <Results
         options={vote.options}
         total={vote.totalBallots}
@@ -357,6 +371,21 @@ export function VoteCard({
           </>
         ) : null}
       </div>
+    </>
+  )
+
+  if (page) {
+    return (
+      <>
+        <header className="mb-6">{header}</header>
+        <Card className={cn('grid min-w-0 gap-4', className)}>{body}</Card>
+      </>
+    )
+  }
+  return (
+    <Card className={cn('grid min-w-0 gap-4', className)}>
+      {header}
+      {body}
     </Card>
   )
 }
