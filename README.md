@@ -169,6 +169,7 @@ GitHub Actions Secrets использовать для будущих защищ
 | `npm run supabase:env`       | Публичная конфигурация локального стека для `dev`     |
 | `npm run build:e2e`          | Сборка для Playwright с локальным Supabase            |
 | `npm run admin:bootstrap`    | Назначение первого администратора                     |
+| `npm run e2e:functions`      | Функции для Playwright с фальшивым Telegram           |
 | `npm run telegram:dev`       | Туннель и вебхук тестового бота Telegram              |
 | `npm run telegram:webhook`   | Вебхук рабочего бота на облачную функцию              |
 
@@ -179,11 +180,14 @@ desktop и mobile; коды из писем берутся из Mailpit:
 npm run supabase:start
 npx playwright install chromium
 npm run build:e2e
-npx supabase functions serve
+npm run e2e:functions
 npm run test:e2e
 ```
 
-`npx supabase functions serve` держать запущенным в отдельном терминале.
+`npm run e2e:functions` держать запущенным в отдельном терминале: это
+`supabase functions serve` с выдуманным ботом Telegram, чьи вызовы Bot API
+идут в фальшивый сервер `e2e/fake-telegram.ts` (его поднимает Playwright).
+Настоящий бот из `.env` в сценариях не участвует.
 Сценарии заявок и членства (`e2e/applications.spec.ts`,
 `e2e/membership.spec.ts`) создают кандидата через Auth API и Mailpit без
 интерфейса, а офицера и администратора — прямой записью в локальную БД.

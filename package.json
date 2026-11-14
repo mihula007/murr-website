@@ -37,6 +37,7 @@
     "supabase:test": "supabase test db",
     "test:server": "vitest run --config vitest.server.config.ts",
     "admin:bootstrap": "node --env-file-if-exists=.env scripts/admin-bootstrap.ts",
+    "e2e:functions": "node scripts/e2e-functions.ts",
     "telegram:dev": "node --env-file-if-exists=.env scripts/telegram-dev.ts",
     "telegram:webhook": "node --env-file-if-exists=.env scripts/telegram-webhook.ts",
     "supabase:env": "node scripts/supabase-env.ts",

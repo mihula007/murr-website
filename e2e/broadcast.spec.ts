@@ -29,20 +29,14 @@ const prepare = (page: Page) =>
 
 /** Черновик сохранён, а интерфейс нигде не говорит «отправлено» (BRC-13). */
 async function saveAndExpectDraft(page: Page, text: RegExp) {
-  await page.getByRole('checkbox', { name: 'MAX' }).uncheck()
-  await expect(
-    page.getByRole('button', { name: 'Отправить рассылку' }),
-  ).toBeDisabled()
   await page.getByRole('button', { name: 'Сохранить черновик' }).click()
   await expect(
     page.getByText('Сохранено как черновик, не отправлено'),
   ).toBeVisible()
   const draft = page.getByRole('listitem').filter({ hasText: text }).first()
   await expect(draft).toBeVisible()
-  await expect(
-    draft.getByText('Черновик · отправка после подключения'),
-  ).toBeVisible()
-  await expect(draft.getByText('MAX', { exact: true })).toHaveCount(0)
+  await expect(draft.getByText('Черновик', { exact: true })).toBeVisible()
+  await expect(draft.getByText('Telegram', { exact: true })).toBeVisible()
   await expect(page.getByText(/^Отправлено/)).toHaveCount(0)
   expect(await hasHorizontalScroll(page)).toBe(false)
 }
@@ -95,8 +89,10 @@ test('E2E-07: подготовка рассылки из события, гол�
   await page.getByRole('menuitem', { name: 'Подготовить рассылку' }).click()
   await expect(page.getByLabel('Тема (необязательно)')).toHaveValue(title)
   await expect(page.getByLabel('Текст рассылки')).toHaveValue(/Тип: PvE/)
-  for (const channel of ['Telegram', 'ВКонтакте', 'MAX']) {
-    await expect(page.getByRole('checkbox', { name: channel })).toBeChecked()
+  // Подключён только Telegram (Q-82).
+  await expect(page.getByRole('checkbox', { name: 'Telegram' })).toBeChecked()
+  for (const channel of [/ВКонтакте/, /MAX/]) {
+    await expect(page.getByRole('checkbox', { name: channel })).toBeDisabled()
   }
   await saveAndExpectDraft(page, new RegExp(title))
 
@@ -126,7 +122,7 @@ test('E2E-07: подготовка рассылки из события, гол�
     (
       await callApi('broadcasts/save-draft', memberToken, {
         body: 'x',
-        channels: ['vk'],
+        channels: ['telegram'],
       })
     ).status,
   ).toBe(403)
