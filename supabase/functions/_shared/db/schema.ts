@@ -53,6 +53,12 @@ export type DB = {
   'app.broadcast_drafts': KyselyTable<Generated['broadcast_drafts']>
   'app.broadcast_templates': KyselyTable<Generated['broadcast_templates']>
   'app.user_deletions': KyselyTable<Generated['user_deletions']>
+  'app.telegram_links': KyselyTable<Generated['telegram_links']>
+  'app.telegram_link_codes': KyselyTable<Generated['telegram_link_codes']>
+  'app.telegram_announcements': KyselyTable<Generated['telegram_announcements']>
+  'app.telegram_event_messages': KyselyTable<
+    Generated['telegram_event_messages']
+  >
   'auth.users': AuthUsersTable
 }
 

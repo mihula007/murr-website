@@ -122,6 +122,12 @@ import {
   type TelegramGateway,
 } from './telegram/gateway.ts'
 import {
+  handleTelegramWebhook,
+  startTelegramLink,
+  telegramStatus,
+  unlinkTelegram,
+} from './telegram/service.ts'
+import {
   castBallot,
   closeVote,
   createVote,
@@ -303,6 +309,11 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       saveBroadcastTemplate(deps, actor, body),
     'broadcasts/delete-template': ({ actor, body }) =>
       deleteBroadcastTemplate(deps, actor, body),
+    'telegram/status': ({ actor }) => telegramStatus(deps, actor),
+    'telegram/link-start': ({ actor }) => startTelegramLink(deps, actor),
+    'telegram/unlink': ({ actor }) => unlinkTelegram(deps, actor),
+    'telegram/webhook': ({ headers, body }) =>
+      handleTelegramWebhook(deps, headers, body),
   }
 }
 

@@ -1,10 +1,17 @@
 import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { sql } from 'kysely'
-import type { AppDeps } from '../../supabase/functions/_shared/app.ts'
+import type {
+  AppDeps,
+  TelegramDeps,
+} from '../../supabase/functions/_shared/app.ts'
 import { loadActor } from '../../supabase/functions/_shared/auth/actor.ts'
 import { createAuthAdminGateway } from '../../supabase/functions/_shared/auth/admin-gateway.ts'
 import { createStorageGateway } from '../../supabase/functions/_shared/storage/gateway.ts'
+import type {
+  InlineKeyboard,
+  TelegramGateway,
+} from '../../supabase/functions/_shared/telegram/gateway.ts'
 import {
   createDb,
   type Db,
@@ -146,3 +153,74 @@ export const registration = (overrides: Record<string, unknown> = {}) => ({
   equipmentLinks: ['https://example.com/gear.png'],
   ...overrides,
 })
+
+/** Вызов фальшивого шлюза Telegram: метод и параметры. */
+export type TelegramCall = {
+  method:
+    'sendHtml' | 'sendText' | 'editHtml' | 'editKeyboard' | 'answerCallback'
+  chatId?: number
+  messageId?: number
+  text?: string
+  keyboard?: InlineKeyboard | null
+  callbackId?: string
+}
+
+/**
+ * Фальшивый шлюз Bot API для серверных тестов: записывает вызовы, выдаёт
+ * номера сообщений; `blocked` — чаты, остановившие бота.
+ */
+export function fakeTelegram() {
+  const calls: TelegramCall[] = []
+  const blocked = new Set<number>()
+  let nextMessageId = 100
+  const gateway: TelegramGateway = {
+    async sendHtml(chatId, text, keyboard) {
+      calls.push({
+        method: 'sendHtml',
+        chatId,
+        text,
+        keyboard: keyboard ?? null,
+      })
+      return blocked.has(chatId)
+        ? { status: 'blocked' }
+        : { status: 'ok', messageId: nextMessageId++ }
+    },
+    async sendText(chatId, text) {
+      calls.push({ method: 'sendText', chatId, text })
+      return blocked.has(chatId)
+        ? { status: 'blocked' }
+        : { status: 'ok', messageId: nextMessageId++ }
+    },
+    async editHtml(chatId, messageId, text, keyboard) {
+      calls.push({ method: 'editHtml', chatId, messageId, text, keyboard })
+      return blocked.has(chatId) ? 'blocked' : 'ok'
+    },
+    async editKeyboard(chatId, messageId, keyboard) {
+      calls.push({ method: 'editKeyboard', chatId, messageId, keyboard })
+      return blocked.has(chatId) ? 'blocked' : 'ok'
+    },
+    async answerCallback(callbackId, text) {
+      calls.push({
+        method: 'answerCallback',
+        callbackId,
+        ...(text ? { text } : {}),
+      })
+    },
+  }
+  const telegram: TelegramDeps = {
+    gateway,
+    botUsername: 'murr_test_bot',
+    webhookSecret: TELEGRAM_TEST_SECRET,
+    siteUrl: 'https://murr.test/',
+  }
+  return { telegram, calls, blocked }
+}
+
+export const TELEGRAM_TEST_SECRET = 'test-webhook-secret-0123456789abcdef'
+
+/** Заголовки вебхука с секретом (или без него). */
+export function webhookHeaders(secret: string | null = TELEGRAM_TEST_SECRET) {
+  return new Headers(
+    secret === null ? {} : { 'x-telegram-bot-api-secret-token': secret },
+  )
+}
