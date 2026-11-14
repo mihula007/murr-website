@@ -37,6 +37,8 @@
     "supabase:test": "supabase test db",
     "test:server": "vitest run --config vitest.server.config.ts",
     "admin:bootstrap": "node --env-file-if-exists=.env scripts/admin-bootstrap.ts",
+    "telegram:dev": "node --env-file-if-exists=.env scripts/telegram-dev.ts",
+    "telegram:webhook": "node --env-file-if-exists=.env scripts/telegram-webhook.ts",
     "supabase:env": "node scripts/supabase-env.ts",
     "build:e2e": "node scripts/supabase-env.ts .env.e2e.local && tsc -b && vite build --mode e2e && node scripts/check-secrets.ts"
   },
@@ -87,6 +89,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.2.1",
+    "cloudflared": "0.7.3",
     "jsdom": "31.0.0",
     "kysely": "0.29.7",
     "kysely-postgres-js": "5.0.1",

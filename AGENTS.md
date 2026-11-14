@@ -129,6 +129,11 @@ Next.js и TanStack Start в выбранную основу не входят.
   анимация задаёт inline `transform`, запрещённый правилами стилей; порядок
   задаётся сбросом на строку, под курсором — `DragOverlay`. С клавиатуры и
   на телефоне — меню строки «В группу… / Выше / Ниже».
+- `cloudflared` 0.7.3 (devDependencies, решение владельца Q-87, Q-95,
+  14.11.2026) — быстрый туннель Cloudflare без аккаунта для вебхука
+  тестового бота Telegram (`npm run telegram:dev`). Install-скрипт пакета не
+  нужен: скрипт сам ставит закреплённый бинарник (2026.10.7) в
+  `node_modules/.cache`; CI его не скачивает.
 - Excel — собственный модуль `src/lib/xlsx.ts` без библиотеки (Q-52):
   `.xlsx` как ZIP без сжатия, подгружается при выгрузке.
 - TanStack Query (серверное состояние) и TanStack Form (формы) установлены
@@ -200,6 +205,7 @@ Next.js и TanStack Start в выбранную основу не входят.
 | Браузерные тесты             | Playwright (desktop и mobile)                                                                                                                     |
 | Скрипты `scripts/`           | TypeScript, запуск `node scripts/<имя>.ts` (Node 24 без сборки), проверяются `tsc -b`; разбор кода — `oxc-parser` (помощники `scripts/ast.ts`)    |
 | Проверки стиля и архитектуры | `scripts/check-styles.ts` (Tailwind через `@tailwindcss/node`) и `scripts/check-architecture.ts`; правила покрыты тестами `tests/check-*.test.ts` |
+| Туннель вебхука Telegram     | `cloudflared` (только локальная разработка, `npm run telegram:dev`, Q-95)                                                                         |
 | CI/CD                        | GitHub Actions; хостинг — GitHub Pages                                                                                                            |
 
 Структура клиента: `src/routes/` только объявляет маршруты; страницы и их
