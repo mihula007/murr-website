@@ -26,6 +26,7 @@
     "check:architecture": "node scripts/check-architecture.ts",
     "pages:prepare": "node scripts/prepare-pages.ts",
     "check": "npm run security:check && npm run check:styles && npm run check:architecture && npm run format:check && npm run lint && npm run typecheck && npm test && npm run build && npm run build-storybook",
+    "check:quick": "npm run security:check && npm run check:styles && npm run check:architecture && npm run format:check && npm run lint && npm run typecheck && vitest run --changed origin/main --passWithNoTests",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
@@ -42,6 +43,9 @@
     "telegram:webhook": "node --env-file-if-exists=.env scripts/telegram-webhook.ts",
     "supabase:env": "node scripts/supabase-env.ts",
     "seed:dev": "node scripts/seed-dev.ts --reset",
+    "session:prepare": "node scripts/session-prepare.ts",
+    "review:prepare": "node scripts/review-prepare.ts",
+    "release": "node scripts/release.ts",
     "build:e2e": "node scripts/supabase-env.ts .env.e2e.local && tsc -b && vite build --mode e2e && node scripts/check-secrets.ts"
   },
   "dependencies": {
