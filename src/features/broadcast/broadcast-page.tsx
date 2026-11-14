@@ -1,12 +1,11 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useForm, useStore } from '@tanstack/react-form'
-import { Paperclip, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { z } from 'zod'
 import {
   BROADCAST_CHANNEL_LABELS,
   BROADCAST_CHANNELS,
-  BROADCAST_FILE_EXTENSIONS,
   BROADCAST_LIMITS,
   BROADCAST_SOURCES,
   type BroadcastChannel,
@@ -43,13 +42,6 @@ import {
   useSaveBroadcastTemplate,
   useSaveDraft,
 } from './api'
-import {
-  addFiles,
-  formatSize,
-  rejectionText,
-  type FileRejection,
-  type PickedFile,
-} from './files'
 
 /** Источник заполнения в адресе: `?source=event&id=…` (BRC-02–04). */
 export const broadcastSearchSchema = z.object({
@@ -75,22 +67,12 @@ const draftSchema = z.object({
     .min(1, 'required')
     .max(BROADCAST_LIMITS.body, 'too_long'),
   channels: z.array(z.enum(BROADCAST_CHANNELS)).min(1, 'required'),
-  // Файлы проверяются при выборе (`addFiles`), здесь только переносятся.
-  files: z.array(
-    z.object({
-      name: z.string(),
-      size: z.number(),
-      type: z.string(),
-      lastModified: z.number(),
-    }),
-  ),
 })
 
 type FormValues = {
   subject: string
   body: string
   channels: BroadcastChannel[]
-  files: PickedFile[]
 }
 
 const ALL_CHANNELS = [...BROADCAST_CHANNELS]
@@ -98,7 +80,6 @@ const EMPTY: FormValues = {
   subject: '',
   body: '',
   channels: ALL_CHANNELS,
-  files: [],
 }
 
 function ChannelBadges({ channels }: { channels: BroadcastChannel[] }) {
@@ -291,12 +272,6 @@ function DraftCard({
         {draft.body}
       </p>
       <ChannelBadges channels={draft.channels} />
-      {draft.attachments.length > 0 ? (
-        <p className="m-0 text-xs break-words text-muted-foreground">
-          Файлы (только имена):{' '}
-          {draft.attachments.map((a) => a.name).join(', ')}
-        </p>
-      ) : null}
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span>
           {formatDateTimeMsk(draft.createdAt)} ·{' '}
@@ -368,7 +343,7 @@ function Drafts() {
   )
 }
 
-/** Форма подготовки (BRC-01, BRC-05–09, BRC-13). */
+/** Форма подготовки (BRC-01, BRC-05–07, BRC-13). */
 function BroadcastForm({
   initial,
   source,
@@ -381,8 +356,6 @@ function BroadcastForm({
   onSaved: () => void
 }) {
   const save = useSaveDraft()
-  const fileInput = useRef<HTMLInputElement>(null)
-  const [rejected, setRejected] = useState<FileRejection[]>([])
   const form = useForm({
     defaultValues: initial,
     validators: { onChange: draftSchema },
@@ -393,16 +366,10 @@ function BroadcastForm({
           subject: value.subject,
           body: value.body,
           channels: value.channels,
-          attachments: value.files.map(({ name, size, type }) => ({
-            name,
-            size,
-            type,
-          })),
           source,
         })
         .then(() => {
           form.reset(EMPTY)
-          setRejected([])
           toast('Сохранено как черновик, не отправлено')
           onSaved()
         })
@@ -534,88 +501,6 @@ function BroadcastForm({
             </>
           )}
         </form.Subscribe>
-        <form.Field name="files">
-          {(field) => (
-            <div className="col-span-full grid gap-2">
-              <span className="text-sm font-semibold">Файлы</span>
-              <div>
-                <input
-                  ref={fileInput}
-                  id="broadcast-files"
-                  type="file"
-                  multiple
-                  className="sr-only"
-                  accept={BROADCAST_FILE_EXTENSIONS.map(
-                    (ext) => `.${ext}`,
-                  ).join(',')}
-                  onChange={(event) => {
-                    const picked = [...(event.target.files ?? [])]
-                    const result = addFiles(field.state.value, picked)
-                    field.handleChange(result.accepted)
-                    setRejected(result.rejected)
-                    event.target.value = ''
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => fileInput.current?.click()}
-                >
-                  <Paperclip size={14} aria-hidden="true" /> Выбрать файлы
-                </Button>
-              </div>
-              <span className="text-xs text-muted-foreground">
-                До {BROADCAST_LIMITS.files} файлов по 20 МБ: XLS, XLSX, DOC,
-                DOCX, TXT, RTF, ODT, ODS, PNG, JPG, WebP, GIF. Файлы не
-                сохраняются: в черновике остаются только их имена.
-              </span>
-              {rejected.length > 0 ? (
-                <div role="alert" className="grid text-xs text-destructive">
-                  <span>Не добавлены:</span>
-                  {rejected.map((item) => (
-                    <span key={`${item.name}-${item.reason}`}>
-                      {rejectionText(item)}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              {field.state.value.length > 0 ? (
-                <ul
-                  aria-label="Выбранные файлы"
-                  className="m-0 grid list-none gap-1.5 p-0"
-                >
-                  {field.state.value.map((file) => (
-                    <li
-                      key={`${file.name}-${file.size}-${file.lastModified}`}
-                      className="flex items-center gap-2 rounded-lg border border-border bg-surface-inset px-3 py-1.5 text-sm"
-                    >
-                      <span className="min-w-0 flex-1 break-all">
-                        {file.name}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatSize(file.size)}
-                      </span>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        aria-label={`Убрать ${file.name}`}
-                        onClick={() =>
-                          field.handleChange(
-                            field.state.value.filter((item) => item !== file),
-                          )
-                        }
-                      >
-                        <X size={14} aria-hidden="true" />
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          )}
-        </form.Field>
         <div className="col-span-full grid gap-3">
           <FormError
             message={
@@ -698,8 +583,8 @@ export function BroadcastPage({ source, id }: Partial<BroadcastSearch>) {
     const data = target ? prefill.data : undefined
     form = (
       <BroadcastForm
-        // Открытие из другого контекста — новая форма: каналы включены,
-        // файлы сброшены (BRC-05).
+        // Открытие из другого контекста — новая форма с включёнными каналами
+        // (BRC-05).
         key={target ? `${target.source}:${target.id}` : 'blank'}
         initial={
           data
@@ -707,7 +592,6 @@ export function BroadcastPage({ source, id }: Partial<BroadcastSearch>) {
                 subject: data.subject,
                 body: data.body,
                 channels: ALL_CHANNELS,
-                files: [],
               }
             : EMPTY
         }

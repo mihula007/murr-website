@@ -70,6 +70,8 @@
 
 - **`policy = "per_worker"`** в `[edge_runtime]` (результат задачи 0), иначе фоновое обновление сообщения после ответа на сайте (TGM-21) не выполняется локально и в e2e. README: после правки функции перезапустить `supabase functions serve`.
 - **Бинарник `cloudflared` закреплён версией** `2026.10.7` (выпуск 30.10.2026): `scripts/telegram-dev.ts` при первом запуске сам ставит её функцией `install` пакета в `node_modules/.cache`, а не через postinstall. `allowScripts` в `package.json` не добавляется, CI бинарник не скачивает.
+- **Вложения убраны целиком в задаче 1**, а не в задаче 5: удаление столбца ломало репозиторий черновиков, поэтому вместе со схемой убраны контракт, сервис, поле файлов на странице, `files.ts` и их тесты. Остальные правки «Рассылки» — в задаче 5.
+- **Миграция применена `supabase migration up`**, а не `supabase:reset`: локальные данные владельца сохранены. В локальном стеке не было bucket `publication-images` из `config.toml` (стек старше этапа 8), из-за чего падал тест удаления пользователя; создан `supabase seed buckets` без сброса данных.
 
 ## Списки этапа
 
@@ -126,9 +128,9 @@
 
 ### 1. Схема
 
-- [ ] Миграция: `telegram_links`, `telegram_link_codes`, `telegram_announcements`, `telegram_event_messages` (по проекту); `broadcast_drafts` без `attachments`; `CHECK` текста черновиков и шаблонов 1–3800; RLS без политик, `REVOKE`.
-- [ ] `npm run supabase:reset`, `npm run supabase:types`; pgTAP: нет GRANT, `UNIQUE telegram_user_id`, `UNIQUE code_hash`, каскады от профиля и события, `RESTRICT` не появился.
-- [ ] Коммит `feat: add telegram schema`.
+- [x] Миграция: `telegram_links`, `telegram_link_codes`, `telegram_announcements`, `telegram_event_messages` (по проекту); `broadcast_drafts` без `attachments`; `CHECK` текста черновиков и шаблонов 1–3800; RLS без политик, `REVOKE`.
+- [x] `npm run supabase:reset`, `npm run supabase:types`; pgTAP: нет GRANT, `UNIQUE telegram_user_id`, `UNIQUE code_hash`, каскады от профиля и события, `RESTRICT` не появился.
+- [x] Коммит `feat: add telegram schema`.
 
 ### 2. Шлюз, рендер и сканер секретов
 

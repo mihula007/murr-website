@@ -60,7 +60,6 @@ const draft = (overrides: Record<string, unknown> = {}) => ({
   subject: 'Сбор',
   body: 'Сегодня рейд',
   channels: ['telegram', 'vk', 'max'],
-  attachments: [{ name: 'plan.xlsx', size: 1024, type: '' }],
   ...overrides,
 })
 
@@ -109,8 +108,8 @@ describe('broadcasts: access (BRC, ACL)', () => {
   })
 })
 
-describe('broadcasts: drafts (BRC-06–09, BRC-12, Q-69–Q-71)', () => {
-  it('saves a shared draft with metadata only and audits it', async () => {
+describe('broadcasts: drafts (BRC-06, BRC-07, BRC-12, Q-69–Q-71, Q-82)', () => {
+  it('saves a shared draft and audits it', async () => {
     const officer = await roleActor('officer')
     const other = await roleActor('officer')
     const { items } = await saveDraft(deps, officer.actor, draft())
@@ -119,7 +118,6 @@ describe('broadcasts: drafts (BRC-06–09, BRC-12, Q-69–Q-71)', () => {
       subject: 'Сбор',
       body: 'Сегодня рейд',
       channels: ['telegram', 'vk', 'max'],
-      attachments: [{ name: 'plan.xlsx', size: 1024, type: '' }],
       author: { gameNickname: officer.user.nickname },
       canDelete: true,
     })
@@ -130,7 +128,7 @@ describe('broadcasts: drafts (BRC-06–09, BRC-12, Q-69–Q-71)', () => {
     ])
   })
 
-  it('validates text, channels and attachments', async () => {
+  it('validates text and channels; text is at most 3800 (Q-91)', async () => {
     const officer = await roleActor('officer')
     const invalid = async (body: unknown, field: string) =>
       expect(saveDraft(deps, officer.actor, body)).rejects.toMatchObject({
@@ -141,26 +139,8 @@ describe('broadcasts: drafts (BRC-06–09, BRC-12, Q-69–Q-71)', () => {
     await invalid(draft({ channels: [] }), 'channels')
     await invalid(draft({ channels: ['email'] }), 'channels.0')
     await invalid(
-      draft({ attachments: [{ name: 'a.exe', size: 1, type: '' }] }),
-      'attachments.0.name',
-    )
-    await invalid(
-      draft({
-        attachments: [
-          { name: 'a.png', size: BROADCAST_LIMITS.fileBytes + 1, type: '' },
-        ],
-      }),
-      'attachments.0.size',
-    )
-    await invalid(
-      draft({
-        attachments: Array.from({ length: 11 }, (_, i) => ({
-          name: `f${i}.txt`,
-          size: 1,
-          type: 'text/plain',
-        })),
-      }),
-      'attachments',
+      draft({ body: 'x'.repeat(BROADCAST_LIMITS.body + 1) }),
+      'body',
     )
     // Тема необязательна (BRC-06).
     const { items } = await saveDraft(

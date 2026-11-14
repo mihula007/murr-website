@@ -114,7 +114,6 @@ export type Database = {
       }
       broadcast_drafts: {
         Row: {
-          attachments: NonNullable<Json>
           author_id: string
           body: string
           channels: string[]
@@ -126,7 +125,6 @@ export type Database = {
         }
         ComputedFields: never
         Insert: {
-          attachments?: NonNullable<Json>
           author_id: string
           body: string
           channels: string[]
@@ -137,7 +135,6 @@ export type Database = {
           subject?: string | null
         }
         Update: {
-          attachments?: NonNullable<Json>
           author_id?: string
           body?: string
           channels?: string[]
@@ -1061,6 +1058,152 @@ export type Database = {
             foreignKeyName: 'section_views_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      telegram_announcements: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          text_html: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          text_html: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          text_html?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'telegram_announcements_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      telegram_event_messages: {
+        Row: {
+          announcement_id: string
+          chat_id: number
+          event_id: string
+          message_id: number
+          sent_at: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          announcement_id: string
+          chat_id: number
+          event_id: string
+          message_id: number
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          announcement_id?: string
+          chat_id?: number
+          event_id?: string
+          message_id?: number
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'telegram_event_messages_announcement_id_fkey'
+            columns: ['announcement_id']
+            isOneToOne: false
+            referencedRelation: 'telegram_announcements'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'telegram_event_messages_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'telegram_event_messages_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      telegram_link_codes: {
+        Row: {
+          code_hash: string
+          expires_at: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          code_hash: string
+          expires_at: string
+          user_id: string
+        }
+        Update: {
+          code_hash?: string
+          expires_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'telegram_link_codes_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      telegram_links: {
+        Row: {
+          blocked_at: string | null
+          chat_id: number
+          display_name: string
+          linked_at: string
+          telegram_user_id: number
+          user_id: string
+          username: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          blocked_at?: string | null
+          chat_id: number
+          display_name: string
+          linked_at?: string
+          telegram_user_id: number
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          blocked_at?: string | null
+          chat_id?: number
+          display_name?: string
+          linked_at?: string
+          telegram_user_id?: number
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'telegram_links_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
             referencedRelation: 'profiles'
             referencedColumns: ['id']
           },

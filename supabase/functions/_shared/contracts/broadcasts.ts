@@ -1,8 +1,8 @@
 import { z } from 'zod'
 
 /**
- * Подготовка рассылок (BRC). Только черновики: интеграции с мессенджерами
- * делаются отдельно (Q-22), сайт ничего не отправляет (BRC-13).
+ * Рассылки (BRC): черновики, шаблоны и отправка анонса в Telegram (TGM).
+ * ВКонтакте и MAX не подключены, вложений нет (Q-82).
  */
 export const BROADCAST_CHANNELS = ['telegram', 'vk', 'max'] as const
 export type BroadcastChannel = (typeof BROADCAST_CHANNELS)[number]
@@ -15,49 +15,17 @@ export const BROADCAST_CHANNEL_LABELS: Record<BroadcastChannel, string> = {
 
 export const BROADCAST_LIMITS = {
   subject: 120,
-  body: 4000,
+  /** Лимит сообщения Telegram 4096 минус тема и строка ответа (Q-91). */
+  body: 3800,
   templateName: 60,
   /** Черновики — малый список (Q-69): хранится не больше 50 последних. */
   drafts: 50,
   /** Шаблоны — общие, не больше 20 (BRC-10, Q-70). */
   templates: 20,
-  /** Вложения: до 10 файлов по 20 МиБ (BRC-08). */
-  files: 10,
-  fileBytes: 20 * 1024 * 1024,
-  fileName: 200,
-  fileType: 100,
 } as const
-
-/** Разрешённые расширения вложений (BRC-08). Тип браузера бывает пустым. */
-export const BROADCAST_FILE_EXTENSIONS = [
-  'xls',
-  'xlsx',
-  'doc',
-  'docx',
-  'txt',
-  'rtf',
-  'odt',
-  'ods',
-  'png',
-  'jpg',
-  'jpeg',
-  'webp',
-  'gif',
-] as const
 
 export const BROADCAST_SOURCES = ['event', 'vote', 'group'] as const
 export type BroadcastSource = (typeof BROADCAST_SOURCES)[number]
-
-export function fileExtension(name: string) {
-  const dot = name.lastIndexOf('.')
-  return dot > 0 ? name.slice(dot + 1).toLowerCase() : ''
-}
-
-export function isAllowedFileName(name: string) {
-  return (BROADCAST_FILE_EXTENSIONS as readonly string[]).includes(
-    fileExtension(name),
-  )
-}
 
 const optionalSubject = z
   .string()
@@ -78,31 +46,10 @@ export const channelsSchema = z
   .min(1, 'required')
   .transform((items) => BROADCAST_CHANNELS.filter((c) => items.includes(c)))
 
-/** Только метаданные файла: содержимое не хранится (BRC-09). */
-export const attachmentSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, 'invalid')
-    .max(BROADCAST_LIMITS.fileName, 'too_long')
-    .refine(isAllowedFileName, 'file_type'),
-  size: z
-    .number()
-    .int()
-    .min(1, 'invalid')
-    .max(BROADCAST_LIMITS.fileBytes, 'file_too_large'),
-  type: z.string().max(BROADCAST_LIMITS.fileType, 'invalid'),
-})
-export type BroadcastAttachment = z.output<typeof attachmentSchema>
-
 export const saveDraftSchema = z.object({
   subject: optionalSubject,
   body: bodySchema,
   channels: channelsSchema,
-  attachments: z
-    .array(attachmentSchema)
-    .max(BROADCAST_LIMITS.files, 'too_many')
-    .default([]),
   source: z
     .object({
       kind: z.enum(BROADCAST_SOURCES, 'invalid'),
@@ -151,7 +98,6 @@ export type BroadcastDraft = {
   subject: string | null
   body: string
   channels: BroadcastChannel[]
-  attachments: BroadcastAttachment[]
   author: BroadcastAuthor
   createdAt: string
   /** Может ли текущий пользователь удалить черновик (автор или админ). */

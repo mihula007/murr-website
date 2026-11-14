@@ -30,9 +30,9 @@ insert into app.profiles (id, display_name, game_nickname, class_id, access_role
 values ('00000000-0000-0000-0000-0000000011a1', 'А', 'Alpha11', 1, 'officer');
 
 select lives_ok(
-  $$insert into app.broadcast_drafts (author_id, body, channels, attachments)
+  $$insert into app.broadcast_drafts (author_id, body, channels)
     values ('00000000-0000-0000-0000-0000000011a1', 'Текст',
-      array['telegram', 'vk'], '[{"name":"a.txt","size":1,"type":"text/plain"}]')$$,
+      array['telegram', 'vk'])$$,
   'черновик сохраняется'
 );
 
