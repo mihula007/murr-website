@@ -41,6 +41,9 @@ const DETAIL_KEYS = new Set([
   'draft_id',
   'channels',
   'source_kind',
+  'recipients',
+  'sent',
+  'failed',
 ])
 
 type DetailValue = string | number | boolean | null | string[]

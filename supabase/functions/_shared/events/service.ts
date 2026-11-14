@@ -43,6 +43,8 @@ import { parseBody } from '../http/validation.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
 import { groupRepository } from '../groups/repository.ts'
 import { eventRepository, type EventRow } from './repository.ts'
+import { runInBackground } from '../background.ts'
+import { syncEventMessage } from '../telegram/announcements.ts'
 
 /** Читают и отвечают члены, офицеры и администраторы (ACL, EVT-04). */
 const ATTENDEES = INTERNAL_ROLES
@@ -408,17 +410,16 @@ export async function deleteEvent(
  * Ответ или смена ответа (EVT-04, EVT-05): одна строка на участника.
  * Строка события блокируется на чтение, поэтому ответ не проходит после
  * параллельного удаления или закрытия. Только до начала (Q-43). В аудит
- * не пишется (Q-45).
+ * не пишется (Q-45). Общий для сайта и кнопки Telegram (TGM-18).
  */
-export async function respondToEvent(
+export async function saveAnswer(
   deps: AppDeps,
-  actor: Actor,
-  body: unknown,
-): Promise<EventSummary> {
-  const viewer = requireRole(actor, ATTENDEES)
-  const input = parseBody(respondEventSchema, body)
+  viewer: ProfiledActor,
+  eventId: string,
+  answer: EventAnswer,
+) {
   await withTransaction(deps.db, async (tx) => {
-    const event = await lockOpen(tx, input.eventId, 'share')
+    const event = await lockOpen(tx, eventId, 'share')
     const now = deps.now()
     if (answerState(event, now) === 'started') {
       throw new ApiError('state_conflict', { reason: 'started' })
@@ -426,10 +427,24 @@ export async function respondToEvent(
     await eventRepository.upsertAnswer(tx, {
       eventId: event.id,
       userId: viewer.userId,
-      answer: input.answer,
+      answer,
       at: now.toISOString(),
     })
   })
+}
+
+/** Ответ с сайта; активное сообщение анонса в Telegram обновляется (TGM-21). */
+export async function respondToEvent(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<EventSummary> {
+  const viewer = requireRole(actor, ATTENDEES)
+  const input = parseBody(respondEventSchema, body)
+  await saveAnswer(deps, viewer, input.eventId, input.answer)
+  await runInBackground(deps, () =>
+    syncEventMessage(deps, viewer.userId, input.eventId),
+  )
   const row = await eventRepository.find(deps.db, input.eventId)
   if (!row) {
     throw new ApiError('not_found')
