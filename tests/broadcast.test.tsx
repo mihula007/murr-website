@@ -159,6 +159,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
         subject: 'Сбор',
         body: 'Сегодня в 20:00',
         eventId: null,
+        groupId: null,
         channels: ['telegram', 'vk', 'max'],
       }),
     )
@@ -199,7 +200,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
     ).toBeVisible()
   })
 
-  it('sends an event announcement with buttons until the link is removed', async () => {
+  it('sends an event announcement with buttons; the link stays (TGM-12, Q-102)', async () => {
     routes['broadcasts/prefill'] = () => ({
       subject: 'Рейд',
       body: 'Рейд\nТип: PvE',
@@ -215,6 +216,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
       path: `/broadcast?source=event&id=${id}`,
     })
     expect(await screen.findByText(/Анонс события/)).toBeVisible()
+    expect(screen.queryByRole('button', { name: /Снять связь/ })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: SEND }))
     let dialog = await screen.findByRole('alertdialog')
     expect(within(dialog).getByText(/с кнопками ответа/)).toBeVisible()
@@ -226,13 +228,12 @@ describe('broadcast page (BRC, E2E-07)', () => {
       subject: 'Рейд',
       body: 'Рейд\nТип: PvE',
       eventId: id,
+      groupId: null,
       channels: ['telegram', 'vk', 'max'],
     })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Отмена' }))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
 
-    fireEvent.click(screen.getByRole('button', { name: 'Снять связь' }))
-    expect(screen.queryByText(/Анонс события/)).toBeNull()
     routes['broadcasts/send'] = () => ({
       recipients: 3,
       sent: 2,
@@ -249,13 +250,79 @@ describe('broadcast page (BRC, E2E-07)', () => {
       expect(callApi).toHaveBeenLastCalledWith('broadcasts/send', {
         subject: 'Рейд',
         body: 'Рейд\nТип: PvE',
-        eventId: null,
+        eventId: id,
+        groupId: null,
         channels: ['telegram', 'vk', 'max'],
       }),
     )
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
         'Отправлено — Telegram: 1, MAX: 1. Не доставлено: 1',
+      ),
+    )
+  })
+
+  it('sends a group announcement only to the group (BRC-04, Q-102)', async () => {
+    const id = '00000000-0000-4000-8000-000000000002'
+    routes['broadcasts/prefill'] = () => ({
+      subject: 'Рейд — Пати 1',
+      body: 'Группа «Пати 1»',
+      recipients: [
+        { gameNickname: 'Анна', isLeader: true },
+        { gameNickname: 'Борис', isLeader: false },
+      ],
+    })
+    const asked: unknown[] = []
+    routes['broadcasts/recipients'] = (body) => {
+      asked.push(body)
+      return recipients(0, 0)
+    }
+    await renderApp({
+      role: 'officer',
+      path: `/broadcast?source=group&id=${id}`,
+    })
+    expect(
+      await screen.findByText(/получат только участники группы/),
+    ).toBeVisible()
+    expect(screen.getByText(/Сейчас в группе: 2\./)).toBeVisible()
+    expect(screen.queryByRole('button', { name: /Снять связь/ })).toBeNull()
+
+    // Никто из группы не привязал мессенджеры.
+    fireEvent.click(screen.getByRole('button', { name: SEND }))
+    expect(
+      await screen.findByText(/никто из участников группы не привязал/),
+    ).toBeVisible()
+    expect(asked).toEqual([{ groupId: id }])
+
+    routes['broadcasts/recipients'] = () => recipients(1, 1)
+    routes['broadcasts/send'] = () => ({
+      recipients: 2,
+      sent: 2,
+      failed: 0,
+      channels: {
+        telegram: { recipients: 1, sent: 1, failed: 0 },
+        vk: { recipients: 0, sent: 0, failed: 0 },
+        max: { recipients: 1, sent: 1, failed: 0 },
+      },
+    })
+    fireEvent.click(screen.getByRole('button', { name: SEND }))
+    const dialog = await screen.findByRole('alertdialog')
+    expect(
+      within(dialog).getByText(/только участникам группы, текстом без кнопок/),
+    ).toBeVisible()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Отправить' }))
+    await waitFor(() =>
+      expect(callApi).toHaveBeenLastCalledWith('broadcasts/send', {
+        subject: 'Рейд — Пати 1',
+        body: 'Группа «Пати 1»',
+        eventId: null,
+        groupId: id,
+        channels: ['telegram', 'vk', 'max'],
+      }),
+    )
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith(
+        'Отправлено — Telegram: 1, ВКонтакте: 0, MAX: 1',
       ),
     )
   })

@@ -180,8 +180,12 @@ export const vkRepository = {
    * Получатели анонса во ВКонтакте (VK-05, как TGM-14): член, офицер, администратор с активной
    * связью, кроме удаляемых аккаунтов; для анонса события — с текущим ответом.
    */
-  async recipients(db: Executor, eventId: string | null) {
-    const rows = await recipientsQuery(db)
+  async recipients(
+    db: Executor,
+    eventId: string | null,
+    groupId: string | null = null,
+  ) {
+    const rows = await recipientsQuery(db, groupId)
       .leftJoin('app.event_attendance as a', (join) =>
         join
           .onRef('a.user_id', '=', 'l.user_id')
@@ -197,8 +201,9 @@ export const vkRepository = {
     }))
   },
 
-  async recipientCount(db: Executor) {
-    const row = await recipientsQuery(db)
+  /** `groupId` — только участники группы события (Q-102). */
+  async recipientCount(db: Executor, groupId: string | null = null) {
+    const row = await recipientsQuery(db, groupId)
       .select((eb) => eb.fn.countAll<string>().as('count'))
       .executeTakeFirstOrThrow()
     return Number(row.count)
@@ -285,8 +290,9 @@ export const vkRepository = {
 /** Заглушка для левого соединения отдельного анонса: ответов нет. */
 const NO_EVENT = '00000000-0000-0000-0000-000000000000'
 
-function recipientsQuery(db: Executor) {
-  return db
+/** Получатели; с `groupId` — только участники этой группы (Q-102). */
+function recipientsQuery(db: Executor, groupId: string | null) {
+  const query = db
     .selectFrom('app.vk_links as l')
     .innerJoin('app.profiles as p', 'p.id', 'l.user_id')
     .where('p.access_role', 'in', INTERNAL_ROLES)
@@ -301,6 +307,14 @@ function recipientsQuery(db: Executor) {
         ),
       ),
     )
+  return groupId === null
+    ? query
+    : query.where('l.user_id', 'in', (eb) =>
+        eb
+          .selectFrom('app.event_group_members as g')
+          .select('g.user_id')
+          .where('g.group_id', '=', groupId),
+      )
 }
 
 function activeMessageQuery(db: Executor) {

@@ -29,8 +29,10 @@ export async function deliverMaxAnnouncement(
   max: MaxDeps,
   announcement: AnnouncementText,
   eventId: string | null,
+  /** Анонс группы — только её участникам (Q-102). */
+  groupId: string | null = null,
 ): Promise<DeliveryResult> {
-  const recipients = await maxRepository.recipients(deps.db, eventId)
+  const recipients = await maxRepository.recipients(deps.db, eventId, groupId)
   const announcementId = eventId
     ? await maxRepository.createAnnouncement(deps.db, {
         eventId,

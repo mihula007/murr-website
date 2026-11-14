@@ -375,7 +375,8 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       saveBroadcastTemplate(deps, actor, body),
     'broadcasts/delete-template': ({ actor, body }) =>
       deleteBroadcastTemplate(deps, actor, body),
-    'broadcasts/recipients': ({ actor }) => broadcastRecipients(deps, actor),
+    'broadcasts/recipients': ({ actor, body }) =>
+      broadcastRecipients(deps, actor, body),
     'broadcasts/send': ({ actor, body }) => sendAnnouncement(deps, actor, body),
     'telegram/status': ({ actor }) => telegramStatus(deps, actor),
     'telegram/link-start': ({ actor }) => startTelegramLink(deps, actor),

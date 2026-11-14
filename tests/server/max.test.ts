@@ -12,6 +12,11 @@ import {
   respondToEvent,
 } from '../../supabase/functions/_shared/events/service.ts'
 import {
+  createGroup,
+  deleteGroup,
+  moveMember,
+} from '../../supabase/functions/_shared/groups/service.ts'
+import {
   MAX_BOT_TEXTS,
   MAX_CALLBACK_TEXTS,
 } from '../../supabase/functions/_shared/max/messages.ts'
@@ -609,5 +614,88 @@ describe('max: event buttons (MAX-07, MAX-08)', () => {
     expect(tg.calls.at(-1)).toMatchObject({
       text: 'Сбор\n\n<i>Ваш ответ: 50/50</i>',
     })
+  })
+})
+
+describe('group announcements (TGM-12, TGM-14, Q-102)', () => {
+  async function groupWith(members: { user: { id: string } }[]) {
+    const { actor, event } = await officerWithEvent()
+    const { groups } = await createGroup(deps, actor, {
+      eventId: event.id,
+      name: 'Пати',
+    })
+    const groupId = groups[0]!.id
+    for (const member of members) {
+      await moveMember(deps, actor, {
+        eventId: event.id,
+        userId: member.user.id,
+        groupId,
+      })
+    }
+    return { actor, event, groupId }
+  }
+
+  it('reaches only linked members of the group, without buttons', async () => {
+    const inGroup = await linked('member', true)
+    const outside = await linked('member', true)
+    const { actor, event, groupId } = await groupWith([inGroup])
+
+    expect(await broadcastRecipients(deps, actor, { groupId })).toMatchObject({
+      channels: {
+        telegram: { configured: true, count: 1 },
+        max: { configured: true, count: 1 },
+      },
+    })
+    const result = await sendAnnouncement(deps, actor, {
+      subject: 'Пати',
+      body: 'Сбор группы',
+      groupId,
+      channels: ['telegram', 'max'],
+    })
+    expect(result).toMatchObject({ recipients: 2, sent: 2, failed: 0 })
+    expect(sentTo(inGroup.maxUserId)).toEqual([
+      expect.objectContaining({
+        text: '<b>Пати</b>\n\nСбор группы',
+        keyboard: null,
+      }),
+    ])
+    expect(sentTo(outside.maxUserId)).toEqual([])
+    expect(
+      tg.calls.filter((c) => c.method === 'sendHtml').map((c) => c.chatId),
+    ).toEqual([inGroup.maxUserId])
+    // Анонс группы не становится активным сообщением события.
+    expect(await activeMid(event.id, inGroup.user.id)).toBeNull()
+
+    const audit = await db
+      .selectFrom('app.audit_log')
+      .select(['summary', 'target_kind', 'target_id', 'details'])
+      .where('action', '=', 'broadcast_sent')
+      .executeTakeFirstOrThrow()
+    expect(audit).toMatchObject({
+      summary: 'Отправка анонса группы в Telegram и MAX',
+      target_kind: 'event',
+      target_id: event.id,
+      details: { group_id: groupId, source_kind: 'group', event_id: event.id },
+    })
+  })
+
+  it('refuses an empty, deleted or closed group and a double source', async () => {
+    await linked('member')
+    const unlinked = { user: await createProfiledUser(db, 'member') }
+    const { actor, event, groupId } = await groupWith([unlinked])
+    const send = (extra: Record<string, unknown>) =>
+      sendAnnouncement(deps, actor, { body: 'x', channels: ['max'], ...extra })
+    await rejects(send({ groupId }), 'state_conflict', 'no_recipients')
+    await rejects(send({ groupId, eventId: event.id }), 'validation_failed')
+    await closeEvent(deps, actor, { id: event.id })
+    await rejects(send({ groupId }), 'state_conflict', 'closed')
+
+    const other = await groupWith([])
+    await deleteGroup(deps, other.actor, { groupId: other.groupId })
+    await rejects(
+      send({ groupId: other.groupId }),
+      'state_conflict',
+      'group_missing',
+    )
   })
 })

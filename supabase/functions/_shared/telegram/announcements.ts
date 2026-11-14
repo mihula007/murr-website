@@ -30,8 +30,14 @@ export async function deliverAnnouncement(
   telegram: TelegramDeps,
   announcement: AnnouncementText,
   eventId: string | null,
+  /** Анонс группы — только её участникам (Q-102). */
+  groupId: string | null = null,
 ): Promise<DeliveryResult> {
-  const recipients = await telegramRepository.recipients(deps.db, eventId)
+  const recipients = await telegramRepository.recipients(
+    deps.db,
+    eventId,
+    groupId,
+  )
   const announcementId = eventId
     ? await telegramRepository.createAnnouncement(deps.db, {
         eventId,
