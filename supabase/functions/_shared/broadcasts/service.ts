@@ -76,8 +76,6 @@ export async function prefillBroadcast(
         `Когда: ${formatMoscow(event.starts_at)}`,
         '',
         event.description,
-        '',
-        'Ответьте кнопками под сообщением или на сайте: «Приду», «50/50» или «Не приду».',
       ].join('\n'),
       recipients: null,
     }

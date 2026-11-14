@@ -258,9 +258,10 @@ describe('broadcasts: prefill from context (BRC-02–04)', () => {
       id: event.id,
     })
     expect(result.subject).toBe('Рейд')
-    expect(result.body).toContain('Тип: PvE')
-    expect(result.body).toContain('14.11.2099 20:00 МСК')
-    expect(result.body).toContain('Собираемся у портала')
+    // Без строки-подсказки про кнопки ответа (Q-101): текст кончается описанием.
+    expect(result.body).toBe(
+      'Рейд\nТип: PvE\nКогда: 14.11.2099 20:00 МСК\n\nСобираемся у портала',
+    )
     expect(result.recipients).toBeNull()
     await closeEvent(deps, officer.actor, { id: event.id })
     await rejects(
