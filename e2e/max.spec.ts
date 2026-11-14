@@ -31,7 +31,7 @@ function moscowDate(days = 0) {
     .slice(0, 10)
 }
 
-test('E2E-09: анонс события в MAX и ответ кнопкой', async ({ page }) => {
+test('E2E-10: анонс события в MAX и ответ кнопкой', async ({ page }) => {
   const [officer, member] = await Promise.all([
     createMember('officer'),
     createMember('member'),

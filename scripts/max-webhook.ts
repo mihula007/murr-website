@@ -1,4 +1,4 @@
-// Регистрация вебхука бота MAX на облачную функцию (этап 14).
+// Регистрация вебхука бота MAX на облачную функцию (этап 15).
 // Запуск: npm run max:webhook -- --functions https://<project>.supabase.co/functions/v1
 //         npm run max:webhook -- --delete --functions https://<project>.supabase.co/functions/v1
 //         npm run max:webhook -- --list

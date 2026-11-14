@@ -103,7 +103,7 @@ export function useDeleteBroadcastTemplate() {
  */
 export function useFetchRecipients() {
   const queryClient = useQueryClient()
-  // Анонс группы — получатели только из неё (Q-102).
+  // Анонс группы — получатели только из неё (Q-104).
   return (groupId: string | null = null) =>
     queryClient.fetchQuery({
       queryKey: [...broadcastKeys.recipients, groupId],

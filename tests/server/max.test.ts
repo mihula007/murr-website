@@ -617,7 +617,7 @@ describe('max: event buttons (MAX-07, MAX-08)', () => {
   })
 })
 
-describe('group announcements (TGM-12, TGM-14, Q-102)', () => {
+describe('group announcements (TGM-12, TGM-14, Q-104)', () => {
   async function groupWith(members: { user: { id: string } }[]) {
     const { actor, event } = await officerWithEvent()
     const { groups } = await createGroup(deps, actor, {

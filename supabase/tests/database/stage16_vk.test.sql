@@ -1,4 +1,4 @@
--- Схема этапа 15: связь с ВКонтакте, коды привязки, анонсы событий.
+-- Схема этапа 16: связь с ВКонтакте, коды привязки, анонсы событий.
 begin;
 create extension if not exists pgtap with schema extensions;
 
@@ -9,7 +9,7 @@ select ok(
     where schemaname = 'app'
       and tablename in ('vk_links', 'vk_link_codes',
         'vk_announcements', 'vk_event_messages')),
-  'RLS включён у таблиц этапа 15'
+  'RLS включён у таблиц этапа 16'
 );
 
 select ok(
@@ -20,7 +20,7 @@ select ok(
       'app.vk_announcements', 'app.vk_event_messages']) as t(name)
     where has_table_privilege(r.role, t.name, 'select,insert,update,delete')
   ),
-  'anon и authenticated не имеют прав на таблицы этапа 15'
+  'anon и authenticated не имеют прав на таблицы этапа 16'
 );
 
 insert into auth.users (id, email, email_confirmed_at, aud, role)

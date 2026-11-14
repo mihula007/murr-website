@@ -81,7 +81,7 @@ type FormValues = {
   channels: BroadcastChannel[]
 }
 
-/** Подключены Telegram, ВКонтакте и MAX (Q-97, Q-100). */
+/** Подключены Telegram, ВКонтакте и MAX (Q-99, Q-102). */
 const CONNECTED_CHANNELS: readonly BroadcastChannel[] = SENDABLE_CHANNELS
 const connectedOnly = (channels: BroadcastChannel[]) =>
   channels.filter((channel) => CONNECTED_CHANNELS.includes(channel))
@@ -148,7 +148,7 @@ function sentText(result: SendAnnouncementResponse, chosen: SendableChannel[]) {
     : `Отправлено — ${sent}`
 }
 
-/** Причина отказа отправки (Q-92, Q-102). */
+/** Причина отказа отправки (Q-92, Q-104). */
 function sendRefusal(error: AppError, forGroup: boolean) {
   if (error.code !== 'state_conflict') {
     return null
@@ -445,7 +445,7 @@ function BroadcastForm({
   const save = useSaveDraft()
   const send = useSendAnnouncement()
   const fetchRecipients = useFetchRecipients()
-  // Вид анонса задаёт источник формы и не меняется (TGM-12, Q-102):
+  // Вид анонса задаёт источник формы и не меняется (TGM-12, Q-104):
   // событие — с кнопками, группа — только её участникам.
   const eventId = source?.kind === 'event' ? source.id : null
   const groupId = source?.kind === 'group' ? source.id : null

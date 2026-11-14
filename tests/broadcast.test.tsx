@@ -73,7 +73,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
     expect(await screen.findByText('Нет доступа')).toBeVisible()
   })
 
-  it('saves a draft; all three channels are chosen (Q-97, Q-100)', async () => {
+  it('saves a draft; all three channels are chosen (Q-99, Q-102)', async () => {
     await renderApp({ role: 'officer', path: '/broadcast' })
     const telegram = await screen.findByRole('checkbox', { name: 'Telegram' })
     const max = screen.getByRole('checkbox', { name: 'MAX' })
@@ -200,7 +200,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
     ).toBeVisible()
   })
 
-  it('sends an event announcement with buttons; the link stays (TGM-12, Q-102)', async () => {
+  it('sends an event announcement with buttons; the link stays (TGM-12, Q-104)', async () => {
     routes['broadcasts/prefill'] = () => ({
       subject: 'Рейд',
       body: 'Рейд\nТип: PvE',
@@ -262,7 +262,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
     )
   })
 
-  it('sends a group announcement only to the group (BRC-04, Q-102)', async () => {
+  it('sends a group announcement only to the group (BRC-04, Q-104)', async () => {
     const id = '00000000-0000-4000-8000-000000000002'
     routes['broadcasts/prefill'] = () => ({
       subject: 'Рейд — Пати 1',

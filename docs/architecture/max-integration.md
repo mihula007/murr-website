@@ -1,10 +1,10 @@
 # Интеграция MAX: технический проект
 
-Требования — [20-max.md](../requirements/20-max.md), решения — Q-97–Q-99. Образец — [интеграция Telegram](telegram-integration.md): ниже описаны только отличия.
+Требования — [20-max.md](../requirements/20-max.md), решения — Q-99–Q-101. Образец — [интеграция Telegram](telegram-integration.md): ниже описаны только отличия.
 
 ## Решения
 
-- **Отдельный модуль** `_shared/max/` повторяет `_shared/telegram/` (Q-99). Таблицы и код Telegram не меняются. Общие части, которые не зависят от мессенджера, вынесены в `_shared/messenger/`: код привязки и его хеш, сравнение секрета, данные кнопок (`a:<eventId>:<y|m|n>`, `c:<eventId>`), HTML анонса и строка ответа. В MAX и Telegram одинаковые теги `<b>`/`<i>` и одинаковое экранирование.
+- **Отдельный модуль** `_shared/max/` повторяет `_shared/telegram/` (Q-101). Таблицы и код Telegram не меняются. Общие части, которые не зависят от мессенджера, вынесены в `_shared/messenger/`: код привязки и его хеш, сравнение секрета, данные кнопок (`a:<eventId>:<y|m|n>`, `c:<eventId>`), HTML анонса и строка ответа. В MAX и Telegram одинаковые теги `<b>`/`<i>` и одинаковое экранирование.
 - Одна функция `api`: вебхук MAX — маршрут `max/webhook`.
 - Синхронизация ответа (MAX-08): `messenger/sync.ts` → `syncEventMessages(deps, userId, eventId)` фоново обновляет активное сообщение в каждом подключённом мессенджере. Её вызывают ответ на сайте и нажатие кнопки в любом мессенджере. В мессенджере, где нажата кнопка, сообщение перерисовывается сразу, в другом — фоном.
 
@@ -42,7 +42,7 @@
 
 ## Данные
 
-Миграция `stage14_max`: `max_links` (`max_user_id bigint unique`, `chat_id bigint`), `max_link_codes`, `max_announcements`, `max_event_messages` (`message_id text` — `mid` строка). Структура, каскады и закрытость — как у таблиц Telegram.
+Миграция `stage15_max`: `max_links` (`max_user_id bigint unique`, `chat_id bigint`), `max_link_codes`, `max_announcements`, `max_event_messages` (`message_id text` — `mid` строка). Структура, каскады и закрытость — как у таблиц Telegram.
 
 ## Операции `api`
 

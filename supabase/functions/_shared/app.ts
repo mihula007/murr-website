@@ -163,13 +163,13 @@ export type AppEnv = {
   cronSecret?: string | null
   /** Telegram (этап 13); null — интеграция выключена. */
   telegram?: TelegramEnv | null
-  /** MAX (этап 14); null — интеграция выключена. */
+  /** MAX (этап 15); null — интеграция выключена. */
   max?: MaxEnv | null
-  /** ВКонтакте (этап 15); null — интеграция выключена. */
+  /** ВКонтакте (этап 16); null — интеграция выключена. */
   vk?: VkEnv | null
 }
 
-/** Настройки бота сообщества ВКонтакте (этап 15). */
+/** Настройки бота сообщества ВКонтакте (этап 16). */
 export type VkEnv = {
   token: string
   groupId: number
@@ -181,7 +181,7 @@ export type VkEnv = {
   apiBase: string | null
 }
 
-/** ВКонтакте для сервисов: шлюз API и настройки сообщества (этап 15). */
+/** ВКонтакте для сервисов: шлюз API и настройки сообщества (этап 16). */
 export type VkDeps = {
   gateway: VkGateway
   groupId: number
@@ -190,7 +190,7 @@ export type VkDeps = {
   siteUrl: string | null
 }
 
-/** Настройки бота MAX (этап 14). */
+/** Настройки бота MAX (этап 15). */
 export type MaxEnv = {
   token: string
   botUsername: string
@@ -200,7 +200,7 @@ export type MaxEnv = {
   apiBase: string | null
 }
 
-/** MAX для сервисов: шлюз Bot API и настройки бота (этап 14). */
+/** MAX для сервисов: шлюз Bot API и настройки бота (этап 15). */
 export type MaxDeps = {
   gateway: MaxGateway
   botUsername: string
