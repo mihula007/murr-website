@@ -16,6 +16,7 @@
 | `EVENTS_CRON_SECRET`          | Supabase Secrets функции и Vault `events_cron_secret` (одно значение)   | да     |
 | `SITE_URL`                    | Supabase Secrets (`https://pwmurr.ru/`)                                 | нет    |
 | `TELEGRAM_*`                  | Supabase Secrets; локальная копия — `.env`                              | да     |
+| `MAX_*`                       | Supabase Secrets; локальная копия — `.env`; вебхук — `max:webhook`      | да     |
 | Адрес функции для расписания  | Vault `events_cron_api_url`                                             | нет    |
 | Пароль SMTP (ключ Resend)     | локальный `.env` (`AUTH_SMTP_PASS`), уходит в проект `config push`      | да     |
 | Публичная конфигурация сборки | GitHub → Settings → Variables: `VITE_SUPABASE_*`, `PAGES_CUSTOM_DOMAIN` | нет    |

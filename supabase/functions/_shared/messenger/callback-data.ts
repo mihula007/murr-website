@@ -2,8 +2,8 @@ import { EVENT_ANSWERS, type EventAnswer } from '../contracts/events.ts'
 
 /**
  * Данные кнопок анонса события (TGM-18, TGM-19): `a:<eventId>:<y|m|n>` —
- * ответ, `c:<eventId>` — «Изменить решение». Telegram ограничивает
- * `callback_data` 64 байтами; данные не доверенные — права и состояние
+ * ответ, `c:<eventId>` — «Изменить решение». Общие для Telegram (лимит
+ * `callback_data` — 64 байта) и MAX (MAX-07); данные не доверенные — права и состояние
  * проверяет сервис при каждом нажатии.
  */
 export type CallbackAction =

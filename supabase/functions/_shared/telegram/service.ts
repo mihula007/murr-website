@@ -19,7 +19,13 @@ import { INTERNAL_ROLES } from '../membership.ts'
 import { eventRepository } from '../events/repository.ts'
 import { saveAnswer } from '../events/service.ts'
 import { editMessage } from './announcements.ts'
-import { parseCallbackData, type CallbackAction } from './callback-data.ts'
+import { randomCode, sameSecret, sha256Hex } from '../messenger/link-code.ts'
+import { syncEventMessages } from '../messenger/sync.ts'
+import { runInBackground } from '../background.ts'
+import {
+  parseCallbackData,
+  type CallbackAction,
+} from '../messenger/callback-data.ts'
 import { BOT_TEXTS, CALLBACK_TEXTS } from './messages.ts'
 import { eventMessage } from './render.ts'
 import { TELEGRAM_USER_CONSTRAINT, telegramRepository } from './repository.ts'
@@ -313,6 +319,10 @@ async function pressButton(
       action.answer,
     )
     await editMessage(deps, telegram, link.userId, target, html, keyboard)
+    // Сообщение этого события в MAX — фоново (MAX-08).
+    await runInBackground(deps, () =>
+      syncEventMessages(deps, link.userId, action.eventId, 'telegram'),
+    )
     return undefined
   }
   // «Изменить решение»: ответ не меняется до нового выбора (Q-76).
@@ -348,37 +358,4 @@ function refusalText(error: unknown) {
       : CALLBACK_TEXTS.started
   }
   throw error
-}
-
-function randomCode() {
-  const bytes = crypto.getRandomValues(new Uint8Array(32))
-  let binary = ''
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte)
-  }
-  return btoa(binary)
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replace(/=+$/, '')
-}
-
-async function sha256Hex(text: string) {
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(text),
-  )
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, '0'),
-  ).join('')
-}
-
-/** Сравнение секрета за время, не зависящее от совпавшего префикса. */
-function sameSecret(given: string, expected: string) {
-  const a = new TextEncoder().encode(given)
-  const b = new TextEncoder().encode(expected)
-  let diff = a.length ^ b.length
-  for (let i = 0; i < b.length; i++) {
-    diff |= (a[i] ?? 0) ^ b[i]!
-  }
-  return diff === 0
 }

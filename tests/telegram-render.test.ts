@@ -4,7 +4,7 @@ import {
   answerData,
   changeData,
   parseCallbackData,
-} from '../supabase/functions/_shared/telegram/callback-data.ts'
+} from '../supabase/functions/_shared/messenger/callback-data.ts'
 import {
   announcementHtml,
   escapeHtml,

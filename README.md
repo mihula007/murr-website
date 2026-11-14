@@ -59,7 +59,7 @@ publishable key. Без обеих настроек ленивый клиент 
 имени с этим префиксом останавливает запуск и сборку до обновления явного
 списка разрешений в `src/lib/supabase/config.ts` и шаблона окружения.
 
-Токены Telegram, MAX и VK нужны только при реализации соответствующих ботов.
+Токены Telegram и MAX нужны только для работы ботов, VK не подключён.
 Локально хранить их в `.env`; для опубликованных функций — в Supabase Secrets.
 
 ### Первый администратор
@@ -125,6 +125,24 @@ npm run admin:bootstrap -- --email you@example.com --nickname Ник --name Им
 раз: `npm run telegram:webhook -- --functions https://<ref>.supabase.co/functions/v1`
 (`--delete` — снять). Значения берутся из `.env` и не печатаются.
 
+### Бот MAX
+
+Привязка аккаунта и анонсы в MAX (этап 14,
+[требования](docs/requirements/20-max.md),
+[проект](docs/architecture/max-integration.md)) — по тем же правилам, что
+Telegram. Без переменных бота сайт работает, а кабинет и «Рассылка»
+показывают, что MAX не подключён.
+
+1. Создайте бота на платформе MAX для партнёров и заполните в `.env`
+   `MAX_BOT_TOKEN`, `MAX_BOT_USERNAME` (имя из ссылки `max.ru/<имя>`) и
+   `MAX_WEBHOOK_SECRET` (32+ символа `A-Z a-z 0-9 _ -`).
+2. MAX принимает вебхук только по HTTPS на порту 443 с доверенным
+   сертификатом, поэтому локального туннеля для MAX нет: локально интеграция
+   проверяется тестами с фальшивым API (`npm run test:server`, E2E-09).
+3. Для облака значения задаются в Supabase Secrets, затем вебхук
+   регистрируется: `npm run max:webhook -- --functions https://<ref>.supabase.co/functions/v1`
+   (`--delete --functions …` — снять, `--list` — показать подписки).
+
 ### Письма Auth
 
 Адрес при регистрации и сброс пароля подтверждаются шестизначным кодом из
@@ -169,9 +187,10 @@ GitHub Actions Secrets использовать для будущих защищ
 | `npm run supabase:env`       | Публичная конфигурация локального стека для `dev`     |
 | `npm run build:e2e`          | Сборка для Playwright с локальным Supabase            |
 | `npm run admin:bootstrap`    | Назначение первого администратора                     |
-| `npm run e2e:functions`      | Функции для Playwright с фальшивым Telegram           |
+| `npm run e2e:functions`      | Функции для Playwright с фальшивыми Telegram и MAX    |
 | `npm run telegram:dev`       | Туннель и вебхук тестового бота Telegram              |
 | `npm run telegram:webhook`   | Вебхук рабочего бота на облачную функцию              |
+| `npm run max:webhook`        | Вебхук бота MAX на облачную функцию                   |
 
 Браузерные тесты работают по сборке, подключённой к локальному Supabase, на
 desktop и mobile; коды из писем берутся из Mailpit:

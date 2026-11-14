@@ -10,17 +10,17 @@
 
 ## MAX Bot API (по `api-schema` на GitHub, 11.2026)
 
-| Что               | Как                                                                                                                                                                                       |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Адрес             | `https://platform-api2.max.ru`, токен — заголовок `Authorization: <token>` (без `Bearer`). Токен не входит в URL, но и заголовки не логируются.                                            |
-| Отправка          | `POST /messages?user_id=<id>`, тело `{ text, format: 'html', attachments? }`, ответ `{ message: { body: { mid } } }`, `mid` — строка. 403 (`chat.denied` и т. п.) — бот остановлен/нет доступа → `blocked`. |
-| Кнопки            | `attachments: [{ type: 'inline_keyboard', payload: { buttons: [[{ type: 'callback', text, payload }]] } }]`, `payload` ≤ 1024.                                                            |
-| Правка            | `PUT /messages?message_id=<mid>`, тело как у отправки; `attachments: []` убирает кнопки. Ответ — `{ success, code?, message? }` с HTTP 200 даже при ошибке.                               |
-| Ответ на нажатие  | `POST /answers?callback_id=<id>`, тело `{ notification? }` — одноразовое уведомление (аналог `answerCallbackQuery`).                                                                       |
-| Вебхук            | `POST /subscriptions` `{ url, update_types, secret }`; секрет приходит в заголовке `X-Max-Bot-Api-Secret`; только HTTPS 443. `DELETE /subscriptions?url=`.                                 |
-| Апдейты           | `bot_started` (`user`, `chat_id`, `payload` из ссылки), `bot_stopped`, `message_created` (`message.sender`, `message.recipient.chat_type = dialog`), `message_callback` (`callback.callback_id`, `callback.payload`, `callback.user`, `message.body.mid`). |
-| Ссылка            | `https://max.ru/<бот>?start=<payload>`, payload ≤ 128 символов; код привязки — 43 символа base64url.                                                                                      |
-| Лимиты            | Текст 4000; 2 запроса в секунду на чат. Отправка — тем же пулом, что и Telegram (20 одновременно, ≤ 25 в секунду), разные получатели — разные чаты.                                       |
+| Что              | Как                                                                                                                                                                                                                                                        |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Адрес            | `https://platform-api2.max.ru`, токен — заголовок `Authorization: <token>` (без `Bearer`). Токен не входит в URL, но и заголовки не логируются.                                                                                                            |
+| Отправка         | `POST /messages?user_id=<id>`, тело `{ text, format: 'html', attachments? }`, ответ `{ message: { body: { mid } } }`, `mid` — строка. 403 (`chat.denied` и т. п.) — бот остановлен/нет доступа → `blocked`.                                                |
+| Кнопки           | `attachments: [{ type: 'inline_keyboard', payload: { buttons: [[{ type: 'callback', text, payload }]] } }]`, `payload` ≤ 1024.                                                                                                                             |
+| Правка           | `PUT /messages?message_id=<mid>`, тело как у отправки; `attachments: []` убирает кнопки. Ответ — `{ success, code?, message? }` с HTTP 200 даже при ошибке.                                                                                                |
+| Ответ на нажатие | `POST /answers?callback_id=<id>`, тело `{ notification? }` — одноразовое уведомление (аналог `answerCallbackQuery`).                                                                                                                                       |
+| Вебхук           | `POST /subscriptions` `{ url, update_types, secret }`; секрет приходит в заголовке `X-Max-Bot-Api-Secret`; только HTTPS 443. `DELETE /subscriptions?url=`.                                                                                                 |
+| Апдейты          | `bot_started` (`user`, `chat_id`, `payload` из ссылки), `bot_stopped`, `message_created` (`message.sender`, `message.recipient.chat_type = dialog`), `message_callback` (`callback.callback_id`, `callback.payload`, `callback.user`, `message.body.mid`). |
+| Ссылка           | `https://max.ru/<бот>?start=<payload>`, payload ≤ 128 символов; код привязки — 43 символа base64url.                                                                                                                                                       |
+| Лимиты           | Текст 4000; 2 запроса в секунду на чат. Отправка — тем же пулом, что и Telegram (20 одновременно, ≤ 25 в секунду), разные получатели — разные чаты.                                                                                                        |
 
 **Проверить на тестовом боте** (документация неполна):
 
@@ -31,12 +31,12 @@
 
 ## Конфигурация
 
-| Переменная          | Назначение                                                                     |
-| ------------------- | ------------------------------------------------------------------------------ |
-| `MAX_BOT_TOKEN`     | Секрет. Токен бота с платформы MAX для партнёров.                               |
-| `MAX_BOT_USERNAME`  | Имя бота для ссылки `max.ru/<имя>`; только серверная.                           |
-| `MAX_WEBHOOK_SECRET`| Секрет. 5–256 символов `A-Z a-z 0-9 _ -`, сверяется с `X-Max-Bot-Api-Secret`.   |
-| `MAX_API_BASE`      | Только тесты и e2e: фальшивый Bot API вместо `platform-api2.max.ru`.            |
+| Переменная           | Назначение                                                                    |
+| -------------------- | ----------------------------------------------------------------------------- |
+| `MAX_BOT_TOKEN`      | Секрет. Токен бота с платформы MAX для партнёров.                             |
+| `MAX_BOT_USERNAME`   | Имя бота для ссылки `max.ru/<имя>`; только серверная.                         |
+| `MAX_WEBHOOK_SECRET` | Секрет. 5–256 символов `A-Z a-z 0-9 _ -`, сверяется с `X-Max-Bot-Api-Secret`. |
+| `MAX_API_BASE`       | Только тесты и e2e: фальшивый Bot API вместо `platform-api2.max.ru`.          |
 
 Без трёх первых интеграция выключена (`deps.max = null`): операции отвечают `max_unavailable` (503), кабинет показывает «MAX не подключён», в «Рассылке» отправка в MAX отклоняется.
 
@@ -46,11 +46,11 @@
 
 ## Операции `api`
 
-| Маршрут                 | Изменение                                                                                                                         |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `max/status`, `max/link-start`, `max/unlink`, `max/webhook` | Новые, как у Telegram.                                                                                   |
-| `broadcasts/recipients` | Ответ дополнен `channels: { telegram, max }` с `{ configured, count }`; `count` — по-прежнему Telegram (совместимость).            |
-| `broadcasts/send`       | Новое необязательное поле `channels` (`telegram`, `max`), по умолчанию `['telegram']`. Ответ дополнен `channels` — итог по каналам. |
+| Маршрут                                                     | Изменение                                                                                                                           |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `max/status`, `max/link-start`, `max/unlink`, `max/webhook` | Новые, как у Telegram.                                                                                                              |
+| `broadcasts/recipients`                                     | Ответ дополнен `channels: { telegram, max }` с `{ configured, count }`; `count` — по-прежнему Telegram (совместимость).             |
+| `broadcasts/send`                                           | Новое необязательное поле `channels` (`telegram`, `max`), по умолчанию `['telegram']`. Ответ дополнен `channels` — итог по каналам. |
 
 ## Локальная разработка
 

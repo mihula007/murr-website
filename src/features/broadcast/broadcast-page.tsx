@@ -8,10 +8,14 @@ import {
   BROADCAST_CHANNELS,
   BROADCAST_LIMITS,
   BROADCAST_SOURCES,
+  SENDABLE_CHANNELS,
   type BroadcastChannel,
+  type BroadcastRecipientsResponse,
   type BroadcastDraft,
   type BroadcastRecipient,
   type BroadcastSource,
+  type SendAnnouncementResponse,
+  type SendableChannel,
 } from '@contracts/broadcasts'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 import { focusFirstInvalid } from '@/components/form/focus-first-invalid'
@@ -77,14 +81,68 @@ type FormValues = {
   channels: BroadcastChannel[]
 }
 
-/** Подключён только Telegram; ВКонтакте и MAX недоступны (Q-82, Q-86). */
-const CONNECTED_CHANNELS: readonly BroadcastChannel[] = ['telegram']
+/** Подключены Telegram и MAX; ВКонтакте недоступен (Q-82, Q-97). */
+const CONNECTED_CHANNELS: readonly BroadcastChannel[] = SENDABLE_CHANNELS
 const connectedOnly = (channels: BroadcastChannel[]) =>
   channels.filter((channel) => CONNECTED_CHANNELS.includes(channel))
 const EMPTY: FormValues = {
   subject: '',
   body: '',
   channels: [...CONNECTED_CHANNELS],
+}
+
+const NO_RECIPIENTS =
+  'Отправить некому: никто из участников клана не привязал выбранные мессенджеры.'
+
+const isSendable = (channel: BroadcastChannel): channel is SendableChannel =>
+  (SENDABLE_CHANNELS as readonly BroadcastChannel[]).includes(channel)
+
+type ChannelCounts = Partial<Record<SendableChannel, number>>
+
+/**
+ * Получатели выбранных каналов (MAX-05). Прежний сервер без `channels`
+ * знает только Telegram. Канал без бота на сервере — текст отказа.
+ */
+function chosenCounts(
+  response: BroadcastRecipientsResponse,
+  chosen: SendableChannel[],
+): ChannelCounts | string {
+  const channels = response.channels ?? {
+    telegram: { configured: true, count: response.count },
+    max: { configured: false, count: 0 },
+  }
+  const counts: ChannelCounts = {}
+  for (const channel of chosen) {
+    if (!channels[channel].configured) {
+      return `${BROADCAST_CHANNEL_LABELS[channel]} не подключён на сервере: снимите этот флажок.`
+    }
+    counts[channel] = channels[channel].count
+  }
+  return counts
+}
+
+const countsText = (counts: ChannelCounts) =>
+  SENDABLE_CHANNELS.filter((channel) => channel in counts)
+    .map(
+      (channel) => `${BROADCAST_CHANNEL_LABELS[channel]}: ${counts[channel]}`,
+    )
+    .join(', ')
+
+/** Итог для toast: отправленные по каналам и недоставленные (MAX-10). */
+function sentText(result: SendAnnouncementResponse, chosen: SendableChannel[]) {
+  const sent = result.channels
+    ? countsText(
+        Object.fromEntries(
+          SENDABLE_CHANNELS.filter((c) => result.channels?.[c]).map((c) => [
+            c,
+            result.channels![c]!.sent,
+          ]),
+        ),
+      )
+    : `${chosen.map((c) => BROADCAST_CHANNEL_LABELS[c]).join(', ')}: ${result.sent}`
+  return result.failed > 0
+    ? `Отправлено — ${sent}. Не доставлено: ${result.failed}`
+    : `Отправлено — ${sent}`
 }
 
 /** Причина отказа отправки (Q-92). */
@@ -94,7 +152,7 @@ function sendRefusal(error: AppError) {
   }
   switch (error.fields.reason) {
     case 'no_recipients':
-      return 'Отправить некому: никто из участников клана не привязал Telegram.'
+      return NO_RECIPIENTS
     case 'started':
       return 'Событие уже началось: анонс с кнопками ответа не отправляется.'
     case 'closed':
@@ -365,7 +423,7 @@ function Drafts() {
   )
 }
 
-/** Форма подготовки и отправки (BRC-01, BRC-05–07, BRC-13, TGM-11–TGM-16). */
+/** Форма подготовки и отправки (BRC-01, BRC-05–07, BRC-13, TGM-11–TGM-16, MAX-05). */
 function BroadcastForm({
   initial,
   source,
@@ -388,7 +446,7 @@ function BroadcastForm({
   const intent = useRef<'save' | 'send'>('save')
   const [checking, setChecking] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
-  const [confirmCount, setConfirmCount] = useState<number | null>(null)
+  const [confirmCounts, setConfirmCounts] = useState<ChannelCounts | null>(null)
   const form = useForm({
     defaultValues: initial,
     validators: { onChange: draftSchema },
@@ -415,22 +473,22 @@ function BroadcastForm({
   })
   const isDirty = useStore(form.store, (state) => state.isDirty)
   const { dialog } = useUnsavedChangesGuard(isDirty)
-  const telegramChosen = useStore(form.store, (state) =>
-    state.values.channels.includes('telegram'),
+  const chosen = useStore(form.store, (state) =>
+    state.values.channels.filter(isSendable),
   )
 
-  /** После проверки формы — число получателей и подтверждение (TGM-11). */
+  /** После проверки формы — получатели по каналам и подтверждение (MAX-05). */
   async function confirmSend() {
     setSendError(null)
     setChecking(true)
     try {
-      const { count } = await fetchRecipients()
-      if (count === 0) {
-        setSendError(
-          'Отправить некому: никто из участников клана не привязал Telegram.',
-        )
+      const counts = chosenCounts(await fetchRecipients(), chosen)
+      if (typeof counts === 'string') {
+        setSendError(counts)
+      } else if (Object.values(counts).every((count) => count === 0)) {
+        setSendError(NO_RECIPIENTS)
       } else {
-        setConfirmCount(count)
+        setConfirmCounts(counts)
       }
     } catch (error) {
       setSendError(formErrorMessage(error as AppError))
@@ -452,8 +510,8 @@ function BroadcastForm({
         {eventId ? (
           <Notice className="col-span-full flex flex-wrap items-center justify-between gap-3">
             <span>
-              Анонс события: в Telegram придёт с кнопками «Приду», «50/50» и «Не
-              приду».
+              Анонс события: в мессенджеры придёт с кнопками «Приду», «50/50» и
+              «Не приду».
             </span>
             <Button
               type="button"
@@ -623,7 +681,7 @@ function BroadcastForm({
             <Button
               type="button"
               variant="secondary"
-              disabled={!telegramChosen || checking}
+              disabled={chosen.length === 0 || checking}
               aria-describedby="broadcast-send-hint"
               onClick={() => {
                 intent.current = 'send'
@@ -631,7 +689,7 @@ function BroadcastForm({
               }}
             >
               <Send size={16} aria-hidden="true" />
-              {checking ? 'Проверяем…' : 'Отправить в Telegram'}
+              {checking ? 'Проверяем…' : 'Отправить анонс'}
             </Button>
           </div>
           <FormError message={sendError} />
@@ -639,21 +697,21 @@ function BroadcastForm({
             id="broadcast-send-hint"
             className="m-0 text-xs text-muted-foreground"
           >
-            Анонс получат члены, офицеры и администраторы, привязавшие Telegram.
-            После отправки текст не изменить. Черновик при отправке не
-            сохраняется.
+            Анонс получат члены, офицеры и администраторы, привязавшие выбранные
+            мессенджеры. После отправки текст не изменить. Черновик при отправке
+            не сохраняется.
           </p>
         </div>
         {dialog}
         <ConfirmActionDialog
-          open={confirmCount !== null}
+          open={confirmCounts !== null}
           onOpenChange={(open) => {
             if (!open) {
-              setConfirmCount(null)
+              setConfirmCounts(null)
             }
           }}
-          title="Отправить анонс в Telegram?"
-          description={`Получателей: ${confirmCount ?? 0}. ${
+          title="Отправить анонс?"
+          description={`Получателей — ${countsText(confirmCounts ?? {})}. ${
             eventId
               ? 'Анонс события придёт с кнопками ответа.'
               : 'Анонс придёт текстом без кнопок.'
@@ -663,16 +721,14 @@ function BroadcastForm({
           errorText={sendRefusal}
           onConfirm={async () => {
             const values = form.state.values
+            const channels = values.channels.filter(isSendable)
             const result = await send.mutateAsync({
               subject: values.subject,
               body: values.body,
               eventId,
+              channels,
             })
-            toast(
-              result.failed > 0
-                ? `Отправлено в Telegram: ${result.sent}, не доставлено: ${result.failed}`
-                : `Отправлено в Telegram: ${result.sent}`,
-            )
+            toast(sentText(result, channels))
             form.reset(EMPTY)
             onSaved()
           }}
@@ -691,7 +747,7 @@ function BroadcastForm({
   )
 }
 
-/** «Рассылка»: черновики, шаблоны и отправка анонса в Telegram (BRC, TGM). */
+/** «Рассылка»: черновики, шаблоны и отправка анонса в Telegram и MAX (BRC, TGM, MAX). */
 export function BroadcastPage({ source, id }: Partial<BroadcastSearch>) {
   const navigate = useNavigate()
   const target = source && id ? { source, id } : null
@@ -748,7 +804,7 @@ export function BroadcastPage({ source, id }: Partial<BroadcastSearch>) {
     <section className="grid gap-5">
       <PageHeader
         title="Рассылка"
-        description="Анонсы клана в Telegram: отдельные и анонсы событий с кнопками ответа. ВКонтакте и MAX не подключены."
+        description="Анонсы клана в Telegram и MAX: отдельные и анонсы событий с кнопками ответа. ВКонтакте не подключён."
       />
       <div
         className={cn(

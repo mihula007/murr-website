@@ -20,6 +20,16 @@ vi.mock('@/components/ui/toaster', async (importOriginal) => ({
 type Handler = (body: unknown) => unknown
 let routes: Record<string, Handler> = {}
 
+/** Ответ `broadcasts/recipients`: получатели по каналам (MAX-05). */
+const recipients = (telegram: number, max: number, maxConfigured = true) => ({
+  count: telegram,
+  channels: {
+    telegram: { configured: true, count: telegram },
+    max: { configured: maxConfigured, count: max },
+  },
+})
+const SEND = 'Отправить анонс'
+
 const template: BroadcastTemplate = {
   id: 't1',
   name: 'Сбор',
@@ -57,22 +67,21 @@ describe('broadcast page (BRC, E2E-07)', () => {
     expect(await screen.findByText('Нет доступа')).toBeVisible()
   })
 
-  it('saves a Telegram draft; VK and MAX are not connected (Q-82)', async () => {
+  it('saves a draft; Telegram and MAX are chosen, VK is not connected (Q-82, Q-97)', async () => {
     await renderApp({ role: 'officer', path: '/broadcast' })
     const telegram = await screen.findByRole('checkbox', { name: 'Telegram' })
+    const max = screen.getByRole('checkbox', { name: 'MAX' })
     expect(telegram).toBeChecked()
-    for (const channel of [/ВКонтакте/, /MAX/]) {
-      const box = screen.getByRole('checkbox', { name: channel })
-      expect(box).toBeDisabled()
-      expect(box).not.toBeChecked()
-    }
+    expect(max).toBeChecked()
+    const vk = screen.getByRole('checkbox', { name: /ВКонтакте/ })
+    expect(vk).toBeDisabled()
+    expect(vk).not.toBeChecked()
     fireEvent.click(telegram)
+    fireEvent.click(max)
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить черновик' }))
     expect(await screen.findByText('Заполните поле')).toBeVisible()
     expect(screen.getByText('Выберите хотя бы один канал')).toBeVisible()
-    expect(
-      screen.getByRole('button', { name: 'Отправить в Telegram' }),
-    ).toBeDisabled()
+    expect(screen.getByRole('button', { name: SEND })).toBeDisabled()
     expect(callApi).not.toHaveBeenCalledWith(
       'broadcasts/save-draft',
       expect.anything(),
@@ -103,12 +112,18 @@ describe('broadcast page (BRC, E2E-07)', () => {
   })
 
   it('sends a standalone announcement after confirming the recipients', async () => {
-    routes['broadcasts/recipients'] = () => ({ count: 3 })
-    routes['broadcasts/send'] = () => ({ recipients: 3, sent: 3, failed: 0 })
-    await renderApp({ role: 'officer', path: '/broadcast' })
-    const send = await screen.findByRole('button', {
-      name: 'Отправить в Telegram',
+    routes['broadcasts/recipients'] = () => recipients(3, 2)
+    routes['broadcasts/send'] = () => ({
+      recipients: 5,
+      sent: 5,
+      failed: 0,
+      channels: {
+        telegram: { recipients: 3, sent: 3, failed: 0 },
+        max: { recipients: 2, sent: 2, failed: 0 },
+      },
     })
+    await renderApp({ role: 'officer', path: '/broadcast' })
+    const send = await screen.findByRole('button', { name: SEND })
     fireEvent.click(send)
     expect(await screen.findByText('Заполните поле')).toBeVisible()
     expect(callApi).not.toHaveBeenCalledWith(
@@ -124,7 +139,9 @@ describe('broadcast page (BRC, E2E-07)', () => {
     })
     fireEvent.click(send)
     const dialog = await screen.findByRole('alertdialog')
-    expect(within(dialog).getByText(/Получателей: 3/)).toBeVisible()
+    expect(
+      within(dialog).getByText(/Получателей — Telegram: 3, MAX: 2/),
+    ).toBeVisible()
     expect(within(dialog).getByText(/текстом без кнопок/)).toBeVisible()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Отправить' }))
     await waitFor(() =>
@@ -132,25 +149,42 @@ describe('broadcast page (BRC, E2E-07)', () => {
         subject: 'Сбор',
         body: 'Сегодня в 20:00',
         eventId: null,
+        channels: ['telegram', 'max'],
       }),
     )
     await waitFor(() =>
-      expect(toast).toHaveBeenCalledWith('Отправлено в Telegram: 3'),
+      expect(toast).toHaveBeenCalledWith('Отправлено — Telegram: 3, MAX: 2'),
     )
     expect(screen.getByLabelText('Текст рассылки')).toHaveValue('')
   })
 
-  it('explains when nobody has linked Telegram', async () => {
-    routes['broadcasts/recipients'] = () => ({ count: 0 })
+  it('explains when nobody has linked the chosen messengers', async () => {
+    routes['broadcasts/recipients'] = () => recipients(0, 4)
     await renderApp({ role: 'admin', path: '/broadcast' })
     fireEvent.change(await screen.findByLabelText('Текст рассылки'), {
       target: { value: 'Сбор' },
     })
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Отправить в Telegram' }),
-    )
+    fireEvent.click(screen.getByRole('checkbox', { name: 'MAX' }))
+    fireEvent.click(screen.getByRole('button', { name: SEND }))
     expect(await screen.findByText(/Отправить некому/)).toBeVisible()
     expect(screen.queryByRole('alertdialog')).toBeNull()
+  })
+
+  it('asks to untick a channel that is not configured on the server (MAX-05)', async () => {
+    routes['broadcasts/recipients'] = () => recipients(2, 0, false)
+    await renderApp({ role: 'admin', path: '/broadcast' })
+    fireEvent.change(await screen.findByLabelText('Текст рассылки'), {
+      target: { value: 'Сбор' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: SEND }))
+    expect(await screen.findByText(/MAX не подключён на сервере/)).toBeVisible()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'MAX' }))
+    fireEvent.click(screen.getByRole('button', { name: SEND }))
+    const dialog = await screen.findByRole('alertdialog')
+    expect(
+      within(dialog).getByText(/Получателей — Telegram: 2\./),
+    ).toBeVisible()
   })
 
   it('sends an event announcement with buttons until the link is removed', async () => {
@@ -159,7 +193,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
       body: 'Рейд\nТип: PvE',
       recipients: null,
     })
-    routes['broadcasts/recipients'] = () => ({ count: 2 })
+    routes['broadcasts/recipients'] = () => recipients(2, 1)
     routes['broadcasts/send'] = () => {
       throw new AppError('state_conflict', { reason: 'started' })
     }
@@ -169,9 +203,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
       path: `/broadcast?source=event&id=${id}`,
     })
     expect(await screen.findByText(/Анонс события/)).toBeVisible()
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Отправить в Telegram' }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: SEND }))
     let dialog = await screen.findByRole('alertdialog')
     expect(within(dialog).getByText(/с кнопками ответа/)).toBeVisible()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Отправить' }))
@@ -182,16 +214,23 @@ describe('broadcast page (BRC, E2E-07)', () => {
       subject: 'Рейд',
       body: 'Рейд\nТип: PvE',
       eventId: id,
+      channels: ['telegram', 'max'],
     })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Отмена' }))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
 
     fireEvent.click(screen.getByRole('button', { name: 'Снять связь' }))
     expect(screen.queryByText(/Анонс события/)).toBeNull()
-    routes['broadcasts/send'] = () => ({ recipients: 2, sent: 1, failed: 1 })
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Отправить в Telegram' }),
-    )
+    routes['broadcasts/send'] = () => ({
+      recipients: 3,
+      sent: 2,
+      failed: 1,
+      channels: {
+        telegram: { recipients: 2, sent: 1, failed: 1 },
+        max: { recipients: 1, sent: 1, failed: 0 },
+      },
+    })
+    fireEvent.click(screen.getByRole('button', { name: SEND }))
     dialog = await screen.findByRole('alertdialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Отправить' }))
     await waitFor(() =>
@@ -199,11 +238,12 @@ describe('broadcast page (BRC, E2E-07)', () => {
         subject: 'Рейд',
         body: 'Рейд\nТип: PvE',
         eventId: null,
+        channels: ['telegram', 'max'],
       }),
     )
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        'Отправлено в Telegram: 1, не доставлено: 1',
+        'Отправлено — Telegram: 1, MAX: 1. Не доставлено: 1',
       ),
     )
   })
@@ -226,7 +266,8 @@ describe('broadcast page (BRC, E2E-07)', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Применить' }))
     expect(await screen.findByDisplayValue('Сбор на рейд')).toBeVisible()
     expect(screen.getByRole('checkbox', { name: 'Telegram' })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: /MAX/ })).not.toBeChecked()
+    // В шаблоне только Telegram: MAX снимается (BRC-11).
+    expect(screen.getByRole('checkbox', { name: 'MAX' })).not.toBeChecked()
     expect(screen.queryByText('Файлы')).toBeNull()
   })
 

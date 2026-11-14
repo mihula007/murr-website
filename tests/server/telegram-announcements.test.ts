@@ -3,7 +3,7 @@ import type { AppDeps } from '../../supabase/functions/_shared/app.ts'
 import { GUEST } from '../../supabase/functions/_shared/auth/actor.ts'
 import {
   sendAnnouncement,
-  telegramRecipients,
+  broadcastRecipients,
 } from '../../supabase/functions/_shared/broadcasts/service.ts'
 import type { AccessRole } from '../../supabase/functions/_shared/contracts/account.ts'
 import {
@@ -15,7 +15,7 @@ import {
 import {
   answerData,
   changeData,
-} from '../../supabase/functions/_shared/telegram/callback-data.ts'
+} from '../../supabase/functions/_shared/messenger/callback-data.ts'
 import { CALLBACK_TEXTS } from '../../supabase/functions/_shared/telegram/messages.ts'
 import { handleTelegramWebhook } from '../../supabase/functions/_shared/telegram/service.ts'
 import {
@@ -136,15 +136,15 @@ const changeButton = (eventId: string) => ({
 describe('announcements: access and recipients (TGM-11, TGM-14, Q-81, Q-83)', () => {
   it('is sent by officers and admins only', async () => {
     await linked('member')
-    await rejects(telegramRecipients(deps, GUEST), 'not_authenticated')
+    await rejects(broadcastRecipients(deps, GUEST), 'not_authenticated')
     for (const role of ['applicant', 'reader', 'member'] as const) {
       const actor = await actorOf(db, (await createProfiledUser(db, role)).id)
-      await rejects(telegramRecipients(deps, actor), 'forbidden')
+      await rejects(broadcastRecipients(deps, actor), 'forbidden')
       await rejects(sendAnnouncement(deps, actor, { body: 'x' }), 'forbidden')
     }
     for (const role of ['officer', 'admin'] as const) {
       const actor = await actorOf(db, (await createProfiledUser(db, role)).id)
-      expect(await telegramRecipients(deps, actor)).toEqual({ count: 1 })
+      expect(await broadcastRecipients(deps, actor)).toMatchObject({ count: 1 })
     }
     const admin = await actorOf(db, (await createProfiledUser(db, 'admin')).id)
     await rejects(
@@ -177,12 +177,14 @@ describe('announcements: access and recipients (TGM-11, TGM-14, Q-81, Q-83)', ()
       .execute()
     await createProfiledUser(db, 'member')
 
-    expect(await telegramRecipients(deps, admin.actor)).toEqual({ count: 3 })
+    expect(await broadcastRecipients(deps, admin.actor)).toMatchObject({
+      count: 3,
+    })
     const result = await sendAnnouncement(deps, admin.actor, {
       subject: 'Сбор',
       body: 'Сегодня в 20:00',
     })
-    expect(result).toEqual({ recipients: 3, sent: 3, failed: 0 })
+    expect(result).toMatchObject({ recipients: 3, sent: 3, failed: 0 })
     for (const person of [member, officer, admin]) {
       expect(sentTo(person.chatId)).toEqual([
         expect.objectContaining({
@@ -210,7 +212,7 @@ describe('announcements: access and recipients (TGM-11, TGM-14, Q-81, Q-83)', ()
     const other = await linked('admin')
     fake.blocked.add(member.chatId)
     const result = await sendAnnouncement(deps, other.actor, { body: 'x' })
-    expect(result).toEqual({ recipients: 2, sent: 1, failed: 1 })
+    expect(result).toMatchObject({ recipients: 2, sent: 1, failed: 1 })
     const row = await db
       .selectFrom('app.telegram_links')
       .select('blocked_at')

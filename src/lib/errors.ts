@@ -110,6 +110,7 @@ const MESSAGES: Record<ClientErrorCode | FieldErrorCode, string> = {
     'Изображение не принято: нужен JPEG, PNG или WebP до 1 МБ. Загрузите файл ещё раз.',
   telegram_unavailable:
     'Telegram не подключён на сервере. Обратитесь к администратору.',
+  max_unavailable: 'MAX не подключён на сервере. Обратитесь к администратору.',
   internal: 'Сервер не смог выполнить действие. Попробуйте ещё раз позже.',
   // Auth
   invalid_credentials: 'Неверный email или пароль.',

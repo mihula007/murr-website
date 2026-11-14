@@ -13,6 +13,7 @@ import { FormError } from '@/components/form/form-error'
 import { ApplicantPath } from '@/features/applications/applicant-path'
 import { useSignOut } from '@/features/auth/use-sign-out'
 import { clearDraft } from '@/features/registration/registration-draft'
+import { MaxLinkCard } from '@/features/max/max-link-card'
 import { TelegramLinkCard } from '@/features/telegram/telegram-link-card'
 import { formatDate } from '@/lib/format-date'
 import { formErrorMessage } from '@/lib/errors'
@@ -167,8 +168,13 @@ function Dashboard({ me }: { me: ReadyMe }) {
           ) : null}
         </details>
 
-        {/* Telegram — член, офицер и администратор (TGM-01, Q-88). */}
-        {INTERNAL_ROLES.includes(profile.role) ? <TelegramLinkCard /> : null}
+        {/* Telegram и MAX — член, офицер и администратор (TGM-01, MAX-01). */}
+        {INTERNAL_ROLES.includes(profile.role) ? (
+          <>
+            <TelegramLinkCard />
+            <MaxLinkCard />
+          </>
+        ) : null}
 
         {profile.role === 'applicant' ? (
           <ApplicantPath

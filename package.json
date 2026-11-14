@@ -41,6 +41,7 @@
     "e2e:functions": "node scripts/e2e-functions.ts",
     "telegram:dev": "node --env-file-if-exists=.env scripts/telegram-dev.ts",
     "telegram:webhook": "node --env-file-if-exists=.env scripts/telegram-webhook.ts",
+    "max:webhook": "node --env-file-if-exists=.env scripts/max-webhook.ts",
     "supabase:env": "node scripts/supabase-env.ts",
     "seed:dev": "node scripts/seed-dev.ts --reset",
     "session:prepare": "node scripts/session-prepare.ts",

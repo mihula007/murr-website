@@ -44,6 +44,11 @@ const DETAIL_KEYS = new Set([
   'recipients',
   'sent',
   'failed',
+  // Разбивка отправки анонса по каналам (MAX-12).
+  'telegram_sent',
+  'telegram_failed',
+  'max_sent',
+  'max_failed',
 ])
 
 type DetailValue = string | number | boolean | null | string[]
