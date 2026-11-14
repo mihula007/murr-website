@@ -78,9 +78,9 @@ select throws_ok(
   '23505', null, 'хеш кода уникален'
 );
 
-insert into app.telegram_announcements (id, event_id, text_html)
+insert into app.telegram_announcements (id, event_id, subject, body)
 values ('00000000-0000-0000-0000-0000000013c1',
-  '00000000-0000-0000-0000-0000000013e1', '<b>Рейд</b>');
+  '00000000-0000-0000-0000-0000000013e1', 'Рейд', 'Сбор в 20:00');
 
 select lives_ok(
   $$insert into app.telegram_event_messages

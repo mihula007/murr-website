@@ -22,6 +22,8 @@ export const API_ERRORS = {
   avatar_invalid: 422,
   /** Вложение публикации не прошло проверку типа, размера или владельца. */
   publication_file_invalid: 422,
+  /** Telegram не настроен на сервере: нет токена бота (этап 13). */
+  telegram_unavailable: 503,
   internal: 500,
 } as const
 

@@ -118,6 +118,10 @@ import {
 } from './roster/service.ts'
 import { createStorageGateway, type StorageGateway } from './storage/gateway.ts'
 import {
+  createTelegramGateway,
+  type TelegramGateway,
+} from './telegram/gateway.ts'
+import {
   castBallot,
   closeVote,
   createVote,
@@ -134,7 +138,33 @@ export type AppEnv = {
   serviceKey: string
   /** Секрет вызова выпуска постоянных событий по расписанию (Q-42). */
   cronSecret?: string | null
+  /** Telegram (этап 13); null — интеграция выключена. */
+  telegram?: TelegramEnv | null
 }
+
+export type TelegramEnv = {
+  token: string
+  botUsername: string
+  webhookSecret: string
+  /** Адрес сайта для ответов бота (TGM-09); без него — без ссылки. */
+  siteUrl: string | null
+  /** Фальшивый Bot API в тестах; null — `https://api.telegram.org`. */
+  apiBase: string | null
+}
+
+/** Telegram для сервисов: шлюз Bot API и настройки бота (этап 13). */
+export type TelegramDeps = {
+  gateway: TelegramGateway
+  botUsername: string
+  webhookSecret: string
+  siteUrl: string | null
+}
+
+/**
+ * Фоновая задача после ответа на запрос. В функции — `EdgeRuntime.waitUntil`;
+ * по умолчанию (тесты Node) задача выполняется до ответа.
+ */
+export type Background = (task: () => Promise<void>) => Promise<void>
 
 export type AppDeps = {
   db: Db
@@ -143,6 +173,9 @@ export type AppDeps = {
   now: () => Date
   /** null — выпуск по расписанию не принимается. */
   cronSecret?: string | null
+  /** null или нет — Telegram не подключён (`telegram_unavailable`). */
+  telegram?: TelegramDeps | null
+  background?: Background
 }
 
 export function createRoutes(deps: AppDeps): Record<string, Route> {
@@ -275,7 +308,7 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
 
 export function createApp(
   env: AppEnv,
-  overrides: { verifyToken?: TokenVerifier } = {},
+  overrides: { verifyToken?: TokenVerifier; background?: Background } = {},
 ) {
   const deps: AppDeps = {
     db: createDb(env.dbUrl),
@@ -283,6 +316,18 @@ export function createApp(
     authAdmin: createAuthAdminGateway(env.supabaseUrl, env.serviceKey),
     now: () => new Date(),
     cronSecret: env.cronSecret || null,
+    telegram: env.telegram
+      ? {
+          gateway: createTelegramGateway({
+            token: env.telegram.token,
+            apiBase: env.telegram.apiBase,
+          }),
+          botUsername: env.telegram.botUsername,
+          webhookSecret: env.telegram.webhookSecret,
+          siteUrl: env.telegram.siteUrl,
+        }
+      : null,
+    ...(overrides.background ? { background: overrides.background } : {}),
   }
   const verifyToken =
     overrides.verifyToken ?? createTokenVerifier(env.supabaseUrl, env.apiKey)
