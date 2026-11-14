@@ -13,6 +13,25 @@ export function Card({ className, ...props }: ComponentProps<'div'>) {
   )
 }
 
+/**
+ * Служебный блок (настройки раздела, итоги, подсказки): вдавленная
+ * поверхность без градиента и тени — ниже карточки объекта по уровню.
+ */
+export function Panel({ className, ...props }: ComponentProps<'div'>) {
+  return (
+    <div
+      className={cn(
+        'rounded-xl border border-border/70 bg-surface-inset p-4',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+/** Строка участника или записи в сетке: без рамки, легче карточки. */
+export const tileClass = 'rounded-xl bg-surface-inset/70 p-4'
+
 export function Badge({ className, ...props }: ComponentProps<'span'>) {
   return (
     <span

@@ -15,7 +15,7 @@ import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { NavBadge } from '@/components/ui/nav-badge'
-import { Card } from '@/components/ui/surfaces'
+import { Panel } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
 import { pagingOf, VirtualList } from '@/components/virtual-list'
@@ -70,7 +70,7 @@ function WeeklyEvents() {
   }
 
   return (
-    <Card className="mb-4 grid gap-3">
+    <Panel className="mb-6 grid gap-3">
       <div className="grid gap-1">
         <h2 className={sectionTitleClass}>Постоянные события</h2>
         <p className="m-0 text-sm text-muted-foreground">
@@ -84,7 +84,7 @@ function WeeklyEvents() {
           return (
             <li
               key={id}
-              className="grid gap-0.5 rounded-lg border border-border bg-surface-inset px-3 py-2"
+              className="grid gap-0.5 rounded-lg bg-secondary/70 px-3 py-2"
             >
               <strong>{preset.title}</strong>
               <span className="text-xs text-muted-foreground first-letter:uppercase">
@@ -114,7 +114,7 @@ function WeeklyEvents() {
         </Button>
       </div>
       <GroupTemplatesDialog open={templates} onOpenChange={setTemplates} />
-    </Card>
+    </Panel>
   )
 }
 

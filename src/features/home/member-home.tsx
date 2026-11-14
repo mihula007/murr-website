@@ -63,7 +63,7 @@ function UpcomingEvents() {
 
 function TopRow({ row, place }: { row: MonthTopRow; place: number }) {
   return (
-    <li className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-surface-inset/60 px-3.5 py-3">
+    <li className="flex min-w-0 items-center gap-3 py-3 first:pt-0 last:pb-0">
       <span
         className={cn(
           'grid size-8 flex-none place-items-center rounded-full border text-sm font-black tabular-nums',
@@ -129,11 +129,13 @@ function MonthTop({ canSeeActivity }: { canSeeActivity: boolean }) {
           description="В этом месяце ещё нет закрытых событий с посещениями."
         />
       ) : (
-        <ol className="m-0 grid list-none gap-2 p-0 lg:grid-cols-2">
-          {top.data.items.map((row, index) => (
-            <TopRow key={row.userId} row={row} place={index + 1} />
-          ))}
-        </ol>
+        <Card className="max-w-3xl">
+          <ol className="m-0 grid list-none divide-y divide-border p-0">
+            {top.data.items.map((row, index) => (
+              <TopRow key={row.userId} row={row} place={index + 1} />
+            ))}
+          </ol>
+        </Card>
       )}
     </section>
   )

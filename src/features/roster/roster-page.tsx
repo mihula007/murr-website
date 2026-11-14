@@ -19,13 +19,14 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { Badge, Card } from '@/components/ui/surfaces'
+import { Badge, tileClass } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
 import { MEMBER_LIST_LIMIT } from '@contracts/paging'
 import { useSetRole } from '@/features/admin/api'
 import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
+import { cn } from '@/lib/utils'
 import { useRoster, useRosterStats } from './api'
 import { ReadersPanel } from './readers-panel'
 
@@ -102,7 +103,7 @@ type MemberCardProps = {
 /** Карточка участника; действие администратора — в меню «⋯» (ROS-07). */
 function MemberCard({ member, onBlock }: MemberCardProps) {
   return (
-    <Card className="flex h-full flex-col gap-4 p-[18px]">
+    <div className={cn(tileClass, 'flex h-full flex-col gap-4')}>
       <div className="flex min-w-0 items-start gap-3.5">
         <Avatar
           size="sm"
@@ -112,7 +113,7 @@ function MemberCard({ member, onBlock }: MemberCardProps) {
         />
         <div className="grid min-w-0 flex-1 gap-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <h3 className="text-xl leading-tight font-bold break-words">
+            <h3 className="font-sans text-lg leading-tight font-bold break-words">
               {member.gameNickname}
             </h3>
             {member.role !== 'member' ? (
@@ -148,7 +149,7 @@ function MemberCard({ member, onBlock }: MemberCardProps) {
           </DropdownMenu>
         ) : null}
       </div>
-    </Card>
+    </div>
   )
 }
 

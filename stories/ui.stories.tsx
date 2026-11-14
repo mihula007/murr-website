@@ -23,6 +23,8 @@ import {
   Field,
   LiveBadge,
   Notice,
+  Panel,
+  tileClass,
   Table as DataTable,
 } from '../src/components/ui/surfaces'
 
@@ -94,6 +96,16 @@ export const Surfaces: Story = {
         </Button>
       </Card>
       <Notice>Информация, на которую стоит обратить внимание.</Notice>
+      <Panel>
+        <h2 className="m-0 font-sans text-base font-bold">Служебный блок</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Настройки раздела и подсказки: ниже карточки объекта.
+        </p>
+      </Panel>
+      <div className={tileClass}>
+        <strong>Строка участника</strong>
+        <p className="mt-1 text-sm text-muted-foreground">Без рамки.</p>
+      </div>
     </div>
   ),
 }

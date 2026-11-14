@@ -724,13 +724,13 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
               </Badge>
             </div>
             {event.groups.length === 0 ? (
-              <Card>
+              <div className="rounded-xl border border-dashed border-border p-4">
                 <p className="m-0 text-muted-foreground">
                   {event.canManageGroups
                     ? 'Групп пока нет. Создайте группу или примените шаблон.'
                     : 'Группы ещё не сформированы.'}
                 </p>
-              </Card>
+              </div>
             ) : (
               event.groups.map((group) => (
                 <GroupCard key={group.id} board={board} group={group} />
