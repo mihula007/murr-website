@@ -53,6 +53,9 @@ test('характеристики доступны админу и внутре
     await page.getByRole('button', { name: 'Карточка' }).click()
     const accountCard = page.getByRole('dialog', { name: 'Карточка аккаунта' })
     await expect(accountCard.getByText(member.email)).toBeVisible()
+    await accountCard
+      .getByText('Характеристика персонажа', { exact: true })
+      .click()
     await accountCard.getByLabel('ПА').fill(value)
     await accountCard.getByLabel('ПА').press('Tab')
     await expect(accountCard.getByLabel('ПА')).toHaveValue(value)

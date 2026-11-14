@@ -36,6 +36,7 @@ export type FieldErrorCode =
   | 'duplicate'
   | 'locked'
   | 'invalid'
+  | 'invalid_number'
   | 'invalid_date'
   | 'invalid_url'
   | 'nickname_taken'
@@ -133,6 +134,7 @@ const MESSAGES: Record<ClientErrorCode | FieldErrorCode, string> = {
   duplicate: 'Такое значение уже есть',
   locked: 'Это поле нельзя изменить',
   invalid: 'Проверьте значение',
+  invalid_number: 'Введите число или число с «к» для тысяч',
   invalid_date: 'Укажите корректную дату',
   invalid_url: 'Нужна ссылка, начинающаяся с http:// или https://',
   nickname_taken: 'Этот ник уже занят',

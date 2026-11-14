@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ui/toaster'
 import { APPLICATION_STATUS } from '@/features/account/status-labels'
 import { newPasswordSchema, PASSWORD_HINT } from '@/features/auth/schemas'
+import { CharacterStatsFields } from './character-stats-fields'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { formErrorMessage } from '@/lib/errors'
 import { formatDate, formatDateMsk } from '@/lib/format-date'
@@ -114,6 +115,7 @@ export function AccountCardDialog({ account, onOpenChange }: DialogProps) {
             </ul>
           )}
         </div>
+        <CharacterStatsFields accountId={data.id} stats={data} />
       </div>
     )
   }

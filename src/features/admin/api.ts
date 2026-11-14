@@ -17,6 +17,10 @@ import type {
   SetPasswordResult,
   SetRoleRequest,
 } from '@contracts/accounts'
+import type {
+  SetCharacterStatRequest,
+  SetCharacterStatResult,
+} from '@contracts/character-stats'
 import type { AuditListResponse } from '@contracts/audit'
 import { meQueryKey } from '@/features/account/use-me'
 import { useSession } from '@/features/auth/session'
@@ -110,6 +114,24 @@ export function useSetPassword() {
     mutationFn: (input: SetPasswordRequest) =>
       callApi<SetPasswordResult>('accounts/set-password', input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: auditKeys.all }),
+  })
+}
+
+/** Отдельное сохранение одного поля карточки профиля (ADM-15). */
+export function useSetCharacterStat() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: SetCharacterStatRequest) =>
+      callApi<SetCharacterStatResult>('accounts/set-character-stat', input),
+    onSuccess: async (result) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: accountKeys.card(result.userId),
+        }),
+        queryClient.invalidateQueries({ queryKey: auditKeys.all }),
+        queryClient.invalidateQueries({ queryKey: rosterKeys.all }),
+      ])
+    },
   })
 }
 
