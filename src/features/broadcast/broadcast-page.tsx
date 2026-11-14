@@ -239,7 +239,7 @@ function Templates({
         </Button>
       </div>
       <p className="m-0 text-xs text-muted-foreground">
-        В шаблон попадают тема, текст и каналы; файлы — нет. Не больше{' '}
+        В шаблон попадают тема, текст и каналы. Не больше{' '}
         {BROADCAST_LIMITS.templates} шаблонов на всех.
       </p>
       <FormError
