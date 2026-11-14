@@ -26,6 +26,8 @@ export const API_ERRORS = {
   telegram_unavailable: 503,
   /** MAX не настроен на сервере: нет токена бота (этап 14). */
   max_unavailable: 503,
+  /** Бот ВКонтакте не настроен на сервере (этап 15). */
+  vk_unavailable: 503,
   internal: 500,
 } as const
 

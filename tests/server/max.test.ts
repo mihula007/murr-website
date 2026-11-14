@@ -346,6 +346,7 @@ describe('max: announcements (MAX-05, MAX-06, MAX-09, MAX-10, MAX-12)', () => {
       count: 1,
       channels: {
         telegram: { configured: true, count: 1 },
+        vk: { configured: false, count: 0 },
         max: { configured: true, count: 2 },
       },
     })
@@ -446,7 +447,7 @@ describe('max: announcements (MAX-05, MAX-06, MAX-09, MAX-10, MAX-12)', () => {
       'max_unavailable',
     )
     await rejects(
-      sendAnnouncement(deps, actor, { body: 'x', channels: ['vk'] }),
+      sendAnnouncement(deps, actor, { body: 'x', channels: ['whatsapp'] }),
       'validation_failed',
     )
   })

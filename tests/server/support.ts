@@ -5,7 +5,12 @@ import type {
   AppDeps,
   MaxDeps,
   TelegramDeps,
+  VkDeps,
 } from '../../supabase/functions/_shared/app.ts'
+import type {
+  VkGateway,
+  VkKeyboard,
+} from '../../supabase/functions/_shared/vk/gateway.ts'
 import type {
   MaxGateway,
   MaxKeyboard,
@@ -305,4 +310,66 @@ export const MAX_TEST_SECRET = 'test-max-secret-0123456789abcdef'
 /** Заголовки вебхука MAX с секретом (или без него). */
 export function maxWebhookHeaders(secret: string | null = MAX_TEST_SECRET) {
   return new Headers(secret === null ? {} : { 'x-max-bot-api-secret': secret })
+}
+
+/** Вызов фальшивого шлюза ВКонтакте: метод и параметры. */
+export type VkCall = {
+  method: 'send' | 'edit' | 'answerEvent'
+  peerId?: number
+  messageId?: number
+  text?: string
+  keyboard?: VkKeyboard | null
+  eventId?: string
+}
+
+export const VK_TEST_GROUP_ID = 777
+export const VK_TEST_SECRET = 'test-vk-secret-0123456789'
+
+/**
+ * Фальшивый шлюз ВКонтакте: записывает вызовы, выдаёт
+ * `conversation_message_id`; `blocked` — запретившие сообщения,
+ * `expired` — сообщения, которые нельзя править (VK-08).
+ */
+export function fakeVk() {
+  const calls: VkCall[] = []
+  const blocked = new Set<number>()
+  const expired = new Set<number>()
+  let next = 1
+  const gateway: VkGateway = {
+    async send(peerId, text, keyboard) {
+      calls.push({ method: 'send', peerId, text, keyboard: keyboard ?? null })
+      return blocked.has(peerId)
+        ? { status: 'blocked' }
+        : { status: 'ok', messageId: next++ }
+    },
+    async edit(peerId, messageId, text, keyboard) {
+      calls.push({ method: 'edit', peerId, messageId, text, keyboard })
+      if (blocked.has(peerId)) {
+        return 'blocked'
+      }
+      return expired.has(messageId) ? 'gone' : 'ok'
+    },
+    async answerEvent(event, text) {
+      calls.push({
+        method: 'answerEvent',
+        eventId: event.eventId,
+        peerId: event.peerId,
+        ...(text ? { text } : {}),
+      })
+    },
+    async profile(userId) {
+      return { firstName: 'Анна', lastName: null, screenName: `id${userId}` }
+    },
+    async confirmationCode() {
+      return 'confirm-123'
+    },
+  }
+  const vk: VkDeps = {
+    gateway,
+    groupId: VK_TEST_GROUP_ID,
+    groupName: 'murr_test',
+    callbackSecret: VK_TEST_SECRET,
+    siteUrl: 'https://murr.test/',
+  }
+  return { vk, calls, blocked, expired }
 }

@@ -1485,6 +1485,155 @@ export type Database = {
           },
         ]
       }
+      vk_announcements: {
+        Row: {
+          body: string
+          created_at: string
+          event_id: string
+          id: string
+          subject: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          body: string
+          created_at?: string
+          event_id: string
+          id?: string
+          subject?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'vk_announcements_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      vk_event_messages: {
+        Row: {
+          announcement_id: string
+          chat_id: number
+          event_id: string
+          message_id: number
+          sent_at: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          announcement_id: string
+          chat_id: number
+          event_id: string
+          message_id: number
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          announcement_id?: string
+          chat_id?: number
+          event_id?: string
+          message_id?: number
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'vk_event_messages_announcement_id_fkey'
+            columns: ['announcement_id']
+            isOneToOne: false
+            referencedRelation: 'vk_announcements'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'vk_event_messages_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'vk_event_messages_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      vk_link_codes: {
+        Row: {
+          code_hash: string
+          expires_at: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          code_hash: string
+          expires_at: string
+          user_id: string
+        }
+        Update: {
+          code_hash?: string
+          expires_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'vk_link_codes_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      vk_links: {
+        Row: {
+          blocked_at: string | null
+          chat_id: number
+          display_name: string
+          linked_at: string
+          user_id: string
+          username: string | null
+          vk_user_id: number
+        }
+        ComputedFields: never
+        Insert: {
+          blocked_at?: string | null
+          chat_id: number
+          display_name: string
+          linked_at?: string
+          user_id: string
+          username?: string | null
+          vk_user_id: number
+        }
+        Update: {
+          blocked_at?: string | null
+          chat_id?: number
+          display_name?: string
+          linked_at?: string
+          user_id?: string
+          username?: string | null
+          vk_user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'vk_links_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       vote_ballots: {
         Row: {
           created_at: string

@@ -49,6 +49,8 @@ const DETAIL_KEYS = new Set([
   'telegram_failed',
   'max_sent',
   'max_failed',
+  'vk_sent',
+  'vk_failed',
 ])
 
 type DetailValue = string | number | boolean | null | string[]

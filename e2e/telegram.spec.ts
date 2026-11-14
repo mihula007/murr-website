@@ -98,8 +98,8 @@ test('E2E-08: анонс события в Telegram и ответ кнопкой
   await officerPage.goto(`./#/broadcast?source=event&id=${eventId}`)
   await expect(officerPage.getByText(/^Анонс события/)).toBeVisible()
   await expect(
-    officerPage.getByRole('checkbox', { name: /ВКонтакте/ }),
-  ).toBeDisabled()
+    officerPage.getByRole('checkbox', { name: 'ВКонтакте' }),
+  ).toBeChecked()
   await officerPage.getByRole('button', { name: 'Отправить анонс' }).click()
   const dialog = officerPage.getByRole('alertdialog')
   await expect(dialog.getByText(/Получателей — Telegram: \d+/)).toBeVisible()

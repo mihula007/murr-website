@@ -81,7 +81,7 @@ type FormValues = {
   channels: BroadcastChannel[]
 }
 
-/** Подключены Telegram и MAX; ВКонтакте недоступен (Q-82, Q-97). */
+/** Подключены Telegram, ВКонтакте и MAX (Q-97, Q-100). */
 const CONNECTED_CHANNELS: readonly BroadcastChannel[] = SENDABLE_CHANNELS
 const connectedOnly = (channels: BroadcastChannel[]) =>
   channels.filter((channel) => CONNECTED_CHANNELS.includes(channel))
@@ -109,6 +109,7 @@ function chosenCounts(
 ): ChannelCounts | string {
   const channels = response.channels ?? {
     telegram: { configured: true, count: response.count },
+    vk: { configured: false, count: 0 },
     max: { configured: false, count: 0 },
   }
   const counts: ChannelCounts = {}
@@ -804,7 +805,7 @@ export function BroadcastPage({ source, id }: Partial<BroadcastSearch>) {
     <section className="grid gap-5">
       <PageHeader
         title="Рассылка"
-        description="Анонсы клана в Telegram и MAX: отдельные и анонсы событий с кнопками ответа. ВКонтакте не подключён."
+        description="Анонсы клана в Telegram, ВКонтакте и MAX: отдельные и анонсы событий с кнопками ответа."
       />
       <div
         className={cn(
