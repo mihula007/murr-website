@@ -313,24 +313,33 @@ const registered = users
 console.log('Вставка данных:')
 await insert(
   'profiles',
-  users.map((u) => ({
-    id: u.id,
-    display_name: pick(NAMES),
-    game_nickname: u.nickname,
-    city: pick(CITIES),
-    birth_date: chance(0.7)
-      ? `${int(1980, 2006)}-${String(int(1, 12)).padStart(2, '0')}-${String(int(1, 28)).padStart(2, '0')}`
-      : null,
-    class_id: u.classId,
-    about: chance(0.6) ? text(int(1, 3)) : null,
-    access_role: u.role,
-    is_primary_admin: u.primary,
-    joined_on: ['member', 'officer', 'admin'].includes(u.role)
-      ? dateOnly(u.createdAt + int(1, 10) * DAY)
-      : null,
-    created_at: iso(u.createdAt),
-    updated_at: iso(u.createdAt + int(0, 30) * DAY),
-  })),
+  users.map((u, index) => {
+    const hasCharacterStats = ['member', 'officer', 'admin'].includes(u.role)
+    return {
+      id: u.id,
+      display_name: pick(NAMES),
+      game_nickname: u.nickname,
+      city: pick(CITIES),
+      birth_date: chance(0.7)
+        ? `${int(1980, 2006)}-${String(int(1, 12)).padStart(2, '0')}-${String(int(1, 28)).padStart(2, '0')}`
+        : null,
+      class_id: u.classId,
+      about: chance(0.6) ? text(int(1, 3)) : null,
+      access_role: u.role,
+      pa: hasCharacterStats ? 65_000 + index * 1_250 : null,
+      pz: hasCharacterStats ? 22_000 + index * 875 : null,
+      bu: hasCharacterStats ? 4_500 + index * 125 : null,
+      hp: hasCharacterStats ? 35_000 + index * 2_100 : null,
+      bd: hasCharacterStats ? 8_000 + index * 250 : null,
+      character_stats_source: hasCharacterStats ? 'Тестовые данные' : null,
+      is_primary_admin: u.primary,
+      joined_on: ['member', 'officer', 'admin'].includes(u.role)
+        ? dateOnly(u.createdAt + int(1, 10) * DAY)
+        : null,
+      created_at: iso(u.createdAt),
+      updated_at: iso(u.createdAt + int(0, 30) * DAY),
+    }
+  }),
 )
 
 // ---------- Заявки и голосования ----------

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { skipSplash } from './helpers'
+import { hasHorizontalScroll, skipSplash } from './helpers'
 import {
   accessToken,
   auditActions,
@@ -31,6 +31,16 @@ test('характеристики доступны админу и внутре
     createMember('applicant'),
     createMember('reader'),
   ])
+  await sql(
+    (db) => db`
+    update app.profiles set class_id = 1 where id = ${first.id}
+  `,
+  )
+  await sql(
+    (db) => db`
+    update app.profiles set class_id = 7 where id = ${second.id}
+  `,
+  )
 
   const notificationsBefore = await sql(
     (db) => db<{ count: number }[]>`
@@ -50,6 +60,7 @@ test('характеристики доступны админу и внутре
       .getByLabel('Поиск по нику, имени, email и классу')
       .fill(member.nickname)
     await expect(page.getByText('Аккаунтов: 1', { exact: true })).toBeVisible()
+    await expect(page.getByText(member.nickname, { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Карточка' }).click()
     const accountCard = page.getByRole('dialog', { name: 'Карточка аккаунта' })
     await expect(accountCard.getByText(member.email)).toBeVisible()
@@ -99,26 +110,60 @@ test('характеристики доступны админу и внутре
     .getByRole('listitem')
     .filter({ hasText: first.nickname })
   await expect(firstCard.getByText('ПА')).toBeVisible()
-  await expect(firstCard.getByText('125,5к')).toBeVisible()
+  await expect(firstCard.getByText('125 500')).toBeVisible()
   await expect(firstCard.getByText('Прототип HTML')).toHaveCount(0)
+  if ((page.viewportSize()?.width ?? 1280) < 900) {
+    expect(await hasHorizontalScroll(page)).toBe(false)
+  }
 
   await page.goto('./#/')
   const rating = page.getByRole('region', { name: 'Рейтинг силы' })
+  const mobile = (page.viewportSize()?.width ?? 1280) < 900
   await expect(rating).toBeVisible()
   await expect(rating.getByText(first.nickname)).toBeVisible()
   await expect(rating.getByText(second.nickname)).toBeVisible()
+  if (mobile) {
+    expect(await hasHorizontalScroll(page)).toBe(false)
+  }
+  await expect(
+    rating
+      .locator('tbody tr')
+      .filter({ hasText: first.nickname })
+      .getByText('125 500'),
+  ).toBeVisible()
+  const paHeader = rating.getByRole('columnheader', { name: 'ПА' })
+  if (!mobile) {
+    await expect(paHeader).toHaveAttribute('aria-sort', 'descending')
+  }
   let names = await rating.locator('tbody tr').allTextContents()
   expect(names.findIndex((name) => name.includes(first.nickname))).toBeLessThan(
     names.findIndex((name) => name.includes(second.nickname)),
   )
-  await rating.getByRole('button', { name: /ПА/ }).click()
+  if (mobile) {
+    await rating.getByRole('button', { name: /По убыванию/ }).click()
+    await expect(
+      rating.getByRole('button', { name: /По возрастанию/ }),
+    ).toBeVisible()
+  } else {
+    await rating.getByRole('button', { name: /ПА/ }).click()
+    await expect(paHeader).toHaveAttribute('aria-sort', 'ascending')
+  }
   names = await rating.locator('tbody tr').allTextContents()
   expect(
     names.findIndex((name) => name.includes(second.nickname)),
   ).toBeLessThan(names.findIndex((name) => name.includes(first.nickname)))
-  await rating.getByRole('button', { name: /ПА/ }).click()
+  if (mobile) {
+    await rating.getByRole('button', { name: /По возрастанию/ }).click()
+  } else {
+    await rating.getByRole('button', { name: /ПА/ }).click()
+    await expect(paHeader).toHaveAttribute('aria-sort', 'descending')
+  }
   names = await rating.locator('tbody tr').allTextContents()
   expect(names.findIndex((name) => name.includes(first.nickname))).toBeLessThan(
     names.findIndex((name) => name.includes(second.nickname)),
   )
+  await rating.getByRole('combobox', { name: 'Класс' }).click()
+  await page.getByRole('option', { name: 'Маг', exact: true }).click()
+  await expect(rating.getByText(second.nickname)).toBeVisible()
+  await expect(rating.getByText(first.nickname)).toHaveCount(0)
 })
