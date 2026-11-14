@@ -114,10 +114,13 @@ npx supabase link --project-ref fbhndmsmusbqntdymnaz
 10. Первый администратор (Q-32): регистрация на сайте до «Завершите
     регистрацию», затем `npm run admin:bootstrap -- …` с `ADMIN_DATABASE_URL`
     в `.env` (строка Session pooler, секрет); после — очистить переменную.
-11. **Ожидает:** рабочий бот Telegram — Secrets `TELEGRAM_BOT_TOKEN`,
-    `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET`, затем
+11. Бот Telegram (14.11.2026): рабочим стал прежний тестовый бот, значения
+    `TELEGRAM_*` из `.env` загружены в Secrets, вебхук —
     `npm run telegram:webhook -- --functions
-https://fbhndmsmusbqntdymnaz.supabase.co/functions/v1`.
+https://fbhndmsmusbqntdymnaz.supabase.co/functions/v1`. **Пока нет
+    отдельного тестового бота, `npm run telegram:dev` не запускать:** он
+    переставит вебхук рабочего бота на туннель. Новый тестовый бот —
+    в `.env`; рабочие значения тогда держать вне `.env`.
 
 ## Проверки после настройки
 
