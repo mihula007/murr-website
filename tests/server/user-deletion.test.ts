@@ -323,6 +323,39 @@ async function populate() {
       seen_at: new Date().toISOString(),
     })
     .execute()
+  // Telegram (этап 13): связь, код привязки и активное сообщение анонса.
+  await db
+    .insertInto('app.telegram_links')
+    .values({
+      user_id: id,
+      telegram_user_id: 777_001,
+      chat_id: 777_001,
+      display_name: 'Жертва',
+    })
+    .execute()
+  await db
+    .insertInto('app.telegram_link_codes')
+    .values({
+      user_id: id,
+      code_hash: 'b'.repeat(64),
+      expires_at: new Date().toISOString(),
+    })
+    .execute()
+  const announcement = await db
+    .insertInto('app.telegram_announcements')
+    .values({ event_id: foreignEvent.id, body: 'Анонс' })
+    .returning('id')
+    .executeTakeFirstOrThrow()
+  await db
+    .insertInto('app.telegram_event_messages')
+    .values({
+      event_id: foreignEvent.id,
+      user_id: id,
+      announcement_id: announcement.id,
+      chat_id: 777_001,
+      message_id: 1,
+    })
+    .execute()
 
   return {
     admin,
@@ -413,6 +446,9 @@ describe('user deletion: data rules (ADM-08, table of stage 11)', () => {
       ['app.user_notifications', 'recipient_id'],
       ['app.section_views', 'user_id'],
       ['app.discussion_reads', 'user_id'],
+      ['app.telegram_links', 'user_id'],
+      ['app.telegram_link_codes', 'user_id'],
+      ['app.telegram_event_messages', 'user_id'],
     ] as const) {
       expect({ table, rows: await count(table, column, id) }).toEqual({
         table,

@@ -74,6 +74,26 @@ export type SaveBroadcastTemplateRequest = z.input<
   typeof saveBroadcastTemplateSchema
 >
 
+/** Анонс в Telegram (TGM-11–TGM-13); `eventId` — анонс события с кнопками. */
+export const sendAnnouncementSchema = z.object({
+  subject: optionalSubject,
+  body: bodySchema,
+  eventId: z
+    .guid('not_found')
+    .nullish()
+    .transform((value) => value ?? null),
+})
+export type SendAnnouncementRequest = z.input<typeof sendAnnouncementSchema>
+
+/** Итог отправки: toast показывает отправленные и недоставленные (Q-84). */
+export type SendAnnouncementResponse = {
+  recipients: number
+  sent: number
+  failed: number
+}
+
+export type TelegramRecipientsResponse = { count: number }
+
 export const broadcastIdSchema = z.object({ id: z.guid('not_found') })
 
 export const prefillSchema = z.object({

@@ -1,6 +1,11 @@
 import type { AppDeps, TelegramDeps } from '../app.ts'
 import { profileRepository } from '../account/repository.ts'
-import { requireRole, type Actor } from '../auth/actor.ts'
+import {
+  loadActor,
+  requireRole,
+  type Actor,
+  type ProfiledActor,
+} from '../auth/actor.ts'
 import {
   TELEGRAM_LINK_TTL_MINUTES,
   type TelegramLinkStart,
@@ -11,7 +16,12 @@ import { withTransaction } from '../db/client.ts'
 import { isUniqueViolation } from '../db/errors.ts'
 import { ApiError } from '../http/errors.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
-import { BOT_TEXTS } from './messages.ts'
+import { eventRepository } from '../events/repository.ts'
+import { saveAnswer } from '../events/service.ts'
+import { editMessage } from './announcements.ts'
+import { parseCallbackData, type CallbackAction } from './callback-data.ts'
+import { BOT_TEXTS, CALLBACK_TEXTS } from './messages.ts'
+import { eventMessage } from './render.ts'
 import { TELEGRAM_USER_CONSTRAINT, telegramRepository } from './repository.ts'
 import {
   displayNameOf,
@@ -24,7 +34,8 @@ import {
 /** Привязывают Telegram член, офицер и администратор (TGM-01, Q-88). */
 export const TELEGRAM_LINKERS = INTERNAL_ROLES
 
-function requireTelegram(deps: AppDeps): TelegramDeps {
+/** Telegram настроен на сервере, иначе `telegram_unavailable`. */
+export function requireTelegram(deps: AppDeps): TelegramDeps {
   if (!deps.telegram) {
     throw new ApiError('telegram_unavailable')
   }
@@ -126,7 +137,7 @@ export async function handleTelegramWebhook(
     if (message) {
       await onMessage(deps, telegram, message)
     } else if (callback) {
-      await onCallback(telegram, callback)
+      await onCallback(deps, telegram, callback)
     }
   } catch (error) {
     console.error('Апдейт Telegram не обработан', error)
@@ -219,12 +230,124 @@ async function linkByCode(
   }
 }
 
-/** Нажатия кнопок — задача 4; пока закрывается индикатор нажатия. */
+/**
+ * Нажатие кнопки анонса (TGM-18–TGM-23). Всегда закрывает индикатор;
+ * отказ — всплывающее пояснение и снятие кнопок с нажатого сообщения.
+ */
 async function onCallback(
+  deps: AppDeps,
   telegram: TelegramDeps,
   callback: TelegramCallbackQuery,
 ) {
-  await telegram.gateway.answerCallback(callback.id)
+  let alert: string | undefined = CALLBACK_TEXTS.failed
+  try {
+    const action = parseCallbackData(callback.data ?? '')
+    const message = callback.message
+    if (!message) {
+      alert = CALLBACK_TEXTS.stale
+      return
+    }
+    const target = { chatId: message.chat.id, messageId: message.message_id }
+    alert = action
+      ? await pressButton(deps, telegram, callback.from.id, target, action)
+      : CALLBACK_TEXTS.stale
+    if (alert) {
+      await telegram.gateway.editKeyboard(target.chatId, target.messageId, null)
+    }
+  } finally {
+    await telegram.gateway.answerCallback(callback.id, alert)
+  }
+}
+
+/** Результат нажатия: `undefined` — принято, иначе текст отказа. */
+async function pressButton(
+  deps: AppDeps,
+  telegram: TelegramDeps,
+  telegramUserId: number,
+  target: { chatId: number; messageId: number },
+  action: CallbackAction,
+): Promise<string | undefined> {
+  const link = await telegramRepository.linkByTelegram(deps.db, telegramUserId)
+  if (!link) {
+    return CALLBACK_TEXTS.notLinked
+  }
+  const event = await eventRepository.find(deps.db, action.eventId)
+  if (!event) {
+    return CALLBACK_TEXTS.deleted
+  }
+  // Кнопки принимаются только с активного сообщения своего события (TGM-22).
+  const active = await telegramRepository.activeMessage(
+    deps.db,
+    action.eventId,
+    link.userId,
+  )
+  if (
+    !active ||
+    active.chatId !== target.chatId ||
+    active.messageId !== target.messageId
+  ) {
+    return CALLBACK_TEXTS.stale
+  }
+  let viewer: ProfiledActor
+  try {
+    viewer = requireRole(await loadActor(deps.db, link.userId), INTERNAL_ROLES)
+  } catch {
+    return CALLBACK_TEXTS.forbidden
+  }
+  if (event.closed_at) {
+    return CALLBACK_TEXTS.closed
+  }
+  if (parseTimestamp(event.starts_at) <= deps.now()) {
+    return CALLBACK_TEXTS.started
+  }
+
+  if (action.kind === 'answer') {
+    try {
+      await saveAnswer(deps, viewer, action.eventId, action.answer)
+    } catch (error) {
+      return refusalText(error)
+    }
+    const { html, keyboard } = eventMessage(
+      active,
+      action.eventId,
+      action.answer,
+    )
+    await editMessage(deps, telegram, link.userId, target, html, keyboard)
+    return undefined
+  }
+  // «Изменить решение»: ответ не меняется до нового выбора (Q-76).
+  const answers = await eventRepository.answersOf(
+    deps.db,
+    [action.eventId],
+    link.userId,
+  )
+  const { html, keyboard } = eventMessage(
+    active,
+    action.eventId,
+    answers.get(action.eventId) ?? null,
+    true,
+  )
+  await editMessage(deps, telegram, link.userId, target, html, keyboard)
+  return undefined
+}
+
+/** Отказ `saveAnswer` при гонке с закрытием, началом или удалением события. */
+function refusalText(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    throw error
+  }
+  if (error.code === 'not_found') {
+    return CALLBACK_TEXTS.deleted
+  }
+  if (error.code === 'forbidden') {
+    return CALLBACK_TEXTS.forbidden
+  }
+  if (error.code === 'state_conflict') {
+    return error.fields?.reason === 'closed'
+      ? CALLBACK_TEXTS.closed
+      : CALLBACK_TEXTS.started
+  }
+  throw error
 }
 
 function randomCode() {

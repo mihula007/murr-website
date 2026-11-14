@@ -7,18 +7,24 @@ import {
   prefillSchema,
   saveBroadcastTemplateSchema,
   saveDraftSchema,
+  sendAnnouncementSchema,
   type BroadcastChannel,
   type BroadcastDraftsResponse,
   type BroadcastTemplatesResponse,
   type PrefillResponse,
+  type SendAnnouncementResponse,
+  type TelegramRecipientsResponse,
 } from '../contracts/broadcasts.ts'
 import { EVENT_TYPE_LABELS, type EventType } from '../contracts/events.ts'
-import { utcToMoscow } from '../contracts/moscow-time.ts'
+import { parseTimestamp, utcToMoscow } from '../contracts/moscow-time.ts'
 import { withTransaction } from '../db/client.ts'
 import { eventRepository } from '../events/repository.ts'
 import { groupRepository } from '../groups/repository.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
+import { deliverAnnouncement } from '../telegram/announcements.ts'
+import { telegramRepository } from '../telegram/repository.ts'
+import { requireTelegram } from '../telegram/service.ts'
 import { voteRepository } from '../votes/repository.ts'
 import { broadcastRepository } from './repository.ts'
 
@@ -295,4 +301,71 @@ export async function deleteBroadcastTemplate(
     })
   })
   return listBroadcastTemplates(deps, user)
+}
+
+/** Число получателей для окна подтверждения (TGM-11, TGM-14). */
+export async function telegramRecipients(
+  deps: AppDeps,
+  actor: Actor,
+): Promise<TelegramRecipientsResponse> {
+  requireRole(actor, BROADCAST_MANAGERS)
+  requireTelegram(deps)
+  return { count: await telegramRepository.recipientCount(deps.db) }
+}
+
+/**
+ * Отправка анонса в Telegram (TGM-11–TGM-24, Q-81, Q-85, Q-92): анонс
+ * события — с кнопками, только для незакрытого и не начавшегося события;
+ * без получателей — отказ. Одна запись аудита на отправку.
+ */
+export async function sendAnnouncement(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<SendAnnouncementResponse> {
+  const user = requireRole(actor, BROADCAST_MANAGERS)
+  const telegram = requireTelegram(deps)
+  const input = parseBody(sendAnnouncementSchema, body)
+  const event = input.eventId
+    ? await eventRepository.find(deps.db, input.eventId)
+    : null
+  if (input.eventId && !event) {
+    throw new ApiError('not_found')
+  }
+  if (event?.closed_at) {
+    throw new ApiError('state_conflict', { reason: 'closed' })
+  }
+  if (event && parseTimestamp(event.starts_at) <= deps.now()) {
+    throw new ApiError('state_conflict', { reason: 'started' })
+  }
+  if ((await telegramRepository.recipientCount(deps.db)) === 0) {
+    throw new ApiError('state_conflict', { reason: 'no_recipients' })
+  }
+  const result = await deliverAnnouncement(
+    deps,
+    telegram,
+    { subject: input.subject, body: input.body },
+    event?.id ?? null,
+  )
+  await withTransaction(deps.db, (tx) =>
+    writeAudit(tx, {
+      category: 'broadcast',
+      action: 'broadcast_sent',
+      summary: event
+        ? 'Отправка анонса события в Telegram'
+        : 'Отправка анонса в Telegram',
+      actor: auditPerson(user),
+      ...(event ? { target: { kind: 'event', id: event.id } } : {}),
+      details: {
+        title: input.subject,
+        event_id: event?.id ?? null,
+        source_kind: event ? 'event' : null,
+        channels: ['telegram'],
+        recipients: result.recipients,
+        sent: result.sent,
+        failed: result.failed,
+      },
+    }),
+  )
+  return result
 }

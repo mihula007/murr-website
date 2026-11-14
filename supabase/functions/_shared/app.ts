@@ -34,6 +34,8 @@ import {
   prefillBroadcast,
   saveBroadcastTemplate,
   saveDraft,
+  sendAnnouncement,
+  telegramRecipients,
 } from './broadcasts/service.ts'
 import {
   bearerToken,
@@ -309,6 +311,8 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       saveBroadcastTemplate(deps, actor, body),
     'broadcasts/delete-template': ({ actor, body }) =>
       deleteBroadcastTemplate(deps, actor, body),
+    'broadcasts/recipients': ({ actor }) => telegramRecipients(deps, actor),
+    'broadcasts/send': ({ actor, body }) => sendAnnouncement(deps, actor, body),
     'telegram/status': ({ actor }) => telegramStatus(deps, actor),
     'telegram/link-start': ({ actor }) => startTelegramLink(deps, actor),
     'telegram/unlink': ({ actor }) => unlinkTelegram(deps, actor),
