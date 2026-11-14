@@ -7,6 +7,7 @@ import {
   prefillSchema,
   saveBroadcastTemplateSchema,
   saveDraftSchema,
+  recipientsSchema,
   sendAnnouncementSchema,
   type BroadcastChannel,
   type BroadcastDraftsResponse,
@@ -322,11 +323,12 @@ const CHANNELS: Record<
     name: string
     configured: (deps: AppDeps) => boolean
     require: (deps: AppDeps) => unknown
-    count: (deps: AppDeps) => Promise<number>
+    count: (deps: AppDeps, groupId: string | null) => Promise<number>
     deliver: (
       deps: AppDeps,
       text: AnnouncementText,
       eventId: string | null,
+      groupId: string | null,
     ) => Promise<ChannelDelivery>
   }
 > = {
@@ -334,25 +336,26 @@ const CHANNELS: Record<
     name: 'Telegram',
     configured: (deps) => Boolean(deps.telegram),
     require: requireTelegram,
-    count: (deps) => telegramRepository.recipientCount(deps.db),
-    deliver: (deps, text, eventId) =>
-      deliverAnnouncement(deps, requireTelegram(deps), text, eventId),
+    count: (deps, groupId) =>
+      telegramRepository.recipientCount(deps.db, groupId),
+    deliver: (deps, text, eventId, groupId) =>
+      deliverAnnouncement(deps, requireTelegram(deps), text, eventId, groupId),
   },
   vk: {
     name: 'ВКонтакте',
     configured: (deps) => Boolean(deps.vk),
     require: requireVk,
-    count: (deps) => vkRepository.recipientCount(deps.db),
-    deliver: (deps, text, eventId) =>
-      deliverVkAnnouncement(deps, requireVk(deps), text, eventId),
+    count: (deps, groupId) => vkRepository.recipientCount(deps.db, groupId),
+    deliver: (deps, text, eventId, groupId) =>
+      deliverVkAnnouncement(deps, requireVk(deps), text, eventId, groupId),
   },
   max: {
     name: 'MAX',
     configured: (deps) => Boolean(deps.max),
     require: requireMax,
-    count: (deps) => maxRepository.recipientCount(deps.db),
-    deliver: (deps, text, eventId) =>
-      deliverMaxAnnouncement(deps, requireMax(deps), text, eventId),
+    count: (deps, groupId) => maxRepository.recipientCount(deps.db, groupId),
+    deliver: (deps, text, eventId, groupId) =>
+      deliverMaxAnnouncement(deps, requireMax(deps), text, eventId, groupId),
   },
 }
 
@@ -360,10 +363,12 @@ const CHANNELS: Record<
 export async function broadcastRecipients(
   deps: AppDeps,
   actor: Actor,
+  body: unknown = {},
 ): Promise<BroadcastRecipientsResponse> {
   requireRole(actor, BROADCAST_MANAGERS)
+  const { groupId } = parseBody(recipientsSchema, body ?? {})
   const counts = await Promise.all(
-    SENDABLE_CHANNELS.map((channel) => CHANNELS[channel].count(deps)),
+    SENDABLE_CHANNELS.map((channel) => CHANNELS[channel].count(deps, groupId)),
   )
   const channels = Object.fromEntries(
     SENDABLE_CHANNELS.map((channel, index) => [
@@ -400,6 +405,22 @@ export async function sendAnnouncement(
   for (const channel of input.channels) {
     CHANNELS[channel].require(deps)
   }
+  if (input.eventId && input.groupId) {
+    throw new ApiError('validation_failed', { groupId: 'invalid' })
+  }
+  // Анонс группы: группа незакрытого события, без кнопок (TGM-12, Q-102).
+  const group = input.groupId
+    ? await groupRepository.findGroup(deps.db, input.groupId)
+    : null
+  if (input.groupId && !group) {
+    throw new ApiError('state_conflict', { reason: 'group_missing' })
+  }
+  const groupEvent = group
+    ? await eventRepository.find(deps.db, group.event_id)
+    : null
+  if (group && (!groupEvent || groupEvent.closed_at)) {
+    throw new ApiError('state_conflict', { reason: 'closed' })
+  }
   const event = input.eventId
     ? await eventRepository.find(deps.db, input.eventId)
     : null
@@ -412,8 +433,9 @@ export async function sendAnnouncement(
   if (event && parseTimestamp(event.starts_at) <= deps.now()) {
     throw new ApiError('state_conflict', { reason: 'started' })
   }
+  const groupId = group?.id ?? null
   const counts = await Promise.all(
-    input.channels.map((channel) => CHANNELS[channel].count(deps)),
+    input.channels.map((channel) => CHANNELS[channel].count(deps, groupId)),
   )
   if (counts.every((count) => count === 0)) {
     throw new ApiError('state_conflict', { reason: 'no_recipients' })
@@ -425,7 +447,7 @@ export async function sendAnnouncement(
   const results = await Promise.all(
     input.channels.map((channel, index) =>
       counts[index]! > 0
-        ? CHANNELS[channel].deliver(deps, text, eventId)
+        ? CHANNELS[channel].deliver(deps, text, eventId, groupId)
         : EMPTY_DELIVERY,
     ),
   )
@@ -452,13 +474,16 @@ export async function sendAnnouncement(
     writeAudit(tx, {
       category: 'broadcast',
       action: 'broadcast_sent',
-      summary: `${event ? 'Отправка анонса события' : 'Отправка анонса'} в ${names}`,
+      summary: `${event ? 'Отправка анонса события' : group ? 'Отправка анонса группы' : 'Отправка анонса'} в ${names}`,
       actor: auditPerson(user),
       ...(event ? { target: { kind: 'event', id: event.id } } : {}),
+      // Как действия с группами: запись указывает на событие группы.
+      ...(group ? { target: { kind: 'event', id: group.event_id } } : {}),
       details: {
         title: input.subject,
-        event_id: event?.id ?? null,
-        source_kind: event ? 'event' : null,
+        event_id: event?.id ?? group?.event_id ?? null,
+        source_kind: event ? 'event' : group ? 'group' : null,
+        ...(group ? { group_id: group.id } : {}),
         channels: input.channels,
         recipients: totals.recipients,
         sent: totals.sent,

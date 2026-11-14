@@ -82,13 +82,17 @@ export type SaveBroadcastTemplateRequest = z.input<
  * Анонс в выбранные каналы (TGM-11–TGM-13, MAX-05); `eventId` — анонс
  * события с кнопками. Без `channels` — только Telegram (прежний клиент).
  */
+const optionalId = z
+  .guid('not_found')
+  .nullish()
+  .transform((value) => value ?? null)
+
 export const sendAnnouncementSchema = z.object({
   subject: optionalSubject,
   body: bodySchema,
-  eventId: z
-    .guid('not_found')
-    .nullish()
-    .transform((value) => value ?? null),
+  eventId: optionalId,
+  /** Анонс группы: только её участникам, без кнопок (TGM-12, Q-102). */
+  groupId: optionalId,
   channels: z
     .array(z.enum(SENDABLE_CHANNELS, 'invalid'), 'required')
     .min(1, 'required')
@@ -98,6 +102,10 @@ export const sendAnnouncementSchema = z.object({
     ),
 })
 export type SendAnnouncementRequest = z.input<typeof sendAnnouncementSchema>
+
+/** Получатели для подтверждения; `groupId` — только участники группы. */
+export const recipientsSchema = z.object({ groupId: optionalId })
+export type RecipientsRequest = z.input<typeof recipientsSchema>
 
 export type ChannelDelivery = {
   recipients: number

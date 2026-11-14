@@ -93,6 +93,8 @@ const EMPTY: FormValues = {
 
 const NO_RECIPIENTS =
   'Отправить некому: никто из участников клана не привязал выбранные мессенджеры.'
+const NO_GROUP_RECIPIENTS =
+  'Отправить некому: никто из участников группы не привязал выбранные мессенджеры.'
 
 const isSendable = (channel: BroadcastChannel): channel is SendableChannel =>
   (SENDABLE_CHANNELS as readonly BroadcastChannel[]).includes(channel)
@@ -146,18 +148,22 @@ function sentText(result: SendAnnouncementResponse, chosen: SendableChannel[]) {
     : `Отправлено — ${sent}`
 }
 
-/** Причина отказа отправки (Q-92). */
-function sendRefusal(error: AppError) {
+/** Причина отказа отправки (Q-92, Q-102). */
+function sendRefusal(error: AppError, forGroup: boolean) {
   if (error.code !== 'state_conflict') {
     return null
   }
   switch (error.fields.reason) {
     case 'no_recipients':
-      return NO_RECIPIENTS
+      return forGroup ? NO_GROUP_RECIPIENTS : NO_RECIPIENTS
+    case 'group_missing':
+      return 'Группа удалена: анонс группы не отправлен.'
     case 'started':
       return 'Событие уже началось: анонс с кнопками ответа не отправляется.'
     case 'closed':
-      return 'Событие завершено: анонс с кнопками ответа не отправляется.'
+      return forGroup
+        ? 'Событие группы завершено: анонс не отправлен.'
+        : 'Событие завершено: анонс с кнопками ответа не отправляется.'
     default:
       return null
   }
@@ -439,10 +445,10 @@ function BroadcastForm({
   const save = useSaveDraft()
   const send = useSendAnnouncement()
   const fetchRecipients = useFetchRecipients()
-  // Анонс события — с кнопками ответа; связь можно снять (TGM-12).
-  const [eventId, setEventId] = useState(
-    source?.kind === 'event' ? source.id : null,
-  )
+  // Вид анонса задаёт источник формы и не меняется (TGM-12, Q-102):
+  // событие — с кнопками, группа — только её участникам.
+  const eventId = source?.kind === 'event' ? source.id : null
+  const groupId = source?.kind === 'group' ? source.id : null
   // Одна проверка формы для двух действий: черновик или отправка.
   const intent = useRef<'save' | 'send'>('save')
   const [checking, setChecking] = useState(false)
@@ -483,11 +489,11 @@ function BroadcastForm({
     setSendError(null)
     setChecking(true)
     try {
-      const counts = chosenCounts(await fetchRecipients(), chosen)
+      const counts = chosenCounts(await fetchRecipients(groupId), chosen)
       if (typeof counts === 'string') {
         setSendError(counts)
       } else if (Object.values(counts).every((count) => count === 0)) {
-        setSendError(NO_RECIPIENTS)
+        setSendError(groupId ? NO_GROUP_RECIPIENTS : NO_RECIPIENTS)
       } else {
         setConfirmCounts(counts)
       }
@@ -509,25 +515,16 @@ function BroadcastForm({
         }}
       >
         {eventId ? (
-          <Notice className="col-span-full flex flex-wrap items-center justify-between gap-3">
-            <span>
-              Анонс события: в мессенджеры придёт с кнопками «Приду», «50/50» и
-              «Не приду».
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setEventId(null)}
-            >
-              <X size={14} aria-hidden="true" /> Снять связь
-            </Button>
+          <Notice className="col-span-full">
+            Анонс события: в мессенджеры придёт с кнопками «Приду», «50/50» и
+            «Не приду».
           </Notice>
         ) : null}
-        {recipients ? (
+        {groupId ? (
           <Notice className="col-span-full">
-            Получателей в группе: {recipients.length}. Адреса в мессенджерах
-            сайт не хранит — список нужен для текста рассылки.
+            Анонс группы: получат только участники группы, привязавшие
+            мессенджеры, — текстом без кнопок.
+            {recipients ? ` Сейчас в группе: ${recipients.length}.` : null}
           </Notice>
         ) : null}
         <form.Subscribe selector={(state) => state.submissionAttempts > 0}>
@@ -698,9 +695,11 @@ function BroadcastForm({
             id="broadcast-send-hint"
             className="m-0 text-xs text-muted-foreground"
           >
-            Анонс получат члены, офицеры и администраторы, привязавшие выбранные
-            мессенджеры. После отправки текст не изменить. Черновик при отправке
-            не сохраняется.
+            {groupId
+              ? 'Анонс получат участники группы — члены, офицеры и администраторы, привязавшие выбранные мессенджеры.'
+              : 'Анонс получат члены, офицеры и администраторы, привязавшие выбранные мессенджеры.'}{' '}
+            После отправки текст не изменить. Черновик при отправке не
+            сохраняется.
           </p>
         </div>
         {dialog}
@@ -715,11 +714,13 @@ function BroadcastForm({
           description={`Получателей — ${countsText(confirmCounts ?? {})}. ${
             eventId
               ? 'Анонс события придёт с кнопками ответа.'
-              : 'Анонс придёт текстом без кнопок.'
+              : groupId
+                ? 'Анонс придёт только участникам группы, текстом без кнопок.'
+                : 'Анонс придёт текстом без кнопок.'
           } Отправленный анонс не редактируется.`}
           confirmLabel="Отправить"
           pendingLabel="Отправляем…"
-          errorText={sendRefusal}
+          errorText={(error) => sendRefusal(error, groupId !== null)}
           onConfirm={async () => {
             const values = form.state.values
             const channels = values.channels.filter(isSendable)
@@ -727,6 +728,7 @@ function BroadcastForm({
               subject: values.subject,
               body: values.body,
               eventId,
+              groupId,
               channels,
             })
             toast(sentText(result, channels))

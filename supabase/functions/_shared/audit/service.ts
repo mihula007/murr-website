@@ -51,6 +51,7 @@ const DETAIL_KEYS = new Set([
   'max_failed',
   'vk_sent',
   'vk_failed',
+  'group_id',
 ])
 
 type DetailValue = string | number | boolean | null | string[]

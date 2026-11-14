@@ -109,7 +109,7 @@ test('E2E-07: подготовка рассылки из события, гол�
     .locator('..')
     .getByRole('link', { name: 'Подготовить рассылку' })
     .click()
-  await expect(page.getByText('Получателей в группе: 1.')).toBeVisible()
+  await expect(page.getByText(/Сейчас в группе: 1./)).toBeVisible()
   await expect(page.getByLabel('Текст рассылки')).toHaveValue(
     new RegExp(`1\\. ${member.nickname}`),
   )
