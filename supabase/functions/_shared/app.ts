@@ -16,7 +16,6 @@ import { listAudit } from './audit/service.ts'
 import { deleteAccount, pendingDeletions } from './deletion/service.ts'
 import {
   decideApplication,
-  finalDecideApplication,
   getApplication,
   listApplications,
   resubmitApplication,
@@ -166,8 +165,6 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       resubmitApplication(deps, actor, body),
     'applications/submit-to-vote': ({ actor, body }) =>
       submitApplicationToVote(deps, actor, body),
-    'applications/final-decide': ({ actor, body }) =>
-      finalDecideApplication(deps, actor, body),
     'votes/list': ({ actor, body }) => listVotes(deps, actor, body),
     'votes/get': ({ actor, body }) => getVote(deps, actor, body),
     'votes/create': ({ actor, body }) => createVote(deps, actor, body),

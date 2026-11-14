@@ -1,7 +1,7 @@
 // Проверка единой системы стилей (часть `npm run check`): Tailwind — единственный
 // способ оформления. Правила — в style-rules.ts, описание — docs/design-system.md.
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { __unstable__loadDesignSystem } from '@tailwindcss/node'
 import {
@@ -30,7 +30,7 @@ const files = execFileSync(
   { cwd: root, encoding: 'utf8' },
 )
   .split('\0')
-  .filter(Boolean)
+  .filter((file) => Boolean(file) && existsSync(join(root, file)))
 
 const css = readFileSync(join(root, STYLESHEET), 'utf8')
 const designSystem = await __unstable__loadDesignSystem(css, {

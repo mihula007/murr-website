@@ -11,24 +11,21 @@ const STEPS = [
   { title: 'Аккаунт', text: 'Аккаунт и анкета созданы' },
   { title: 'Проверка', text: 'Офицер проверяет анкету' },
   { title: 'Голосование', text: 'Клан рассматривает заявку' },
-  { title: 'Администрация', text: 'Окончательное решение после голосования' },
   { title: 'Решение', text: 'Приём в клан или отказ' },
 ] as const
 
 const ACTIVE_STEP: Record<ApplicationStatus, number> = {
   pending_officer_review: 1,
   pending_vote: 2,
-  vote_completed: 3,
-  officer_approved: 4,
-  officer_rejected: 4,
-  admin_approved: 4,
-  admin_rejected: 4,
+  officer_approved: 3,
+  officer_rejected: 3,
+  admin_approved: 3,
+  admin_rejected: 3,
 }
 
 const TITLES: Record<ApplicationStatus, string> = {
   pending_officer_review: 'Заявка отправлена',
   pending_vote: 'Заявка на голосовании',
-  vote_completed: 'Голосование завершено',
   officer_approved: 'Заявка принята',
   officer_rejected: 'Заявка отклонена',
   admin_approved: 'Заявка принята',
@@ -43,12 +40,12 @@ const stepClass = {
   skipped: 'border-dashed opacity-70',
 } as const
 
-/** Прямое решение офицера проходит без голосования и решения администрации. */
+/** Прямое решение проходит без голосования. */
 const DIRECT_DECISIONS: readonly ApplicationStatus[] = [
   'officer_approved',
   'officer_rejected',
 ]
-const VOTE_STEPS = new Set([2, 3])
+const VOTE_STEPS = new Set([2])
 
 type ApplicantPathProps = {
   application: ApplicationView | null
@@ -84,7 +81,7 @@ export function ApplicantPath({
             {description}
           </p>
         </div>
-        <ol className="m-0 grid list-none grid-cols-1 gap-2.5 p-0 @md:grid-cols-2 @3xl:grid-cols-5">
+        <ol className="m-0 grid list-none grid-cols-1 gap-2.5 p-0 @md:grid-cols-2 @3xl:grid-cols-4">
           {STEPS.map((step, index) => {
             const skipped =
               status !== undefined &&

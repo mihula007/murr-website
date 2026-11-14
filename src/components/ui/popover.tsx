@@ -24,7 +24,7 @@ export function PopoverContent({
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
         className={cn(
-          'z-40 flex w-[min(380px,calc(100vw-24px))] flex-col rounded-xl border border-border-strong bg-surface-menu text-foreground shadow-popover backdrop-blur-[14px] outline-none duration-140 ease-out data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none',
+          'z-60 flex w-[min(380px,calc(100vw-24px))] flex-col rounded-xl border border-border-strong bg-surface-menu text-foreground shadow-popover backdrop-blur-[14px] outline-none duration-140 ease-out data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none',
           className,
         )}
         {...props}

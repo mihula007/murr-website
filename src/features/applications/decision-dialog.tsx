@@ -19,7 +19,7 @@ import { Textarea } from '@/components/ui/input'
 import { toast } from '@/components/ui/toaster'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { errorMessage, type AppError } from '@/lib/errors'
-import { applicationKeys, useDecideApplication, type DecisionKind } from './api'
+import { applicationKeys, useDecideApplication } from './api'
 
 export type Decision = 'accept' | 'reject'
 
@@ -46,31 +46,17 @@ const DIRECT_COPY = {
   },
 } as const
 
-/** Окончательное решение администратора после голосования (APP-08). */
-const FINAL_COPY = {
-  accept: {
-    ...DIRECT_COPY.accept,
-    description:
-      'Кандидат получит роль члена клана и дату вступления — сегодня. Итог голосования учтён вами, а не применён автоматически.',
-  },
-  reject: DIRECT_COPY.reject,
-} as const
-
-const COPY = { direct: DIRECT_COPY, final: FINAL_COPY } as const
-
 type DecisionDialogProps = {
   applicationId: string
   nickname: string
   decision: Decision | null
-  /** Прямое решение до голосования или окончательное после него. */
-  kind?: DecisionKind
   onClose: () => void
   /** Заявку уже решил другой офицер или администратор. */
   onConflict: () => void
 }
 
 /**
- * Подтверждение прямого (APP-04) или окончательного (APP-08) решения с
+ * Подтверждение прямого решения (APP-04) с
  * необязательным примечанием для
  * офицеров и администраторов. Кандидату примечание не показывается.
  */
@@ -78,19 +64,18 @@ export function DecisionDialog({
   applicationId,
   nickname,
   decision,
-  kind = 'direct',
   onClose,
   onConflict,
 }: DecisionDialogProps) {
   const queryClient = useQueryClient()
-  const decide = useDecideApplication(kind)
+  const decide = useDecideApplication()
   const [formError, setFormError] = useState<string | null>(null)
   // Тексты закрывающегося диалога не меняются во время анимации.
   const [shown, setShown] = useState<Decision>('accept')
   if (decision && decision !== shown) {
     setShown(decision)
   }
-  const copy = COPY[kind][decision ?? shown]
+  const copy = DIRECT_COPY[decision ?? shown]
 
   const form = useForm({
     defaultValues: { note: '' },
@@ -105,7 +90,7 @@ export function DecisionDialog({
       await decide
         .mutateAsync({ id: applicationId, decision, note: note || null })
         .then(() => {
-          toast(COPY[kind][decision].done)
+          toast(DIRECT_COPY[decision].done)
           close()
         })
         .catch(async ({ code }: AppError) => {

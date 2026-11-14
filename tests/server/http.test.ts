@@ -78,7 +78,6 @@ describe('api function over HTTP', () => {
       'broadcasts/save-template',
       'broadcasts/delete-template',
       'applications/submit-to-vote',
-      'applications/final-decide',
       'votes/list',
       'votes/get',
       'votes/create',

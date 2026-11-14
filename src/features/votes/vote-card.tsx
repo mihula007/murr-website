@@ -178,7 +178,7 @@ function Ballot({ vote }: { vote: VoteCardData }) {
   )
 }
 
-type Pending = 'edit' | 'close' | 'delete' | null
+type Pending = 'edit' | 'close' | 'accept' | 'reject' | 'delete' | null
 
 function Management({
   vote,
@@ -211,9 +211,20 @@ function Management({
           <DropdownMenuItem onSelect={() => setPending('edit')}>
             Изменить
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setPending('close')}>
-            Завершить
-          </DropdownMenuItem>
+          {linked ? (
+            <>
+              <DropdownMenuItem onSelect={() => setPending('accept')}>
+                Принять в клан
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setPending('reject')}>
+                Отказать
+              </DropdownMenuItem>
+            </>
+          ) : (
+            <DropdownMenuItem onSelect={() => setPending('close')}>
+              Завершить
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             className="text-destructive data-highlighted:text-destructive"
             onSelect={() => setPending('delete')}
@@ -232,16 +243,33 @@ function Management({
         open={pending === 'close'}
         onOpenChange={(open) => setPending(open ? 'close' : null)}
         title={`Завершить «${vote.title}»?`}
-        description={
-          linked
-            ? 'Голосовать и менять решение станет нельзя. Заявка перейдёт к окончательному решению администратора — итог голосования сам кандидата не принимает.'
-            : 'Голосовать и менять решение станет нельзя, голосование перейдёт в историю.'
-        }
+        description="Голосовать и менять решение станет нельзя, голосование перейдёт в историю."
         confirmLabel="Завершить"
         pendingLabel="Завершаем…"
         onConfirm={async () => {
-          await close.mutateAsync(vote.id)
+          await close.mutateAsync({ id: vote.id })
           toast('Голосование завершено')
+        }}
+      />
+      <ConfirmActionDialog
+        open={pending === 'accept' || pending === 'reject'}
+        onOpenChange={(open) => !open && setPending(null)}
+        title={pending === 'accept' ? 'Принять в клан?' : 'Отказать кандидату?'}
+        description={
+          pending === 'accept'
+            ? 'Кандидат получит доступ участника, а голосование будет закрыто.'
+            : 'Заявка будет отклонена, а голосование закрыто.'
+        }
+        confirmLabel={pending === 'accept' ? 'Принять в клан' : 'Отказать'}
+        pendingLabel="Сохраняем…"
+        onConfirm={async () => {
+          const decision = pending === 'accept' ? 'accept' : 'reject'
+          await close.mutateAsync({ id: vote.id, decision })
+          toast(
+            decision === 'accept'
+              ? 'Кандидат принят в клан'
+              : 'Кандидату отказано',
+          )
         }}
       />
       <ConfirmActionDialog

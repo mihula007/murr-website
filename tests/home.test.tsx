@@ -95,44 +95,31 @@ beforeEach(() => {
 const calledRoutes = () => callApi.mock.calls.map(([route]) => route)
 
 describe('главная внутренних ролей (HOM-07–09, ACT-12, ROS-08)', () => {
-  it('без событий предлагает расписание, офицеру — создание', async () => {
+  it('без событий показывает пустое состояние списка', async () => {
     responses['events/list'] = { items: [], nextCursor: null, activeCount: 0 }
     await renderApp({ role: 'officer' })
     expect(
-      await screen.findByRole('heading', {
-        level: 1,
-        name: 'Ближайших событий нет',
-      }),
+      await screen.findByText('Актуальных событий нет'),
     ).toBeInTheDocument()
-    expect(
-      screen.getByRole('link', { name: /Создать событие/ }),
-    ).toHaveAttribute('href', '/events/new')
-    expect(
-      screen.queryByRole('region', { name: 'Дальше в расписании' }),
-    ).not.toBeInTheDocument()
   })
 
-  it('член видит ближайшее событие с ответом, ещё три, число актуальных, топ и краткий состав', async () => {
+  it('показывает ближайшие три события одинаковыми карточками', async () => {
     await renderApp({ role: 'member' })
-    const hero = await screen.findByRole('region', {
-      name: 'Ближайшее событие',
+    const events = await screen.findByRole('region', {
+      name: 'Ближайшие ивенты',
     })
-    expect(
-      await within(hero).findByRole('heading', { level: 1, name: 'Рейд 1' }),
-    ).toBeInTheDocument()
-    expect(
-      within(hero).getByRole('group', { name: 'Ваше решение' }),
-    ).toBeInTheDocument()
-    expect(
-      within(hero).getByText('12 участников в клане, 4 события скоро.'),
-    ).toBeInTheDocument()
-    const later = screen.getByRole('region', { name: 'Дальше в расписании' })
-    for (const title of ['Рейд 2', 'Рейд 3', 'Рейд 4']) {
+    for (const title of ['Рейд 1', 'Рейд 2', 'Рейд 3']) {
       expect(
-        within(later).getByRole('link', { name: new RegExp(title) }),
+        await within(events).findByRole('link', { name: new RegExp(title) }),
       ).toBeInTheDocument()
     }
-    expect(within(later).queryByText('Рейд 1')).not.toBeInTheDocument()
+    expect(within(events).queryByText('Рейд 4')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('region', { name: 'Ближайшее событие' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 1, name: /Легенда продолжается/ }),
+    ).toBeInTheDocument()
 
     const top = screen.getByRole('region', {
       name: 'Топ-5 посещаемости за месяц',

@@ -5,7 +5,6 @@ import type {
   ApplicationDetails,
   ApplicationVoteResult,
 } from '@contracts/applications'
-import { ADMIN_ROLES, hasRole, useAccess } from '@/app/access'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
@@ -17,7 +16,7 @@ import { toast } from '@/components/ui/toaster'
 import { APPLICATION_STATUS } from '@/features/account/status-labels'
 import { formatDate, formatDateMsk } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
-import { useApplication, useSubmitToVote, type DecisionKind } from './api'
+import { useApplication, useSubmitToVote } from './api'
 import { DecisionDialog, type Decision } from './decision-dialog'
 
 const detailsListClass =
@@ -73,26 +72,18 @@ function VoteResult({ vote }: { vote: ApplicationVoteResult }) {
 /** Пояснение для проверяющих, пока заявка в голосовании или ждёт решения. */
 const REVIEWER_NOTICE = {
   pending_vote:
-    'Заявка на голосовании. После его завершения окончательное решение примет администратор.',
-  vote_completed:
-    'Голосование завершено. Окончательное решение принимает администратор.',
+    'Заявка на голосовании. Офицер или администратор примет решение по его итогам.',
 } as const
 
 function ApplicationCard({ details }: { details: ApplicationDetails }) {
-  const { role } = useAccess()
   const [decision, setDecision] = useState<Decision | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [conflict, setConflict] = useState(false)
   const submitToVote = useSubmitToVote()
   const { applicant } = details
   const isNew = details.status === 'pending_officer_review'
-  const awaitsFinal =
-    details.status === 'vote_completed' && hasRole(role, ADMIN_ROLES)
-  const decisionKind: DecisionKind = awaitsFinal ? 'final' : 'direct'
   const reviewerNotice =
-    details.status === 'pending_vote' || details.status === 'vote_completed'
-      ? REVIEWER_NOTICE[details.status]
-      : null
+    details.status === 'pending_vote' ? REVIEWER_NOTICE.pending_vote : null
 
   return (
     <Card className="grid gap-4">
@@ -206,7 +197,7 @@ function ApplicationCard({ details }: { details: ApplicationDetails }) {
         </Notice>
       ) : null}
 
-      {isNew || awaitsFinal ? (
+      {isNew ? (
         <div className="flex flex-wrap gap-2 border-t border-border pt-4 max-xs:grid max-xs:grid-cols-1">
           {isNew ? (
             <Button type="button" onClick={() => setSubmitting(true)}>
@@ -250,7 +241,6 @@ function ApplicationCard({ details }: { details: ApplicationDetails }) {
         applicationId={details.id}
         nickname={applicant.gameNickname}
         decision={decision}
-        kind={decisionKind}
         onClose={() => setDecision(null)}
         onConflict={() => setConflict(true)}
       />

@@ -1,11 +1,13 @@
 import { z } from 'zod'
 import type { AppDeps } from '../app.ts'
 import { applicationRepository } from '../applications/repository.ts'
+import { applyApplicationDecision } from '../applications/service.ts'
 import { auditPerson, writeAudit } from '../audit/service.ts'
 import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
 import { MEMBER_LIST_LIMIT, SMALL_LIST_LIMIT } from '../contracts/paging.ts'
 import {
   castBallotSchema,
+  closeVoteSchema,
   createVoteSchema,
   listVotesSchema,
   updateVoteSchema,
@@ -269,8 +271,7 @@ export async function castBallot(
 }
 
 /**
- * Завершение (VOT-09, Q-40: в любой момент, без кворума). Заявка связанного
- * голосования переходит к окончательному решению администратора (VOT-10).
+ * Для связанной заявки решение и закрытие выполняются в одной транзакции.
  */
 export async function closeVote(
   deps: AppDeps,
@@ -278,20 +279,29 @@ export async function closeVote(
   body: unknown,
 ): Promise<VoteDetails> {
   const manager = requireRole(actor, VOTE_MANAGERS)
-  const { id } = parseBody(voteIdSchema, body)
+  const { id, decision } = parseBody(closeVoteSchema, body)
   await withTransaction(deps.db, async (tx) => {
     const vote = await lockActive(tx, id, 'update')
     const at = deps.now().toISOString()
-    await voteRepository.close(tx, vote.id, manager.userId, at)
     if (vote.application_id) {
-      await moveApplication(
+      if (!decision) {
+        throw new ApiError('validation_failed', { decision: 'required' })
+      }
+      await applyApplicationDecision(
         tx,
-        vote.application_id,
+        deps,
+        manager,
+        {
+          id: vote.application_id,
+          decision,
+          note: null,
+        },
         'pending_vote',
-        'vote_completed',
-        at,
       )
+    } else if (decision) {
+      throw new ApiError('validation_failed', { decision: 'invalid' })
     }
+    await voteRepository.close(tx, vote.id, manager.userId, at)
     await writeAudit(tx, {
       category: 'votes',
       action: 'vote_closed',

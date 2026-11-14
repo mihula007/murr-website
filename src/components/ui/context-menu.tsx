@@ -18,7 +18,7 @@ export function ContextMenuContent({
     <ContextMenuPrimitive.Portal>
       <ContextMenuPrimitive.Content
         className={cn(
-          'z-40 flex max-w-[min(320px,calc(100vw-28px))] min-w-[220px] flex-col gap-[3px] rounded-xl border border-border-strong bg-surface-menu p-[7px] text-foreground shadow-popover backdrop-blur-[14px] duration-140 ease-out data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none',
+          'z-60 flex max-w-[min(320px,calc(100vw-28px))] min-w-[220px] flex-col gap-[3px] rounded-xl border border-border-strong bg-surface-menu p-[7px] text-foreground shadow-popover backdrop-blur-[14px] duration-140 ease-out data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none',
           className,
         )}
         {...props}

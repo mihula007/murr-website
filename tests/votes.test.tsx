@@ -76,6 +76,41 @@ beforeEach(() => {
 })
 
 describe('votes list (VOT-01)', () => {
+  it.each([
+    ['Принять в клан', 'accept'],
+    ['Отказать', 'reject'],
+  ] as const)(
+    'офицер выбирает «%s» при закрытии голосования',
+    async (label, decision) => {
+      const applicationVote = vote({
+        kind: 'application',
+        title: 'Заявка: Мур',
+        applicant: { gameNickname: 'Мур', className: 'Маг' },
+      })
+      respond({
+        'votes/list': () => list([applicationVote]),
+        'votes/close': () => ({
+          ...applicationVote,
+          closedAt: '2026-11-14T10:00:00Z',
+        }),
+      })
+      await renderApp({ role: 'officer', path: '/votes' })
+      fireEvent.keyDown(
+        await screen.findByRole('button', { name: /^Управление голосованием/ }),
+        { key: 'Enter' },
+      )
+      expect(screen.queryByRole('menuitem', { name: 'Завершить' })).toBeNull()
+      fireEvent.click(await screen.findByRole('menuitem', { name: label }))
+      const dialog = await screen.findByRole('alertdialog')
+      fireEvent.click(within(dialog).getByRole('button', { name: label }))
+      await waitFor(() =>
+        expect(callApi).toHaveBeenCalledWith('votes/close', {
+          id: VOTE_ID,
+          decision,
+        }),
+      )
+    },
+  )
   it('shows active votes with results and the leader to a member', async () => {
     respond({ 'votes/list': () => list([vote()]) })
     await renderApp({ role: 'member', path: '/votes' })
@@ -407,84 +442,17 @@ describe('application voting (APP-04, APP-05, APP-08)', () => {
     expect(screen.queryByRole('button', { name: 'Принять' })).toBeNull()
   })
 
-  it('lets only the admin decide after the vote', async () => {
+  it('does not show a final-decision queue', async () => {
     respond({
-      'applications/get': () =>
-        application({ status: 'vote_completed', vote: VOTE_RESULT }),
-      'applications/final-decide': () =>
-        application({
-          status: 'admin_approved',
-          decidedAt: '2026-11-11T12:00:00Z',
-          vote: VOTE_RESULT,
-        }),
       'applications/list': () => ({
         items: [],
         nextCursor: null,
         newCount: 0,
-        finalCount: 0,
         truncated: false,
       }),
     })
-    const officer = await renderApp({
-      role: 'officer',
-      path: `/applications/${APPLICATION_ID}`,
-    })
-    expect(
-      await screen.findByText(/Окончательное решение принимает администратор/),
-    ).toBeVisible()
-    expect(screen.queryByRole('button', { name: 'Принять' })).toBeNull()
-    officer.unmount()
-
-    await renderApp({ role: 'admin', path: `/applications/${APPLICATION_ID}` })
-    fireEvent.click(await screen.findByRole('button', { name: 'Принять' }))
-    const dialog = await screen.findByRole('alertdialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Принять' }))
-    await waitFor(() =>
-      expect(callApi).toHaveBeenCalledWith('applications/final-decide', {
-        id: APPLICATION_ID,
-        decision: 'accept',
-        note: null,
-      }),
-    )
-    expect(
-      await screen.findByText('Администрация подтвердила приём'),
-    ).toBeVisible()
-  })
-
-  it('shows the final-decision tab only to the admin', async () => {
-    respond({
-      'applications/list': (body) => ({
-        items:
-          (body as { tab: string }).tab === 'final'
-            ? [
-                {
-                  id: APPLICATION_ID,
-                  status: 'vote_completed',
-                  submittedAt: '2026-11-10T10:00:00Z',
-                  decidedAt: null,
-                  applicant: application().applicant,
-                  vote: VOTE_RESULT,
-                },
-              ]
-            : [],
-        nextCursor: null,
-        newCount: 0,
-        finalCount: 1,
-        truncated: false,
-      }),
-    })
-    const officer = await renderApp({
-      role: 'officer',
-      path: '/applications?tab=final',
-    })
-    expect(await screen.findByText('Новых заявок нет')).toBeVisible()
+    await renderApp({ role: 'admin', path: '/applications' })
+    await screen.findByText('Новых заявок нет')
     expect(screen.queryByRole('tab', { name: /Окончательные/ })).toBeNull()
-    officer.unmount()
-
-    await renderApp({ role: 'admin', path: '/applications?tab=final' })
-    const queue = within(
-      await screen.findByRole('list', { name: 'Окончательные решения' }),
-    )
-    expect(queue.getByText('За: 2 · Против: 0')).toBeVisible()
   })
 })

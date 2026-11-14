@@ -314,7 +314,6 @@ describe('applicant path (HOM-06)', () => {
     [null, 'Аккаунт создан', 'Аккаунт'],
     ['pending_officer_review', 'Заявка отправлена', 'Проверка'],
     ['pending_vote', 'Заявка на голосовании', 'Голосование'],
-    ['vote_completed', 'Голосование завершено', 'Администрация'],
     ['officer_rejected', 'Заявка отклонена', 'Решение'],
     ['admin_rejected', 'Заявка отклонена', 'Решение'],
   ]
@@ -349,7 +348,7 @@ describe('applicant path (HOM-06)', () => {
     )
     expect(
       screen.getAllByText('Не потребовалось: решение без голосования'),
-    ).toHaveLength(2)
+    ).toHaveLength(1)
     expect(screen.getAllByLabelText('Пройдено')).toHaveLength(2)
   })
 

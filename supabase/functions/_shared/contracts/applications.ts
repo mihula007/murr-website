@@ -7,13 +7,12 @@ import {
 import { pageRequestShape, type Page } from './paging.ts'
 import type { VoteOptionResult } from './votes.ts'
 
-/** `final` — очередь окончательных решений, только администратору (APP-08). */
-export const APPLICATION_TABS = ['new', 'decided', 'final'] as const
+/** Доступные очереди заявок. */
+export const APPLICATION_TABS = ['new', 'decided'] as const
 export type ApplicationTab = (typeof APPLICATION_TABS)[number]
 
 /**
- * «Новые» и «Окончательные решения» — малые списки (≤ 50 по ответу
- * владельца), отдаются целиком, курсор не используется. «Решённые» —
+ * «Новые» — малый список (≤ 50), курсор не используется. «Решённые» —
  * большой, страницы по курсору.
  */
 export const listApplicationsSchema = z.object({
@@ -66,17 +65,13 @@ export type ApplicationListItem = {
   submittedAt: string
   decidedAt: string | null
   applicant: ApplicantSummary
-  /** Вкладка `final`: итоги четырёх вариантов голосования. */
-  vote?: ApplicationVoteResult
 }
 
 export type ApplicationListResponse = Page<ApplicationListItem> & {
   /** Число новых заявок для счётчика вкладки. */
   newCount: number
-  /** Число заявок, ждущих окончательного решения; только администратору. */
-  finalCount?: number
   /**
-   * «Новые» и `final`: заявок больше порога малого списка, показаны самые старые.
+   * «Новые»: заявок больше порога малого списка, показаны самые старые.
    * Список не обрезается молча — интерфейс сообщает об этом.
    */
   truncated: boolean

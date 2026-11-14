@@ -75,6 +75,24 @@ describe('Sheet', () => {
 })
 
 describe('DropdownMenu', () => {
+  it('не блокирует прокрутку страницы при открытии', async () => {
+    render(
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button>Действия</Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem>Изменить</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    )
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Действия' }), {
+      key: 'Enter',
+    })
+    await screen.findByRole('menu')
+    expect(document.body).not.toHaveAttribute('data-scroll-locked')
+  })
+
   it('открывается с клавиатуры и перемещает фокус стрелками', async () => {
     render(
       <DropdownMenu>

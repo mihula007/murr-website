@@ -5,7 +5,6 @@ import {
   APPLICATION_TABS,
   type ApplicationListItem,
 } from '@contracts/applications'
-import { ADMIN_ROLES, hasRole, useAccess } from '@/app/access'
 import { EmptyState } from '@/components/states/empty-state'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
@@ -18,11 +17,7 @@ import { pagingOf, VirtualList } from '@/components/virtual-list'
 import { APPLICATION_STATUS } from '@/features/account/status-labels'
 import { SMALL_LIST_LIMIT } from '@contracts/paging'
 import { formatDateMsk } from '@/lib/format-date'
-import {
-  useDecidedApplications,
-  useFinalApplications,
-  useNewApplications,
-} from './api'
+import { useDecidedApplications, useNewApplications } from './api'
 
 /** Параметры адреса очереди: неизвестная вкладка — «Новые». */
 export const applicationsSearchSchema = z.object({
@@ -53,16 +48,8 @@ function QueueCard({ item }: { item: ApplicationListItem }) {
           {applicant.className} · подана {formatDateMsk(item.submittedAt)}
           {item.decidedAt ? ` · решение ${formatDateMsk(item.decidedAt)}` : ''}
         </small>
-        {item.vote ? (
-          <small className="break-words text-foreground">
-            {item.vote.options
-              .map((option) => `${option.label}: ${option.count}`)
-              .join(' · ')}
-          </small>
-        ) : null}
       </span>
-      {item.status !== 'pending_officer_review' &&
-      item.status !== 'vote_completed' ? (
+      {item.status !== 'pending_officer_review' ? (
         <Badge className="max-sm:hidden">
           {APPLICATION_STATUS[item.status].label}
         </Badge>
@@ -80,10 +67,6 @@ const EMPTY = {
   new: {
     title: 'Новых заявок нет',
     description: 'Когда кандидат подаст заявку, она появится здесь.',
-  },
-  final: {
-    title: 'Окончательных решений не ждёт ни одна заявка',
-    description: 'Здесь появятся заявки после завершения голосования по ним.',
   },
   decided: {
     title: 'Решённых заявок нет',
@@ -131,21 +114,12 @@ export function ApplicationsPage({
   tab: requested = 'new',
 }: Partial<ApplicationsSearch>) {
   const navigate = useNavigate()
-  const { role } = useAccess()
-  const isAdmin = hasRole(role, ADMIN_ROLES)
-  // Очередь окончательных решений — только администратору (APP-08).
-  const tab = requested === 'final' && !isAdmin ? 'new' : requested
+  const tab = requested
   const newQueue = useNewApplications(tab === 'new')
-  const finalQueue = useFinalApplications(tab === 'final')
   const decided = useDecidedApplications(tab === 'decided')
   const decidedItems = decided.data?.pages.flatMap((page) => page.items)
-  const counts =
-    tab === 'new'
-      ? newQueue.data
-      : tab === 'final'
-        ? finalQueue.data
-        : decided.data?.pages[0]
-  const small = tab === 'new' ? newQueue : finalQueue
+  const counts = tab === 'new' ? newQueue.data : decided.data?.pages[0]
+  const small = newQueue
   const list = tab === 'decided' ? decided : small
 
   let content
@@ -159,7 +133,7 @@ export function ApplicationsPage({
         <EmptyState {...EMPTY[tab]} />
       ) : (
         <SmallQueue
-          label={tab === 'new' ? 'Новые заявки' : 'Окончательные решения'}
+          label="Новые заявки"
           items={small.data.items}
           truncated={small.data.truncated}
         />
@@ -191,7 +165,7 @@ export function ApplicationsPage({
           void navigate({
             to: '/applications',
             search: {
-              tab: value === 'decided' || value === 'final' ? value : 'new',
+              tab: value === 'decided' ? value : 'new',
             },
           })
         }
@@ -201,15 +175,6 @@ export function ApplicationsPage({
             Новые
             <NavBadge count={counts?.newCount} />
           </TabsTrigger>
-          {isAdmin ? (
-            <TabsTrigger
-              value="final"
-              className="inline-flex items-center gap-2"
-            >
-              Окончательные
-              <NavBadge count={counts?.finalCount} />
-            </TabsTrigger>
-          ) : null}
           <TabsTrigger value="decided">Решённые</TabsTrigger>
         </TabsList>
       </Tabs>

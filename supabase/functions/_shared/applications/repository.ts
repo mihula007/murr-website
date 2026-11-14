@@ -8,7 +8,6 @@ export type ApplicationRow =
 export const ACTIVE_STATUSES = [
   'pending_officer_review',
   'pending_vote',
-  'vote_completed',
 ] as const
 
 export const DECIDED_STATUSES = [

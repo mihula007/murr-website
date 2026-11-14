@@ -117,7 +117,6 @@ export type AccessRole = 'applicant' | 'reader' | 'member' | 'officer' | 'admin'
 export type ApplicationStatus =
   | 'pending_officer_review'
   | 'pending_vote'
-  | 'vote_completed'
   | 'officer_approved'
   | 'officer_rejected'
   | 'admin_approved'

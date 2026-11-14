@@ -1,9 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
-import { getMe } from '../../supabase/functions/_shared/account/service.ts'
 import { applicationRepository } from '../../supabase/functions/_shared/applications/repository.ts'
 import {
-  decideApplication,
-  finalDecideApplication,
   getApplication,
   listApplications,
   submitApplicationToVote,
@@ -386,7 +383,6 @@ describe('application voting (APP-05, 07, 08, 11)', () => {
   it('runs E2E-01 on the service level', async () => {
     const { user: candidate, applicationId, actor } = await createApplicant()
     const { actor: officer } = await roleActor('officer')
-    const { actor: admin } = await roleActor('admin')
     const { actor: member } = await roleActor('member')
 
     const submitted = await submitApplicationToVote(deps, officer, {
@@ -416,54 +412,18 @@ describe('application voting (APP-05, 07, 08, 11)', () => {
     const forOption = forMember.options[0]!.id
     await castBallot(deps, member, { voteId, optionId: forOption })
     await castBallot(deps, officer, { voteId, optionId: forOption })
-    await closeVote(deps, officer, { id: voteId })
-
-    // Большинство «За» не принимает автоматически (VOT-10).
-    expect(await applicationStatus(applicationId)).toBe('vote_completed')
-    const me = await getMe(deps, await actor())
-    expect(me).toMatchObject({
-      profile: { role: 'applicant' },
-      application: { status: 'vote_completed' },
-    })
-
-    // Офицер окончательно не решает (APP-08).
+    await rejects(closeVote(deps, officer, { id: voteId }), 'validation_failed')
+    expect(await applicationStatus(applicationId)).toBe('pending_vote')
     await rejects(
-      finalDecideApplication(deps, officer, {
-        id: applicationId,
-        decision: 'accept',
-      }),
+      closeVote(deps, member, { id: voteId, decision: 'accept' }),
       'forbidden',
     )
-    await rejects(
-      listApplications(deps, officer, { tab: 'final' }),
-      'forbidden',
-    )
-    await rejects(
-      decideApplication(deps, officer, {
-        id: applicationId,
-        decision: 'accept',
-      }),
-      'state_conflict',
-    )
-
-    const final = await listApplications(deps, admin, { tab: 'final' })
-    expect(final.finalCount).toBe(1)
-    expect(final.items[0]).toMatchObject({
-      id: applicationId,
-      vote: { id: voteId, totalBallots: 2 },
-    })
-    expect(counts(final.items[0]!.vote!)).toEqual({
-      За: 2,
-      Против: 0,
-      Воздержаться: 0,
-      Конфликт: 0,
-    })
-
-    const accepted = await finalDecideApplication(deps, admin, {
-      id: applicationId,
+    const closed = await closeVote(deps, officer, {
+      id: voteId,
       decision: 'accept',
     })
-    expect(accepted.status).toBe('admin_approved')
+    expect(closed.closedAt).not.toBeNull()
+    expect(await applicationStatus(applicationId)).toBe('admin_approved')
     const profile = await db
       .selectFrom('app.profiles')
       .select(['access_role', 'joined_on'])
@@ -481,34 +441,23 @@ describe('application voting (APP-05, 07, 08, 11)', () => {
     expect(notifications).toEqual([{ kind: 'application_accepted' }])
     expect(await auditActions()).toEqual([
       'application_submitted_to_vote',
-      'vote_closed',
       'application_accepted_final',
+      'vote_closed',
     ])
     await rejects(
-      finalDecideApplication(deps, admin, {
-        id: applicationId,
-        decision: 'reject',
-      }),
+      closeVote(deps, officer, { id: voteId, decision: 'reject' }),
       'state_conflict',
     )
   })
 
-  it('rejects finally without changing the role', async () => {
+  it('закрывает голосование с отказом без изменения роли', async () => {
     const { user, applicationId } = await createApplicant()
     const { actor: admin } = await roleActor('admin')
     const { vote } = await submitApplicationToVote(deps, admin, {
       id: applicationId,
     })
-    await closeVote(deps, admin, { id: vote!.id })
-    const result = await finalDecideApplication(deps, admin, {
-      id: applicationId,
-      decision: 'reject',
-      note: 'Не сейчас',
-    })
-    expect(result).toMatchObject({
-      status: 'admin_rejected',
-      decisionNote: 'Не сейчас',
-    })
+    await closeVote(deps, admin, { id: vote!.id, decision: 'reject' })
+    expect(await applicationStatus(applicationId)).toBe('admin_rejected')
     const profile = await db
       .selectFrom('app.profiles')
       .select('access_role')
@@ -517,17 +466,23 @@ describe('application voting (APP-05, 07, 08, 11)', () => {
     expect(profile.access_role).toBe('applicant')
   })
 
-  it('does not final-decide an application still under vote', async () => {
-    const { applicationId } = await createApplicant()
-    const { actor: admin } = await roleActor('admin')
-    await submitApplicationToVote(deps, admin, { id: applicationId })
+  it('не закрывает голосование при конфликте роли кандидата', async () => {
+    const { user, applicationId } = await createApplicant()
+    const { actor: officer } = await roleActor('officer')
+    const { vote } = await submitApplicationToVote(deps, officer, {
+      id: applicationId,
+    })
+    await db
+      .updateTable('app.profiles')
+      .set({ access_role: 'reader' })
+      .where('id', '=', user.id)
+      .execute()
     await rejects(
-      finalDecideApplication(deps, admin, {
-        id: applicationId,
-        decision: 'accept',
-      }),
+      closeVote(deps, officer, { id: vote!.id, decision: 'accept' }),
       'state_conflict',
     )
+    expect(await applicationStatus(applicationId)).toBe('pending_vote')
+    expect((await getVote(deps, officer, { id: vote!.id })).closedAt).toBeNull()
   })
 
   it('returns the application to the queue when its vote is deleted (APP-11)', async () => {
@@ -599,13 +554,6 @@ describe('application voting (APP-05, 07, 08, 11)', () => {
     const { actor: member } = await roleActor('member')
     await rejects(
       submitApplicationToVote(deps, member, { id: applicationId }),
-      'forbidden',
-    )
-    await rejects(
-      finalDecideApplication(deps, member, {
-        id: applicationId,
-        decision: 'accept',
-      }),
       'forbidden',
     )
     await rejects(

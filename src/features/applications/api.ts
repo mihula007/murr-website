@@ -26,16 +26,6 @@ export function useNewApplications(enabled: boolean) {
   })
 }
 
-/** «Окончательные решения» — малый список, только администратору (APP-08). */
-export function useFinalApplications(enabled: boolean) {
-  return useQuery({
-    queryKey: applicationKeys.final,
-    queryFn: () =>
-      callApi<ApplicationListResponse>('applications/list', { tab: 'final' }),
-    enabled,
-  })
-}
-
 /** «Решённые» — большой список: страницы по курсору. */
 export function useDecidedApplications(enabled: boolean) {
   return useInfiniteQuery({
@@ -58,23 +48,15 @@ export function useApplication(id: string) {
   })
 }
 
-export type DecisionKind = 'direct' | 'final'
-
-const DECIDE_ROUTE = {
-  direct: 'applications/decide',
-  final: 'applications/final-decide',
-} as const
-
 /**
- * Прямое решение по новой заявке (APP-04) или окончательное решение
- * администратора после голосования (APP-08). После успеха карточка берётся
+ * Прямое решение по новой заявке (APP-04). После успеха карточка берётся
  * из ответа, очереди, состав и численность перечитываются.
  */
-export function useDecideApplication(kind: DecisionKind = 'direct') {
+export function useDecideApplication() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: DecideApplicationRequest) =>
-      callApi<ApplicationDetails>(DECIDE_ROUTE[kind], input),
+      callApi<ApplicationDetails>('applications/decide', input),
     onSuccess: async (details) => {
       queryClient.setQueryData(applicationKeys.detail(details.id), details)
       await Promise.all([

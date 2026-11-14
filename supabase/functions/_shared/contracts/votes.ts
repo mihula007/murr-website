@@ -86,6 +86,11 @@ export type UpdateVoteRequest = z.input<typeof updateVoteSchema>
 
 export const voteIdSchema = z.object({ id: z.guid('not_found') })
 
+export const closeVoteSchema = voteIdSchema.extend({
+  decision: z.enum(['accept', 'reject']).optional(),
+})
+export type CloseVoteRequest = z.input<typeof closeVoteSchema>
+
 export const castBallotSchema = z.object({
   voteId: z.guid('not_found'),
   optionId: z.guid('not_found'),

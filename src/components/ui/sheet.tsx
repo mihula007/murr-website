@@ -24,7 +24,7 @@ export function SheetContent({
       <SheetPrimitive.Overlay className={overlayClass} />
       <SheetPrimitive.Content
         className={cn(
-          'fixed inset-y-0 left-0 z-61 flex w-[min(88vw,360px)] flex-col gap-4 overflow-y-auto border-r border-border-strong bg-surface-header px-4 py-5 text-foreground shadow-sheet duration-220 ease-out data-[state=open]:animate-in data-[state=open]:slide-in-from-left motion-reduce:animate-none',
+          'fixed inset-y-0 left-0 z-60 flex w-[min(88vw,360px)] flex-col gap-4 overflow-y-auto border-r border-border-strong bg-surface-header px-4 py-5 text-foreground shadow-sheet duration-220 ease-out data-[state=open]:animate-in data-[state=open]:slide-in-from-left motion-reduce:animate-none',
           className,
         )}
         {...props}

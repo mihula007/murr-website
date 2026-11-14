@@ -66,7 +66,7 @@ create table app.join_applications (
   id uuid primary key default gen_random_uuid(),
   applicant_id uuid not null references app.profiles (id) on delete cascade,
   status text not null check (status in (
-    'pending_officer_review', 'pending_vote', 'vote_completed',
+    'pending_officer_review', 'pending_vote',
     'officer_approved', 'officer_rejected', 'admin_approved', 'admin_rejected'
   )),
   submitted_at timestamptz not null default now(),
@@ -81,7 +81,7 @@ create table app.join_applications (
 -- Не более одной активной заявки (Q-06); защищает от двух вкладок.
 create unique index join_applications_one_active
   on app.join_applications (applicant_id)
-  where status in ('pending_officer_review', 'pending_vote', 'vote_completed');
+  where status in ('pending_officer_review', 'pending_vote');
 create index join_applications_queue
   on app.join_applications (status, submitted_at desc);
 create index join_applications_history

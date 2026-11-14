@@ -63,14 +63,13 @@ async function choose(page: Page, label: string) {
   await expect(page.getByText('Ваше решение:')).toBeVisible()
 }
 
-test('E2E-01: вступление через голосование и решение администратора', async ({
+test('E2E-01: вступление через голосование и решение офицера', async ({
   page,
   browser,
 }) => {
   const applicant = await registerApplicant()
-  const [officer, admin, member] = await Promise.all([
+  const [officer, member] = await Promise.all([
     createMember('officer'),
-    createMember('admin'),
     createMember('member'),
   ])
   const title = `Заявка: ${applicant.nickname}`
@@ -104,54 +103,21 @@ test('E2E-01: вступление через голосование и реше
   await expect(memberPage.getByText('Кто как голосовал')).toHaveCount(0)
   await memberPage.context().close()
 
-  // Офицер видит, кто как голосовал, и завершает.
+  // Офицер видит голоса и принимает кандидата.
   await officerPage.reload()
   await expect(
     officerPage
       .getByRole('list', { name: 'Голоса участников' })
       .getByText(member.nickname),
   ).toBeVisible()
-  await manageVote(officerPage, 'Завершить')
-  await confirm(officerPage, 'Завершить')
+  await manageVote(officerPage, 'Принять в клан')
+  await confirm(officerPage, 'Принять в клан')
   await expect(
     officerPage.getByText('Голосование завершено: решение изменить нельзя.'),
   ).toBeVisible()
-
-  // Большинство «За» не принимает кандидата; офицер окончательно не решает.
-  await officerPage
-    .getByRole('link', { name: 'Открыть заявку кандидата' })
-    .click()
-  await expect(
-    officerPage.getByText('Ожидает решения администрации'),
-  ).toBeVisible()
-  await expect(
-    officerPage.getByRole('button', { name: 'Принять', exact: true }),
-  ).toHaveCount(0)
   await officerPage.context().close()
-
-  // Кандидат видит этап ожидания администрации, но не итоги.
   await signInUi(page, applicant.email)
   await expectSignedIn(page)
-  await expect(
-    page.getByRole('heading', { name: 'Голосование завершено' }),
-  ).toBeVisible()
-  await expectInternalMenu(page, false)
-
-  // Администратор принимает из очереди окончательных решений.
-  const adminPage = await signedInPage(browser, admin.email)
-  await adminPage.goto('./#/applications?tab=final')
-  const queue = adminPage.getByRole('list', { name: 'Окончательные решения' })
-  await expect(queue.getByText(/За: 2 · Против: 0/).first()).toBeVisible()
-  await queue
-    .getByRole('link', { name: new RegExp(applicant.nickname) })
-    .click()
-  expect(await hasHorizontalScroll(adminPage)).toBe(false)
-  await adminPage.getByRole('button', { name: 'Принять', exact: true }).click()
-  await confirm(adminPage, 'Принять')
-  await expect(
-    adminPage.getByText('Администрация подтвердила приём'),
-  ).toBeVisible()
-  await adminPage.context().close()
 
   // Кандидат получает внутренний доступ и появляется в составе.
   await page.reload()
@@ -291,14 +257,6 @@ test('прямые запрещённые вызовы голосований о
   expect(
     (await callApi('applications/submit-to-vote', officerToken, { id })).status,
   ).toBe(200)
-  expect(
-    (
-      await callApi('applications/final-decide', officerToken, {
-        id,
-        decision: 'accept',
-      })
-    ).status,
-  ).toBe(403)
   const created = await callApi('votes/create', officerToken, vote)
   const detail = await callApi('votes/get', memberToken, {
     id: created.body.id,
