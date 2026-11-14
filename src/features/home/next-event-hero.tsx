@@ -16,7 +16,7 @@ import { useRosterCount } from '@/features/roster/api'
 import { eventsLabel, membersLabel } from './plural'
 
 const heroTitleClass =
-  'm-0 text-[clamp(34px,4.6vw,54px)] leading-[1.05] font-bold tracking-[-.03em] break-words'
+  'm-0 text-[clamp(42px,5.4vw,68px)] leading-[1.0] font-bold tracking-[-.01em] break-words'
 
 /**
  * Численность и число актуальных событий одной фразой (HOM-07): без плиток,

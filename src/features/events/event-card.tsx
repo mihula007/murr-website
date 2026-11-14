@@ -398,7 +398,7 @@ export function EventCard({ event, className }: EventCardProps) {
         <EventBadges event={event} />
         <EventActions event={event} />
       </div>
-      <h2 className="m-0 text-lg leading-snug font-bold break-words">
+      <h2 className="m-0 text-xl leading-snug font-bold break-words">
         <Link
           to="/events/$id"
           params={{ id: event.id }}

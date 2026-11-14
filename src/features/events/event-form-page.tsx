@@ -44,7 +44,7 @@ import {
   useUpdateEvent,
 } from './api'
 
-const sectionTitleClass = 'm-0 text-base font-bold text-foreground'
+const sectionTitleClass = 'm-0 font-sans text-base font-bold text-foreground'
 
 const TYPE_OPTIONS = EVENT_TYPES.map((type) => ({
   value: type,
@@ -130,7 +130,7 @@ function TemplateLibrary({ onApply }: TemplateLibraryProps) {
           >
             <div className="flex flex-wrap items-center gap-2">
               <Badge>{EVENT_TYPE_LABELS[template.type]}</Badge>
-              <h3 className="m-0 min-w-0 text-base font-bold break-words">
+              <h3 className="m-0 min-w-0 font-sans text-base font-bold break-words">
                 {template.title}
               </h3>
             </div>

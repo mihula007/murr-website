@@ -49,7 +49,7 @@ export function HomePage() {
   return (
     <>
       <section className="max-w-2xl py-3">
-        <h1 className="text-[clamp(38px,5vw,58px)] leading-[1.03] font-bold tracking-[-.04em]">
+        <h1 className="text-[clamp(46px,6vw,72px)] leading-[1.0] font-bold tracking-[-.01em]">
           Легенда продолжается
           <br />
           <span className="text-primary">Вместе с Murr</span>

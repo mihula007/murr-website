@@ -70,7 +70,7 @@ export const activitySearchSchema = z.object({
 export type ActivitySearch = z.output<typeof activitySearchSchema>
 
 const ALL = 'all'
-const sectionTitleClass = 'm-0 text-base font-bold text-foreground'
+const sectionTitleClass = 'm-0 font-sans text-base font-bold text-foreground'
 
 const STATUS_CLASS: Record<AttendanceStatus, string> = {
   visited: 'text-primary',
@@ -343,7 +343,7 @@ function EventDetails({
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="m-0 min-w-0 flex-1 text-base font-bold break-words">
+        <h3 className="m-0 min-w-0 flex-1 font-sans text-base font-bold break-words">
           {event.data.event.title} · {formatDate(event.data.event.dateMsk)}
         </h3>
         <Button type="button" variant="secondary" size="sm" onClick={onBack}>

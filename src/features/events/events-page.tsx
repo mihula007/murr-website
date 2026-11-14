@@ -46,7 +46,7 @@ const EMPTY = {
   },
 } as const
 
-const sectionTitleClass = 'm-0 text-base font-bold text-foreground'
+const sectionTitleClass = 'm-0 font-sans text-base font-bold text-foreground'
 
 /**
  * Постоянные события создаются расписанием по понедельникам в 00:00 МСК;

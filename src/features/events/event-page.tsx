@@ -20,7 +20,7 @@ import {
 } from './event-card'
 import { EventGroupsSection } from './groups/event-groups'
 
-const discussionTitleClass = 'm-0 text-base font-bold text-foreground'
+const discussionTitleClass = 'm-0 font-sans text-base font-bold text-foreground'
 
 /**
  * Группы и обсуждение события (DSC-01): на широком экране чат — колонкой
@@ -80,7 +80,7 @@ function EventOverview({
           <EventBadges event={event} />
           <EventActions event={event} onDeleted={onDeleted} />
         </div>
-        <h1 className="m-0 text-[40px] leading-[1.1] font-bold break-words max-sm:text-[30px]">
+        <h1 className="m-0 text-[52px] leading-[1.02] font-bold break-words max-sm:text-[38px]">
           {event.title}
         </h1>
         <EventStart startsAt={event.startsAt} />

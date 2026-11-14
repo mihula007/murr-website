@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { useVote } from './api'
 import { VoteCard } from './vote-card'
 
-const sectionTitleClass = 'm-0 text-base font-bold text-foreground'
+const sectionTitleClass = 'm-0 font-sans text-base font-bold text-foreground'
 
 /** Кто как голосовал — только офицеру и администратору (VOT-07, Q-16). */
 function Ballots({ vote }: { vote: VoteDetails }) {

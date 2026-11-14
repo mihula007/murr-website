@@ -27,7 +27,7 @@ const ROSTER_LEADERS = 6
 
 const sectionClass = 'mt-12 grid gap-4'
 const headClass = 'flex flex-wrap items-end justify-between gap-3'
-const titleClass = 'm-0 text-2xl font-bold tracking-[-.02em]'
+const titleClass = 'm-0 text-[32px] leading-tight font-bold'
 
 /**
  * События после ближайшего (оно — первый экран): тот же запрос и та же

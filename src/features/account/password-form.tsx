@@ -104,7 +104,7 @@ export function PasswordForm({
       }}
     >
       <div>
-        <h3 className="text-lg font-bold">Обновить пароль</h3>
+        <h3 className="text-xl font-bold">Обновить пароль</h3>
         <p className="text-sm text-muted-foreground">
           Для защиты аккаунта сначала подтверди текущий пароль.
         </p>

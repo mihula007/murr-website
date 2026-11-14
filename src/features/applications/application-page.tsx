@@ -23,7 +23,7 @@ import { DecisionDialog, type Decision } from './decision-dialog'
 const detailsListClass =
   'm-0 grid grid-cols-2 gap-x-[18px] gap-y-2 max-[560px]:grid-cols-1 [&_dd]:m-0 [&_dd]:break-words [&_dt]:text-xs [&_dt]:text-muted-foreground'
 
-const sectionTitleClass = 'text-base font-bold text-foreground'
+const sectionTitleClass = 'font-sans text-base font-bold text-foreground'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (

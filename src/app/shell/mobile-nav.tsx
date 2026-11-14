@@ -72,7 +72,7 @@ export function MobileNav({ categories, counts }: MobileNavProps) {
             >
               <h2
                 id={`mobile-nav-${category.id}`}
-                className="relative m-0 px-3 py-1 text-xs font-semibold text-muted-foreground data-active:text-primary"
+                className="relative m-0 px-3 py-1 font-sans text-xs font-semibold text-muted-foreground data-active:text-primary"
                 data-active={active?.category === category.id ? '' : undefined}
               >
                 {category.label}

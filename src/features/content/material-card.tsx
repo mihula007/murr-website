@@ -40,7 +40,7 @@ export function MaterialCard({
             </Badge>
           ) : null}
         </div>
-        <h2 className="m-0 text-lg leading-snug font-bold break-words">
+        <h2 className="m-0 text-xl leading-snug font-bold break-words">
           <Link
             to={`${section.path}/$id`}
             params={{ id: item.id }}
