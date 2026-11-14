@@ -3,8 +3,13 @@ import { createClient } from '@supabase/supabase-js'
 import { sql } from 'kysely'
 import type {
   AppDeps,
+  MaxDeps,
   TelegramDeps,
 } from '../../supabase/functions/_shared/app.ts'
+import type {
+  MaxGateway,
+  MaxKeyboard,
+} from '../../supabase/functions/_shared/max/gateway.ts'
 import { loadActor } from '../../supabase/functions/_shared/auth/actor.ts'
 import { createAuthAdminGateway } from '../../supabase/functions/_shared/auth/admin-gateway.ts'
 import { createStorageGateway } from '../../supabase/functions/_shared/storage/gateway.ts'
@@ -223,4 +228,81 @@ export function webhookHeaders(secret: string | null = TELEGRAM_TEST_SECRET) {
   return new Headers(
     secret === null ? {} : { 'x-telegram-bot-api-secret-token': secret },
   )
+}
+
+/** Вызов фальшивого шлюза MAX: метод и параметры. */
+export type MaxCall = {
+  method:
+    'sendHtml' | 'sendText' | 'editHtml' | 'removeKeyboard' | 'answerCallback'
+  userId?: number
+  messageId?: string
+  text?: string
+  keyboard?: MaxKeyboard | null
+  callbackId?: string
+}
+
+/**
+ * Фальшивый шлюз MAX для серверных тестов: записывает вызовы, выдаёт
+ * строковые `mid`; `blocked` — пользователи, остановившие бота.
+ */
+export function fakeMax() {
+  const calls: MaxCall[] = []
+  const blocked = new Set<number>()
+  /** `mid` → получатель, чтобы правка остановившему бота давала `blocked`. */
+  const owners = new Map<string, number>()
+  let next = 1
+  const send = (userId: number) => {
+    if (blocked.has(userId)) {
+      return { status: 'blocked' as const }
+    }
+    const messageId = `mid.${next++}`
+    owners.set(messageId, userId)
+    return { status: 'ok' as const, messageId }
+  }
+  const editResult = (messageId: string) =>
+    blocked.has(owners.get(messageId) ?? -1) ? 'blocked' : 'ok'
+  const gateway: MaxGateway = {
+    async sendHtml(userId, text, keyboard) {
+      calls.push({
+        method: 'sendHtml',
+        userId,
+        text,
+        keyboard: keyboard ?? null,
+      })
+      return send(userId)
+    },
+    async sendText(userId, text) {
+      calls.push({ method: 'sendText', userId, text })
+      return send(userId)
+    },
+    async editHtml(messageId, text, keyboard) {
+      calls.push({ method: 'editHtml', messageId, text, keyboard })
+      return editResult(messageId)
+    },
+    async removeKeyboard(messageId) {
+      calls.push({ method: 'removeKeyboard', messageId })
+      return editResult(messageId)
+    },
+    async answerCallback(callbackId, text) {
+      calls.push({
+        method: 'answerCallback',
+        callbackId,
+        ...(text ? { text } : {}),
+      })
+    },
+  }
+  const max: MaxDeps = {
+    gateway,
+    botUsername: 'murr_test_max_bot',
+    webhookSecret: MAX_TEST_SECRET,
+    siteUrl: 'https://murr.test/',
+  }
+  return { max, calls, blocked }
+}
+
+export const MAX_TEST_SECRET = 'test-max-secret-0123456789abcdef'
+
+/** Заголовки вебхука MAX с секретом (или без него). */
+export function maxWebhookHeaders(secret: string | null = MAX_TEST_SECRET) {
+  return new Headers(secret === null ? {} : { 'x-max-bot-api-secret': secret })
 }

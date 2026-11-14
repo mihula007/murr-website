@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
   BroadcastDraftsResponse,
+  BroadcastRecipientsResponse,
   BroadcastSource,
   BroadcastTemplatesResponse,
   PrefillResponse,
@@ -8,7 +9,6 @@ import type {
   SaveDraftRequest,
   SendAnnouncementRequest,
   SendAnnouncementResponse,
-  TelegramRecipientsResponse,
 } from '@contracts/broadcasts'
 import { callApi } from '@/lib/supabase/api'
 
@@ -97,7 +97,8 @@ export function useDeleteBroadcastTemplate() {
 }
 
 /**
- * Число получателей для подтверждения (TGM-11): разовая проверка перед
+ * Число получателей по каналам для подтверждения (TGM-11, MAX-05): разовая
+ * проверка перед
  * отправкой, всегда свежая.
  */
 export function useFetchRecipients() {
@@ -106,12 +107,12 @@ export function useFetchRecipients() {
     queryClient.fetchQuery({
       queryKey: broadcastKeys.recipients,
       queryFn: () =>
-        callApi<TelegramRecipientsResponse>('broadcasts/recipients'),
+        callApi<BroadcastRecipientsResponse>('broadcasts/recipients'),
       staleTime: 0,
     })
 }
 
-/** Отправка анонса в Telegram (TGM-11–TGM-16): данные сайта не меняются. */
+/** Отправка анонса в выбранные каналы (TGM-11–TGM-16, MAX-05): данные сайта не меняются. */
 export function useSendAnnouncement() {
   return useMutation({
     mutationFn: (input: SendAnnouncementRequest) =>

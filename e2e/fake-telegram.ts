@@ -1,6 +1,7 @@
-// Фальшивый Bot API для Playwright (этап 13): принимает вызовы функции `api`
-// вместо api.telegram.org, отвечает как Telegram и отдаёт записанные вызовы
-// тестам (`GET /calls?chat=<id>`). Слушает все интерфейсы: функция в Docker
+// Фальшивые Bot API для Playwright (этапы 13–14): принимает вызовы функции
+// `api` вместо api.telegram.org и platform-api2.max.ru, отвечает как Telegram
+// и MAX и отдаёт записанные вызовы тестам (`GET /calls?chat=<id>` — Telegram,
+// `GET /max-calls?user=<id>` — MAX). Слушает все интерфейсы: функция в Docker
 // обращается к нему через host.docker.internal (на Linux — через шлюз Docker).
 // Запускается Playwright (`webServer`); данные только в памяти.
 import { createServer } from 'node:http'
@@ -15,6 +16,20 @@ type Call = {
 
 const calls: Call[] = []
 let nextMessageId = 1
+
+/** Вызов MAX: метод с путём, параметры запроса и тело. */
+type MaxCall = {
+  method: string
+  userId: number | null
+  query: Record<string, string>
+  body: Record<string, unknown>
+  /** `mid` отправленного сообщения (`POST /messages`). */
+  messageId: string | null
+}
+
+const maxCalls: MaxCall[] = []
+/** `mid` → получатель: правки сообщения тоже относятся к пользователю. */
+const maxOwners = new Map<string, number>()
 
 const server = createServer((request, response) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
@@ -34,6 +49,18 @@ const server = createServer((request, response) => {
         (call) => call.params.chat_id === chat || !url.searchParams.has('chat'),
       ),
     )
+    return
+  }
+  if (request.method === 'GET' && url.pathname === '/max-calls') {
+    const user = Number(url.searchParams.get('user'))
+    reply(
+      200,
+      maxCalls.filter((call) => call.userId === user),
+    )
+    return
+  }
+  if (url.pathname === '/messages' || url.pathname === '/answers') {
+    handleMax(request, url, reply)
     return
   }
   const match = /^\/bot[^/]+\/(\w+)$/.exec(url.pathname)
@@ -59,6 +86,41 @@ const server = createServer((request, response) => {
     })
   })
 })
+
+/** MAX: `POST /messages`, `PUT /messages`, `POST /answers`. */
+function handleMax(
+  request: import('node:http').IncomingMessage,
+  url: URL,
+  reply: (status: number, body: unknown) => void,
+) {
+  let raw = ''
+  request.on('data', (chunk: Buffer) => {
+    raw += chunk.toString('utf8')
+  })
+  request.on('end', () => {
+    const query = Object.fromEntries(url.searchParams)
+    const body = (raw ? JSON.parse(raw) : {}) as Record<string, unknown>
+    const method = `${request.method} ${url.pathname}`
+    if (method === 'POST /messages') {
+      const userId = Number(query.user_id)
+      const mid = `mid.e2e.${nextMessageId++}`
+      maxOwners.set(mid, userId)
+      maxCalls.push({ method, userId, query, body, messageId: mid })
+      reply(200, {
+        message: {
+          recipient: { chat_type: 'dialog', user_id: userId },
+          body: { mid, seq: 1, text: body.text },
+        },
+      })
+      return
+    }
+    const userId = query.message_id
+      ? (maxOwners.get(query.message_id) ?? null)
+      : null
+    maxCalls.push({ method, userId, query, body, messageId: null })
+    reply(200, { success: true })
+  })
+}
 
 server.listen(FAKE_TELEGRAM_PORT, '0.0.0.0', () => {
   console.log(`Фальшивый Bot API: http://127.0.0.1:${FAKE_TELEGRAM_PORT}`)

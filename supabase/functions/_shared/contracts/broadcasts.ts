@@ -1,11 +1,15 @@
 import { z } from 'zod'
 
 /**
- * Рассылки (BRC): черновики, шаблоны и отправка анонса в Telegram (TGM).
- * ВКонтакте и MAX не подключены, вложений нет (Q-82).
+ * Рассылки (BRC): черновики, шаблоны и отправка анонса в Telegram и MAX
+ * (TGM, MAX). ВКонтакте не подключён, вложений нет (Q-82).
  */
 export const BROADCAST_CHANNELS = ['telegram', 'vk', 'max'] as const
 export type BroadcastChannel = (typeof BROADCAST_CHANNELS)[number]
+
+/** Каналы, в которые анонс действительно отправляется (MAX-05, Q-97). */
+export const SENDABLE_CHANNELS = ['telegram', 'max'] as const
+export type SendableChannel = (typeof SENDABLE_CHANNELS)[number]
 
 export const BROADCAST_CHANNEL_LABELS: Record<BroadcastChannel, string> = {
   telegram: 'Telegram',
@@ -74,7 +78,10 @@ export type SaveBroadcastTemplateRequest = z.input<
   typeof saveBroadcastTemplateSchema
 >
 
-/** Анонс в Telegram (TGM-11–TGM-13); `eventId` — анонс события с кнопками. */
+/**
+ * Анонс в выбранные каналы (TGM-11–TGM-13, MAX-05); `eventId` — анонс
+ * события с кнопками. Без `channels` — только Telegram (прежний клиент).
+ */
 export const sendAnnouncementSchema = z.object({
   subject: optionalSubject,
   body: bodySchema,
@@ -82,17 +89,42 @@ export const sendAnnouncementSchema = z.object({
     .guid('not_found')
     .nullish()
     .transform((value) => value ?? null),
+  channels: z
+    .array(z.enum(SENDABLE_CHANNELS, 'invalid'), 'required')
+    .min(1, 'required')
+    .nullish()
+    .transform((items): SendableChannel[] =>
+      items ? SENDABLE_CHANNELS.filter((c) => items.includes(c)) : ['telegram'],
+    ),
 })
 export type SendAnnouncementRequest = z.input<typeof sendAnnouncementSchema>
 
-/** Итог отправки: toast показывает отправленные и недоставленные (Q-84). */
-export type SendAnnouncementResponse = {
+export type ChannelDelivery = {
   recipients: number
   sent: number
   failed: number
 }
 
-export type TelegramRecipientsResponse = { count: number }
+/**
+ * Итог отправки: toast показывает отправленные и недоставленные (Q-84);
+ * общие числа — сумма по каналам, `channels` — по каждому (MAX-10).
+ */
+export type SendAnnouncementResponse = ChannelDelivery & {
+  channels?: Partial<Record<SendableChannel, ChannelDelivery>>
+}
+
+export type ChannelRecipients = {
+  /** false — бот канала не настроен на сервере. */
+  configured: boolean
+  count: number
+}
+
+/** Получатели для окна подтверждения (TGM-11, MAX-05). */
+export type BroadcastRecipientsResponse = {
+  /** Получатели Telegram — для прежнего клиента. */
+  count: number
+  channels?: Record<SendableChannel, ChannelRecipients>
+}
 
 export const broadcastIdSchema = z.object({ id: z.guid('not_found') })
 

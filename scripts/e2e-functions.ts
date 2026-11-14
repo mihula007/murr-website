@@ -1,5 +1,6 @@
-// Edge Functions для Playwright (этап 13): тот же `supabase functions serve`,
-// но с выдуманным ботом Telegram и фальшивым Bot API (`e2e/fake-telegram.ts`).
+// Edge Functions для Playwright (этапы 13–14): тот же `supabase functions serve`,
+// но с выдуманными ботами Telegram и MAX и фальшивым Bot API
+// (`e2e/fake-telegram.ts`).
 // Настоящий бот и `.env` не используются: сценарии ничего не отправляют
 // в Telegram. Значения пишутся в игнорируемый файл, секрет вебхука —
 // случайный при каждом запуске; тесты читают его оттуда же.
@@ -22,6 +23,11 @@ writeFileSync(
     'SITE_URL=http://127.0.0.1:4173/',
     // Функция в Docker обращается к фальшивому Bot API на машине.
     `TELEGRAM_API_BASE=http://host.docker.internal:${FAKE_TELEGRAM_PORT}`,
+    // MAX (этап 14) — тот же фальшивый сервер.
+    'MAX_BOT_TOKEN=e2e-fake-max-token',
+    'MAX_BOT_USERNAME=murr_e2e_max_bot',
+    `MAX_WEBHOOK_SECRET=${randomBytes(24).toString('base64url')}`,
+    `MAX_API_BASE=http://host.docker.internal:${FAKE_TELEGRAM_PORT}`,
     '',
   ].join('\n'),
 )

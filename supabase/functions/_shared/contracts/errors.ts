@@ -24,6 +24,8 @@ export const API_ERRORS = {
   publication_file_invalid: 422,
   /** Telegram не настроен на сервере: нет токена бота (этап 13). */
   telegram_unavailable: 503,
+  /** MAX не настроен на сервере: нет токена бота (этап 14). */
+  max_unavailable: 503,
   internal: 500,
 } as const
 

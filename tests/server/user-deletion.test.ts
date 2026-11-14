@@ -356,6 +356,39 @@ async function populate() {
       message_id: 1,
     })
     .execute()
+  // MAX (этап 14): связь, код привязки и активное сообщение анонса.
+  await db
+    .insertInto('app.max_links')
+    .values({
+      user_id: id,
+      max_user_id: 888_001,
+      chat_id: 888_001,
+      display_name: 'Жертва',
+    })
+    .execute()
+  await db
+    .insertInto('app.max_link_codes')
+    .values({
+      user_id: id,
+      code_hash: 'c'.repeat(64),
+      expires_at: new Date().toISOString(),
+    })
+    .execute()
+  const maxAnnouncement = await db
+    .insertInto('app.max_announcements')
+    .values({ event_id: foreignEvent.id, body: 'Анонс' })
+    .returning('id')
+    .executeTakeFirstOrThrow()
+  await db
+    .insertInto('app.max_event_messages')
+    .values({
+      event_id: foreignEvent.id,
+      user_id: id,
+      announcement_id: maxAnnouncement.id,
+      chat_id: 888_001,
+      message_id: 'mid.victim',
+    })
+    .execute()
 
   return {
     admin,
@@ -449,6 +482,9 @@ describe('user deletion: data rules (ADM-08, table of stage 11)', () => {
       ['app.telegram_links', 'user_id'],
       ['app.telegram_link_codes', 'user_id'],
       ['app.telegram_event_messages', 'user_id'],
+      ['app.max_links', 'user_id'],
+      ['app.max_link_codes', 'user_id'],
+      ['app.max_event_messages', 'user_id'],
     ] as const) {
       expect({ table, rows: await count(table, column, id) }).toEqual({
         table,

@@ -36,7 +36,7 @@ import {
   saveBroadcastTemplate,
   saveDraft,
   sendAnnouncement,
-  telegramRecipients,
+  broadcastRecipients,
 } from './broadcasts/service.ts'
 import {
   bearerToken,
@@ -130,6 +130,13 @@ import {
   telegramStatus,
   unlinkTelegram,
 } from './telegram/service.ts'
+import { createMaxGateway, type MaxGateway } from './max/gateway.ts'
+import {
+  handleMaxWebhook,
+  maxStatus,
+  startMaxLink,
+  unlinkMax,
+} from './max/service.ts'
 import {
   castBallot,
   closeVote,
@@ -149,6 +156,26 @@ export type AppEnv = {
   cronSecret?: string | null
   /** Telegram (этап 13); null — интеграция выключена. */
   telegram?: TelegramEnv | null
+  /** MAX (этап 14); null — интеграция выключена. */
+  max?: MaxEnv | null
+}
+
+/** Настройки бота MAX (этап 14). */
+export type MaxEnv = {
+  token: string
+  botUsername: string
+  webhookSecret: string
+  siteUrl: string | null
+  /** Фальшивый API в тестах; null — `https://platform-api2.max.ru`. */
+  apiBase: string | null
+}
+
+/** MAX для сервисов: шлюз Bot API и настройки бота (этап 14). */
+export type MaxDeps = {
+  gateway: MaxGateway
+  botUsername: string
+  webhookSecret: string
+  siteUrl: string | null
 }
 
 export type TelegramEnv = {
@@ -184,6 +211,8 @@ export type AppDeps = {
   cronSecret?: string | null
   /** null или нет — Telegram не подключён (`telegram_unavailable`). */
   telegram?: TelegramDeps | null
+  /** null или нет — MAX не подключён (`max_unavailable`). */
+  max?: MaxDeps | null
   background?: Background
 }
 
@@ -314,13 +343,17 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       saveBroadcastTemplate(deps, actor, body),
     'broadcasts/delete-template': ({ actor, body }) =>
       deleteBroadcastTemplate(deps, actor, body),
-    'broadcasts/recipients': ({ actor }) => telegramRecipients(deps, actor),
+    'broadcasts/recipients': ({ actor }) => broadcastRecipients(deps, actor),
     'broadcasts/send': ({ actor, body }) => sendAnnouncement(deps, actor, body),
     'telegram/status': ({ actor }) => telegramStatus(deps, actor),
     'telegram/link-start': ({ actor }) => startTelegramLink(deps, actor),
     'telegram/unlink': ({ actor }) => unlinkTelegram(deps, actor),
     'telegram/webhook': ({ headers, body }) =>
       handleTelegramWebhook(deps, headers, body),
+    'max/status': ({ actor }) => maxStatus(deps, actor),
+    'max/link-start': ({ actor }) => startMaxLink(deps, actor),
+    'max/unlink': ({ actor }) => unlinkMax(deps, actor),
+    'max/webhook': ({ headers, body }) => handleMaxWebhook(deps, headers, body),
   }
 }
 
@@ -343,6 +376,17 @@ export function createApp(
           botUsername: env.telegram.botUsername,
           webhookSecret: env.telegram.webhookSecret,
           siteUrl: env.telegram.siteUrl,
+        }
+      : null,
+    max: env.max
+      ? {
+          gateway: createMaxGateway({
+            token: env.max.token,
+            apiBase: env.max.apiBase,
+          }),
+          botUsername: env.max.botUsername,
+          webhookSecret: env.max.webhookSecret,
+          siteUrl: env.max.siteUrl,
         }
       : null,
     ...(overrides.background ? { background: overrides.background } : {}),

@@ -100,14 +100,12 @@ test('E2E-08: анонс события в Telegram и ответ кнопкой
   await expect(
     officerPage.getByRole('checkbox', { name: /ВКонтакте/ }),
   ).toBeDisabled()
-  await officerPage
-    .getByRole('button', { name: 'Отправить в Telegram' })
-    .click()
+  await officerPage.getByRole('button', { name: 'Отправить анонс' }).click()
   const dialog = officerPage.getByRole('alertdialog')
-  await expect(dialog.getByText(/Получателей: \d+/)).toBeVisible()
+  await expect(dialog.getByText(/Получателей — Telegram: \d+/)).toBeVisible()
   await dialog.getByRole('button', { name: 'Отправить', exact: true }).click()
   await expect(
-    officerPage.getByText(/^Отправлено в Telegram: \d+/),
+    officerPage.getByText(/^Отправлено — Telegram: \d+/),
   ).toBeVisible()
   expect(await hasHorizontalScroll(officerPage)).toBe(false)
 

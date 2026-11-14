@@ -1,4 +1,4 @@
-import { createApp, type TelegramEnv } from '../_shared/app.ts'
+import { createApp, type MaxEnv, type TelegramEnv } from '../_shared/app.ts'
 
 function requireEnv(name: string) {
   const value = Deno.env.get(name)
@@ -25,6 +25,23 @@ function telegramEnv(): TelegramEnv | null {
   }
 }
 
+/** MAX включается, только когда заданы токен, имя бота и секрет вебхука. */
+function maxEnv(): MaxEnv | null {
+  const token = Deno.env.get('MAX_BOT_TOKEN')
+  const botUsername = Deno.env.get('MAX_BOT_USERNAME')
+  const webhookSecret = Deno.env.get('MAX_WEBHOOK_SECRET')
+  if (!token || !botUsername || !webhookSecret) {
+    return null
+  }
+  return {
+    token,
+    botUsername,
+    webhookSecret,
+    siteUrl: Deno.env.get('SITE_URL') || null,
+    apiBase: Deno.env.get('MAX_API_BASE') || null,
+  }
+}
+
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void }
 
 // Переменные предоставляет платформа Supabase; секреты не хранятся в коде.
@@ -38,6 +55,7 @@ const { handler } = createApp(
     // постоянных событий доступен только кнопкой офицера.
     cronSecret: Deno.env.get('EVENTS_CRON_SECRET') ?? null,
     telegram: telegramEnv(),
+    max: maxEnv(),
   },
   {
     // Задача доделывается после ответа (локально нужен policy = per_worker).
