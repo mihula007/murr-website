@@ -1,7 +1,12 @@
 name: Deploy GitHub Pages
 
-# Publication is explicit; ordinary pushes only run CI.
+# Development happens on `main`; the live site is the release branch `public`.
+# A release fast-forwards `public` from `main` (`git push origin main:public`).
+# Full backend and browser tests run in CI before that; this workflow only
+# repeats the static checks with the production public configuration.
 on:
+  push:
+    branches: [public]
   workflow_dispatch:
 
 permissions:
@@ -13,7 +18,7 @@ concurrency:
 
 jobs:
   build:
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    if: github.ref == 'refs/heads/public'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -32,8 +37,6 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
       - name: Prepare the custom domain when configured
         run: npm run pages:prepare
         env:

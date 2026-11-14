@@ -223,7 +223,7 @@ tests/                  # Vitest: клиент, проверки scripts/, tests
 e2e/                    # Проверки production build в Playwright
 supabase/               # Конфигурация, миграции, функция api и общий код
 scripts/                # TypeScript-скрипты проверок и сервисных команд
-.github/workflows/      # CI и ручная публикация Pages
+.github/workflows/      # CI и публикация Pages из ветки public
 ```
 
 Доменные модули добавляются в `src/features/` вместе с задачами. Клиент
@@ -243,21 +243,37 @@ scripts/                # TypeScript-скрипты проверок и серв
 
 ## GitHub Pages и собственный домен
 
-Удалённая публикация пока не выполнялась. После создания публичного
-репозитория и подключения домена:
+Разработка ведётся в `main` (default branch), опубликованный сайт — ветка
+`public`. Выпуск — перемотка `public` на проверенный коммит `main`:
 
-1. В Settings → Pages выбрать Source: **GitHub Actions**.
-2. Проверить защищённую default branch и environment `github-pages`.
-3. При подключении Supabase создать repository **Variables**
-   `VITE_SUPABASE_URL` и `VITE_SUPABASE_PUBLISHABLE_KEY`. Это публичные
-   значения. Для статического каркаса можно оставить обе переменные пустыми.
-4. Создать Variable `PAGES_CUSTOM_DOMAIN` с реальным доменным именем без
-   протокола и пути. Workflow добавит `CNAME` в собранный артефакт.
-5. Настроить домен в Pages, DNS и HTTPS согласно документации GitHub.
-6. Запустить **Deploy GitHub Pages** вручную из default branch. Перед
-   загрузкой `dist/` workflow повторит проверки и браузерные тесты.
+```sh
+git push origin main:public
+```
 
-Адрес домена пока не указан, поэтому фиктивного `CNAME` в проекте нет.
+В `public` напрямую не коммитить: только fast-forward из `main`. Откат —
+перемотка `public` на прежний коммит (принудительный push, только по решению
+владельца). Сначала в облачный Supabase выкладываются миграции и функции
+выпускаемого коммита, затем перематывается `public` (правило совместимости).
+
+Push в `public` запускает **Deploy GitHub Pages** (можно и вручную на этой
+ветке). Workflow повторяет `npm run check` с публичной конфигурацией
+облака и загружает `dist/`. Браузерные и серверные тесты в нём не
+выполняются: им нужен локальный Supabase, а сборка смотрит в рабочую БД —
+они проходят в CI на `main` до выпуска.
+
+Настройка репозитория:
+
+1. Settings → Pages → Source: **GitHub Actions** (не «Deploy from a branch»:
+   тот режим отдаёт исходники, а не сборку). Домен — `pwmurr.ru`,
+   после выпуска сертификата включить **Enforce HTTPS**.
+2. Settings → Environments → `github-pages`: Deployment branches — только
+   `public`.
+3. Repository **Variables**: `PAGES_CUSTOM_DOMAIN=pwmurr.ru` (workflow
+   добавит `CNAME` в артефакт, файл `CNAME` в Git не нужен), а с облачным
+   Supabase — `VITE_SUPABASE_URL` и `VITE_SUPABASE_PUBLISHABLE_KEY`
+   (публичные значения). Без них публикуется статический каркас.
+4. DNS домена и HTTPS — по документации GitHub Pages.
+
 CI на push и pull request проверяет код, но не публикует сайт. В задаче
 сборки только `contents: read`; права `pages: write` и `id-token: write`
 получает отдельная задача публикации.
