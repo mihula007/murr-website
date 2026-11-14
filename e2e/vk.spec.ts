@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { hasHorizontalScroll, skipSplash } from './helpers'
+import { hasHorizontalScroll, openedMessengerUrl, skipSplash } from './helpers'
 import {
   accessToken,
   callApi,
@@ -51,11 +51,11 @@ test('E2E-10: анонс события во ВКонтакте и ответ к
   await signInUi(page, member.email)
   await expectSignedIn(page)
   await page.goto('./#/account')
-  const block = page.getByRole('region', { name: 'ВКонтакте' })
-  await block.getByRole('button', { name: 'Привязать ВКонтакте' }).click()
-  const href = (await block
-    .getByRole('link', { name: 'Открыть диалог' })
-    .getAttribute('href'))!
+  const href = await openedMessengerUrl(
+    page,
+    /^Привязать ВКонтакте/,
+    /^https:\/\/vk\.me\//,
+  )
   expect(href).toMatch(/^https:\/\/vk\.me\/murr_e2e\?ref=/)
   expect(
     await sendVkEvent(
@@ -70,7 +70,11 @@ test('E2E-10: анонс события во ВКонтакте и ответ к
       (call.params.message ?? '').includes(member.nickname),
   )
   await page.reload()
-  await expect(block.getByText(`@vk${vkUserId}`)).toBeVisible()
+  await expect(
+    page.getByRole('button', {
+      name: new RegExp(`^ВКонтакте привязан: @vk${vkUserId}`),
+    }),
+  ).toBeVisible()
   expect(await hasHorizontalScroll(page)).toBe(false)
 
   // Анонс события только во ВКонтакте (VK-05, VK-07).

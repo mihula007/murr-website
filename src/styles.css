@@ -62,6 +62,13 @@
   --live-border: #557a2e;
   --live-surface: #182110;
   --live-glow: #8fd14f66;
+  /* Фирменные цвета мессенджеров — только логотипы в MessengerIcon. */
+  --telegram: #26a5e4;
+  --vk: #0077ff;
+  --max-from: #44ccff;
+  --max-via: #5533ee;
+  --max-to: #9933dd;
+  --brand-glyph: #ffffff;
   --input-background: #0d0c0a;
   --input-hover: #a88a51;
   --placeholder: #a99d89;
@@ -149,6 +156,12 @@
   --color-live-border: var(--live-border);
   --color-live-surface: var(--live-surface);
   --color-live-glow: var(--live-glow);
+  --color-telegram: var(--telegram);
+  --color-vk: var(--vk);
+  --color-max-from: var(--max-from);
+  --color-max-via: var(--max-via);
+  --color-max-to: var(--max-to);
+  --color-brand-glyph: var(--brand-glyph);
   --color-input-background: var(--input-background);
   --color-input-hover: var(--input-hover);
   --color-placeholder: var(--placeholder);
