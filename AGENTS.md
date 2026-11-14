@@ -213,7 +213,7 @@ Next.js и TanStack Start в выбранную основу не входят.
 `account`, `applications`, `votes`, `roster`, `admin`, `catalog`, `home`,
 `not-found`, `sections`, `dev`, `activity`, `publications`, `market`,
 `content` — общий редактор, показ и экраны материалов, `discussions` —
-ветки обсуждений, `notifications` — колокольчик и счётчики разделов, `broadcast` — подготовка рассылок); общие элементы форм — `src/components/form/`;
+ветки обсуждений, `notifications` — колокольчик и счётчики разделов, `broadcast` — черновики, шаблоны и отправка анонсов, `telegram` — привязка Telegram в кабинете); общие элементы форм — `src/components/form/`;
 подтверждение действия с ответом сервера — `ConfirmActionDialog`
 (`src/components/confirm-action-dialog.tsx`); иконка класса — `ClassIcon`
 (`src/features/catalog/`, файлы `src/assets/class-icons/<slug>.webp`);
@@ -432,6 +432,22 @@ starts_at)`.
   `account_deleted`, клиент выходит локально. Новая ссылка на `profiles` в
   миграции обязана получить правило `ON DELETE` по таблице данных плана
   этапа 11 и проверку в `tests/server/user-deletion.test.ts`.
+  Этап 13 (Telegram, Q-76–Q-96, [проект](docs/architecture/telegram-integration.md)):
+  таблицы `telegram_links`, `telegram_link_codes`, `telegram_announcements`,
+  `telegram_event_messages`; модуль `telegram` и отправка в `broadcasts`.
+  Вебхук бота — маршрут `telegram/webhook` той же функции `api`, проверка —
+  заголовок `X-Telegram-Bot-Api-Secret-Token`; Bot API — через `fetch`
+  (`_shared/telegram/gateway.ts`), токен не логируется. Без
+  `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` и `TELEGRAM_WEBHOOK_SECRET`
+  интеграция выключена (`telegram_unavailable`). Привязка — одноразовый код
+  `t.me/<бот>?start=` (хеш, 15 минут), один Telegram на аккаунт. Анонс
+  события — с кнопками ответа; ответ кнопкой и с сайта — одна функция
+  `saveAnswer` (`events/service.ts`); у участника активно одно сообщение на
+  событие (прежнее теряет кнопки); ответ на сайте перерисовывает его фоново
+  (`_shared/background.ts`, `EdgeRuntime.waitUntil`; локально нужен
+  `[edge_runtime] policy = "per_worker"`). Одна запись аудита на отправку;
+  привязка, отвязка и ответы в аудит не пишутся. Вложения рассылок отменены
+  (Q-82), текст — до 3800 символов (Q-91). ВКонтакте и MAX не подключены.
 - Прикладные таблицы не открываются через Data API: браузер не получает
   к ним GRANT, RLS включён без политик (запрет по умолчанию).
 - CI проверяет изменения на push и pull request. Публикация Pages
@@ -548,10 +564,14 @@ starts_at)`.
   `.env.development.local` для `npm run dev` (файл игнорируется Git).
 - `npm run build:e2e` и `npm run test:e2e` — Playwright по сборке,
   подключённой к локальному Supabase; перед тестами запустить
-  `npx supabase functions serve`. Коды из писем читаются из Mailpit.
+  `npm run e2e:functions` (функции с выдуманным ботом и фальшивым Bot API
+  `e2e/fake-telegram.ts`, его поднимает Playwright). Коды из писем читаются из Mailpit.
   Локально один worker (слабая машина владельца), в CI — два.
 - `npm run admin:bootstrap -- --email … --nickname … --name … --class …` —
   однократное назначение первого администратора (Q-32).
+- `npm run telegram:dev` — туннель `cloudflared` и вебхук тестового бота
+  (рядом — `npm run supabase:functions`); `npm run telegram:webhook` —
+  вебхук рабочего бота на облачную функцию.
 - `npm run format` — применить Prettier.
 - `npm run supabase:start`, `supabase:status`, `supabase:stop` — локальный
   backend; требуется поддерживаемый runtime, например Docker Desktop. На
