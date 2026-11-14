@@ -243,6 +243,11 @@ scripts/                # TypeScript-скрипты проверок и серв
 
 ## GitHub Pages и собственный домен
 
+Облачная выкладка целиком (Supabase, секреты, выпуск, откат) —
+[docs/operations/deploy.md](docs/operations/deploy.md); резервные копии —
+[backup.md](docs/operations/backup.md); квоты Free —
+[supabase-free-limits.md](docs/operations/supabase-free-limits.md).
+
 Разработка ведётся в `main` (default branch), опубликованный сайт — ветка
 `public`. Выпуск — перемотка `public` на проверенный коммит `main`:
 
