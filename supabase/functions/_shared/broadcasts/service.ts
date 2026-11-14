@@ -7,7 +7,6 @@ import {
   prefillSchema,
   saveBroadcastTemplateSchema,
   saveDraftSchema,
-  type BroadcastAttachment,
   type BroadcastChannel,
   type BroadcastDraftsResponse,
   type BroadcastTemplatesResponse,
@@ -134,7 +133,6 @@ export async function listDrafts(
       subject: row.subject,
       body: row.body,
       channels: row.channels as BroadcastChannel[],
-      attachments: row.attachments as unknown as BroadcastAttachment[],
       author: row.author_nickname
         ? { gameNickname: row.author_nickname }
         : null,
@@ -159,7 +157,6 @@ export async function saveDraft(
       subject: input.subject,
       body: input.body,
       channels: input.channels,
-      attachments: input.attachments,
       source: input.source,
     })
     await broadcastRepository.trimDrafts(tx, BROADCAST_LIMITS.drafts)

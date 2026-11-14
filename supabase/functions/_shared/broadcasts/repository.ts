@@ -1,6 +1,5 @@
 import { sql } from 'kysely'
 import type {
-  BroadcastAttachment,
   BroadcastChannel,
   BroadcastSource,
 } from '../contracts/broadcasts.ts'
@@ -15,7 +14,6 @@ export type DraftValues = {
   subject: string | null
   body: string
   channels: BroadcastChannel[]
-  attachments: BroadcastAttachment[]
   source: { kind: BroadcastSource; id: string } | null
 }
 
@@ -37,7 +35,6 @@ export const broadcastRepository = {
         'd.subject',
         'd.body',
         'd.channels',
-        'd.attachments',
         'd.author_id',
         'd.created_at',
         'author.game_nickname as author_nickname',
@@ -60,7 +57,6 @@ export const broadcastRepository = {
         subject: values.subject,
         body: values.body,
         channels: values.channels,
-        attachments: sql`cast(${JSON.stringify(values.attachments)}::text as jsonb)`,
         source_kind: values.source?.kind ?? null,
         source_id: values.source?.id ?? null,
         created_at: sql<string>`clock_timestamp()`,
