@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Navigate, useNavigate } from '@tanstack/react-router'
 import { ChevronDown } from 'lucide-react'
 import type { MeResponse } from '@contracts/account'
-import { useAccess } from '@/app/access'
+import { INTERNAL_ROLES, useAccess } from '@/app/access'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
@@ -12,6 +12,7 @@ import { Badge, Card } from '@/components/ui/surfaces'
 import { ApplicantPath } from '@/features/applications/applicant-path'
 import { useSignOut } from '@/features/auth/use-sign-out'
 import { clearDraft } from '@/features/registration/registration-draft'
+import { TelegramLinkCard } from '@/features/telegram/telegram-link-card'
 import { formatDate } from '@/lib/format-date'
 import { PasswordForm } from './password-form'
 import { ProfileForm } from './profile-form'
@@ -163,6 +164,9 @@ function Dashboard({ me }: { me: ReadyMe }) {
             />
           ) : null}
         </details>
+
+        {/* Telegram — член, офицер и администратор (TGM-01, Q-88). */}
+        {INTERNAL_ROLES.includes(profile.role) ? <TelegramLinkCard /> : null}
 
         {profile.role === 'applicant' ? (
           <ApplicantPath

@@ -6,6 +6,9 @@ import type {
   PrefillResponse,
   SaveBroadcastTemplateRequest,
   SaveDraftRequest,
+  SendAnnouncementRequest,
+  SendAnnouncementResponse,
+  TelegramRecipientsResponse,
 } from '@contracts/broadcasts'
 import { callApi } from '@/lib/supabase/api'
 
@@ -14,6 +17,7 @@ export const broadcastKeys = {
   all: ['broadcasts'] as const,
   drafts: ['broadcasts', 'drafts'] as const,
   templates: ['broadcasts', 'templates'] as const,
+  recipients: ['broadcasts', 'recipients'] as const,
   prefill: (source: BroadcastSource, id: string) =>
     ['broadcasts', 'prefill', source, id] as const,
 }
@@ -89,5 +93,28 @@ export function useDeleteBroadcastTemplate() {
       callApi<BroadcastTemplatesResponse>('broadcasts/delete-template', { id }),
     onSuccess: (data) =>
       queryClient.setQueryData(broadcastKeys.templates, data),
+  })
+}
+
+/**
+ * Число получателей для подтверждения (TGM-11): разовая проверка перед
+ * отправкой, всегда свежая.
+ */
+export function useFetchRecipients() {
+  const queryClient = useQueryClient()
+  return () =>
+    queryClient.fetchQuery({
+      queryKey: broadcastKeys.recipients,
+      queryFn: () =>
+        callApi<TelegramRecipientsResponse>('broadcasts/recipients'),
+      staleTime: 0,
+    })
+}
+
+/** Отправка анонса в Telegram (TGM-11–TGM-16): данные сайта не меняются. */
+export function useSendAnnouncement() {
+  return useMutation({
+    mutationFn: (input: SendAnnouncementRequest) =>
+      callApi<SendAnnouncementResponse>('broadcasts/send', input),
   })
 }

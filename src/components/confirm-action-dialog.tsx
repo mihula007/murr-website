@@ -20,6 +20,8 @@ type ConfirmActionDialogProps = {
   pendingLabel: string
   /** Действие; отказ показывается в диалоге, диалог остаётся открытым. */
   onConfirm: () => Promise<unknown>
+  /** Уточнённый текст отказа (например, по причине конфликта); иначе — по коду. */
+  errorText?: (error: AppError) => string | null
 }
 
 /**
@@ -35,6 +37,7 @@ export function ConfirmActionDialog({
   confirmLabel,
   pendingLabel,
   onConfirm,
+  errorText,
 }: ConfirmActionDialogProps) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -57,7 +60,9 @@ export function ConfirmActionDialog({
     } catch (thrown) {
       setPending(false)
       setError(
-        errorMessage(thrown instanceof AppError ? thrown.code : 'unknown'),
+        thrown instanceof AppError
+          ? (errorText?.(thrown) ?? errorMessage(thrown.code))
+          : errorMessage('unknown'),
       )
     }
   }
