@@ -154,6 +154,26 @@
         "no-restricted-globals": "off",
         "no-restricted-properties": "off"
       }
+    },
+    {
+      "files": ["scripts/seed-dev.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@supabase/supabase-js",
+                "message": "Supabase SDK — только в src/lib/supabase/*.ts и src/features/auth/*.ts (не в компонентах)."
+              },
+              {
+                "name": "kysely",
+                "message": "Kysely — только в репозиториях (supabase/functions/_shared/**/repository.ts) и _shared/db/."
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "ignorePatterns": [
