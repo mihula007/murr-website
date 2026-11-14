@@ -62,3 +62,14 @@ export const RouteFailure: Story = {
     />
   ),
 }
+export const ErrorWithAction: Story = {
+  name: 'Ошибка с выходом ко входу',
+  render: () => (
+    <div className="max-w-3xl">
+      <ErrorState
+        onRetry={() => undefined}
+        actions={<Button variant="secondary">Выйти и перейти ко входу</Button>}
+      />
+    </div>
+  ),
+}

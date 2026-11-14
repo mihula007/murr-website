@@ -9,11 +9,13 @@ import { PageHeader } from '@/components/states/page-header'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Badge, Card } from '@/components/ui/surfaces'
+import { FormError } from '@/components/form/form-error'
 import { ApplicantPath } from '@/features/applications/applicant-path'
 import { useSignOut } from '@/features/auth/use-sign-out'
 import { clearDraft } from '@/features/registration/registration-draft'
 import { TelegramLinkCard } from '@/features/telegram/telegram-link-card'
 import { formatDate } from '@/lib/format-date'
+import { formErrorMessage } from '@/lib/errors'
 import { PasswordForm } from './password-form'
 import { ProfileForm } from './profile-form'
 import { APPLICATION_STATUS, ROLE_STATUS } from './status-labels'
@@ -197,8 +199,10 @@ function Dashboard({ me }: { me: ReadyMe }) {
 
 /** Личный кабинет (ACC-05, ACC-06): гостя ведёт ко входу, незавершённую регистрацию — к её завершению. */
 export function AccountPage() {
+  const navigate = useNavigate()
   const access = useAccess()
   const me = useMe()
+  const signOut = useSignOut()
   if (access.status === 'loading') {
     return <LoadingState label="Загружаем аккаунт…" />
   }
@@ -209,7 +213,31 @@ export function AccountPage() {
     return <Navigate to="/register/complete" />
   }
   if (access.status === 'error' || me.data?.state !== 'ready') {
-    return <ErrorState onRetry={() => void me.refetch()} />
+    return (
+      <ErrorState
+        onRetry={() => void me.refetch()}
+        actions={
+          <>
+            <FormError message={formErrorMessage(signOut.error)} />
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={signOut.isPending}
+              onClick={() =>
+                signOut.mutate(undefined, {
+                  onSuccess: async () => {
+                    clearDraft()
+                    await navigate({ to: '/login' })
+                  },
+                })
+              }
+            >
+              {signOut.isPending ? 'Выходим…' : 'Выйти и перейти ко входу'}
+            </Button>
+          </>
+        }
+      />
+    )
   }
   return <Dashboard me={me.data} />
 }

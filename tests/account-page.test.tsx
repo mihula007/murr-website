@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderApp } from './support/render-app'
 
 const me = vi.hoisted(() => ({ value: {} as unknown }))
+const accountLoad = vi.hoisted(() => ({ failed: false }))
+const accessState = vi.hoisted(() => ({ failed: false }))
 const callApi = vi.hoisted(() =>
   vi.fn<(route: string, body?: unknown) => Promise<unknown>>(),
 )
@@ -10,13 +12,27 @@ const signIn = vi.hoisted(() => vi.fn<(input: unknown) => Promise<unknown>>())
 const updateUser = vi.hoisted(() =>
   vi.fn<(input: unknown) => Promise<unknown>>(),
 )
+const signOut = vi.hoisted(() => vi.fn<() => Promise<{ error: unknown }>>())
+
+vi.mock('@/app/access', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/app/access')>()
+  return {
+    ...original,
+    useAccess: () => {
+      const access = original.useAccess()
+      return accessState.failed
+        ? { ...access, role: 'guest' as const, status: 'error' as const }
+        : access
+    },
+  }
+})
 
 vi.mock('@/features/account/use-me', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   useMe: () => ({
     data: me.value,
     isPending: false,
-    isError: false,
+    isError: accountLoad.failed,
     refetch: vi.fn<() => void>(),
   }),
 }))
@@ -30,7 +46,7 @@ vi.mock('@/lib/supabase/client', async (importOriginal) => ({
     auth: {
       signInWithPassword: signIn,
       updateUser,
-      signOut: vi.fn<() => Promise<void>>(),
+      signOut,
     },
   }),
 }))
@@ -86,9 +102,53 @@ beforeEach(() => {
   )
   signIn.mockReset()
   updateUser.mockReset()
+  signOut.mockReset()
+  accountLoad.failed = false
+  accessState.failed = false
 })
 
 describe('account dashboard', () => {
+  it('offers sign out and login when account data cannot be loaded', async () => {
+    me.value = undefined
+    accountLoad.failed = true
+    accessState.failed = true
+    signOut.mockResolvedValueOnce({ error: null })
+
+    const { router } = await renderApp({ role: 'member', path: '/account' })
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Выйти и перейти ко входу',
+      }),
+    )
+
+    await waitFor(() => expect(signOut).toHaveBeenCalledOnce())
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
+  })
+
+  it('keeps the account open and reports a sign-out error', async () => {
+    me.value = undefined
+    accountLoad.failed = true
+    accessState.failed = true
+    signOut.mockRejectedValueOnce(new TypeError('offline'))
+
+    const { router } = await renderApp({ role: 'member', path: '/account' })
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Выйти и перейти ко входу',
+      }),
+    )
+
+    expect(
+      await screen.findByText(
+        'Нет связи с сервером. Проверьте интернет и повторите.',
+      ),
+    ).toBeVisible()
+    expect(router.state.location.pathname).toBe('/account')
+    expect(screen.getByRole('button', { name: 'Повторить' })).toBeVisible()
+  })
+
   it('shows the applicant status and personal data', async () => {
     me.value = profile('applicant')
     await renderApp({ role: 'applicant', path: '/account' })

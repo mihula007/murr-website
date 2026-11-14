@@ -255,3 +255,28 @@ test('меню по ролям после входа', async ({ page, isMobile }
     await expect(banner.getByRole('link', { name: 'Вход' })).toBeVisible()
   }
 })
+
+test('выход из кабинета при ошибке загрузки профиля открывает вход', async ({
+  page,
+}) => {
+  const member = await createMember('member')
+  await signInUi(page, member.email)
+  await expectSignedIn(page)
+  await page.goto('./#/account')
+
+  await page.route('**/functions/v1/api/account/me', (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'internal' }),
+    }),
+  )
+  await page.reload()
+
+  await expect(page.getByText('Не удалось загрузить данные.')).toBeVisible()
+  await page.getByRole('button', { name: 'Выйти и перейти ко входу' }).click()
+  await expect(page).toHaveURL(/#\/login$/)
+  await expect(
+    page.getByRole('heading', { name: 'Вход в Murr клан' }),
+  ).toBeVisible()
+})

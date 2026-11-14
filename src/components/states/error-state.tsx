@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/surfaces'
@@ -8,6 +9,7 @@ type ErrorStateProps = {
   message?: string
   onRetry?: () => void
   className?: string
+  actions?: ReactNode
 }
 
 /** Сообщение об ошибке без технических подробностей; детали — только в консоли. */
@@ -16,6 +18,7 @@ export function ErrorState({
   message = 'Не удалось загрузить данные. Попробуйте ещё раз чуть позже.',
   onRetry,
   className,
+  actions,
 }: ErrorStateProps) {
   return (
     <Card
@@ -37,6 +40,9 @@ export function ErrorState({
         <Button variant="secondary" className="mt-2" onClick={onRetry}>
           Повторить
         </Button>
+      ) : null}
+      {actions ? (
+        <div className="flex flex-wrap justify-center gap-2">{actions}</div>
       ) : null}
     </Card>
   )
