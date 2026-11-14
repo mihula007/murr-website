@@ -882,15 +882,21 @@ export type Database = {
           about: string | null
           access_role: string
           avatar_path: string | null
+          bd: number | null
           birth_date: string | null
+          bu: number | null
+          character_stats_source: string | null
           city: string | null
           class_id: number
           created_at: string
           display_name: string
           game_nickname: string
+          hp: number | null
           id: string
           is_primary_admin: boolean
           joined_on: string | null
+          pa: number | null
+          pz: number | null
           updated_at: string
         }
         ComputedFields: never
@@ -898,30 +904,42 @@ export type Database = {
           about?: string | null
           access_role: string
           avatar_path?: string | null
+          bd?: number | null
           birth_date?: string | null
+          bu?: number | null
+          character_stats_source?: string | null
           city?: string | null
           class_id: number
           created_at?: string
           display_name: string
           game_nickname: string
+          hp?: number | null
           id: string
           is_primary_admin?: boolean
           joined_on?: string | null
+          pa?: number | null
+          pz?: number | null
           updated_at?: string
         }
         Update: {
           about?: string | null
           access_role?: string
           avatar_path?: string | null
+          bd?: number | null
           birth_date?: string | null
+          bu?: number | null
+          character_stats_source?: string | null
           city?: string | null
           class_id?: number
           created_at?: string
           display_name?: string
           game_nickname?: string
+          hp?: number | null
           id?: string
           is_primary_admin?: boolean
           joined_on?: string | null
+          pa?: number | null
+          pz?: number | null
           updated_at?: string
         }
         Relationships: [
