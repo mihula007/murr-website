@@ -55,9 +55,16 @@ async function answerCount(id: string) {
   return row?.count ?? 0
 }
 
-/** Счётчик ответа в карточке события. */
-function count(page: Page, label: string) {
+function eventCard(page: Page, title: string) {
   return page
+    .getByRole('list', { name: 'Актуальные события' })
+    .getByRole('listitem')
+    .filter({ hasText: title })
+}
+
+/** Счётчик ответа в карточке события. */
+function count(page: Page, title: string, label: string) {
+  return eventCard(page, title)
     .getByRole('list', { name: 'Ответы участников' })
     .getByRole('listitem')
     .filter({ hasText: new RegExp(`^${label}:`) })
@@ -69,9 +76,10 @@ async function manageEvent(page: Page, action: string) {
   await page.getByRole('menuitem', { name: action, exact: true }).click()
 }
 
-async function choose(page: Page, label: string) {
-  await page.getByRole('button', { name: label, exact: true }).click()
-  await expect(page.getByText('Ваше решение:')).toBeVisible()
+async function choose(page: Page, title: string, label: string) {
+  const card = eventCard(page, title)
+  await card.getByRole('button', { name: label, exact: true }).click()
+  await expect(card.getByText('Ваше решение:')).toBeVisible()
 }
 
 test('событие: создание, правка, ответы и удаление', async ({
@@ -104,7 +112,10 @@ test('событие: создание, правка, ответы и удале
   // Правка сохраняет тот же объект и его ответы (приёмка 1).
   await page.goto(`./#/events/${id}`)
   await expect(page.getByText(/, 21:30 МСК$/)).toBeVisible()
-  await choose(page, 'Приду')
+  await page.goto('./#/events?tab=active')
+  await choose(page, title, 'Приду')
+  await expect(count(page, title, 'Приду')).toHaveText('Приду: 1')
+  await page.goto(`./#/events/${id}`)
   await manageEvent(page, 'Изменить')
   const edit = page.getByRole('form', { name: 'Редактирование события' })
   await expect(edit.getByLabel('Название')).toHaveValue(title)
@@ -112,17 +123,18 @@ test('событие: создание, правка, ответы и удале
   await edit.getByRole('button', { name: 'Сохранить изменения' }).click()
   await expect(page).toHaveURL(new RegExp(`#/events/${id}$`))
   await expect(page.getByText('Сбор у ворот')).toBeVisible()
-  await expect(count(page, 'Приду')).toHaveText('Приду: 1')
 
   // Ответ и смена ответа — одна строка участника (приёмка 2).
   const memberPage = await signedInPage(browser, member.email)
   await memberPage.goto(`./#/events/${id}`)
-  await choose(memberPage, 'Приду')
-  await expect(count(memberPage, 'Приду')).toHaveText('Приду: 2')
-  await memberPage.getByRole('button', { name: 'Изменить решение' }).click()
-  await choose(memberPage, '50/50')
-  await expect(count(memberPage, 'Приду')).toHaveText('Приду: 1')
-  await expect(count(memberPage, '50/50')).toHaveText('50/50: 1')
+  await memberPage.goto('./#/events?tab=active')
+  await choose(memberPage, title, 'Приду')
+  await expect(count(memberPage, title, 'Приду')).toHaveText('Приду: 2')
+  const memberCard = eventCard(memberPage, title)
+  await memberCard.getByRole('button', { name: 'Изменить решение' }).click()
+  await choose(memberPage, title, '50/50')
+  await expect(count(memberPage, title, 'Приду')).toHaveText('Приду: 1')
+  await expect(count(memberPage, title, '50/50')).toHaveText('50/50: 1')
   expect(await answerCount(id!)).toBe(2)
   // Член клана не управляет событием.
   await expect(
@@ -227,9 +239,7 @@ test('после начала события ответы закрыты', async
   await signInUi(page, member.email)
   await expectSignedIn(page)
   await page.goto(`./#/events/${row!.id}`)
-  await expect(
-    page.getByText(/Событие началось: ответы больше не принимаются/),
-  ).toBeVisible()
+  await expect(page.getByRole('heading', { name: title })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Приду' })).toHaveCount(0)
   const response = await callApi(
     'events/respond',

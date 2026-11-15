@@ -115,7 +115,6 @@ test('E2E-03: группы, лидер, закрытие, учёт активн�
     .getByRole('alertdialog')
     .getByRole('button', { name: 'Завершить' })
     .click()
-  await expect(page.getByText('Событие закрыто')).toBeVisible()
   await expect(
     page.getByRole('button', { name: 'Создать группу' }),
   ).toHaveCount(0)

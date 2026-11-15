@@ -137,13 +137,17 @@ test('E2E-08: анонс события в Telegram и ответ кнопкой
       call.params.message_id === sent.messageId &&
       (call.params.text ?? '').includes('Ваш ответ: Приду'),
   )
-  await page.goto(`./#/events/${eventId}`)
-  await expect(page.getByText('Ваше решение: Приду')).toBeVisible()
+  await page.goto('./#/events?tab=active')
+  const eventCard = page
+    .getByRole('list', { name: 'Актуальные события' })
+    .getByRole('listitem')
+    .filter({ hasText: title })
+  await expect(eventCard.getByText('Ваше решение: Приду')).toBeVisible()
 
   // Ответ на сайте обновляет сообщение в Telegram (TGM-21).
-  await page.getByRole('button', { name: 'Изменить решение' }).click()
-  await page.getByRole('button', { name: 'Не приду', exact: true }).click()
-  await expect(page.getByText('Ваше решение: Не приду')).toBeVisible()
+  await eventCard.getByRole('button', { name: 'Изменить решение' }).click()
+  await eventCard.getByRole('button', { name: 'Не приду', exact: true }).click()
+  await expect(eventCard.getByText('Ваше решение: Не приду')).toBeVisible()
   await waitForCall(
     chatId,
     (call) =>

@@ -67,7 +67,11 @@ async function createVote(officer: Person) {
 /** Обсуждение события открывается отдельным окном из карточки события. */
 async function openEventDiscussion(page: Page, title: string) {
   await page.goto('./#/events?tab=active')
-  const card = page.getByRole('heading', { name: title }).locator('..')
+  const card = page
+    .getByRole('list', { name: 'Актуальные события' })
+    .getByRole('listitem')
+    .filter({ hasText: title })
+  await expect(card).toHaveCount(1)
   await card.getByRole('button', { name: /Обсуждение ивента/ }).click()
   return page.getByRole('list', { name: 'Сообщения обсуждения' })
 }

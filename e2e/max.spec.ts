@@ -111,13 +111,17 @@ test('E2E-10: анонс события в MAX и ответ кнопкой', as
       call.query.message_id === sent.messageId &&
       (call.body.text ?? '').includes('Ваш ответ: Приду'),
   )
-  await page.goto(`./#/events/${eventId}`)
-  await expect(page.getByText('Ваше решение: Приду')).toBeVisible()
+  await page.goto('./#/events?tab=active')
+  const eventCard = page
+    .getByRole('list', { name: 'Актуальные события' })
+    .getByRole('listitem')
+    .filter({ hasText: title })
+  await expect(eventCard.getByText('Ваше решение: Приду')).toBeVisible()
 
   // Ответ на сайте обновляет сообщение в MAX (MAX-08).
-  await page.getByRole('button', { name: 'Изменить решение' }).click()
-  await page.getByRole('button', { name: 'Не приду', exact: true }).click()
-  await expect(page.getByText('Ваше решение: Не приду')).toBeVisible()
+  await eventCard.getByRole('button', { name: 'Изменить решение' }).click()
+  await eventCard.getByRole('button', { name: 'Не приду', exact: true }).click()
+  await expect(eventCard.getByText('Ваше решение: Не приду')).toBeVisible()
   await waitForMaxCall(
     maxUserId,
     (call) =>

@@ -250,8 +250,12 @@ test('главная по ролям: ответ с главной виден в
     const card = cards.filter({ has: page.locator(`a[href="${href}"]`) })
     await card.getByRole('button', { name: 'Приду', exact: true }).click()
     await expect(card.getByText('Ваше решение:')).toBeVisible()
-    await page.goto(`./${href}`)
-    await expect(page.getByText('Ваше решение:')).toBeVisible()
+    await page.goto('./#/events?tab=active')
+    const scheduleCard = page
+      .getByRole('list', { name: 'Актуальные события' })
+      .getByRole('listitem')
+      .filter({ has: page.locator(`a[href="${href}"]`) })
+    await expect(scheduleCard.getByText('Ваше решение:')).toBeVisible()
   }
 
   const officerPage = await signedInPage(browser, officer.email)
