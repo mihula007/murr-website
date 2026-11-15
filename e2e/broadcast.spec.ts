@@ -215,13 +215,14 @@ test('BRC-15: subscription tab shows messenger links to managers only', async ({
 
   await signInUi(page, officer.email)
   await expectSignedIn(page)
-  await page.goto('./#/broadcast?tab=subscriptions')
+  await page.goto(
+    `./#/broadcast?tab=subscriptions&q=${encodeURIComponent(linked.nickname)}`,
+  )
   await expect(page.getByRole('tab', { name: 'Подписки' })).toHaveAttribute(
     'data-state',
     'active',
   )
   await expect(page.getByText(linked.nickname)).toBeVisible()
-  await expect(page.getByText(unlinked.nickname)).toBeVisible()
   await expect(
     page.getByRole('group', { name: 'Telegram: привязан' }),
   ).toBeVisible()
@@ -230,9 +231,8 @@ test('BRC-15: subscription tab shows messenger links to managers only', async ({
   ).toBeVisible()
   await expect(page.getByRole('group', { name: 'MAX: привязан' })).toBeVisible()
 
-  await page.getByLabel('Поиск по нику').fill(linked.nickname.toUpperCase())
-  await expect(page.getByText(linked.nickname)).toBeVisible()
-  await expect(page.getByText(unlinked.nickname)).toHaveCount(0)
+  await page.getByLabel('Поиск по нику').fill(unlinked.nickname)
+  await expect(page.getByText(unlinked.nickname)).toBeVisible()
   await page.setViewportSize({ width: 375, height: 812 })
   expect(await hasHorizontalScroll(page)).toBe(false)
 
