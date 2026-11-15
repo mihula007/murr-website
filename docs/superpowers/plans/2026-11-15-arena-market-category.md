@@ -4,7 +4,7 @@
 
 **Goal:** Добавить полноценную категорию «Арена» в объявления «Внутри клана».
 
-**Architecture:** Расширить существующий общий перечень категорий рынка в общих проверках и подписи. Уже существующие объявления сохраняют свои данные; отдельная таблица или изменение базы не требуется.
+**Architecture:** Расширить общий перечень категорий в общих проверках и подписях и совместимо обновить ограничение категорий в таблице рынка. Уже существующие объявления сохраняют свои данные; отдельная таблица и переписывание строк не нужны.
 
 **Tech Stack:** TypeScript strict, React 19, Zod, Supabase Edge Function `api`, Vitest, Playwright.
 
@@ -14,6 +14,7 @@
 
 - Разработка только в `main`, Node.js 24, React 19, TypeScript strict и существующие зависимости.
 - Клиент и сервер используют одну Zod-схему и `MARKET_CATEGORIES` из `supabase/functions/_shared/contracts/market.ts`.
+- Ограничение `market_listings.category` разрешает «Арену» и все пять прежних значений; старые строки не меняются.
 - Все вызовы рынка идут через существующую `api`; новые таблицы, платные службы и переменные не добавляются.
 - Доступ к рынку и правила черновиков остаются по MKT-01–07; существующие объявления не переписываются.
 
@@ -125,3 +126,41 @@ Expected: PASS, including changed Vitest tests, lint, types, styles and architec
 git add supabase/functions/_shared/contracts/market.ts tests/server/market.test.ts tests/materials.test.tsx e2e/market.spec.ts
 git commit -m "feat(market): add arena category"
 ```
+
+### Task 4: Разрешить «Арену» в базе данных
+
+**Files:**
+
+- Create: `supabase/migrations/20261115220000_market_arena_category.sql`
+- Modify: `supabase/tests/database/stage8_publications_market.test.sql`
+- Modify: `tests/server/market.test.ts`
+
+**Interfaces:**
+
+- Consumes: `MARKET_CATEGORIES` schema validation and existing market table.
+- Produces: database accepts new `arena` listings and continues accepting prior categories without changing stored rows.
+
+- [ ] **Step 1: Write the failing service test**
+
+Add a server test that saves an `arena` listing, filters it from the feed, and confirms a prior `sale` listing keeps its category.
+
+- [ ] **Step 2: Run the focused test and verify the database rejects Arena**
+
+Run: `npm run test:server -- tests/server/market.test.ts`
+Expected: FAIL with the existing database check constraint rejecting `arena`.
+
+- [ ] **Step 3: Add a forward-only constraint migration and pgTAP coverage**
+
+Replace only `market_listings_category_check` with the same five values plus `arena`. Extend the stage 8 pgTAP test to insert the new category; retain the unknown-category rejection and old-category fixtures.
+
+- [ ] **Step 4: Apply and run focused backend checks**
+
+Run: `npm run review:prepare`
+Run: `npm run test:server -- tests/server/market.test.ts`
+Run: `npm run supabase:test`
+Expected: PASS; old rows and old category values remain valid.
+
+- [ ] **Step 5: Run the required quick checks**
+
+Run: `npm run check:quick`
+Expected: PASS; E2E remains for CI.
