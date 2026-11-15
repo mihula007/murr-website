@@ -44,7 +44,9 @@ async function createEvent(officer: Person) {
     {
       title,
       type: 'pvp',
-      date: moscowDate(3),
+      // Keep the open event among the first 50 active events even when the
+      // seeded schedule already contains many nearer events.
+      date: moscowDate(-365),
       time: '20:00',
       description: 'Проверка обсуждения',
     },

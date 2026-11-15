@@ -139,7 +139,9 @@ test('E2E-03: группы, лидер, закрытие, учёт активн�
   const historyRow = async (nickname: string) => {
     await page.getByLabel('Поиск', { exact: true }).fill(nickname)
     await expect(page).toHaveURL(new RegExp(`q=${nickname}`))
-    const row = history.getByRole('row').filter({ hasText: nickname })
+    const row = history
+      .getByRole('cell', { name: nickname, exact: true })
+      .locator('..')
     await expect(row).toHaveCount(1)
     return row
   }
