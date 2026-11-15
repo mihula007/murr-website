@@ -62,6 +62,22 @@ test('нет горизонтальной прокрутки на главной
   }
 })
 
+test('фон выше короткой страницы обрезается и не добавляет прокрутку', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'Проверка широкого экрана')
+  // На широком экране картинка (95px + 55vw) выше окна; главная гостя — нет.
+  await page.setViewportSize({ width: 1920, height: 900 })
+  await page.goto('./#/')
+  await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollHeight <= window.innerHeight,
+    ),
+  ).toBe(true)
+})
+
 test('dev-переключатель ролей отсутствует в production', async ({ page }) => {
   await page.goto('./#/')
   await expect(page.getByRole('banner')).toBeVisible()

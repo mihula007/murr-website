@@ -19,16 +19,23 @@ export function AppShell({ children }: PropsWithChildren) {
     <div className="relative isolate flex min-h-svh flex-col">
       {/* Фон под шапкой: высота картинки — 55vw (110% ширины, пропорции 2:1),
           низ плавно уходит в цвет страницы, без резкой границы. На рабочих
-          страницах — приглушённая полоса: иллюстрация не спорит с текстом. */}
+          страницах — приглушённая полоса: иллюстрация не спорит с текстом.
+          Обёртка обрезает фон по высоте страницы: картинка выше короткой
+          страницы не добавляет прокрутку. Не `overflow-hidden` у корня —
+          он сломал бы `sticky` колонок страницы события. */}
       <div
         aria-hidden="true"
-        className={cn(
-          'pointer-events-none absolute inset-x-0 top-0 -z-10 bg-(image:--image-site) bg-size-[110%_auto] bg-position-[calc(50%-2vw)_95px] bg-no-repeat',
-          showcase
-            ? 'h-[calc(95px+55vw)] mask-b-from-70%'
-            : 'h-[calc(95px+min(26vw,320px))] opacity-35 mask-b-from-0%',
-        )}
-      />
+        className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+      >
+        <div
+          className={cn(
+            'absolute inset-x-0 top-0 bg-(image:--image-site) bg-size-[110%_auto] bg-position-[calc(50%-2vw)_95px] bg-no-repeat',
+            showcase
+              ? 'h-[calc(95px+55vw)] mask-b-from-70%'
+              : 'h-[calc(95px+min(26vw,320px))] opacity-35 mask-b-from-0%',
+          )}
+        />
+      </div>
       <a
         href="#main-content"
         onClick={(event) => {
