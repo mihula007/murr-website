@@ -231,4 +231,52 @@ describe('material editor', () => {
     expect(screen.queryByText('Вложения')).toBeNull()
     expect(screen.queryByText('Показывать читателям подпись автора')).toBeNull()
   })
+
+  it('shows arena when creating a market listing (MKT-02)', async () => {
+    respond({})
+    await renderApp({ role: 'member', path: '/market/new' })
+    const createCategory = await screen.findByRole('combobox', {
+      name: 'Категория',
+    })
+    expect(createCategory).toHaveTextContent('Продажа')
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn<() => void>(),
+    })
+    fireEvent.click(createCategory)
+    expect(screen.getByRole('option', { name: 'Арена' })).toBeInTheDocument()
+  })
+
+  it('shows arena when editing a market listing (MKT-02)', async () => {
+    respond({
+      'market/get': () =>
+        material({
+          category: 'arena',
+          title: 'Группа на арену',
+          canManage: true,
+        }),
+    })
+    await renderApp({ role: 'member', path: `/market/${ID}/edit` })
+    expect(
+      await screen.findByRole('combobox', { name: 'Категория' }),
+    ).toHaveTextContent('Арена')
+  })
+
+  it('filters and searches market listings by arena (MKT-02)', async () => {
+    respond({
+      'market/list': () =>
+        list([material({ category: 'arena', title: 'Набор на арену' })]),
+    })
+    await renderApp({ role: 'member', path: '/market?category=arena&q=арена' })
+    expect(
+      await screen.findByRole('link', { name: 'Набор на арену' }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText('Арена').length).toBeGreaterThan(0)
+    expect(callApi).toHaveBeenCalledWith('market/list', {
+      tab: 'published',
+      page: 1,
+      category: 'arena',
+      search: 'арена',
+    })
+  })
 })

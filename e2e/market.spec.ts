@@ -115,6 +115,59 @@ test('E2E-05: собственное объявление, чужое без у�
   ).toHaveCount(0)
 })
 
+test('E2E-12: категория Арена при создании, изменении и поиске', async ({
+  page,
+}) => {
+  const member = await createMember('member')
+  const title = unique('Сбор на арену')
+  const editedTitle = `${title} (обновлено)`
+  const oldTitle = unique('Старое объявление')
+  await sql(
+    (db) => db`
+      insert into app.market_listings
+        (category, title, content, search_text, excerpt, status, author_id,
+         published_at, updated_at)
+      values ('sale', ${oldTitle},
+        '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"старое"}]}]}'::jsonb,
+        lower(${oldTitle}), 'старое', 'published', ${member.id}, now(), now())`,
+  )
+
+  await signInUi(page, member.email)
+  await expectSignedIn(page)
+  await page.goto('./#/market/new')
+  await page.getByRole('combobox', { name: 'Категория' }).click()
+  await page.getByRole('option', { name: 'Арена' }).click()
+  await page.getByLabel('Заголовок').fill(title)
+  const editor = page.getByRole('textbox', { name: 'Содержимое' })
+  await editor.click()
+  await editor.pressSequentially('Набор участников')
+  await page.getByRole('button', { name: 'Опубликовать' }).click()
+  await expect(page.getByRole('heading', { name: title })).toBeVisible()
+  await expect(page.getByText('Арена')).toBeVisible()
+
+  await page.getByRole('link', { name: 'Редактировать' }).click()
+  await expect(page.getByRole('combobox', { name: 'Категория' })).toContainText(
+    'Арена',
+  )
+  await page.getByLabel('Заголовок').fill(editedTitle)
+  await page.getByRole('button', { name: 'Опубликовать' }).click()
+  await expect(page.getByRole('heading', { name: editedTitle })).toBeVisible()
+
+  await page.goto('./#/market')
+  await page.getByRole('combobox', { name: 'Категория' }).click()
+  await page.getByRole('option', { name: 'Арена' }).click()
+  await expect(page.getByRole('link', { name: editedTitle })).toBeVisible()
+  await expect(page.getByRole('link', { name: oldTitle })).toHaveCount(0)
+  await page.getByRole('searchbox', { name: 'Поиск' }).fill('обновлено')
+  await page.getByRole('button', { name: 'Найти' }).click()
+  await expect(page.getByRole('link', { name: editedTitle })).toBeVisible()
+
+  await page.goto('./#/market?q=' + encodeURIComponent(oldTitle))
+  await expect(page.getByRole('link', { name: oldTitle })).toBeVisible()
+  await expect(page.getByText('Продажа')).toBeVisible()
+  expect(await hasHorizontalScroll(page)).toBe(false)
+})
+
 test('лента рынка: больше 50 объявлений — нумерованные страницы (Q-55)', async ({
   page,
 }) => {
