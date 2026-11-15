@@ -13,7 +13,7 @@ import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Card, Notice, fieldClass } from '@/components/ui/surfaces'
+import { Card, fieldClass } from '@/components/ui/surfaces'
 import { toast } from '@/components/ui/toaster'
 import { meQueryKey, useMe } from '@/features/account/use-me'
 import { useSession } from '@/features/auth/session'
@@ -28,20 +28,6 @@ type ReadyMe = Extract<MeResponse, { state: 'ready' }>
 
 const resubmitSchema = z.object({ equipmentLinks: equipmentLinksSchema })
 
-/** Поля профиля, без которых заявка не принимается (Q-15, Q-31). */
-const REQUIRED_PROFILE_FIELDS = {
-  city: 'город',
-  birthDate: 'дата рождения',
-  about: 'рассказ о себе',
-} as const
-type RequiredField = keyof typeof REQUIRED_PROFILE_FIELDS
-
-function missingFields(me: ReadyMe): RequiredField[] {
-  return (Object.keys(REQUIRED_PROFILE_FIELDS) as RequiredField[]).filter(
-    (field) => !me.profile[field],
-  )
-}
-
 const summaryClass =
   'm-0 grid grid-cols-2 gap-x-[18px] gap-y-2 max-[560px]:grid-cols-1 [&_dd]:m-0 [&_dd]:break-words [&_dt]:text-xs [&_dt]:text-muted-foreground'
 
@@ -51,9 +37,7 @@ function ResubmitForm({ me }: { me: ReadyMe }) {
   const session = useSession()
   const [formError, setFormError] = useState<string | null>(null)
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({})
-  const [serverMissing, setServerMissing] = useState<RequiredField[]>([])
   const { profile } = me
-  const missing = [...new Set([...missingFields(me), ...serverMissing])]
 
   const resubmit = useMutation({
     mutationFn: (equipmentLinks: string[]) =>
@@ -83,11 +67,6 @@ function ResubmitForm({ me }: { me: ReadyMe }) {
             return
           }
           setServerErrors(fields)
-          setServerMissing(
-            (Object.keys(fields) as RequiredField[]).filter(
-              (field) => field in REQUIRED_PROFILE_FIELDS,
-            ),
-          )
           setFormError(errorMessage(code))
           focusFirstInvalid()
         })
@@ -135,23 +114,13 @@ function ResubmitForm({ me }: { me: ReadyMe }) {
             <dd className="whitespace-pre-line">{profile.about ?? '—'}</dd>
           </div>
         </dl>
-        {missing.length > 0 ? (
-          <Notice role="alert">
-            Перед подачей заполните в личном кабинете:{' '}
-            {missing.map((field) => REQUIRED_PROFILE_FIELDS[field]).join(', ')}.{' '}
-            <Link to="/account" className="text-primary underline">
-              Открыть кабинет
-            </Link>
-          </Notice>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Изменить эти данные можно в{' '}
-            <Link to="/account" className="text-primary underline">
-              личном кабинете
-            </Link>
-            .
-          </p>
-        )}
+        <p className="text-sm text-muted-foreground">
+          Изменить эти данные можно в{' '}
+          <Link to="/account" className="text-primary underline">
+            личном кабинете
+          </Link>
+          .
+        </p>
       </section>
 
       <form
@@ -205,11 +174,7 @@ function ResubmitForm({ me }: { me: ReadyMe }) {
         <FormError message={formError} />
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(submitting) => (
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={submitting || missing.length > 0}
-            >
+            <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? 'Отправляем…' : 'Подать заявку'}
             </Button>
           )}

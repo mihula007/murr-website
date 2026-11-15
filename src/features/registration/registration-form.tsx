@@ -288,7 +288,7 @@ export function RegistrationForm({
                     id="reg-name"
                     label="Имя"
                     error={error}
-                    hint={`До ${LIMITS.displayName} символов`}
+                    hint={`Необязательно · до ${LIMITS.displayName} символов`}
                   >
                     <Input
                       {...fieldAria('reg-name', error, true)}
@@ -347,9 +347,14 @@ export function RegistrationForm({
                   serverErrors.city,
                 )
                 return (
-                  <FormField id="reg-city" label="Город" error={error}>
+                  <FormField
+                    id="reg-city"
+                    label="Город"
+                    error={error}
+                    hint="Необязательно"
+                  >
                     <Input
-                      {...fieldAria('reg-city', error)}
+                      {...fieldAria('reg-city', error, true)}
                       autoComplete="address-level2"
                       maxLength={LIMITS.city}
                       placeholder="Город проживания"
@@ -371,9 +376,14 @@ export function RegistrationForm({
                   serverErrors.birthDate,
                 )
                 return (
-                  <FormField id="reg-birth" label="Дата рождения" error={error}>
+                  <FormField
+                    id="reg-birth"
+                    label="Дата рождения"
+                    error={error}
+                    hint="Необязательно"
+                  >
                     <Input
-                      {...fieldAria('reg-birth', error)}
+                      {...fieldAria('reg-birth', error, true)}
                       type="date"
                       autoComplete="bday"
                       value={field.state.value}
@@ -430,7 +440,7 @@ export function RegistrationForm({
                     id="reg-about"
                     label="Рассказ о себе"
                     error={error}
-                    hint={`${field.state.value.length} / ${LIMITS.about}`}
+                    hint={`Необязательно · ${field.state.value.length} / ${LIMITS.about}`}
                     className="col-span-full"
                   >
                     <Textarea

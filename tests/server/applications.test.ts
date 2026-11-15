@@ -509,18 +509,24 @@ describe('resubmission after rejection', () => {
     })
   })
 
-  it('requires the profile fields cleared after registration', async () => {
+  it('allows resubmission when optional profile fields are empty', async () => {
     const { actor, user } = await rejectedApplicant()
     await db
       .updateTable('app.profiles')
-      .set({ city: null, about: null })
+      .set({ city: null, birth_date: null, about: null })
       .where('id', '=', user.id)
       .execute()
     await expect(
       resubmitApplication(deps, await actor(), { equipmentLinks: [] }),
-    ).rejects.toMatchObject({
-      code: 'validation_failed',
-      fields: { city: 'required', about: 'required' },
+    ).resolves.toMatchObject({
+      application: { status: 'pending_officer_review' },
     })
+    expect(
+      await db
+        .selectFrom('app.profiles')
+        .select(['city', 'birth_date', 'about'])
+        .where('id', '=', user.id)
+        .executeTakeFirstOrThrow(),
+    ).toEqual({ city: null, birth_date: null, about: null })
   })
 })

@@ -2,7 +2,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(16);
+select plan(17);
 
 -- Браузерные роли не имеют доступа к схеме и таблицам app.
 select ok(
@@ -55,7 +55,8 @@ insert into auth.users (id, email, email_confirmed_at, aud, role)
 values
   ('00000000-0000-0000-0000-000000000001', 'one@example.test', now(), 'authenticated', 'authenticated'),
   ('00000000-0000-0000-0000-000000000002', 'two@example.test', now(), 'authenticated', 'authenticated'),
-  ('00000000-0000-0000-0000-000000000003', 'three@example.test', now(), 'authenticated', 'authenticated');
+  ('00000000-0000-0000-0000-000000000003', 'three@example.test', now(), 'authenticated', 'authenticated'),
+  ('00000000-0000-0000-0000-000000000004', 'four@example.test', now(), 'authenticated', 'authenticated');
 
 insert into app.profiles (id, display_name, game_nickname, class_id, access_role)
 values ('00000000-0000-0000-0000-000000000001', 'Один', 'Ник', 1, 'applicant');
@@ -64,6 +65,12 @@ select lives_ok(
   $$insert into app.profiles (id, display_name, game_nickname, class_id, access_role)
     values ('00000000-0000-0000-0000-000000000002', 'Два', 'ник', 1, 'applicant')$$,
   'ник уникален с учётом регистра: «ник» допустим рядом с «Ник»'
+);
+
+select lives_ok(
+  $$insert into app.profiles (id, display_name, game_nickname, class_id, access_role)
+    values ('00000000-0000-0000-0000-000000000004', '', 'БезИмени', 1, 'applicant')$$,
+  'пустое необязательное имя допустимо'
 );
 
 select throws_ok(

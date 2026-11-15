@@ -231,7 +231,7 @@ describe('complete registration', () => {
         ...registration({
           displayName: 'Тринадцать133',
           gameNickname: 'Десятьсимв',
-          city: ' ',
+          city: 'x'.repeat(101),
         }),
         avatarPath,
       }),
@@ -240,8 +240,48 @@ describe('complete registration', () => {
       fields: {
         displayName: 'too_long',
         gameNickname: 'too_long',
-        city: 'required',
+        city: 'too_long',
       },
+    })
+  })
+
+  it('accepts empty optional profile fields when completing registration', async () => {
+    const { user, actor } = await incompleteActor()
+    const avatarPath = await uploadAvatar(deps, user.id)
+    const input = registration({
+      displayName: '',
+      city: '',
+      birthDate: '',
+      about: '',
+      avatarPath,
+    })
+    await completeRegistration(deps, actor, input)
+
+    const profile = await db
+      .selectFrom('app.profiles')
+      .select(['display_name', 'city', 'birth_date', 'about'])
+      .where('id', '=', user.id)
+      .executeTakeFirstOrThrow()
+    expect(profile).toEqual({
+      display_name: '',
+      city: null,
+      birth_date: null,
+      about: null,
+    })
+  })
+
+  it('still rejects an invalid optional birth date when provided', async () => {
+    const { user, actor } = await incompleteActor()
+    const avatarPath = await uploadAvatar(deps, user.id)
+    await expect(
+      completeRegistration(
+        deps,
+        actor,
+        registration({ birthDate: 'не-дата', avatarPath }),
+      ),
+    ).rejects.toMatchObject({
+      code: 'validation_failed',
+      fields: { birthDate: 'invalid_date' },
     })
   })
 

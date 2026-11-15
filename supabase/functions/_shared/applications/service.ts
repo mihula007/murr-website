@@ -363,16 +363,10 @@ async function decide(
   )
 }
 
-/** Поля профиля, обязательные при регистрации (Q-15); после неё их можно очистить. */
-const REQUIRED_PROFILE_FIELDS = {
-  city: 'city',
-  birthDate: 'birth_date',
-  about: 'about',
-} as const
-
 /**
  * Новая заявка кандидата без активной заявки (APP-10, Q-06). Из прежней ничего
  * не переносится (Q-37): ссылки приходят заново, данные — из текущего профиля.
+ * Имя, город, дата рождения и рассказ о себе могут отсутствовать (Q-15).
  */
 export async function resubmitApplication(
   deps: AppDeps,
@@ -382,15 +376,6 @@ export async function resubmitApplication(
   const applicant = requireRole(actor, ['applicant'])
   const { equipmentLinks } = parseBody(resubmitApplicationSchema, body)
 
-  const missing: Record<string, string> = {}
-  for (const [field, column] of Object.entries(REQUIRED_PROFILE_FIELDS)) {
-    if (!applicant.profile[column]) {
-      missing[field] = 'required'
-    }
-  }
-  if (Object.keys(missing).length > 0) {
-    throw new ApiError('validation_failed', missing)
-  }
   if (await applicationRepository.hasActive(deps.db, applicant.userId)) {
     throw new ApiError('state_conflict')
   }

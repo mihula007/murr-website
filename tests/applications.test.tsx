@@ -201,6 +201,17 @@ describe('application card', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
   })
 
+  it('shows an empty name without a placeholder in the application card', async () => {
+    const applicant = { ...details().applicant, displayName: '' }
+    respond({ 'applications/get': () => details({ applicant }) })
+    await renderApp({
+      role: 'officer',
+      path: `/applications/${APPLICATION_ID}`,
+    })
+    const label = await screen.findByText('Имя', { selector: 'dt' })
+    expect(label.nextElementSibling).toBeEmptyDOMElement()
+  })
+
   it('shows an admin email, city and birth date', async () => {
     respond({ 'applications/get': () => details({ contacts: CONTACTS }) })
     await renderApp({ role: 'admin', path: `/applications/${APPLICATION_ID}` })
@@ -455,15 +466,25 @@ describe('resubmission (APP-10, Q-37)', () => {
     )
   })
 
-  it('sends the applicant to the account when profile fields are empty', async () => {
-    me.value = applicantMe({ city: null, about: null })
+  it('allows resubmission when optional profile fields are empty', async () => {
+    me.value = applicantMe({
+      displayName: '',
+      city: null,
+      birthDate: null,
+      about: null,
+    })
+    respond({ 'applications/resubmit': () => applicantMe() })
     await renderApp({ role: 'applicant', path: '/account/application' })
-    const notice = await screen.findByRole('alert')
-    expect(notice).toHaveTextContent('город, рассказ о себе')
-    expect(
-      within(notice).getByRole('link', { name: 'Открыть кабинет' }),
-    ).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Подать заявку' })).toBeDisabled()
+    expect(await screen.findByText('Данные из профиля')).toBeVisible()
+    expect(screen.queryByRole('alert')).toBeNull()
+    const submit = screen.getByRole('button', { name: 'Подать заявку' })
+    expect(submit).toBeEnabled()
+    fireEvent.click(submit)
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('applications/resubmit', {
+        equipmentLinks: [],
+      }),
+    )
   })
 
   it('redirects to the account when a new application is not allowed', async () => {

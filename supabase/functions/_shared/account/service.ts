@@ -169,10 +169,10 @@ export async function completeRegistration(
         id: user.userId,
         display_name: input.displayName,
         game_nickname: input.gameNickname,
-        city: input.city,
-        birth_date: input.birthDate,
+        city: input.city || null,
+        birth_date: input.birthDate || null,
         class_id: input.classId,
-        about: input.about,
+        about: input.about || null,
         avatar_path: input.avatarPath,
         access_role: 'applicant' as const,
       }

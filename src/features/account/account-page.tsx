@@ -72,7 +72,9 @@ function Dashboard({ me }: { me: ReadyMe }) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-2xl font-bold">
-              Привет, {profile.displayName}!
+              {profile.displayName
+                ? `Привет, ${profile.displayName}!`
+                : 'Привет!'}
             </h2>
             {profile.role === 'applicant' ? (
               <p className="text-muted-foreground">Статус аккаунта и заявки</p>

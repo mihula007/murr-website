@@ -41,6 +41,15 @@ async function fillCharacter(page: Page, nickname: string) {
   await page.getByLabel('Рассказ о себе').fill('Играю давно, хочу в клан.')
 }
 
+async function fillRequiredCharacter(page: Page, nickname: string) {
+  await page.locator('#reg-avatar').setInputFiles(AVATAR)
+  await expect(page.getByAltText('Предпросмотр аватара')).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.getByLabel('Игровой никнейм').fill(nickname)
+  await chooseClass(page)
+}
+
 async function startRegistration(page: Page, email: string, nickname: string) {
   await page.goto('./#/register')
   await page.getByLabel('Логин (электронная почта)').fill(email)
@@ -87,6 +96,50 @@ test('регистрация с кодом из письма создаёт за
   ).toBeVisible()
   await page.goto('./#/events')
   await expect(page.getByRole('heading', { name: 'Нет доступа' })).toBeVisible()
+  expect(await applicationCount(email)).toBe(1)
+})
+
+test('регистрация принимает пустые необязательные данные', async ({ page }) => {
+  const email = uniqueEmail()
+  const nickname = uniqueNickname()
+  await page.goto('./#/register')
+  await page.getByLabel('Логин (электронная почта)').fill(email)
+  await page.getByLabel('Пароль', { exact: true }).fill(PASSWORD)
+  for (const id of [
+    'reg-name-hint',
+    'reg-city-hint',
+    'reg-birth-hint',
+    'reg-about-hint',
+  ]) {
+    await expect(page.locator(`#${id}`)).toContainText('Необязательно')
+  }
+  await fillRequiredCharacter(page, nickname)
+  const sentAt = Date.now() - 1000
+  await page.getByRole('button', { name: 'Создать учётную запись' }).click()
+  await expect(page).toHaveURL(/#\/register\/verify/)
+  await enterCode(page, email, sentAt)
+  await expect(page).toHaveURL(/#\/$/, { timeout: 30_000 })
+  await page.goto('./#/account')
+  await expect(page.getByRole('heading', { name: 'Привет!' })).toBeVisible()
+
+  const [profile] = await sql(
+    (db) => db<
+      {
+        display_name: string
+        city: string | null
+        birth_date: string | null
+        about: string | null
+      }[]
+    >`select p.display_name, p.city, p.birth_date, p.about
+      from app.profiles p join auth.users u on u.id = p.id
+      where u.email = ${email}`,
+  )
+  expect(profile).toEqual({
+    display_name: '',
+    city: null,
+    birth_date: null,
+    about: null,
+  })
   expect(await applicationCount(email)).toBe(1)
 })
 

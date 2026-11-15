@@ -43,10 +43,17 @@ const card: AccountCard = {
   characterStatsSource: null,
 }
 
-function respond(save?: (body: unknown) => unknown) {
+function respond(
+  save?: (body: unknown) => unknown,
+  listedAccount: AccountListItem = account,
+) {
   callApi.mockImplementation((route, body) => {
     if (route === 'accounts/list') {
-      return Promise.resolve({ items: [account], total: 1, nextCursor: null })
+      return Promise.resolve({
+        items: [listedAccount],
+        total: 1,
+        nextCursor: null,
+      })
     }
     if (route === 'accounts/deletions') {
       return Promise.resolve({ items: [], truncated: false })
@@ -77,6 +84,13 @@ async function openStats() {
 }
 
 describe('характеристики в карточке аккаунта администратора', () => {
+  it('shows an absent name as an empty cell in the account list', async () => {
+    respond(undefined, { ...account, displayName: '' })
+    await renderApp({ role: 'admin', path: '/admin' })
+    const row = await screen.findByRole('row', { name: /Боец/ })
+    expect(within(row).getAllByRole('cell')[1]?.textContent).toBe('Имя')
+  })
+
   beforeEach(() => {
     callApi.mockReset()
     card.pz = null

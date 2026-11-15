@@ -29,6 +29,9 @@ const optionalText = (max: number) =>
     .nullable()
     .transform((value) => value || null)
 
+const optionalRegistrationText = (max: number) =>
+  z.string().trim().max(max, 'too_long')
+
 export const displayNameSchema = required(LIMITS.displayName)
 export const gameNicknameSchema = required(LIMITS.gameNickname)
 
@@ -39,6 +42,8 @@ export const birthDateSchema = z.iso
       value >= '1900-01-01' && value <= new Date().toISOString().slice(0, 10),
     'invalid_date',
   )
+
+const optionalRegistrationBirthDate = z.union([z.literal(''), birthDateSchema])
 
 export const classIdSchema = z.number('required').int().positive('required')
 
@@ -61,12 +66,12 @@ export const equipmentLinksSchema = z
   .pipe(z.array(equipmentLinkSchema).max(LIMITS.equipmentLinks, 'too_many'))
 
 export const registrationFieldsSchema = z.object({
-  displayName: displayNameSchema,
+  displayName: optionalRegistrationText(LIMITS.displayName),
   gameNickname: gameNicknameSchema,
-  city: required(LIMITS.city),
-  birthDate: birthDateSchema,
+  city: optionalRegistrationText(LIMITS.city),
+  birthDate: optionalRegistrationBirthDate,
   classId: classIdSchema,
-  about: required(LIMITS.about),
+  about: optionalRegistrationText(LIMITS.about),
   equipmentLinks: equipmentLinksSchema,
 })
 export type RegistrationFields = z.infer<typeof registrationFieldsSchema>

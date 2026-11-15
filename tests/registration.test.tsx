@@ -62,6 +62,26 @@ describe('avatar sizing', () => {
 })
 
 describe('registration form', () => {
+  it('marks name, city, birth date and about as optional', async () => {
+    await renderApp({ path: '/register' })
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Создать учётную запись' }),
+    )
+
+    for (const id of [
+      'reg-name-hint',
+      'reg-city-hint',
+      'reg-birth-hint',
+      'reg-about-hint',
+    ]) {
+      expect(document.getElementById(id)).toHaveTextContent(/Необязательно/)
+    }
+    expect(document.getElementById('reg-name-error')).toBeNull()
+    expect(document.getElementById('reg-city-error')).toBeNull()
+    expect(document.getElementById('reg-birth-error')).toBeNull()
+    expect(document.getElementById('reg-about-error')).toBeNull()
+  })
+
   it('shows field errors for limits and a missing avatar', async () => {
     await renderApp({ path: '/register' })
     change('Логин (электронная почта)', 'anna@example.com')
@@ -84,6 +104,12 @@ describe('registration form', () => {
     change('Логин (электронная почта)', 'anna@example.com')
     change(/^Пароль$/, 'secret-password')
     await waitFor(() => expect(loadDraft()?.email).toBe('anna@example.com'))
+    expect(loadDraft()).toMatchObject({
+      displayName: '',
+      city: '',
+      birthDate: '',
+      about: '',
+    })
     expect(JSON.stringify(loadDraft())).not.toContain('secret-password')
   })
 

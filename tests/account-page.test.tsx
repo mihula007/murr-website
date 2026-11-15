@@ -160,6 +160,14 @@ describe('account dashboard', () => {
     expect(screen.getByText('12.04.1995')).toBeInTheDocument()
   })
 
+  it('greets an account without a name without dangling punctuation', async () => {
+    me.value = profile('applicant', { displayName: '' })
+    await renderApp({ role: 'applicant', path: '/account' })
+    expect(
+      await screen.findByRole('heading', { name: 'Привет!' }),
+    ).toBeVisible()
+  })
+
   it('shows a reader the profile without the application status', async () => {
     me.value = profile('reader')
     await renderApp({ role: 'reader', path: '/account' })
