@@ -54,7 +54,7 @@ function respond(save?: (body: unknown) => unknown) {
     if (route === 'accounts/get') {
       return Promise.resolve(card)
     }
-    if (route === 'accounts/set-character-stat') {
+    if (route === 'accounts/set-character-stats') {
       try {
         return Promise.resolve(save ? save(body) : body)
       } catch (error) {
@@ -88,54 +88,67 @@ describe('характеристики в карточке аккаунта ад
     respond()
   })
 
-  it('shows the five values and source, and saves one changed number on blur', async () => {
+  it('shows the five values and source and saves all of them with one button', async () => {
     const dialog = await openStats()
     for (const label of ['ПА', 'ПЗ', 'БУ', 'ХП', 'БД', 'Источник']) {
       expect(within(dialog).getByLabelText(label)).toBeVisible()
     }
+    const save = within(dialog).getByRole('button', { name: 'Сохранить' })
+    expect(save).toBeDisabled()
 
-    const pa = within(dialog).getByLabelText('ПА')
-    fireEvent.change(pa, { target: { value: '125,5к' } })
-    fireEvent.blur(pa)
+    fireEvent.change(within(dialog).getByLabelText('ПА'), {
+      target: { value: '125,5к' },
+    })
+    fireEvent.blur(within(dialog).getByLabelText('ПА'))
+    fireEvent.change(within(dialog).getByLabelText('ХП'), {
+      target: { value: '2к' },
+    })
+    expect(
+      callApi.mock.calls.filter(
+        ([route]) => route === 'accounts/set-character-stats',
+      ),
+    ).toHaveLength(0)
+    fireEvent.click(save)
 
     await waitFor(() =>
-      expect(callApi).toHaveBeenCalledWith('accounts/set-character-stat', {
+      expect(callApi).toHaveBeenCalledWith('accounts/set-character-stats', {
         userId: 'm1',
-        field: 'pa',
-        value: '125,5к',
+        pa: '125,5к',
+        pz: null,
+        bu: null,
+        hp: '2к',
+        bd: null,
+        source: null,
       }),
     )
     expect(
       callApi.mock.calls.filter(
-        ([route]) => route === 'accounts/set-character-stat',
+        ([route]) => route === 'accounts/set-character-stats',
       ),
     ).toHaveLength(1)
   })
 
-  it('clears a value when its field is left empty', async () => {
+  it('sends an emptied field as null', async () => {
     respond((body) => body)
     card.pz = 20
     const dialog = await openStats()
-    const pz = within(dialog).getByLabelText('ПЗ')
-    fireEvent.change(pz, { target: { value: '' } })
-    fireEvent.blur(pz)
+    fireEvent.change(within(dialog).getByLabelText('ПЗ'), {
+      target: { value: '' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
     await waitFor(() =>
-      expect(callApi).toHaveBeenCalledWith('accounts/set-character-stat', {
-        userId: 'm1',
-        field: 'pz',
-        value: null,
-      }),
+      expect(callApi).toHaveBeenCalledWith(
+        'accounts/set-character-stats',
+        expect.objectContaining({ userId: 'm1', pz: null }),
+      ),
     )
   })
 
-  it('shows a server validation error on the field without replacing its saved value', async () => {
-    respond(() => {
-      throw new AppError('validation_failed', { value: 'invalid_number' })
-    })
+  it('rejects an invalid number before saving', async () => {
     const dialog = await openStats()
     const pa = within(dialog).getByLabelText('ПА')
     fireEvent.change(pa, { target: { value: 'не число' } })
-    fireEvent.blur(pa)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
 
     expect(
       await within(dialog).findByText(
@@ -143,10 +156,26 @@ describe('характеристики в карточке аккаунта ад
       ),
     ).toBeVisible()
     expect(pa).toHaveValue('не число')
-    expect(callApi).toHaveBeenCalledWith('accounts/set-character-stat', {
-      userId: 'm1',
-      field: 'pa',
-      value: 'не число',
+    expect(
+      callApi.mock.calls.filter(
+        ([route]) => route === 'accounts/set-character-stats',
+      ),
+    ).toHaveLength(0)
+  })
+
+  it('shows a server field error under that field', async () => {
+    respond(() => {
+      throw new AppError('validation_failed', { bd: 'invalid_number' })
     })
+    const dialog = await openStats()
+    fireEvent.change(within(dialog).getByLabelText('БД'), {
+      target: { value: '5' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
+    expect(
+      await within(dialog).findByText(
+        'Введите число или число с «к» для тысяч',
+      ),
+    ).toBeVisible()
   })
 })

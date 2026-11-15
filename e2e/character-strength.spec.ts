@@ -53,9 +53,9 @@ test('характеристики доступны админу и внутре
   await expectSignedIn(page)
   await page.goto('./#/admin')
 
-  for (const [member, value] of [
-    [first, '125,5к'],
-    [second, '80к'],
+  for (const [member, value, saved] of [
+    [first, '125,5к', '125500'],
+    [second, '80к', '80000'],
   ] as const) {
     await page
       .getByLabel('Поиск по нику, имени, email и классу')
@@ -69,17 +69,21 @@ test('характеристики доступны админу и внутре
       .getByText('Характеристика персонажа', { exact: true })
       .click()
     await accountCard.getByLabel('ПА').fill(value)
-    await accountCard.getByLabel('ПА').press('Tab')
-    await expect(accountCard.getByLabel('ПА')).toHaveValue(value)
     if (member.id === first.id) {
       await accountCard.getByLabel('Источник').fill('Прототип HTML')
-      await accountCard.getByLabel('Источник').press('Tab')
     }
+    await accountCard.getByRole('button', { name: 'Сохранить' }).click()
+    await expect(page.getByText('Характеристика сохранена')).toBeVisible()
+    await expect(
+      accountCard.getByRole('button', { name: 'Сохранить' }),
+    ).toBeDisabled()
+    await expect(accountCard.getByLabel('ПА')).toHaveValue(saved)
     await page.keyboard.press('Escape')
   }
 
   const actions = await auditActions(first.id)
-  expect(actions.length).toBeGreaterThanOrEqual(2)
+  // Одно сохранение двух полей — одна запись журнала.
+  expect(actions).toHaveLength(1)
   const notificationsAfter = await sql(
     (db) => db<{ count: number }[]>`
       select count(*)::integer as count from app.user_notifications
@@ -127,6 +131,25 @@ test('характеристики доступны админу и внутре
     name: 'Прокручиваемый список рейтинга силы',
   })
   const ratingRows = rating.locator('tbody tr')
+  if (mobile) {
+    // HOM-17: на телефоне своей прокрутки у рейтинга нет — жест над
+    // карточками прокручивает страницу; остальные — по «Показать всех».
+    await expect(ratingRows).toHaveCount(15)
+    expect(
+      await scrollArea.evaluate(
+        (element) => element.scrollHeight > element.clientHeight,
+      ),
+    ).toBe(false)
+    await ratingRows.nth(3).scrollIntoViewIfNeeded()
+    const box = await ratingRows.nth(3).boundingBox()
+    const before = await page.evaluate(() => window.scrollY)
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+    await page.mouse.wheel(0, 600)
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(before)
+    await rating.getByRole('button', { name: /Показать всех/ }).click()
+  }
   expect(await ratingRows.count()).toBeGreaterThanOrEqual(16)
   await expect(
     ratingRows.nth(0).getByRole('cell', { name: 'Место 01' }),
@@ -136,20 +159,27 @@ test('характеристики доступны админу и внутре
   ).toBeVisible()
   await expect(ratingRows.nth(0)).toHaveClass(/bg-surface-inset/)
   await expect(ratingRows.nth(1)).toHaveClass(/bg-surface-from/)
-  expect(
-    await scrollArea.evaluate(
-      (element) => element.scrollHeight > element.clientHeight,
-    ),
-  ).toBe(true)
-  expect(
-    await scrollArea.evaluate((element) => {
-      const bounds = element.getBoundingClientRect()
-      return Array.from(element.querySelectorAll('tbody tr')).filter((row) => {
-        const rowBounds = row.getBoundingClientRect()
-        return rowBounds.top >= bounds.top && rowBounds.bottom <= bounds.bottom
-      }).length
-    }),
-  ).toBeGreaterThanOrEqual(15)
+  if (!mobile) {
+    expect(
+      await scrollArea.evaluate(
+        (element) => element.scrollHeight > element.clientHeight,
+      ),
+    ).toBe(true)
+    expect(
+      await scrollArea.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        return Array.from(element.querySelectorAll('tbody tr')).filter(
+          (row) => {
+            const rowBounds = row.getBoundingClientRect()
+            return (
+              rowBounds.top >= bounds.top && rowBounds.bottom <= bounds.bottom
+            )
+          },
+        ).length
+      }),
+      // До 15 строк, но область не выше окна (HOM-17).
+    ).toBeGreaterThanOrEqual(5)
+  }
   if (mobile) {
     expect(await hasHorizontalScroll(page)).toBe(false)
   }

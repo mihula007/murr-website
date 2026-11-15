@@ -21,6 +21,7 @@ import {
   type ActivityColumns,
 } from '@/features/activity/data-table'
 import { ClassIcon } from '@/features/catalog/class-icon'
+import { useMediaQuery } from '@/components/virtual-list'
 import { useRoster } from '@/features/roster/api'
 import { formatCharacterStat } from '@/features/roster/character-stats'
 import { EmptyState } from '@/components/states/empty-state'
@@ -59,8 +60,17 @@ const columns: ActivityColumns<RosterMember> = [
 const tableClass =
   'w-full table-fixed border-collapse text-left text-sm [&_td]:border-b [&_td]:border-border [&_td]:px-2 [&_td]:py-2.5 [&_td]:align-middle [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:border-b [&_th]:border-border [&_th]:bg-surface-to [&_th]:px-2 [&_th]:py-2.5 [&_th]:font-semibold [&_th]:text-muted-foreground [&_th:first-child]:w-10 max-[900px]:block max-[900px]:[&_thead]:hidden max-[900px]:[&_tbody]:grid max-[900px]:[&_tbody]:gap-2.5 max-[900px]:[&_tr]:grid max-[900px]:[&_tr]:grid-cols-[auto_minmax(0,1fr)] max-[900px]:[&_tr]:gap-x-3 max-[900px]:[&_tr]:rounded-xl max-[900px]:[&_tr]:border max-[900px]:[&_tr]:border-border max-[900px]:[&_tr]:p-3 max-[900px]:[&_td]:grid max-[900px]:[&_td]:gap-0.5 max-[900px]:[&_td]:border-0 max-[900px]:[&_td]:p-0 max-[900px]:[&_td:first-child]:col-span-1 max-[900px]:[&_td:nth-child(2)]:col-span-1 max-[900px]:[&_td:nth-child(3)]:col-span-full'
 
+/**
+ * На компьютере — 15 строк с прокруткой внутри, но не выше окна, и без
+ * `overscroll-contain`: у края списка прокрутка переходит к странице. На
+ * узком экране своей прокрутки нет — иначе область выше экрана
+ * перехватывает прокрутку страницы; карточки идут в потоке страницы.
+ */
 const scrollClass =
-  'max-h-[900px] min-w-0 overflow-y-auto overscroll-contain rounded-xl border border-border max-[900px]:max-h-[2300px]'
+  'max-h-[min(900px,calc(100svh-6rem))] min-w-0 overflow-y-auto rounded-xl border border-border max-[900px]:max-h-none max-[900px]:overflow-visible max-[900px]:rounded-none max-[900px]:border-0'
+
+/** Сколько карточек видно на узком экране до «Показать всех» (HOM-17). */
+const NARROW_VISIBLE = 15
 
 function MobileLabel({ text, first }: { text: string; first: boolean }) {
   return (
@@ -84,6 +94,8 @@ export function CharacterStrengthRating() {
     (member) => classId === null || member.classId === classId,
   )
   const ratingTable = useRatingTable(members, sorting, setSorting)
+  const narrow = useMediaQuery('(max-width: 900px)')
+  const [expanded, setExpanded] = useState(false)
 
   if (roster.isPending) {
     return (
@@ -232,37 +244,51 @@ export function CharacterStrengthRating() {
               ))}
             </thead>
             <tbody>
-              {ratingTable.getRowModel().rows.map((row, rowIndex) => {
-                const rank = String(rowIndex + 1).padStart(2, '0')
-                return (
-                  <tr
-                    key={row.id}
-                    className={`${rowIndex % 2 === 0 ? 'bg-surface-inset' : 'bg-surface-from'} hover:bg-surface-to`}
-                  >
-                    <td
-                      aria-label={`Место ${rank}`}
-                      className={`text-center text-xs ${rowIndex < 3 ? 'font-extrabold text-highlight' : 'font-semibold text-muted-foreground'}`}
+              {ratingTable
+                .getRowModel()
+                .rows.slice(0, narrow && !expanded ? NARROW_VISIBLE : undefined)
+                .map((row, rowIndex) => {
+                  const rank = String(rowIndex + 1).padStart(2, '0')
+                  return (
+                    <tr
+                      key={row.id}
+                      className={`${rowIndex % 2 === 0 ? 'bg-surface-inset' : 'bg-surface-from'} hover:bg-surface-to`}
                     >
-                      {rank}
-                    </td>
-                    {row.getAllCells().map((cell, index) => {
-                      const label = String(cell.column.columnDef.header)
-                      return (
-                        <td key={cell.id}>
-                          <div className="flex min-w-0 items-baseline gap-1">
-                            <MobileLabel text={label} first={index === 0} />
-                            <ratingTable.FlexRender cell={cell} />
-                          </div>
-                        </td>
-                      )
-                    })}
-                  </tr>
-                )
-              })}
+                      <td
+                        aria-label={`Место ${rank}`}
+                        className={`text-center text-xs ${rowIndex < 3 ? 'font-extrabold text-highlight' : 'font-semibold text-muted-foreground'}`}
+                      >
+                        {rank}
+                      </td>
+                      {row.getAllCells().map((cell, index) => {
+                        const label = String(cell.column.columnDef.header)
+                        return (
+                          <td key={cell.id}>
+                            <div className="flex min-w-0 items-baseline gap-1">
+                              <MobileLabel text={label} first={index === 0} />
+                              <ratingTable.FlexRender cell={cell} />
+                            </div>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  )
+                })}
             </tbody>
           </table>
         </section>
       )}
+      {narrow && members.length > NARROW_VISIBLE ? (
+        <Button
+          type="button"
+          variant="secondary"
+          className="w-full"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? 'Свернуть' : `Показать всех (${members.length})`}
+        </Button>
+      ) : null}
     </section>
   )
 }

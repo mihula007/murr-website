@@ -30,6 +30,12 @@ async function signedInPage(browser: Browser, email: string) {
 
 type Person = Awaited<ReturnType<typeof createMember>>
 
+function moscowDate(days = 0) {
+  return new Date(Date.now() + (3 + 24 * days) * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10)
+}
+
 async function createEvent(officer: Person) {
   const title = `E2E обсуждение ${Date.now()}`
   const created = await callApi(
@@ -38,10 +44,7 @@ async function createEvent(officer: Person) {
     {
       title,
       type: 'pvp',
-      // The active event list returns its first 50 by start time. Put this
-      // test event before seeded fixtures so its separate discussion button
-      // remains available in that list.
-      date: '1900-01-01',
+      date: moscowDate(3),
       time: '20:00',
       description: 'Проверка обсуждения',
     },
@@ -61,23 +64,13 @@ async function createVote(officer: Person) {
   return { id: created.body.id as string, title }
 }
 
-/** Обсуждение события открывается отдельным окном из карточки события. */
-async function openEventDiscussion(
-  page: Page,
-  title: string,
-  tab: 'active' | 'past' = 'active',
-) {
-  await page.goto(`./#/events?tab=${tab}`)
-  // The new event was created outside this page's query cache.
-  await page.reload()
-  const card = page
-    .getByRole('list', {
-      name: tab === 'active' ? 'Актуальные события' : 'Прошедшие события',
-    })
-    .getByRole('listitem')
-    .filter({ hasText: title })
-  await expect(card).toHaveCount(1)
-  await card.getByRole('button', { name: /Обсуждение ивента/ }).click()
+/**
+ * Обсуждение события — отдельное окно; кнопка есть на странице события, куда
+ * ведут уведомления (DSC-01).
+ */
+async function openEventDiscussion(page: Page, id: string) {
+  await page.goto(`./#/events/${id}`)
+  await page.getByRole('button', { name: /Обсуждение ивента/ }).click()
   return page.getByRole('list', { name: 'Сообщения обсуждения' })
 }
 
@@ -98,7 +91,7 @@ test('обсуждение события: ответ, упоминание, р�
   // Участник пишет первым; Ctrl+Enter отправляет, пустое не уходит.
   await signInUi(page, member.email)
   await expectSignedIn(page)
-  await openEventDiscussion(page, event.title)
+  await openEventDiscussion(page, event.id)
   await expect(page.getByText('Сообщений пока нет.')).toBeVisible()
   const field = page.getByLabel('Сообщение', { exact: true })
   await field.fill('   ')
@@ -123,7 +116,7 @@ test('обсуждение события: ответ, упоминание, р�
 
   // Офицер отвечает с цитатой и упоминает третьего участника.
   const officerPage = await signedInPage(browser, officer.email)
-  await openEventDiscussion(officerPage, event.title)
+  await openEventDiscussion(officerPage, event.id)
   const original = messageOf(officerPage, member.nickname)
   await original.getByRole('button', { name: /Действия с сообщением/ }).click()
   await expect(
@@ -152,7 +145,7 @@ test('обсуждение события: ответ, упоминание, р�
 
   // Участник видит ответ после обновления и ставит две реакции, снимает одну.
   await page.reload()
-  await openEventDiscussion(page, event.title)
+  await openEventDiscussion(page, event.id)
   const officerMessage = messageOf(page, officer.nickname)
   await expect(officerMessage).toContainText(`@${mentioned.nickname}`)
   for (const emoji of ['🔥', '🤡']) {
@@ -174,7 +167,7 @@ test('обсуждение события: ответ, упоминание, р�
 
   // Автор видит, кто прочитал его сообщение.
   await officerPage.reload()
-  await openEventDiscussion(officerPage, event.title)
+  await openEventDiscussion(officerPage, event.id)
   await messageOf(officerPage, officer.nickname)
     .getByRole('button', { name: /Действия с сообщением/ })
     .click()
@@ -197,7 +190,7 @@ test('обсуждение события: ответ, упоминание, р�
   await page.getByRole('button', { name: 'Отправить' }).click()
   await expect(page.getByText('Обсуждение закрыто.')).toBeVisible()
   await page.reload()
-  await openEventDiscussion(page, event.title, 'past')
+  await openEventDiscussion(page, event.id)
   await expect(
     page.getByText('Обсуждение закрыто: история доступна для чтения.'),
   ).toBeVisible()

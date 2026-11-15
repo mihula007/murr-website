@@ -126,9 +126,11 @@ test('событие: создание, правка, ответы и удале
 
   // Ответ и смена ответа — одна строка участника (приёмка 2).
   const memberPage = await signedInPage(browser, member.email)
+  // Ответ доступен и на странице события — туда ведут уведомления.
   await memberPage.goto(`./#/events/${id}`)
+  await memberPage.getByRole('button', { name: 'Приду', exact: true }).click()
+  await expect(memberPage.getByText('Ваше решение:')).toBeVisible()
   await memberPage.goto('./#/events?tab=active')
-  await choose(memberPage, title, 'Приду')
   await expect(count(memberPage, title, 'Приду')).toHaveText('Приду: 2')
   const memberCard = eventCard(memberPage, title)
   await memberCard.getByRole('button', { name: 'Изменить решение' }).click()
@@ -240,6 +242,9 @@ test('после начала события ответы закрыты', async
   await expectSignedIn(page)
   await page.goto(`./#/events/${row!.id}`)
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
+  await expect(
+    page.getByText(/Событие началось: ответы больше не принимаются/),
+  ).toBeVisible()
   await expect(page.getByRole('button', { name: 'Приду' })).toHaveCount(0)
   const response = await callApi(
     'events/respond',

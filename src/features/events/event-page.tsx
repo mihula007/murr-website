@@ -5,25 +5,27 @@ import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
 import { linkButtonClass } from '@/components/ui/button'
+import { Card } from '@/components/ui/surfaces'
+import { DiscussionDialog } from '@/features/discussions/discussion-dialog'
 import { cn } from '@/lib/utils'
 import { useEvent } from './api'
 import {
   EventActions,
+  EventAnswers,
   EventBadges,
   EventStart,
   eventAuthor,
 } from './event-card'
 import { EventGroupsSection } from './groups/event-groups'
 
-/**
- * Участники и группы события (GRP); обсуждение открывается из карточки события.
- */
+/** Участники и группы события (GRP); обсуждение — отдельным окном. */
 function GroupsAndDiscussion({ event }: { event: EventDetails }) {
   return <EventGroupsSection event={event} />
 }
 
 /**
- * Компактная шапка события. Сводка ответов остаётся в карточке расписания.
+ * Компактная шапка события и панель участника: свой ответ и «Обсуждение
+ * ивента» (EVT-04, DSC-01) — сюда ведут уведомления о событии и его чате.
  */
 function EventOverview({
   event,
@@ -33,7 +35,7 @@ function EventOverview({
   onDeleted: () => void
 }) {
   return (
-    <div className="mb-4">
+    <div className="mb-4 grid items-start gap-x-4 gap-y-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]">
       <header className="grid min-w-0 gap-3">
         <div className="flex items-start justify-between gap-3">
           <EventBadges event={event} />
@@ -52,6 +54,16 @@ function EventOverview({
           Автор: {eventAuthor(event)}
         </p>
       </header>
+      <Card className="grid gap-3 p-4">
+        <EventAnswers event={event} />
+        <DiscussionDialog
+          thread={{ parent: 'event', parentId: event.id }}
+          title={event.title}
+          messageCount={event.messageCount}
+          triggerLabel="Обсуждение ивента"
+          className="w-full"
+        />
+      </Card>
     </div>
   )
 }

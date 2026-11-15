@@ -18,8 +18,8 @@ import type {
   SetRoleRequest,
 } from '@contracts/accounts'
 import type {
-  SetCharacterStatRequest,
-  SetCharacterStatResult,
+  SetCharacterStatsRequest,
+  SetCharacterStatsResult,
 } from '@contracts/character-stats'
 import type { AuditListResponse } from '@contracts/audit'
 import { meQueryKey } from '@/features/account/use-me'
@@ -118,11 +118,12 @@ export function useSetPassword() {
 }
 
 /** Отдельное сохранение одного поля карточки профиля (ADM-15). */
-export function useSetCharacterStat() {
+/** Сохранение блока характеристик одной операцией (ADM-15). */
+export function useSetCharacterStats() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: SetCharacterStatRequest) =>
-      callApi<SetCharacterStatResult>('accounts/set-character-stat', input),
+    mutationFn: (input: SetCharacterStatsRequest) =>
+      callApi<SetCharacterStatsResult>('accounts/set-character-stats', input),
     onSuccess: async (result) => {
       await Promise.all([
         queryClient.invalidateQueries({

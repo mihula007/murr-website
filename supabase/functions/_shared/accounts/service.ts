@@ -20,10 +20,14 @@ import {
   type SetPasswordResult,
 } from '../contracts/accounts.ts'
 import {
+  CHARACTER_STAT_FIELDS,
   CHARACTER_STAT_LABELS,
   setCharacterStatSchema,
-  type SetCharacterStatCommand,
+  setCharacterStatsSchema,
+  type CharacterStatField,
   type SetCharacterStatResult,
+  type SetCharacterStatsCommand,
+  type SetCharacterStatsResult,
 } from '../contracts/character-stats.ts'
 import { withTransaction, type Executor } from '../db/client.ts'
 import type { ProfileRow } from '../db/schema.ts'
@@ -130,52 +134,46 @@ export async function getAccount(
   }
 }
 
-function characterStatUpdate(
-  command: SetCharacterStatCommand,
-  updatedAt: string,
-): ProfileUpdate {
-  if (command.field === 'source') {
-    return {
-      character_stats_source: command.value,
-      updated_at: updatedAt,
-    }
+const CHARACTER_STAT_COLUMNS = {
+  pa: 'pa',
+  pz: 'pz',
+  bu: 'bu',
+  hp: 'hp',
+  bd: 'bd',
+  source: 'character_stats_source',
+} as const satisfies Record<CharacterStatField, keyof ProfileRow>
+
+const STAT_FIELDS: CharacterStatField[] = [...CHARACTER_STAT_FIELDS, 'source']
+
+function savedStat(target: ProfileRow, field: CharacterStatField) {
+  const value = target[CHARACTER_STAT_COLUMNS[field]]
+  if (value === null || field === 'source') {
+    return value as string | null
   }
-  switch (command.field) {
-    case 'pa':
-      return { pa: command.value, updated_at: updatedAt }
-    case 'pz':
-      return { pz: command.value, updated_at: updatedAt }
-    case 'bu':
-      return { bu: command.value, updated_at: updatedAt }
-    case 'hp':
-      return { hp: command.value, updated_at: updatedAt }
-    case 'bd':
-      return { bd: command.value, updated_at: updatedAt }
-  }
+  return Number(value)
 }
 
-function sameCharacterStat(
-  command: SetCharacterStatCommand,
-  target: ProfileRow,
+/** Значение для журнала: пустое — тире, источник — в кавычках. */
+function auditStatValue(
+  field: CharacterStatField,
+  value: number | string | null,
 ) {
-  if (command.field === 'source') {
-    return target.character_stats_source === command.value
+  if (value === null) {
+    return '—'
   }
-  const previous = target[command.field]
-  return previous === null
-    ? command.value === null
-    : command.value !== null && Number(previous) === command.value
+  return field === 'source' ? `«${value}»` : String(value)
 }
 
-/** Одно поле характеристик аккаунта (ADM-15): только администратор. */
-export async function setCharacterStat(
+/**
+ * Сохранение блока характеристик (ADM-15): только администратор. Меняются
+ * только переданные поля с новым значением; одна запись аудита на
+ * сохранение с прежним и новым значением каждого изменённого поля.
+ */
+async function saveCharacterStats(
   deps: AppDeps,
-  actor: Actor,
-  body: unknown,
-): Promise<SetCharacterStatResult> {
-  const admin = requireRole(actor, ['admin'])
-  const command = parseBody(setCharacterStatSchema, body)
-
+  admin: ProfiledActor,
+  command: SetCharacterStatsCommand,
+): Promise<SetCharacterStatsResult> {
   return withTransaction(deps.db, async (tx) => {
     const target = await profileRepository.findByIdForUpdate(tx, command.userId)
     if (!target) {
@@ -185,12 +183,28 @@ export async function setCharacterStat(
       throw new ApiError('state_conflict')
     }
 
-    if (!sameCharacterStat(command, target)) {
-      await profileRepository.update(
-        tx,
-        command.userId,
-        characterStatUpdate(command, deps.now().toISOString()),
+    const changes: ProfileUpdate = {}
+    const changedFields: string[] = []
+    const statChanges: string[] = []
+    for (const field of STAT_FIELDS) {
+      const next = command[field]
+      const previous = savedStat(target, field)
+      if (next === undefined || next === previous) {
+        continue
+      }
+      Object.assign(changes, { [CHARACTER_STAT_COLUMNS[field]]: next })
+      const label = CHARACTER_STAT_LABELS[field]
+      changedFields.push(label)
+      statChanges.push(
+        `${label}: ${auditStatValue(field, previous)} → ${auditStatValue(field, next)}`,
       )
+    }
+
+    if (changedFields.length > 0) {
+      await profileRepository.update(tx, command.userId, {
+        ...changes,
+        updated_at: deps.now().toISOString(),
+      })
       const user = await userRepository.findById(tx, command.userId)
       await writeAudit(tx, {
         category: 'profiles',
@@ -209,17 +223,56 @@ export async function setCharacterStat(
         },
         details: {
           user_id: command.userId,
-          changed_fields: [CHARACTER_STAT_LABELS[command.field]],
+          changed_fields: changedFields,
+          stat_changes: statChanges,
         },
       })
     }
 
+    const stat = (field: CharacterStatField) =>
+      command[field] === undefined ? savedStat(target, field) : command[field]
     return {
       userId: command.userId,
-      field: command.field,
-      value: command.value,
+      pa: stat('pa') as number | null,
+      pz: stat('pz') as number | null,
+      bu: stat('bu') as number | null,
+      hp: stat('hp') as number | null,
+      bd: stat('bd') as number | null,
+      characterStatsSource: stat('source') as string | null,
     }
   })
+}
+
+/** Блок «Характеристика персонажа» одним сохранением (ADM-15). */
+export async function setCharacterStats(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<SetCharacterStatsResult> {
+  const admin = requireRole(actor, ['admin'])
+  return saveCharacterStats(
+    deps,
+    admin,
+    parseBody(setCharacterStatsSchema, body),
+  )
+}
+
+/**
+ * Прежняя операция одного поля — для клиента, выложенного до сохранения
+ * блока; пишет тот же аудит, что и `setCharacterStats`.
+ */
+export async function setCharacterStat(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<SetCharacterStatResult> {
+  const admin = requireRole(actor, ['admin'])
+  const command = parseBody(setCharacterStatSchema, body)
+  await saveCharacterStats(deps, admin, {
+    userId: command.userId,
+    [command.field]: command.value,
+  })
+  return command
 }
 
 /**

@@ -19,6 +19,8 @@ const DETAIL_KEYS = new Set([
   'profile_id',
   'application_id',
   'changed_fields',
+  // Прежнее и новое значение характеристик персонажа (ADM-15).
+  'stat_changes',
   'role',
   'previous_role',
   'decision',

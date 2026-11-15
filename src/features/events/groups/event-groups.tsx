@@ -161,23 +161,20 @@ function PersonRow({ board, person, group, index, isLeader }: PersonRowProps) {
         <strong className={cn('break-words', group ? 'text-xs' : 'text-sm')}>
           {person.gameNickname}
           {isLeader ? (
-            <span
-              className="font-normal text-primary"
-              title="Пати лидер"
-              aria-label="Пати лидер"
-            >
-              {' '}
-              — ПЛ
+            <span className="font-normal text-primary" title="Пати лидер">
+              <span aria-hidden="true"> — ПЛ</span>
+              <span className="sr-only">, пати лидер</span>
             </span>
           ) : null}
         </strong>
-        {!group ? (
-          <span
-            aria-label="Характеристики персонажа"
-            className="grid grid-cols-5 gap-x-2 pt-1 text-[10px] leading-tight text-muted-foreground sm:max-w-[19rem]"
-          >
+        {/* У закрытого события снимок посещения без характеристик (GRP-01). */}
+        {!group && board.event.closedAt === null ? (
+          <span className="grid grid-cols-5 gap-x-2 pt-1 text-[10px] leading-tight text-muted-foreground sm:max-w-[19rem]">
             {CHARACTER_STAT_FIELDS.map((field) => (
               <span key={field} className="min-w-0">
+                <span className="sr-only">
+                  {CHARACTER_STAT_LABELS[field]}:{' '}
+                </span>
                 <strong className="font-medium text-foreground tabular-nums">
                   {formatCharacterStat(field, person[field])}
                 </strong>
@@ -419,45 +416,48 @@ function PoolPanel({ board }: { board: Board }) {
           <p className="m-0 text-muted-foreground">Никого нет.</p>
         ) : (
           <>
-            <div className="flex items-end gap-2 px-2 py-1 lg:sticky lg:top-0 lg:z-10 lg:bg-surface-from">
-              {board.editable ? (
-                <span aria-hidden="true" className="w-7" />
-              ) : null}
-              <span aria-hidden="true" className="size-6 flex-none" />
-              <div className="grid max-w-[19rem] flex-1 grid-cols-5 gap-x-2">
-                {CHARACTER_STAT_FIELDS.map((field) => {
-                  const activeSort = statSort?.field === field ? statSort : null
-                  const label = CHARACTER_STAT_LABELS[field]
-                  return (
-                    <button
-                      key={field}
-                      type="button"
-                      aria-label={
-                        activeSort
-                          ? `${label}, сортировка ${activeSort.direction === 'desc' ? 'по убыванию' : 'по возрастанию'}`
-                          : `Сортировать по ${label}`
-                      }
-                      aria-pressed={activeSort !== null}
-                      title={`Сортировать по ${label}`}
-                      className="inline-flex min-w-0 cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-left text-[10px] leading-tight text-muted-foreground hover:text-primary"
-                      onClick={() => toggleStatSort(field)}
-                    >
-                      {label}
-                      {activeSort ? (
-                        activeSort.direction === 'desc' ? (
-                          <ArrowDown size={10} aria-hidden="true" />
-                        ) : (
-                          <ArrowUp size={10} aria-hidden="true" />
-                        )
-                      ) : null}
-                    </button>
-                  )
-                })}
+            {closed ? null : (
+              <div className="flex items-end gap-2 px-2 py-1 lg:sticky lg:top-0 lg:z-10 lg:bg-surface-from">
+                {board.editable ? (
+                  <span aria-hidden="true" className="w-7" />
+                ) : null}
+                <span aria-hidden="true" className="size-6 flex-none" />
+                <div className="grid max-w-[19rem] flex-1 grid-cols-5 gap-x-2">
+                  {CHARACTER_STAT_FIELDS.map((field) => {
+                    const activeSort =
+                      statSort?.field === field ? statSort : null
+                    const label = CHARACTER_STAT_LABELS[field]
+                    return (
+                      <button
+                        key={field}
+                        type="button"
+                        aria-label={
+                          activeSort
+                            ? `${label}, сортировка ${activeSort.direction === 'desc' ? 'по убыванию' : 'по возрастанию'}`
+                            : `Сортировать по ${label}`
+                        }
+                        aria-pressed={activeSort !== null}
+                        title={`Сортировать по ${label}`}
+                        className="inline-flex min-w-0 cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-left text-[10px] leading-tight text-muted-foreground hover:text-primary"
+                        onClick={() => toggleStatSort(field)}
+                      >
+                        {label}
+                        {activeSort ? (
+                          activeSort.direction === 'desc' ? (
+                            <ArrowDown size={10} aria-hidden="true" />
+                          ) : (
+                            <ArrowUp size={10} aria-hidden="true" />
+                          )
+                        ) : null}
+                      </button>
+                    )
+                  })}
+                </div>
+                {board.editable ? (
+                  <span aria-hidden="true" className="w-8" />
+                ) : null}
               </div>
-              {board.editable ? (
-                <span aria-hidden="true" className="w-8" />
-              ) : null}
-            </div>
+            )}
             <ul
               aria-label={current.label}
               className="m-0 grid list-none gap-1.5 p-0"

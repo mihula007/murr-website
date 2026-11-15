@@ -4,6 +4,7 @@ import type { AccessRole } from '../../supabase/functions/_shared/contracts/acco
 import {
   getAccount,
   setCharacterStat,
+  setCharacterStats,
 } from '../../supabase/functions/_shared/accounts/service.ts'
 import { listRoster } from '../../supabase/functions/_shared/roster/service.ts'
 import {
@@ -30,25 +31,33 @@ async function roleActor(role: AccessRole) {
 }
 
 describe('admin: character stats', () => {
-  it('updates each field, returns the admin card, audits changes, and sends no notification', async () => {
+  it('saves all fields at once, writes one audit entry with old and new values, and sends no notification', async () => {
     const admin = await roleActor('admin')
     const target = await roleActor('member')
-    const changes = [
-      ['pa', '125,5к', 125500],
-      ['pz', '12.25', 12.25],
-      ['bu', '0', 0],
-      ['hp', '2к', 2000],
-      ['bd', '500.125', 500.125],
-      ['source', '  прототип  ', 'прототип'],
-    ] as const
+    await db
+      .updateTable('app.profiles')
+      .set({ pa: 100, pz: 12.25 })
+      .where('id', '=', target.user.id)
+      .execute()
 
-    for (const [field, value] of changes) {
-      await setCharacterStat(deps, admin.actor, {
-        userId: target.user.id,
-        field,
-        value,
-      })
-    }
+    const result = await setCharacterStats(deps, admin.actor, {
+      userId: target.user.id,
+      pa: '125,5к',
+      pz: '12.25',
+      bu: '0',
+      hp: '2к',
+      bd: '500.125',
+      source: '  прототип  ',
+    })
+    expect(result).toEqual({
+      userId: target.user.id,
+      pa: 125500,
+      pz: 12.25,
+      bu: 0,
+      hp: 2000,
+      bd: 500.125,
+      characterStatsSource: 'прототип',
+    })
 
     const card = await getAccount(deps, admin.actor, {
       userId: target.user.id,
@@ -67,17 +76,23 @@ describe('admin: character stats', () => {
       .select(['category', 'action', 'actor_id', 'target_user_id', 'details'])
       .where('target_user_id', '=', target.user.id)
       .execute()
-    expect(audit).toHaveLength(6)
-    expect(audit.every((event) => event.category === 'profiles')).toBe(true)
-    expect(
-      audit.every((event) => event.action === 'character_stat_changed'),
-    ).toBe(true)
-    expect(audit.every((event) => event.actor_id === admin.user.id)).toBe(true)
-    expect(
-      audit.map(
-        (event) => (event.details as Record<string, unknown>).changed_fields,
-      ),
-    ).toEqual([['ПА'], ['ПЗ'], ['БУ'], ['ХП'], ['БД'], ['Источник']])
+    expect(audit).toHaveLength(1)
+    expect(audit[0]).toMatchObject({
+      category: 'profiles',
+      action: 'character_stat_changed',
+      actor_id: admin.user.id,
+      details: {
+        user_id: target.user.id,
+        changed_fields: ['ПА', 'БУ', 'ХП', 'БД', 'Источник'],
+        stat_changes: [
+          'ПА: 100 → 125500',
+          'БУ: — → 0',
+          'ХП: — → 2000',
+          'БД: — → 500.125',
+          'Источник: — → «прототип»',
+        ],
+      },
+    })
 
     const notificationCount = await db
       .selectFrom('app.user_notifications')
@@ -86,17 +101,39 @@ describe('admin: character stats', () => {
       .executeTakeFirstOrThrow()
     expect(Number(notificationCount.count)).toBe(0)
 
-    await setCharacterStat(deps, admin.actor, {
+    await setCharacterStats(deps, admin.actor, {
       userId: target.user.id,
-      field: 'pa',
-      value: '125500',
+      pa: '125500',
+      hp: '2000',
     })
     const repeated = await db
       .selectFrom('app.audit_log')
       .select((eb) => eb.fn.countAll<string>().as('count'))
       .where('target_user_id', '=', target.user.id)
       .executeTakeFirstOrThrow()
-    expect(Number(repeated.count)).toBe(6)
+    expect(Number(repeated.count)).toBe(1)
+  })
+
+  it('keeps the single-field operation for older clients with the same audit', async () => {
+    const admin = await roleActor('admin')
+    const target = await roleActor('member')
+    await setCharacterStat(deps, admin.actor, {
+      userId: target.user.id,
+      field: 'pa',
+      value: '1к',
+    })
+    const audit = await db
+      .selectFrom('app.audit_log')
+      .select(['details'])
+      .where('target_user_id', '=', target.user.id)
+      .execute()
+    expect(audit.map((event) => event.details)).toEqual([
+      {
+        user_id: target.user.id,
+        changed_fields: ['ПА'],
+        stat_changes: ['ПА: — → 1000'],
+      },
+    ])
   })
 
   it('accepts clearing values and rejects invalid numeric and source inputs without changing data', async () => {
@@ -110,36 +147,30 @@ describe('admin: character stats', () => {
 
     for (const value of ['текст', '-1', '1.2345', '1000000000000000']) {
       await expect(
-        setCharacterStat(deps, admin.actor, {
+        setCharacterStats(deps, admin.actor, {
           userId: target.user.id,
-          field: 'pa',
-          value,
+          pa: value,
         }),
       ).rejects.toMatchObject({
         code: 'validation_failed',
-        fields: { value: 'invalid_number' },
+        fields: { pa: 'invalid_number' },
       })
     }
     await expect(
-      setCharacterStat(deps, admin.actor, {
+      setCharacterStats(deps, admin.actor, {
         userId: target.user.id,
-        field: 'source',
-        value: 'я'.repeat(161),
+        pz: '',
+        source: 'я'.repeat(161),
       }),
     ).rejects.toMatchObject({
       code: 'validation_failed',
-      fields: { value: 'too_long' },
+      fields: { source: 'too_long' },
     })
 
-    await setCharacterStat(deps, admin.actor, {
+    await setCharacterStats(deps, admin.actor, {
       userId: target.user.id,
-      field: 'pz',
-      value: '',
-    })
-    await setCharacterStat(deps, admin.actor, {
-      userId: target.user.id,
-      field: 'source',
-      value: null,
+      pz: '',
+      source: null,
     })
     const card = await getAccount(deps, admin.actor, {
       userId: target.user.id,
@@ -171,6 +202,10 @@ describe('admin: character stats', () => {
     for (const role of ['applicant', 'reader', 'member', 'officer'] as const) {
       const { actor } = await roleActor(role)
       await rejects(
+        setCharacterStats(deps, actor, { userId: target.user.id, pa: '1' }),
+        'forbidden',
+      )
+      await rejects(
         setCharacterStat(deps, actor, {
           userId: target.user.id,
           field: 'pa',
@@ -191,11 +226,7 @@ describe('admin: character stats', () => {
       })
       .execute()
     await rejects(
-      setCharacterStat(deps, admin.actor, {
-        userId: target.user.id,
-        field: 'pa',
-        value: '1',
-      }),
+      setCharacterStats(deps, admin.actor, { userId: target.user.id, pa: '1' }),
       'state_conflict',
     )
   })

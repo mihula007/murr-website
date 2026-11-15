@@ -76,6 +76,15 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
           «{entry.details.title}»
         </span>
       ) : null}
+      {Array.isArray(entry.details.stat_changes) ? (
+        <ul className="m-0 grid list-none gap-0.5 p-0 text-muted-foreground">
+          {entry.details.stat_changes.map((change) => (
+            <li key={String(change)} className="break-words">
+              {String(change)}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <span className="break-words text-xs text-muted-foreground">
         {actor
           ? `Исполнитель: ${actor.nickname ?? '—'}${

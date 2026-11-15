@@ -41,6 +41,11 @@ function parseNumberValue(value: string): number | undefined {
   return Number(thousandths) / 1000
 }
 
+/** Строка — допустимое число характеристики (запятая или точка, суффикс «к»). */
+export function isCharacterStatNumber(value: string) {
+  return parseNumberValue(value.trim()) !== undefined
+}
+
 const numericValueSchema = z
   .string()
   .trim()
@@ -67,6 +72,33 @@ const sourceValueSchema = z
 
 const userIdSchema = z.guid('not_found')
 
+/**
+ * Сохранение блока характеристик (ADM-15): одна операция меняет любые из
+ * шести полей; отсутствующее поле не меняется.
+ */
+export const setCharacterStatsSchema = z.object({
+  userId: userIdSchema,
+  pa: numericValueSchema.optional(),
+  pz: numericValueSchema.optional(),
+  bu: numericValueSchema.optional(),
+  hp: numericValueSchema.optional(),
+  bd: numericValueSchema.optional(),
+  source: sourceValueSchema.optional(),
+})
+
+export type SetCharacterStatsRequest = z.input<typeof setCharacterStatsSchema>
+export type SetCharacterStatsCommand = z.output<typeof setCharacterStatsSchema>
+export type SetCharacterStatsResult = Required<
+  Omit<CharacterStatFields, 'characterStatsSource'>
+> & {
+  userId: string
+  characterStatsSource: string | null
+}
+
+/**
+ * Прежняя операция одного поля — для клиента, выложенного до перехода на
+ * сохранение блока; новый клиент её не вызывает.
+ */
 export const setCharacterStatSchema = z.discriminatedUnion('field', [
   z.object({
     userId: userIdSchema,
@@ -80,8 +112,6 @@ export const setCharacterStatSchema = z.discriminatedUnion('field', [
   }),
 ])
 
-export type SetCharacterStatRequest = z.input<typeof setCharacterStatSchema>
-export type SetCharacterStatCommand = z.output<typeof setCharacterStatSchema>
 export type SetCharacterStatResult = {
   userId: string
   field: CharacterStatField
