@@ -164,24 +164,24 @@ git commit -m "feat(ui): highlight current member in lists"
 - Consumes: текущий ID из `useSession()` и ID участника в строке `useRatingTable`.
 - Produces: подсветку собственной строки `bg-item-highlight!` поверх фона чередования на компьютере и телефоне.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Добавьте `highlights the current user in strength rating`: подтвердите подсветку совпадающего ID и отсутствие у остальных; сортировка и фильтр по классу не должны переносить фон на другую строку.
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+- [x] **Step 2: Run the focused test and verify it fails**
 
 Run: `npx vitest run tests/character-strength.test.ts`
 Expected: FAIL because the home strength rating does not compare rows with the current session.
 
-- [ ] **Step 3: Add current-user row background**
+- [x] **Step 3: Add current-user row background**
 
 Read the session ID in `CharacterStrengthRating`; add `bg-item-highlight!` only to the matching row while keeping rank stripe classes and hover behavior.
 
-- [ ] **Step 4: Add browser coverage to E2E-09**
+- [x] **Step 4: Add browser coverage to E2E-09**
 
 In `e2e/character-strength.spec.ts`, verify the signed-in member's rating row is highlighted and another member's row is not. Existing desktop and mobile projects cover both layouts; do not run E2E locally.
 
-- [ ] **Step 5: Run focused checks**
+- [x] **Step 5: Run focused checks**
 
 Run: `npx vitest run tests/character-strength.test.ts`
 Run: `npm run typecheck`
