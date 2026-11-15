@@ -32,7 +32,6 @@
 **Files:**
 - Modify: `src/features/events/events-page.tsx`
 - Modify: `tests/events.test.tsx`
-- Modify: `tests/notifications.test.tsx`
 
 **Interfaces:**
 - Consumes: `useNotificationSummary(enabled)` из `src/features/notifications/api.ts`; ответ содержит `sections.events`.
@@ -41,7 +40,7 @@
 
 - [ ] **Step 1: Write failing tests**
 
-В `tests/events.test.tsx` добавьте проверки «показывает красным новые события и обычным текстом общее число» и «при нуле новых событий оставляет только обычное число». В `tests/notifications.test.tsx` проверьте, что при открытии событий вызывается `notifications/section-seen` и сбрасывается только `sections.events`.
+В `tests/events.test.tsx` добавьте проверку «показывает красным новые события отдельно от обычного числа активных и снимает красный счётчик после отметки просмотра». Существующая проверка в `tests/notifications.test.tsx` уже подтверждает вызов `notifications/section-seen` при открытии событий.
 
 - [ ] **Step 2: Run the focused tests and verify they fail**
 
