@@ -172,6 +172,10 @@ test('характеристики доступны админу и внутре
   ).toBeVisible()
   await expect(ratingRows.nth(0)).toHaveClass(/bg-surface-inset/)
   await expect(ratingRows.nth(1)).toHaveClass(/bg-surface-from/)
+  const firstStrengthRow = ratingRows.filter({ hasText: first.nickname })
+  const secondStrengthRow = ratingRows.filter({ hasText: second.nickname })
+  await expect(firstStrengthRow).toHaveClass(/bg-item-highlight!?/)
+  await expect(secondStrengthRow).not.toHaveClass(/bg-item-highlight!?/)
   if (!mobile) {
     expect(
       await scrollArea.evaluate(

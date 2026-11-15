@@ -11,9 +11,20 @@ import { renderApp } from './support/render-app'
 const callApi = vi.hoisted(() =>
   vi.fn<(route: string, body?: unknown) => Promise<unknown>>(),
 )
+const sessionUserId = vi.hoisted(() => ({ current: null as string | null }))
 vi.mock('@/lib/supabase/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   callApi,
+}))
+vi.mock('@/features/auth/session', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useSession: () =>
+    sessionUserId.current
+      ? {
+          status: 'signedIn',
+          session: { user: { id: sessionUserId.current } },
+        }
+      : { status: 'unavailable', session: null },
 }))
 
 const members: RosterMember[] = [
@@ -73,6 +84,7 @@ const members: RosterMember[] = [
 
 beforeEach(() => {
   callApi.mockReset()
+  sessionUserId.current = null
   callApi.mockImplementation((route) => {
     if (route === 'roster/list') {
       return Promise.resolve({
@@ -230,5 +242,26 @@ describe('показатели состава и главная', () => {
         name: 'Топ-5 посещаемости за месяц',
       }),
     ).toBeVisible()
+  })
+
+  it('highlights the current user in the strength rating after sorting and filtering', async () => {
+    sessionUserId.current = 'g'
+    await renderApp({ role: 'member', path: '/' })
+    const rating = await screen.findByRole('region', { name: 'Рейтинг силы' })
+    const table = within(rating).getByRole('table', { name: 'Рейтинг силы' })
+    const row = (nickname: string) =>
+      within(table).getByText(nickname).closest('tr')!
+
+    expect(row('Гамма')).toHaveClass(/bg-item-highlight!?/)
+    expect(row('Бета')).not.toHaveClass(/bg-item-highlight!?/)
+
+    fireEvent.click(within(rating).getByRole('button', { name: 'ПЗ' }))
+    expect(row('Гамма')).toHaveClass(/bg-item-highlight!?/)
+    expect(row('Бета')).not.toHaveClass(/bg-item-highlight!?/)
+
+    chooseOption(within(rating).getByRole('combobox', { name: 'Класс' }), 'Маг')
+    await waitFor(() => expect(row('Гамма')).toHaveClass(/bg-item-highlight!?/))
+    expect(row('Бета')).not.toHaveClass(/bg-item-highlight!?/)
+    sessionUserId.current = null
   })
 })

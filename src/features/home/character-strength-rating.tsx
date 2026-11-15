@@ -25,6 +25,7 @@ import { useMediaQuery } from '@/components/virtual-list'
 import { useRoster } from '@/features/roster/api'
 import { formatCharacterStat } from '@/features/roster/character-stats'
 import { EmptyState } from '@/components/states/empty-state'
+import { useSession } from '@/features/auth/session'
 
 const fields = CHARACTER_STAT_FIELDS
 const column = activityColumns<RosterMember>()
@@ -85,6 +86,7 @@ function MobileLabel({ text, first }: { text: string; first: boolean }) {
 /** Рейтинг силы использует общий roster/list кеш; дополнительных вызовов нет. */
 export function CharacterStrengthRating() {
   const roster = useRoster()
+  const currentUserId = useSession().session?.user.id
   const [classId, setClassId] = useState<number | null>(null)
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'pa', desc: true },
@@ -252,7 +254,7 @@ export function CharacterStrengthRating() {
                   return (
                     <tr
                       key={row.id}
-                      className={`${rowIndex % 2 === 0 ? 'bg-surface-inset' : 'bg-surface-from'} hover:bg-surface-to`}
+                      className={`${rowIndex % 2 === 0 ? 'bg-surface-inset' : 'bg-surface-from'} hover:bg-surface-to ${row.original.id === currentUserId ? 'bg-item-highlight!' : ''}`}
                     >
                       <td
                         aria-label={`Место ${rank}`}
