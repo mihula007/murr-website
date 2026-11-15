@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Выделить фон карточки/строки текущего пользователя в составе, списках участников и групп событий и рейтинге посещения.
+**Goal:** Выделить фон карточки/строки текущего пользователя в составе, списках участников и групп событий, рейтингах посещения и силы.
 
 **Architecture:** Сравнивать ID строки с ID текущей сессии. Использовать существующий цвет темы `item-highlight`; списки, данные и порядок остаются прежними. Покрыть настольный вид и телефонные карточки строк.
 
@@ -15,7 +15,7 @@
 - Разработка только в `main`, Node.js 24, React 19, TypeScript strict и существующие зависимости.
 - Для фона использовать только существующие токены темы; не добавлять CSS-цвета или зависимости.
 - Списки остаются по решению Q-48: весь текущий состав до 200 участников, с защитным ограничением и сообщением при обрезке.
-- Подсветка не меняет роли, данные, сортировку, фильтры или порядок; область — только состав, участники/группы события и рейтинг посещения.
+- Подсветка не меняет роли, данные, сортировку, фильтры или порядок; область — только состав, участники/группы события и два основных рейтинга.
 
 ## Review Focus
 
@@ -24,6 +24,7 @@
 - Поиск и сортировка не теряют подсветку ID текущего пользователя — проверка `tests/activity.test.tsx`.
 - Администратор видит подсветку своей строки без потери меню действий — проверка `tests/roster-admin.test.tsx`.
 - На узком экране фон и текст карточек остаются читаемыми без горизонтальной прокрутки — проверка `e2e/self-highlight.spec.ts`.
+- Рейтинг силы подсвечивает ID текущей сессии, даже если порядок меняется сортировкой, фильтром и номером позиции — проверки `tests/character-strength.test.ts` и `e2e/character-strength.spec.ts`.
 
 ---
 
@@ -149,3 +150,39 @@ Expected: PASS, including changed Vitest tests, lint, types, styles and architec
 git add src/features/roster/roster-page.tsx src/features/events/groups/event-groups.tsx src/features/activity/rating-page.tsx src/features/activity/data-table.tsx tests/roster-admin.test.tsx tests/events.test.tsx tests/activity.test.tsx e2e/self-highlight.spec.ts
 git commit -m "feat(ui): highlight current member in lists"
 ```
+
+### Task 5: Подсветить себя в рейтинге силы
+
+**Files:**
+
+- Modify: `src/features/home/character-strength-rating.tsx`
+- Modify: `tests/character-strength.test.ts`
+- Modify: `e2e/character-strength.spec.ts`
+
+**Interfaces:**
+
+- Consumes: текущий ID из `useSession()` и ID участника в строке `useRatingTable`.
+- Produces: подсветку собственной строки `bg-item-highlight!` поверх фона чередования на компьютере и телефоне.
+
+- [ ] **Step 1: Write the failing test**
+
+Добавьте `highlights the current user in strength rating`: подтвердите подсветку совпадающего ID и отсутствие у остальных; сортировка и фильтр по классу не должны переносить фон на другую строку.
+
+- [ ] **Step 2: Run the focused test and verify it fails**
+
+Run: `npx vitest run tests/character-strength.test.ts`
+Expected: FAIL because the home strength rating does not compare rows with the current session.
+
+- [ ] **Step 3: Add current-user row background**
+
+Read the session ID in `CharacterStrengthRating`; add `bg-item-highlight!` only to the matching row while keeping rank stripe classes and hover behavior.
+
+- [ ] **Step 4: Add browser coverage to E2E-09**
+
+In `e2e/character-strength.spec.ts`, verify the signed-in member's rating row is highlighted and another member's row is not. Existing desktop and mobile projects cover both layouts; do not run E2E locally.
+
+- [ ] **Step 5: Run focused checks**
+
+Run: `npx vitest run tests/character-strength.test.ts`
+Run: `npm run typecheck`
+Expected: PASS. Do not rerun unrelated tests during this remarks step.
