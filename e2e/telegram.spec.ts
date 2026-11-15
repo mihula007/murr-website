@@ -8,6 +8,7 @@ import {
   signInUi,
 } from './supabase'
 import {
+  callsFor,
   pressUpdate,
   sendUpdate,
   startUpdate,
@@ -155,6 +156,23 @@ test('E2E-08: анонс события в Telegram и ответ кнопкой
       call.params.message_id === sent.messageId &&
       (call.params.text ?? '').includes('Ваш ответ: Не приду'),
   )
+
+  // Повторный анонс события не приходит уже ответившему (Q-109): другие
+  // привязанные из параллельных сценариев могут его получить, а могут
+  // и все уже ответить — тогда отказ.
+  const again = await callApi(
+    'broadcasts/send',
+    await accessToken(officer.email),
+    { body: `${title} повтор`, eventId, channels: ['telegram'] },
+  )
+  expect([200, 409]).toContain(again.status)
+  expect(
+    (await callsFor(chatId)).filter(
+      (call) =>
+        call.method === 'sendMessage' &&
+        (call.params.text ?? '').includes(`${title} повтор`),
+    ),
+  ).toEqual([])
 
   // Член клана не отправляет анонсы: прямой вызов отклоняется.
   expect(

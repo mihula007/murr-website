@@ -383,6 +383,39 @@ describe('vk: event buttons (VK-07, VK-08)', () => {
     })
   })
 
+  it('skips members who already answered (Q-109)', async () => {
+    const fresh = await linked('member')
+    const answered = await linked('member')
+    const { actor, event } = await officerWithEvent()
+    await respondToEvent(deps, answered.actor, {
+      eventId: event.id,
+      answer: 'yes',
+    })
+    expect(
+      await broadcastRecipients(deps, actor, { eventId: event.id }),
+    ).toMatchObject({ channels: { vk: { count: 1, answered: 1 } } })
+    const result = await sendAnnouncement(deps, actor, {
+      body: 'Сбор',
+      eventId: event.id,
+      channels: ['vk'],
+    })
+    expect(result).toMatchObject({ recipients: 1, sent: 1, failed: 0 })
+    expect(
+      fake.calls.filter((c) => c.method === 'send').map((c) => c.peerId),
+    ).toEqual([fresh.vkUserId])
+
+    await respondToEvent(deps, fresh.actor, { eventId: event.id, answer: 'no' })
+    await rejects(
+      sendAnnouncement(deps, actor, {
+        body: 'Ещё раз',
+        eventId: event.id,
+        channels: ['vk'],
+      }),
+      'state_conflict',
+      'all_answered',
+    )
+  })
+
   it('saves an answer, offers «Изменить решение» and syncs Telegram', async () => {
     const { member, event, cmid } = await announced()
     await press(member.vkUserId, cmid, payload(answerData(event.id, 'maybe')))

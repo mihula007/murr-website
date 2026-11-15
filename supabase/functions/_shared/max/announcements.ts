@@ -43,10 +43,11 @@ export async function deliverMaxAnnouncement(
   let failed = 0
 
   const deliver = async (recipient: (typeof recipients)[number]) => {
+    // Ответившие на событие анонс не получают (Q-109): кнопки без ответа.
     const message =
       eventId === null
         ? { html: announcementHtml(announcement), keyboard: undefined }
-        : maxEventMessage(announcement, eventId, recipient.answer)
+        : maxEventMessage(announcement, eventId, null)
     const result = await max.gateway.sendHtml(
       recipient.maxUserId,
       message.html,

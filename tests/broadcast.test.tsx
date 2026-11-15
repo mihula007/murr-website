@@ -262,6 +262,51 @@ describe('broadcast page (BRC, E2E-07)', () => {
     )
   })
 
+  it('counts only those who have not answered the event (Q-109)', async () => {
+    routes['broadcasts/prefill'] = () => ({
+      subject: 'Рейд',
+      body: 'Рейд',
+      recipients: null,
+    })
+    const answered = {
+      count: 0,
+      channels: {
+        telegram: { configured: true, count: 0, answered: 3 },
+        vk: { configured: true, count: 0, answered: 0 },
+        max: { configured: true, count: 0, answered: 1 },
+      },
+    }
+    routes['broadcasts/recipients'] = () => answered
+    const id = '00000000-0000-4000-8000-000000000001'
+    await renderApp({
+      role: 'officer',
+      path: `/broadcast?source=event&id=${id}`,
+    })
+    expect(await screen.findByText(/кроме уже ответивших/)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: SEND }))
+    expect(
+      await screen.findByText(
+        'Отправить некому: все участники, привязавшие выбранные мессенджеры, уже ответили на событие.',
+      ),
+    ).toBeVisible()
+    expect(callApi).toHaveBeenCalledWith('broadcasts/recipients', {
+      eventId: id,
+    })
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+
+    // Ответили, пока было открыто подтверждение, — отказ сервера.
+    routes['broadcasts/recipients'] = () => recipients(1, 0)
+    routes['broadcasts/send'] = () => {
+      throw new AppError('state_conflict', { reason: 'all_answered' })
+    }
+    fireEvent.click(screen.getByRole('button', { name: SEND }))
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Отправить' }))
+    expect(
+      await within(dialog).findByText(/уже ответили на событие/),
+    ).toBeVisible()
+  })
+
   it('sends a group announcement only to the group (BRC-04, Q-104)', async () => {
     const id = '00000000-0000-4000-8000-000000000002'
     routes['broadcasts/prefill'] = () => ({

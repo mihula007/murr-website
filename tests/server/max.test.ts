@@ -560,6 +560,49 @@ describe('max: event buttons (MAX-07, MAX-08)', () => {
     expect(lastAnswer()).toMatchObject({ text: MAX_CALLBACK_TEXTS.stale })
   })
 
+  it('skips members who already answered, in every channel (Q-109)', async () => {
+    const fresh = await linked('member', true)
+    const answered = await linked('member', true)
+    const { actor, event } = await officerWithEvent()
+    await respondToEvent(deps, answered.actor, {
+      eventId: event.id,
+      answer: 'maybe',
+    })
+    expect(
+      await broadcastRecipients(deps, actor, { eventId: event.id }),
+    ).toMatchObject({
+      channels: {
+        telegram: { count: 1, answered: 1 },
+        max: { count: 1, answered: 1 },
+      },
+    })
+    const result = await sendAnnouncement(deps, actor, {
+      body: 'Сбор',
+      eventId: event.id,
+      channels: ['telegram', 'max'],
+    })
+    expect(result.channels).toEqual({
+      telegram: { recipients: 1, sent: 1, failed: 0 },
+      max: { recipients: 1, sent: 1, failed: 0 },
+    })
+    expect(sentTo(fresh.maxUserId)).toHaveLength(1)
+    expect(sentTo(answered.maxUserId)).toEqual([])
+    expect(
+      tg.calls.filter((c) => c.method === 'sendHtml').map((c) => c.chatId),
+    ).toEqual([fresh.maxUserId])
+
+    await respondToEvent(deps, fresh.actor, { eventId: event.id, answer: 'no' })
+    await rejects(
+      sendAnnouncement(deps, actor, {
+        body: 'Ещё раз',
+        eventId: event.id,
+        channels: ['max'],
+      }),
+      'state_conflict',
+      'all_answered',
+    )
+  })
+
   it('syncs answers across the site, Telegram and MAX (MAX-08)', async () => {
     const member = await linked('member', true)
     const { actor, event } = await officerWithEvent()
@@ -677,6 +720,24 @@ describe('group announcements (TGM-12, TGM-14, Q-104)', () => {
       target_id: event.id,
       details: { group_id: groupId, source_kind: 'group', event_id: event.id },
     })
+  })
+
+  it('still reaches group members who answered the event (Q-109)', async () => {
+    const member = await linked('member')
+    const { actor, event, groupId } = await groupWith([member])
+    await respondToEvent(deps, member.actor, {
+      eventId: event.id,
+      answer: 'yes',
+    })
+    expect(await broadcastRecipients(deps, actor, { groupId })).toMatchObject({
+      channels: { max: { count: 1 } },
+    })
+    const result = await sendAnnouncement(deps, actor, {
+      body: 'Сбор группы',
+      groupId,
+      channels: ['max'],
+    })
+    expect(result).toMatchObject({ recipients: 1, sent: 1 })
   })
 
   it('refuses an empty, deleted or closed group and a double source', async () => {

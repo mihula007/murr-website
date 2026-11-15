@@ -1,5 +1,4 @@
 import { sql } from 'kysely'
-import type { EventAnswer } from '../contracts/events.ts'
 import type { Executor } from '../db/client.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
 
@@ -169,20 +168,15 @@ export const maxRepository = {
 
   /**
    * Получатели анонса в MAX (MAX-06, как TGM-14): член, офицер, администратор с активной
-   * связью, кроме удаляемых аккаунтов; для анонса события — с текущим ответом.
+   * связью, кроме удаляемых аккаунтов; для анонса события — без ответивших на него (Q-109).
    */
   async recipients(
     db: Executor,
     eventId: string | null,
     groupId: string | null = null,
   ) {
-    const rows = await recipientsQuery(db, groupId)
-      .leftJoin('app.event_attendance as a', (join) =>
-        join
-          .onRef('a.user_id', '=', 'l.user_id')
-          .on('a.event_id', '=', eventId ?? NO_EVENT),
-      )
-      .select(['l.user_id', 'l.max_user_id', 'l.chat_id', 'a.answer'])
+    const rows = await recipientsQuery(db, groupId, eventId)
+      .select(['l.user_id', 'l.max_user_id', 'l.chat_id'])
       .orderBy('l.user_id')
       .execute()
     return rows.map((row) => ({
@@ -190,13 +184,19 @@ export const maxRepository = {
       // Сообщения в MAX отправляются по ID пользователя (`user_id`).
       maxUserId: Number(row.max_user_id),
       chatId: Number(row.chat_id),
-      answer: (row.answer as EventAnswer | null) ?? null,
     }))
   },
 
-  /** `groupId` — только участники группы события (Q-104). */
-  async recipientCount(db: Executor, groupId: string | null = null) {
-    const row = await recipientsQuery(db, groupId)
+  /**
+   * `groupId` — только участники группы события (Q-104); `eventId` — без
+   * ответивших на событие (Q-109).
+   */
+  async recipientCount(
+    db: Executor,
+    groupId: string | null = null,
+    eventId: string | null = null,
+  ) {
+    const row = await recipientsQuery(db, groupId, eventId)
       .select((eb) => eb.fn.countAll<string>().as('count'))
       .executeTakeFirstOrThrow()
     return Number(row.count)
@@ -280,12 +280,13 @@ export const maxRepository = {
   },
 }
 
-/** Заглушка для левого соединения отдельного анонса: ответов нет. */
-const NO_EVENT = '00000000-0000-0000-0000-000000000000'
-
 /** Получатели; с `groupId` — только участники этой группы (Q-104). */
-function recipientsQuery(db: Executor, groupId: string | null) {
-  const query = db
+function recipientsQuery(
+  db: Executor,
+  groupId: string | null,
+  eventId: string | null = null,
+) {
+  const base = db
     .selectFrom('app.max_links as l')
     .innerJoin('app.profiles as p', 'p.id', 'l.user_id')
     .where('p.access_role', 'in', INTERNAL_ROLES)
@@ -300,6 +301,21 @@ function recipientsQuery(db: Executor, groupId: string | null) {
         ),
       ),
     )
+  // Анонс события не получают уже ответившие на него (Q-109).
+  const query =
+    eventId === null
+      ? base
+      : base.where((eb) =>
+          eb.not(
+            eb.exists(
+              eb
+                .selectFrom('app.event_attendance as a')
+                .select('a.user_id')
+                .whereRef('a.user_id', '=', 'l.user_id')
+                .where('a.event_id', '=', eventId),
+            ),
+          ),
+        )
   return groupId === null
     ? query
     : query.where('l.user_id', 'in', (eb) =>

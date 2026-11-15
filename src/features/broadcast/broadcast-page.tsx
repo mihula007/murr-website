@@ -95,6 +95,8 @@ const NO_RECIPIENTS =
   'Отправить некому: никто из участников клана не привязал выбранные мессенджеры.'
 const NO_GROUP_RECIPIENTS =
   'Отправить некому: никто из участников группы не привязал выбранные мессенджеры.'
+const ALL_ANSWERED =
+  'Отправить некому: все участники, привязавшие выбранные мессенджеры, уже ответили на событие.'
 
 const isSendable = (channel: BroadcastChannel): channel is SendableChannel =>
   (SENDABLE_CHANNELS as readonly BroadcastChannel[]).includes(channel)
@@ -148,7 +150,7 @@ function sentText(result: SendAnnouncementResponse, chosen: SendableChannel[]) {
     : `Отправлено — ${sent}`
 }
 
-/** Причина отказа отправки (Q-92, Q-104). */
+/** Причина отказа отправки (Q-92, Q-104, Q-109). */
 function sendRefusal(error: AppError, forGroup: boolean) {
   if (error.code !== 'state_conflict') {
     return null
@@ -156,6 +158,8 @@ function sendRefusal(error: AppError, forGroup: boolean) {
   switch (error.fields.reason) {
     case 'no_recipients':
       return forGroup ? NO_GROUP_RECIPIENTS : NO_RECIPIENTS
+    case 'all_answered':
+      return ALL_ANSWERED
     case 'group_missing':
       return 'Группа удалена: анонс группы не отправлен.'
     case 'started':
@@ -489,11 +493,18 @@ function BroadcastForm({
     setSendError(null)
     setChecking(true)
     try {
-      const counts = chosenCounts(await fetchRecipients(groupId), chosen)
+      const response = await fetchRecipients(groupId, eventId)
+      const counts = chosenCounts(response, chosen)
       if (typeof counts === 'string') {
         setSendError(counts)
       } else if (Object.values(counts).every((count) => count === 0)) {
-        setSendError(groupId ? NO_GROUP_RECIPIENTS : NO_RECIPIENTS)
+        setSendError(
+          groupId
+            ? NO_GROUP_RECIPIENTS
+            : chosen.some((c) => (response.channels?.[c].answered ?? 0) > 0)
+              ? ALL_ANSWERED
+              : NO_RECIPIENTS,
+        )
       } else {
         setConfirmCounts(counts)
       }
@@ -697,7 +708,9 @@ function BroadcastForm({
           >
             {groupId
               ? 'Анонс получат участники группы — члены, офицеры и администраторы, привязавшие выбранные мессенджеры.'
-              : 'Анонс получат члены, офицеры и администраторы, привязавшие выбранные мессенджеры.'}{' '}
+              : eventId
+                ? 'Анонс получат члены, офицеры и администраторы, привязавшие выбранные мессенджеры, кроме уже ответивших на событие.'
+                : 'Анонс получат члены, офицеры и администраторы, привязавшие выбранные мессенджеры.'}{' '}
             После отправки текст не изменить. Черновик при отправке не
             сохраняется.
           </p>

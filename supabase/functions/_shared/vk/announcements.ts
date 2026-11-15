@@ -43,10 +43,11 @@ export async function deliverVkAnnouncement(
   let failed = 0
 
   const deliver = async (recipient: (typeof recipients)[number]) => {
+    // Ответившие на событие анонс не получают (Q-109): кнопки без ответа.
     const message =
       eventId === null
         ? { text: announcementPlain(announcement), keyboard: undefined }
-        : vkEventMessage(announcement, eventId, recipient.answer)
+        : vkEventMessage(announcement, eventId, null)
     const result = await vk.gateway.send(
       recipient.chatId,
       message.text,

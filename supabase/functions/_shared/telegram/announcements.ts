@@ -48,10 +48,11 @@ export async function deliverAnnouncement(
   let failed = 0
 
   const deliver = async (recipient: (typeof recipients)[number]) => {
+    // Ответившие на событие анонс не получают (Q-109): кнопки без ответа.
     const message =
       eventId === null
         ? { html: announcementHtml(announcement), keyboard: undefined }
-        : eventMessage(announcement, eventId, recipient.answer)
+        : eventMessage(announcement, eventId, null)
     const result = await telegram.gateway.sendHtml(
       recipient.chatId,
       message.html,

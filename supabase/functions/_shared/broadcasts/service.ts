@@ -323,7 +323,11 @@ const CHANNELS: Record<
     name: string
     configured: (deps: AppDeps) => boolean
     require: (deps: AppDeps) => unknown
-    count: (deps: AppDeps, groupId: string | null) => Promise<number>
+    count: (
+      deps: AppDeps,
+      groupId: string | null,
+      eventId: string | null,
+    ) => Promise<number>
     deliver: (
       deps: AppDeps,
       text: AnnouncementText,
@@ -336,8 +340,8 @@ const CHANNELS: Record<
     name: 'Telegram',
     configured: (deps) => Boolean(deps.telegram),
     require: requireTelegram,
-    count: (deps, groupId) =>
-      telegramRepository.recipientCount(deps.db, groupId),
+    count: (deps, groupId, eventId) =>
+      telegramRepository.recipientCount(deps.db, groupId, eventId),
     deliver: (deps, text, eventId, groupId) =>
       deliverAnnouncement(deps, requireTelegram(deps), text, eventId, groupId),
   },
@@ -345,7 +349,8 @@ const CHANNELS: Record<
     name: 'ВКонтакте',
     configured: (deps) => Boolean(deps.vk),
     require: requireVk,
-    count: (deps, groupId) => vkRepository.recipientCount(deps.db, groupId),
+    count: (deps, groupId, eventId) =>
+      vkRepository.recipientCount(deps.db, groupId, eventId),
     deliver: (deps, text, eventId, groupId) =>
       deliverVkAnnouncement(deps, requireVk(deps), text, eventId, groupId),
   },
@@ -353,27 +358,50 @@ const CHANNELS: Record<
     name: 'MAX',
     configured: (deps) => Boolean(deps.max),
     require: requireMax,
-    count: (deps, groupId) => maxRepository.recipientCount(deps.db, groupId),
+    count: (deps, groupId, eventId) =>
+      maxRepository.recipientCount(deps.db, groupId, eventId),
     deliver: (deps, text, eventId, groupId) =>
       deliverMaxAnnouncement(deps, requireMax(deps), text, eventId, groupId),
   },
 }
 
-/** Число получателей по каналам для окна подтверждения (TGM-11, MAX-05). */
+/** Привязавшие канал без фильтра ответов — чтобы отличить «все ответили» (Q-109). */
+const linkedCounts = (
+  deps: AppDeps,
+  channels: readonly SendableChannel[],
+  groupId: string | null,
+) =>
+  Promise.all(
+    channels.map((channel) => CHANNELS[channel].count(deps, groupId, null)),
+  )
+
+/**
+ * Число получателей по каналам для окна подтверждения (TGM-11, MAX-05);
+ * для анонса события — без ответивших и их число (Q-109).
+ */
 export async function broadcastRecipients(
   deps: AppDeps,
   actor: Actor,
   body: unknown = {},
 ): Promise<BroadcastRecipientsResponse> {
   requireRole(actor, BROADCAST_MANAGERS)
-  const { groupId } = parseBody(recipientsSchema, body ?? {})
-  const counts = await Promise.all(
-    SENDABLE_CHANNELS.map((channel) => CHANNELS[channel].count(deps, groupId)),
-  )
+  const { groupId, eventId } = parseBody(recipientsSchema, body ?? {})
+  const [counts, linked] = await Promise.all([
+    Promise.all(
+      SENDABLE_CHANNELS.map((channel) =>
+        CHANNELS[channel].count(deps, groupId, eventId),
+      ),
+    ),
+    eventId ? linkedCounts(deps, SENDABLE_CHANNELS, groupId) : null,
+  ])
   const channels = Object.fromEntries(
     SENDABLE_CHANNELS.map((channel, index) => [
       channel,
-      { configured: CHANNELS[channel].configured(deps), count: counts[index]! },
+      {
+        configured: CHANNELS[channel].configured(deps),
+        count: counts[index]!,
+        ...(linked ? { answered: linked[index]! - counts[index]! } : {}),
+      },
     ]),
   ) as Record<SendableChannel, ChannelRecipients>
   return { count: channels.telegram.count, channels }
@@ -390,8 +418,9 @@ function joinNames(names: string[]) {
 
 /**
  * Отправка анонса в выбранные каналы (TGM-11–TGM-24, MAX-05–MAX-12,
- * VK-05–VK-09, Q-81, Q-85, Q-92, Q-99, Q-102): анонс события — с кнопками,
- * только для незакрытого и не начавшегося события; канал не настроен —
+ * VK-05–VK-09, Q-81, Q-85, Q-92, Q-99, Q-102, Q-109): анонс события — с
+ * кнопками, только для незакрытого и не начавшегося события и только не
+ * ответившим на него; канал не настроен —
  * отказ его кодом; без получателей во всех выбранных каналах — отказ.
  * Одна запись аудита.
  */
@@ -434,14 +463,24 @@ export async function sendAnnouncement(
     throw new ApiError('state_conflict', { reason: 'started' })
   }
   const groupId = group?.id ?? null
+  const eventId = event?.id ?? null
   const counts = await Promise.all(
-    input.channels.map((channel) => CHANNELS[channel].count(deps, groupId)),
+    input.channels.map((channel) =>
+      CHANNELS[channel].count(deps, groupId, eventId),
+    ),
   )
   if (counts.every((count) => count === 0)) {
-    throw new ApiError('state_conflict', { reason: 'no_recipients' })
+    // Анонс события: привязавшие есть, но все уже ответили (Q-109).
+    const linked = eventId
+      ? await linkedCounts(deps, input.channels, groupId)
+      : []
+    throw new ApiError('state_conflict', {
+      reason: linked.some((count) => count > 0)
+        ? 'all_answered'
+        : 'no_recipients',
+    })
   }
   const text = { subject: input.subject, body: input.body }
-  const eventId = event?.id ?? null
   // Каналы независимы (разные боты и лимиты) — отправка параллельно;
   // канал без получателей пропускается (MAX-09).
   const results = await Promise.all(

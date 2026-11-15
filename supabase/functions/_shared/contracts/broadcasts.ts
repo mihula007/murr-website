@@ -103,8 +103,14 @@ export const sendAnnouncementSchema = z.object({
 })
 export type SendAnnouncementRequest = z.input<typeof sendAnnouncementSchema>
 
-/** Получатели для подтверждения; `groupId` — только участники группы. */
-export const recipientsSchema = z.object({ groupId: optionalId })
+/**
+ * Получатели для подтверждения; `groupId` — только участники группы,
+ * `eventId` — анонс события: без ответивших на него (Q-109).
+ */
+export const recipientsSchema = z.object({
+  groupId: optionalId,
+  eventId: optionalId,
+})
 export type RecipientsRequest = z.input<typeof recipientsSchema>
 
 export type ChannelDelivery = {
@@ -125,6 +131,8 @@ export type ChannelRecipients = {
   /** false — бот канала не настроен на сервере. */
   configured: boolean
   count: number
+  /** Анонс события: привязаны, но уже ответили — не получат (Q-109). */
+  answered?: number
 }
 
 /** Получатели для окна подтверждения (TGM-11, MAX-05). */

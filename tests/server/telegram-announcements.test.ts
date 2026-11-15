@@ -260,7 +260,7 @@ describe('announcements: access and recipients (TGM-11, TGM-14, Q-81, Q-83)', ()
 })
 
 describe('announcements: event messages (TGM-17–TGM-24, Q-78, Q-92)', () => {
-  it('sends answer buttons, or «Изменить решение» to those who answered', async () => {
+  it('sends answer buttons only to those who have not answered (Q-109)', async () => {
     const fresh = await linked('member')
     const answered = await linked('member')
     const { actor, event } = await officerWithEvent()
@@ -268,21 +268,52 @@ describe('announcements: event messages (TGM-17–TGM-24, Q-78, Q-92)', () => {
       eventId: event.id,
       answer: 'no',
     })
-    await sendAnnouncement(deps, actor, { body: 'Рейд', eventId: event.id })
+    expect(
+      await broadcastRecipients(deps, actor, { eventId: event.id }),
+    ).toMatchObject({
+      count: 1,
+      channels: { telegram: { count: 1, answered: 1 } },
+    })
+    expect(await broadcastRecipients(deps, actor)).toMatchObject({ count: 2 })
 
+    const result = await sendAnnouncement(deps, actor, {
+      body: 'Рейд',
+      eventId: event.id,
+    })
+    expect(result).toMatchObject({ recipients: 1, sent: 1, failed: 0 })
     expect(sentTo(fresh.chatId)).toEqual([
       expect.objectContaining({
         text: 'Рейд',
         keyboard: threeButtons(event.id),
       }),
     ])
-    expect(sentTo(answered.chatId)).toEqual([
-      expect.objectContaining({
-        text: 'Рейд\n\n<i>Ваш ответ: Не приду</i>',
-        keyboard: changeButton(event.id),
-      }),
-    ])
+    expect(sentTo(answered.chatId)).toEqual([])
     expect(await activeMessageId(event.id, fresh.user.id)).not.toBeNull()
+    expect(await activeMessageId(event.id, answered.user.id)).toBeNull()
+
+    // Отдельный анонс получают все, независимо от ответов.
+    await sendAnnouncement(deps, actor, { body: 'Всем' })
+    expect(sentTo(answered.chatId)).toHaveLength(1)
+  })
+
+  it('keeps the previous message of one who answered and refuses when all answered (Q-109)', async () => {
+    const member = await linked('member')
+    const { actor, event } = await officerWithEvent()
+    await sendAnnouncement(deps, actor, { body: 'Рейд', eventId: event.id })
+    const first = await activeMessageId(event.id, member.user.id)
+    await respondToEvent(deps, member.actor, {
+      eventId: event.id,
+      answer: 'yes',
+    })
+    const calls = fake.calls.length
+
+    await rejects(
+      sendAnnouncement(deps, actor, { body: 'Ещё раз', eventId: event.id }),
+      'state_conflict',
+      'all_answered',
+    )
+    expect(fake.calls.slice(calls)).toEqual([])
+    expect(await activeMessageId(event.id, member.user.id)).toBe(first)
   })
 
   it('refuses a closed, started or missing event', async () => {
