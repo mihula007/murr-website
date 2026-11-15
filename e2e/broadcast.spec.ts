@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomInt } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
 import { hasHorizontalScroll, skipSplash } from './helpers'
 import {
@@ -195,19 +195,22 @@ test('BRC-15: subscription tab shows messenger links to managers only', async ({
     createMember('member'),
     createMember('member'),
   ])
+  const telegramId = randomInt(1_000_000, 2_000_000_000)
+  const vkId = randomInt(1_000_000, 2_000_000_000)
+  const maxId = randomInt(1_000_000, 2_000_000_000)
   await sql(async (db) => {
     await db`
       insert into app.telegram_links
         (user_id, telegram_user_id, chat_id, display_name)
-      values (${linked.id}, 890001, 890001, ${linked.nickname})`
+      values (${linked.id}, ${telegramId}, ${telegramId}, ${linked.nickname})`
     await db`
       insert into app.vk_links
         (user_id, vk_user_id, chat_id, display_name, blocked_at)
-      values (${linked.id}, 890002, 890002, ${linked.nickname}, now())`
+      values (${linked.id}, ${vkId}, ${vkId}, ${linked.nickname}, now())`
     await db`
       insert into app.max_links
         (user_id, max_user_id, chat_id, display_name)
-      values (${linked.id}, 890003, 890003, ${linked.nickname})`
+      values (${linked.id}, ${maxId}, ${maxId}, ${linked.nickname})`
   })
 
   await signInUi(page, officer.email)
