@@ -140,8 +140,9 @@ test('E2E-03: группы, лидер, закрытие, учёт активн�
     await page.getByLabel('Поиск', { exact: true }).fill(nickname)
     await expect(page).toHaveURL(new RegExp(`q=${nickname}`))
     const row = history
-      .getByText(nickname, { exact: true })
-      .locator('xpath=ancestor::tr')
+      .getByRole('row')
+      .filter({ hasText: event.title })
+      .filter({ hasText: new RegExp(`\\b${nickname}\\b`) })
     await expect(row).toHaveCount(1)
     return row
   }
