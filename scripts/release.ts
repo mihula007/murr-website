@@ -211,7 +211,8 @@ if (plan.config) {
 if (plan.functions) {
   report.step('Функция api')
   if (
-    !run('npx supabase functions deploy api --use-api', { inherit: true }).ok
+    !run('npx supabase functions deploy api --use-api --yes', { inherit: true })
+      .ok
   ) {
     stop('Функция api не выложена.')
   }
