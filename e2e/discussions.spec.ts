@@ -28,12 +28,6 @@ async function signedInPage(browser: Browser, email: string) {
   return page
 }
 
-function moscowDate(days = 0) {
-  return new Date(Date.now() + (3 + 24 * days) * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10)
-}
-
 type Person = Awaited<ReturnType<typeof createMember>>
 
 async function createEvent(officer: Person) {
@@ -44,9 +38,10 @@ async function createEvent(officer: Person) {
     {
       title,
       type: 'pvp',
-      // Keep the open event among the first 50 active events even when the
-      // seeded schedule already contains many nearer events.
-      date: moscowDate(-365),
+      // The active event list returns its first 50 by start time. Put this
+      // test event before seeded fixtures so its separate discussion button
+      // remains available in that list.
+      date: '1900-01-01',
       time: '20:00',
       description: 'Проверка обсуждения',
     },
