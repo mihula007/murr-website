@@ -236,6 +236,36 @@ describe('market: access (MKT-01, ACL-12, Q-04)', () => {
 })
 
 describe('market category schema (MKT-02)', () => {
+  it('persists arena and filters it without changing previous categories', async () => {
+    const member = await roleActor('member')
+    const previous = await saveListing(
+      deps,
+      member.actor,
+      listing({
+        status: 'published',
+        category: 'sale',
+        title: 'Старое объявление',
+      }),
+    )
+    const arena = await saveListing(
+      deps,
+      member.actor,
+      listing({
+        status: 'published',
+        category: 'arena',
+        title: 'Набор на арену',
+      }),
+    )
+
+    const filtered = await listListings(deps, member.actor, {
+      category: 'arena',
+    })
+    expect(filtered.items.map((item) => item.id)).toEqual([arena.id])
+    expect(
+      (await getListing(deps, member.actor, { id: previous.id })).category,
+    ).toBe('sale')
+  })
+
   it('accepts the arena category for creation and filtering', () => {
     expect(
       saveListingSchema.safeParse(listing({ category: 'arena' })).success,

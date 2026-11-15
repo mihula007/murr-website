@@ -140,27 +140,27 @@ git commit -m "feat(market): add arena category"
 - Consumes: `MARKET_CATEGORIES` schema validation and existing market table.
 - Produces: database accepts new `arena` listings and continues accepting prior categories without changing stored rows.
 
-- [ ] **Step 1: Write the failing service test**
+- [x] **Step 1: Write the failing service test**
 
 Add a server test that saves an `arena` listing, filters it from the feed, and confirms a prior `sale` listing keeps its category.
 
-- [ ] **Step 2: Run the focused test and verify the database rejects Arena**
+- [x] **Step 2: Run the focused test and verify the database rejects Arena**
 
 Run: `npm run test:server -- tests/server/market.test.ts`
 Expected: FAIL with the existing database check constraint rejecting `arena`.
 
-- [ ] **Step 3: Add a forward-only constraint migration and pgTAP coverage**
+- [x] **Step 3: Add a forward-only constraint migration and pgTAP coverage**
 
 Replace only `market_listings_category_check` with the same five values plus `arena`. Extend the stage 8 pgTAP test to insert the new category; retain the unknown-category rejection and old-category fixtures.
 
-- [ ] **Step 4: Apply and run focused backend checks**
+- [x] **Step 4: Apply and run focused backend checks**
 
 Run: `npm run review:prepare`
 Run: `npm run test:server -- tests/server/market.test.ts`
 Run: `npm run supabase:test`
 Expected: PASS; old rows and old category values remain valid.
 
-- [ ] **Step 5: Run the required quick checks**
+- [x] **Step 5: Run the required quick checks**
 
 Run: `npm run check:quick`
 Expected: PASS; E2E remains for CI.

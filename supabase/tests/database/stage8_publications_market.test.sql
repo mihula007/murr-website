@@ -2,7 +2,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(15);
+select plan(16);
 
 select ok(
   (select bool_and(rowsecurity) from pg_tables
@@ -89,7 +89,15 @@ values
   ('00000000-0000-0000-0000-0000000008b1', 'sale', 'Продам', '{"type":"doc"}', 'продам', '',
     'published', '00000000-0000-0000-0000-000000000082', now()),
   ('00000000-0000-0000-0000-0000000008b2', 'buy', 'Куплю', '{"type":"doc"}', 'куплю', '',
-    'draft', '00000000-0000-0000-0000-000000000082', null);
+    'draft', '00000000-0000-0000-0000-000000000082', null),
+  ('00000000-0000-0000-0000-0000000008b3', 'arena', 'Арена', '{"type":"doc"}', 'арена', '',
+    'published', '00000000-0000-0000-0000-000000000082', now());
+
+select is(
+  (select category from app.market_listings where id = '00000000-0000-0000-0000-0000000008b3'),
+  'arena',
+  'объявление категории «Арена» сохраняется (MKT-02)'
+);
 
 select throws_ok(
   $$insert into app.market_listings (category, title, content, search_text, excerpt, status, author_id)
