@@ -57,6 +57,13 @@ Add `'arena'` to `MARKET_CATEGORIES` and `Арена` to `MARKET_CATEGORY_LABELS
 Run: `npm run test:server -- tests/server/market.test.ts`
 Expected: PASS; new and existing categories validate, unknown category remains rejected.
 
+- [ ] **Step 5: Commit**
+
+```bash
+git add supabase/functions/_shared/contracts/market.ts tests/server/market.test.ts
+git commit -m "feat(market): add arena category"
+```
+
 ### Task 2: Verify create, edit, filter and search
 
 **Files:**
