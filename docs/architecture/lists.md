@@ -178,3 +178,4 @@
 | Шаблоны рассылок       | `broadcasts/templates`      | Нет: не больше 20 (BRC-10), целиком                                     |
 | Незавершённые удаления | `accounts/deletions`        | Нет: целиком до `SMALL_LIST_LIMIT`, `truncated`                         |
 | Получатели группы      | внутри `broadcasts/prefill` | Участники клана (Q-48): целиком                                         |
+| Привязки мессенджеров  | `broadcasts/subscriptions`  | Да (Q-112): курсор `(ник, id)`, поиск по нику на сервере                 |
