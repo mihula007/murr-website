@@ -56,6 +56,13 @@ Read the existing shared summary query in the events page, render `sections.even
 Run: `npx vitest run tests/events.test.tsx tests/notifications.test.tsx`
 Expected: PASS; the new count clears on section visit and the active total remains.
 
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/features/events/events-page.tsx tests/events.test.tsx
+git commit -m "fix(events): show unseen events on active tab"
+```
+
 ### Task 2: Verify the complete navigation behavior
 
 **Files:**
