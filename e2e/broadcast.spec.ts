@@ -107,7 +107,7 @@ test('E2E-07: подготовка рассылки из события, гол�
   await page
     .getByRole('list', { name: 'Состав «Пати 1»' })
     .locator('..')
-    .getByRole('link', { name: 'Подготовить рассылку' })
+    .getByRole('link', { name: 'Рассылка' })
     .click()
   await expect(page.getByText(/Сейчас в группе: 1./)).toBeVisible()
   await expect(page.getByLabel('Текст рассылки')).toHaveValue(

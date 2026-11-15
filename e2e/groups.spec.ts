@@ -106,7 +106,7 @@ test('E2E-03: группы, лидер, закрытие, учёт активн�
   // Не ответивший тоже назначается (GRP-05): Борис ответил, но в группу не идёт.
   await page.getByRole('combobox', { name: 'Лидер группы «Пати 1»' }).click()
   await page.getByRole('option', { name: anna.nickname }).click()
-  await expect(page.getByText(`${anna.nickname} — Пати лидер`)).toBeVisible()
+  await expect(page.getByText(`${anna.nickname} — ПЛ`)).toBeVisible()
   expect(await hasHorizontalScroll(page)).toBe(false)
 
   // Закрытие (EVT-08): подтверждение, затем только чтение.

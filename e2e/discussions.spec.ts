@@ -64,12 +64,11 @@ async function createVote(officer: Person) {
   return { id: created.body.id as string, title }
 }
 
-/** Чат события: колонкой на широком экране, вкладкой на узком. */
-async function openEventDiscussion(page: Page, id: string, isMobile: boolean) {
-  await page.goto(`./#/events/${id}`)
-  if (isMobile) {
-    await page.getByRole('tab', { name: /Обсуждение/ }).click()
-  }
+/** Обсуждение события открывается отдельным окном из карточки события. */
+async function openEventDiscussion(page: Page, title: string) {
+  await page.goto('./#/events?tab=active')
+  const card = page.getByRole('heading', { name: title }).locator('..')
+  await card.getByRole('button', { name: /Обсуждение ивента/ }).click()
   return page.getByRole('list', { name: 'Сообщения обсуждения' })
 }
 
@@ -79,7 +78,6 @@ const messageOf = (page: Page, author: string) =>
 test('обсуждение события: ответ, упоминание, реакции, правка и закрытие', async ({
   page,
   browser,
-  isMobile,
 }) => {
   const [officer, member, mentioned] = await Promise.all([
     createMember('officer'),
@@ -91,7 +89,7 @@ test('обсуждение события: ответ, упоминание, р�
   // Участник пишет первым; Ctrl+Enter отправляет, пустое не уходит.
   await signInUi(page, member.email)
   await expectSignedIn(page)
-  await openEventDiscussion(page, event.id, isMobile)
+  await openEventDiscussion(page, event.title)
   await expect(page.getByText('Сообщений пока нет.')).toBeVisible()
   const field = page.getByLabel('Сообщение', { exact: true })
   await field.fill('   ')
@@ -116,7 +114,7 @@ test('обсуждение события: ответ, упоминание, р�
 
   // Офицер отвечает с цитатой и упоминает третьего участника.
   const officerPage = await signedInPage(browser, officer.email)
-  await openEventDiscussion(officerPage, event.id, isMobile)
+  await openEventDiscussion(officerPage, event.title)
   const original = messageOf(officerPage, member.nickname)
   await original.getByRole('button', { name: /Действия с сообщением/ }).click()
   await expect(
@@ -145,7 +143,7 @@ test('обсуждение события: ответ, упоминание, р�
 
   // Участник видит ответ после обновления и ставит две реакции, снимает одну.
   await page.reload()
-  await openEventDiscussion(page, event.id, isMobile)
+  await openEventDiscussion(page, event.title)
   const officerMessage = messageOf(page, officer.nickname)
   await expect(officerMessage).toContainText(`@${mentioned.nickname}`)
   for (const emoji of ['🔥', '🤡']) {
@@ -167,7 +165,7 @@ test('обсуждение события: ответ, упоминание, р�
 
   // Автор видит, кто прочитал его сообщение.
   await officerPage.reload()
-  await openEventDiscussion(officerPage, event.id, isMobile)
+  await openEventDiscussion(officerPage, event.title)
   await messageOf(officerPage, officer.nickname)
     .getByRole('button', { name: /Действия с сообщением/ })
     .click()
@@ -190,7 +188,7 @@ test('обсуждение события: ответ, упоминание, р�
   await page.getByRole('button', { name: 'Отправить' }).click()
   await expect(page.getByText('Обсуждение закрыто.')).toBeVisible()
   await page.reload()
-  await openEventDiscussion(page, event.id, isMobile)
+  await openEventDiscussion(page, event.title)
   await expect(
     page.getByText('Обсуждение закрыто: история доступна для чтения.'),
   ).toBeVisible()
