@@ -903,7 +903,7 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
             ) : (
               <ul
                 aria-label="Группы события"
-                className="m-0 grid min-h-0 list-none grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-2 overflow-y-auto p-0 lg:pr-1"
+                className="m-0 grid content-start min-h-0 list-none grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-2 overflow-y-auto p-0 lg:pr-1"
               >
                 {event.groups.map((group) => (
                   <li key={group.id} className="min-w-0">

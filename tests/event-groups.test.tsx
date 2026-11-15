@@ -111,6 +111,21 @@ beforeEach(() => {
 })
 
 describe('event groups: reading (GRP-01, GRP-16)', () => {
+  it('keeps wrapped group rows close together', async () => {
+    respond({
+      'events/get': () =>
+        details({
+          groups: [
+            group(),
+            { ...group(), id: '55555555-5555-4555-8555-555555555556' },
+          ],
+        }),
+    })
+    await renderApp({ role: 'member', path: `/events/${EVENT_ID}` })
+    const groups = await screen.findByRole('list', { name: 'Группы события' })
+    expect(groups).toHaveClass(/content-start/)
+  })
+
   it('highlights the current participant in the free pool and group', async () => {
     sessionUserId.current = ANNA
     respond({
