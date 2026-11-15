@@ -424,6 +424,7 @@ describe('vk: event buttons (VK-07, VK-08)', () => {
       method: 'answerEvent',
       eventId: expect.any(String),
       peerId: member.vkUserId,
+      text: 'Ваш ответ: 50/50',
     })
     expect(fake.calls).toContainEqual({
       method: 'edit',
@@ -444,6 +445,7 @@ describe('vk: event buttons (VK-07, VK-08)', () => {
       JSON.stringify(payload(changeData(event.id))),
     )
     expect(await answerOf(event.id, member.user.id)).toBe('maybe')
+    expect(lastAnswer()).toMatchObject({ text: VK_CALLBACK_TEXTS.chooseAgain })
     expect(fake.calls.at(-2)).toMatchObject({
       method: 'edit',
       keyboard: threeButtons(event.id),

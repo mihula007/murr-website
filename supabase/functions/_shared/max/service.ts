@@ -12,6 +12,7 @@ import {
   type MaxLinkStart,
   type MaxStatus,
 } from '../contracts/max.ts'
+import { EVENT_ANSWER_LABELS } from '../contracts/events.ts'
 import { parseTimestamp } from '../contracts/moscow-time.ts'
 import { withTransaction } from '../db/client.ts'
 import { isUniqueViolation } from '../db/errors.ts'
@@ -258,7 +259,7 @@ async function onCallback(
   update: Extract<MaxUpdate, { update_type: 'message_callback' }>,
 ) {
   const { callback, message } = update
-  let notice: string | undefined = MAX_CALLBACK_TEXTS.failed
+  let notice: string = MAX_CALLBACK_TEXTS.failed
   try {
     const messageId = message?.body?.mid
     if (!messageId) {
@@ -266,10 +267,11 @@ async function onCallback(
       return
     }
     const action = parseCallbackData(callback.payload ?? '')
-    notice = action
+    const outcome = action
       ? await pressButton(deps, max, callback.user.user_id, messageId, action)
-      : MAX_CALLBACK_TEXTS.stale
-    if (notice) {
+      : refuse(MAX_CALLBACK_TEXTS.stale)
+    notice = outcome.notice
+    if (outcome.refused) {
       await max.gateway.removeKeyboard(messageId)
     }
   } finally {
@@ -277,21 +279,25 @@ async function onCallback(
   }
 }
 
-/** Результат нажатия: `undefined` — принято, иначе текст отказа. */
+/** Итог нажатия: текст уведомления; отказ снимает кнопки (Q-110). */
+type PressOutcome = { notice: string; refused: boolean }
+
+const refuse = (notice: string): PressOutcome => ({ notice, refused: true })
+
 async function pressButton(
   deps: AppDeps,
   max: MaxDeps,
   maxUserId: number,
   messageId: string,
   action: CallbackAction,
-): Promise<string | undefined> {
+): Promise<PressOutcome> {
   const link = await maxRepository.linkByMax(deps.db, maxUserId)
   if (!link) {
-    return MAX_CALLBACK_TEXTS.notLinked
+    return refuse(MAX_CALLBACK_TEXTS.notLinked)
   }
   const event = await eventRepository.find(deps.db, action.eventId)
   if (!event) {
-    return MAX_CALLBACK_TEXTS.deleted
+    return refuse(MAX_CALLBACK_TEXTS.deleted)
   }
   // Кнопки принимаются только с активного сообщения своего события.
   const active = await maxRepository.activeMessage(
@@ -300,26 +306,26 @@ async function pressButton(
     link.userId,
   )
   if (!active || active.messageId !== messageId) {
-    return MAX_CALLBACK_TEXTS.stale
+    return refuse(MAX_CALLBACK_TEXTS.stale)
   }
   let viewer: ProfiledActor
   try {
     viewer = requireRole(await loadActor(deps.db, link.userId), INTERNAL_ROLES)
   } catch {
-    return MAX_CALLBACK_TEXTS.forbidden
+    return refuse(MAX_CALLBACK_TEXTS.forbidden)
   }
   if (event.closed_at) {
-    return MAX_CALLBACK_TEXTS.closed
+    return refuse(MAX_CALLBACK_TEXTS.closed)
   }
   if (parseTimestamp(event.starts_at) <= deps.now()) {
-    return MAX_CALLBACK_TEXTS.started
+    return refuse(MAX_CALLBACK_TEXTS.started)
   }
 
   if (action.kind === 'answer') {
     try {
       await saveAnswer(deps, viewer, action.eventId, action.answer)
     } catch (error) {
-      return refusalText(error)
+      return refuse(refusalText(error))
     }
     const { html, keyboard } = maxEventMessage(
       active,
@@ -331,7 +337,10 @@ async function pressButton(
     await runInBackground(deps, () =>
       syncEventMessages(deps, link.userId, action.eventId, 'max'),
     )
-    return undefined
+    return {
+      notice: `Ваш ответ: ${EVENT_ANSWER_LABELS[action.answer]}`,
+      refused: false,
+    }
   }
   // «Изменить решение»: ответ не меняется до нового выбора (Q-76).
   const answers = await eventRepository.answersOf(
@@ -346,7 +355,7 @@ async function pressButton(
     true,
   )
   await editMaxMessage(deps, max, link.userId, messageId, html, keyboard)
-  return undefined
+  return { notice: MAX_CALLBACK_TEXTS.chooseAgain, refused: false }
 }
 
 /** Отказ `saveAnswer` при гонке с закрытием, началом или удалением события. */

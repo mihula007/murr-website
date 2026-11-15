@@ -41,7 +41,7 @@ export type VkGateway = {
   /** Ответ на нажатие; текст — всплывающее уведомление. */
   answerEvent(
     event: { eventId: string; userId: number; peerId: number },
-    text?: string,
+    text: string,
   ): Promise<void>
   /** Имя и короткий адрес для показа в кабинете. */
   profile(userId: number): Promise<VkProfile | null>
@@ -180,19 +180,24 @@ export function createVkGateway(options: VkGatewayOptions): VkGateway {
       return GONE_CODES.has(code) ? 'gone' : 'failed'
     },
     async answerEvent(event, text) {
-      await call('messages.sendMessageEventAnswer', {
+      // Ответ без `event_data` в части клиентов не снимает загрузку (Q-110).
+      const result = await call('messages.sendMessageEventAnswer', {
         event_id: event.eventId,
         user_id: event.userId,
         peer_id: event.peerId,
-        ...(text
-          ? {
-              event_data: JSON.stringify({
-                type: 'show_snackbar',
-                text: text.slice(0, 90),
-              }),
-            }
-          : {}),
+        event_data: JSON.stringify({
+          type: 'show_snackbar',
+          text: text.slice(0, 90),
+        }),
       })
+      // `call` не логирует 900–902 и 909/920; здесь важен любой отказ.
+      const code = result.error?.error_code
+      if (
+        code !== undefined &&
+        (BLOCKED_CODES.has(code) || GONE_CODES.has(code))
+      ) {
+        console.error(`VK messages.sendMessageEventAnswer: ${code}`)
+      }
     },
     async profile(userId) {
       const result = await call('users.get', {

@@ -515,6 +515,7 @@ describe('max: event buttons (MAX-07, MAX-08)', () => {
     expect(lastAnswer()).toEqual({
       method: 'answerCallback',
       callbackId: expect.any(String),
+      text: 'Ваш ответ: 50/50',
     })
     expect(fake.calls).toContainEqual({
       method: 'editHtml',
@@ -525,6 +526,7 @@ describe('max: event buttons (MAX-07, MAX-08)', () => {
 
     await press(member.maxUserId, mid, changeData(event.id))
     expect(await answerOf(event.id, member.user.id)).toBe('maybe')
+    expect(lastAnswer()).toMatchObject({ text: MAX_CALLBACK_TEXTS.chooseAgain })
     expect(fake.calls.at(-2)).toMatchObject({
       method: 'editHtml',
       keyboard: threeButtons(event.id),

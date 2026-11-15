@@ -109,11 +109,9 @@ describe('max gateway (MAX-07)', () => {
   it('answers a callback with a one-time notification', async () => {
     const { gateway, calls } = fakeApi()
     await gateway.answerCallback('cb-1', 'Событие удалено.')
-    await gateway.answerCallback('cb-2')
     expect(calls[0]!.url.pathname).toBe('/answers')
     expect(calls[0]!.url.searchParams.get('callback_id')).toBe('cb-1')
     expect(calls[0]!.body).toEqual({ notification: 'Событие удалено.' })
-    expect(calls[1]!.body).toEqual({})
   })
 
   it('retries once after 429 and never logs the token', async () => {

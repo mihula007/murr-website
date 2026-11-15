@@ -272,7 +272,7 @@ async function onPress(deps: AppDeps, vk: VkDeps, event: VkMessageEvent) {
     userId: press.user_id,
     peerId: press.peer_id,
   }
-  let notice: string | undefined = VK_CALLBACK_TEXTS.failed
+  let notice: string = VK_CALLBACK_TEXTS.failed
   try {
     const messageId = press.conversation_message_id
     const action = parseCallbackData(payloadData(press.payload))
@@ -296,7 +296,8 @@ async function onPress(deps: AppDeps, vk: VkDeps, event: VkMessageEvent) {
   }
 }
 
-type PressOutcome = { notice?: string; refused: boolean; text?: string }
+/** Уведомление показывается при каждом нажатии (Q-110). */
+type PressOutcome = { notice: string; refused: boolean; text?: string }
 
 async function pressButton(
   deps: AppDeps,
@@ -356,23 +357,15 @@ async function pressButton(
       action.eventId,
       action.answer,
     )
-    const edited = await editVkMessage(
-      deps,
-      vk,
-      link.userId,
-      target,
-      body,
-      keyboard,
-    )
+    await editVkMessage(deps, vk, link.userId, target, body, keyboard)
     await runInBackground(deps, () =>
       syncEventMessages(deps, link.userId, action.eventId, 'vk'),
     )
-    // Старое сообщение не правится — ответ показывает уведомление (VK-08).
+    // Уведомление с ответом — всегда, в том числе когда старое сообщение
+    // не правится (VK-08, Q-110).
     return {
+      notice: `Ваш ответ: ${EVENT_ANSWER_LABELS[action.answer]}`,
       refused: false,
-      ...(edited === 'ok'
-        ? {}
-        : { notice: `Ваш ответ: ${EVENT_ANSWER_LABELS[action.answer]}` }),
     }
   }
   // «Изменить решение»: ответ не меняется до нового выбора (Q-76).
@@ -388,7 +381,7 @@ async function pressButton(
     true,
   )
   await editVkMessage(deps, vk, link.userId, target, body, keyboard)
-  return { refused: false }
+  return { notice: VK_CALLBACK_TEXTS.chooseAgain, refused: false }
 }
 
 /** Отказ `saveAnswer` при гонке с закрытием, началом или удалением события. */

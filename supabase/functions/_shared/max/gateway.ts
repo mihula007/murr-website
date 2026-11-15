@@ -34,7 +34,7 @@ export type MaxGateway = {
   /** Только снять кнопки, текст не меняется. */
   removeKeyboard(messageId: string): Promise<MaxEditResult>
   /** Ответ на нажатие; текст — одноразовое уведомление. */
-  answerCallback(callbackId: string, notification?: string): Promise<void>
+  answerCallback(callbackId: string, notification: string): Promise<void>
 }
 
 export type MaxGatewayOptions = {
@@ -177,7 +177,8 @@ export function createMaxGateway(options: MaxGatewayOptions): MaxGateway {
         'POST',
         '/answers',
         { callback_id: callbackId },
-        notification ? { notification } : {},
+        // MAX отклоняет ответ без `message` и `notification` (Q-110).
+        { notification },
       )
     },
   }
