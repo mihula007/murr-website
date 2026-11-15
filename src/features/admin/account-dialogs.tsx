@@ -54,66 +54,70 @@ export function AccountCardDialog({ account, onOpenChange }: DialogProps) {
   } else {
     const data = card.data
     content = (
-      <div className="grid gap-4">
-        <div className="flex items-center gap-3">
-          <Avatar
-            size="md"
-            name={data.gameNickname}
-            src={data.avatarUrl}
-            alt=""
-          />
-          <div className="grid min-w-0">
-            <strong className="text-lg break-words">{data.gameNickname}</strong>
-            <span className="text-sm text-muted-foreground">
-              {ROLE_LABELS[data.role]}
-              {data.isPrimaryAdmin ? ' · основной' : ''}
-            </span>
+      <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(340px,0.82fr)]">
+        <div className="grid min-w-0 content-start gap-4">
+          <div className="flex items-center gap-3">
+            <Avatar
+              size="md"
+              name={data.gameNickname}
+              src={data.avatarUrl}
+              alt=""
+            />
+            <div className="grid min-w-0">
+              <strong className="text-lg break-words">
+                {data.gameNickname}
+              </strong>
+              <span className="text-sm text-muted-foreground">
+                {ROLE_LABELS[data.role]}
+                {data.isPrimaryAdmin ? ' · основной' : ''}
+              </span>
+            </div>
           </div>
-        </div>
-        <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-3 max-[520px]:grid-cols-1">
-          <Row label="Имя">{data.displayName}</Row>
-          <Row label="Email">
-            <span className="break-all">{data.email}</span>
+          <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-3 max-[520px]:grid-cols-1">
+            <Row label="Имя">{data.displayName}</Row>
+            <Row label="Email">
+              <span className="break-all">{data.email}</span>
+            </Row>
+            <Row label="Класс">{data.className}</Row>
+            <Row label="Город">{data.city}</Row>
+            <Row label="Дата рождения">{formatDate(data.birthDate)}</Row>
+            <Row label="Регистрация">{formatDateMsk(data.registeredAt)}</Row>
+            <Row label="Вступление">{formatDate(data.joinedOn)}</Row>
+            <Row label="Заявка">
+              {data.applicationStatus
+                ? APPLICATION_STATUS[data.applicationStatus].label
+                : null}
+            </Row>
+            <Row label="Пароль">{data.passwordSet ? 'Задан' : 'Не задан'}</Row>
+          </dl>
+          <Row label="О себе">
+            {data.about ? (
+              <span className="whitespace-pre-line">{data.about}</span>
+            ) : null}
           </Row>
-          <Row label="Класс">{data.className}</Row>
-          <Row label="Город">{data.city}</Row>
-          <Row label="Дата рождения">{formatDate(data.birthDate)}</Row>
-          <Row label="Регистрация">{formatDateMsk(data.registeredAt)}</Row>
-          <Row label="Вступление">{formatDate(data.joinedOn)}</Row>
-          <Row label="Заявка">
-            {data.applicationStatus
-              ? APPLICATION_STATUS[data.applicationStatus].label
-              : null}
-          </Row>
-          <Row label="Пароль">{data.passwordSet ? 'Задан' : 'Не задан'}</Row>
-        </dl>
-        <Row label="О себе">
-          {data.about ? (
-            <span className="whitespace-pre-line">{data.about}</span>
-          ) : null}
-        </Row>
-        <div className="grid gap-1">
-          <span className="text-xs text-muted-foreground">
-            Скриншоты снаряжения (внешние ссылки)
-          </span>
-          {data.equipmentLinks.length === 0 ? (
-            <span>—</span>
-          ) : (
-            <ul className="m-0 grid list-none gap-1 p-0">
-              {data.equipmentLinks.map((url) => (
-                <li key={url} className="break-all">
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    className="text-primary underline"
-                  >
-                    {url}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="grid gap-1">
+            <span className="text-xs text-muted-foreground">
+              Скриншоты снаряжения (внешние ссылки)
+            </span>
+            {data.equipmentLinks.length === 0 ? (
+              <span>—</span>
+            ) : (
+              <ul className="m-0 grid list-none gap-1 p-0">
+                {data.equipmentLinks.map((url) => (
+                  <li key={url} className="break-all">
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      className="text-primary underline"
+                    >
+                      {url}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
         <CharacterStatsFields accountId={data.id} stats={data} />
       </div>
@@ -121,7 +125,7 @@ export function AccountCardDialog({ account, onOpenChange }: DialogProps) {
   }
   return (
     <Dialog open={account !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+      <DialogContent className="w-[min(calc(100vw-28px),980px)] max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Карточка аккаунта</DialogTitle>
           <DialogDescription>

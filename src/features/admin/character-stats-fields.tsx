@@ -90,10 +90,16 @@ export function CharacterStatsFields({
   const { dialog } = useUnsavedChangesGuard(isDirty || save.isPending)
 
   return (
-    <details className="rounded-xl border border-border bg-surface-inset p-4">
-      <summary className="cursor-pointer font-semibold">
+    <section
+      aria-labelledby={`character-stats-${accountId}-title`}
+      className="h-fit rounded-xl border border-border bg-surface-inset p-4"
+    >
+      <h3
+        id={`character-stats-${accountId}-title`}
+        className="m-0 font-sans text-base font-semibold"
+      >
         Характеристика персонажа
-      </summary>
+      </h3>
       <form
         noValidate
         className="mt-4 grid grid-cols-2 gap-3 max-[520px]:grid-cols-1"
@@ -164,6 +170,6 @@ export function CharacterStatsFields({
         </div>
       </form>
       {dialog}
-    </details>
+    </section>
   )
 }

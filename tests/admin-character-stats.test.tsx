@@ -73,11 +73,6 @@ async function openStats() {
     name: 'Карточка аккаунта',
   })
   await within(dialog).findByText('m1@example.test')
-  fireEvent.click(
-    within(dialog).getByText('Характеристика персонажа', {
-      selector: 'summary',
-    }),
-  )
   return dialog
 }
 

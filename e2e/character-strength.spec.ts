@@ -65,9 +65,22 @@ test('характеристики доступны админу и внутре
     await page.getByRole('button', { name: 'Карточка' }).click()
     const accountCard = page.getByRole('dialog', { name: 'Карточка аккаунта' })
     await expect(accountCard.getByText(member.email)).toBeVisible()
-    await accountCard
-      .getByText('Характеристика персонажа', { exact: true })
-      .click()
+    const statsPanel = accountCard.getByRole('region', {
+      name: 'Характеристика персонажа',
+    })
+    await expect(statsPanel).toBeVisible()
+    const profileBounds = await accountCard
+      .getByText(member.email)
+      .boundingBox()
+    const statsBounds = await statsPanel.boundingBox()
+    expect(profileBounds).not.toBeNull()
+    expect(statsBounds).not.toBeNull()
+    if ((page.viewportSize()?.width ?? 1280) >= 768) {
+      expect(statsBounds!.x).toBeGreaterThan(profileBounds!.x)
+    } else {
+      expect(statsBounds!.y).toBeGreaterThan(profileBounds!.y)
+      expect(await hasHorizontalScroll(page)).toBe(false)
+    }
     await accountCard.getByLabel('ПА').fill(value)
     if (member.id === first.id) {
       await accountCard.getByLabel('Источник').fill('Прототип HTML')
