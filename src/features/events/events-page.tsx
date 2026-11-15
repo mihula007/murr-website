@@ -8,12 +8,7 @@ import {
   RECURRING_PRESETS,
 } from '@contracts/events'
 import { SMALL_LIST_LIMIT } from '@contracts/paging'
-import {
-  hasRole,
-  INTERNAL_ROLES,
-  MANAGER_ROLES,
-  useAccess,
-} from '@/app/access'
+import { hasRole, INTERNAL_ROLES, MANAGER_ROLES, useAccess } from '@/app/access'
 import { EmptyState } from '@/components/states/empty-state'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'

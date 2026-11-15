@@ -1,4 +1,10 @@
-import { expect, test, type Browser, type Page } from '@playwright/test'
+import {
+  expect,
+  test,
+  type Browser,
+  type Locator,
+  type Page,
+} from '@playwright/test'
 import { hasHorizontalScroll, skipSplash } from './helpers'
 import {
   accessToken,
@@ -252,6 +258,61 @@ test('после начала события ответы закрыты', async
     { eventId: row!.id, answer: 'yes' },
   )
   expect(response.status).toBe(409)
+})
+
+test('E2E-12: новые события снимаются с просмотра, общее число остаётся', async ({
+  page,
+}) => {
+  const [author, member] = await Promise.all([
+    createMember('officer'),
+    createMember('member'),
+  ])
+  const [authorToken, memberToken] = await Promise.all([
+    accessToken(author.email),
+    accessToken(member.email),
+  ])
+
+  // Инициализируем личную отметку просмотра до появления нового события.
+  const initial = await callApi('notifications/summary', memberToken)
+  expect(initial.status).toBe(200)
+  const title = `E2E новые события ${Date.now()}`
+  const created = await callApi('events/create', authorToken, {
+    title,
+    type: 'pve',
+    date: moscowDate(2),
+    time: '21:30',
+    description: 'Проверка счётчика новых событий',
+  })
+  expect(created.status).toBe(200)
+
+  const active = await callApi('events/list', memberToken, { tab: 'active' })
+  expect(active.status).toBe(200)
+  const activeCount = active.body.activeCount as number
+  const unseen = await callApi('notifications/summary', memberToken)
+  expect(unseen.body.sections).toMatchObject({ events: 1 })
+
+  await signInUi(page, member.email)
+  await expectSignedIn(page)
+
+  let eventLink: Locator
+  if (test.info().project.name === 'mobile') {
+    await page.getByRole('button', { name: 'Открыть меню' }).click()
+    eventLink = page.getByRole('link', { name: /События/ })
+  } else {
+    const nav = page.getByRole('navigation', { name: 'Основная навигация' })
+    await nav.getByRole('button', { name: /Клан/ }).click()
+    eventLink = page.getByRole('menuitem', { name: /События/ })
+  }
+
+  await expect(eventLink.getByLabel('1 новых записей')).toBeVisible()
+  await eventLink.click()
+  await expect(page.getByRole('heading', { name: title })).toBeVisible()
+
+  const activeTab = page.getByRole('tab', { name: /Актуальные/ })
+  await expect(activeTab.getByLabel(/новых записей/)).toHaveCount(0)
+  await expect(
+    activeTab.locator('span.text-muted-foreground.tabular-nums'),
+  ).toHaveText(String(activeCount))
 })
 
 test('прямые запрещённые вызовы событий отклоняются', async () => {
