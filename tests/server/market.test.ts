@@ -5,6 +5,11 @@ import {
   type Actor,
 } from '../../supabase/functions/_shared/auth/actor.ts'
 import type { AccessRole } from '../../supabase/functions/_shared/contracts/account.ts'
+import {
+  listMarketSchema,
+  MARKET_CATEGORY_LABELS,
+  saveListingSchema,
+} from '../../supabase/functions/_shared/contracts/market.ts'
 import { NUMBERED_PAGE_SIZE } from '../../supabase/functions/_shared/contracts/paging.ts'
 import {
   deleteListing,
@@ -227,6 +232,38 @@ describe('market: access (MKT-01, ACL-12, Q-04)', () => {
     await rejects(getListing(deps, reader, { id: saved.id }), 'forbidden')
     const other = await roleActor('member')
     expect((await listListings(deps, other.actor, {})).items).toHaveLength(1)
+  })
+})
+
+describe('market category schema (MKT-02)', () => {
+  it('accepts the arena category for creation and filtering', () => {
+    expect(
+      saveListingSchema.safeParse(listing({ category: 'arena' })).success,
+    ).toBe(true)
+    expect(
+      listMarketSchema.safeParse({
+        tab: 'published',
+        page: 1,
+        category: 'arena',
+        search: null,
+      }).success,
+    ).toBe(true)
+    expect(MARKET_CATEGORY_LABELS.arena).toBe('Арена')
+  })
+
+  it('rejects an unknown category', () => {
+    expect(
+      saveListingSchema.safeParse(listing({ category: 'not-a-category' }))
+        .success,
+    ).toBe(false)
+    expect(
+      listMarketSchema.safeParse({
+        tab: 'published',
+        page: 1,
+        category: 'not-a-category',
+        search: null,
+      }).success,
+    ).toBe(false)
   })
 })
 

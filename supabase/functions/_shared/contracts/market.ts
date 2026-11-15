@@ -13,6 +13,7 @@ export const MARKET_CATEGORIES = [
   'trade',
   'service',
   'free',
+  'arena',
 ] as const
 export type MarketCategory = (typeof MARKET_CATEGORIES)[number]
 
@@ -22,6 +23,7 @@ export const MARKET_CATEGORY_LABELS: Record<MarketCategory, string> = {
   trade: 'Обмен',
   service: 'Услуги',
   free: 'Отдам даром',
+  arena: 'Арена',
 }
 
 export const listMarketSchema = listMaterialsSchema(MARKET_CATEGORIES)
