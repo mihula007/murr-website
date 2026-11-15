@@ -150,7 +150,7 @@ test('E2E-12: категория Арена при создании, измен�
     'Арена',
   )
   await page.getByLabel('Заголовок').fill(editedTitle)
-  await page.getByRole('button', { name: 'Опубликовать' }).click()
+  await page.getByRole('button', { name: 'Сохранить', exact: true }).click()
   await expect(page.getByRole('heading', { name: editedTitle })).toBeVisible()
 
   await page.goto('./#/market')
