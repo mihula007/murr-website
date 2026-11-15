@@ -188,9 +188,11 @@ test('E2E-03: группы, лидер, закрытие, учёт активн�
   await page.goto('./#/rating')
   const rating = page.getByRole('table', { name: 'Рейтинг посещения' })
   await page.getByLabel('Поиск по участнику').fill(anna.nickname)
-  await expect(
-    rating.getByRole('row').filter({ hasText: anna.nickname }),
-  ).toContainText('100%')
+  const annaRating = rating.getByRole('row').filter({
+    hasText: anna.nickname,
+  })
+  await expect(annaRating).toContainText('Посетил1')
+  await expect(annaRating).toContainText('Пати-лидер1')
   await page.getByLabel('Поиск по участнику').fill(boris.nickname)
   await expect(rating.getByRole('row')).toHaveCount(0)
 })
