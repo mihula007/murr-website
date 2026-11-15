@@ -197,7 +197,7 @@ export type MaxEnv = {
   botUsername: string
   webhookSecret: string
   siteUrl: string | null
-  /** Фальшивый API в тестах; null — `https://platform-api2.max.ru`. */
+  /** Фальшивый API в тестах; null — `https://platform-api.max.ru`. */
   apiBase: string | null
 }
 

@@ -12,7 +12,7 @@
 
 | Что              | Как                                                                                                                                                                                                                                                        |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Адрес            | `https://platform-api2.max.ru`, токен — заголовок `Authorization: <token>` (без `Bearer`). Токен не входит в URL, но и заголовки не логируются.                                                                                                            |
+| Адрес            | `https://platform-api.max.ru`, токен — заголовок `Authorization: <token>` (без `Bearer`). Токен не входит в URL, но и заголовки не логируются.                                                                                                             |
 | Отправка         | `POST /messages?user_id=<id>`, тело `{ text, format: 'html', attachments? }`, ответ `{ message: { body: { mid } } }`, `mid` — строка. 403 (`chat.denied` и т. п.) — бот остановлен/нет доступа → `blocked`.                                                |
 | Кнопки           | `attachments: [{ type: 'inline_keyboard', payload: { buttons: [[{ type: 'callback', text, payload }]] } }]`, `payload` ≤ 1024.                                                                                                                             |
 | Правка           | `PUT /messages?message_id=<mid>`, тело как у отправки; `attachments: []` убирает кнопки. Ответ — `{ success, code?, message? }` с HTTP 200 даже при ошибке.                                                                                                |
@@ -36,7 +36,7 @@
 | `MAX_BOT_TOKEN`      | Секрет. Токен бота с платформы MAX для партнёров.                             |
 | `MAX_BOT_USERNAME`   | Имя бота для ссылки `max.ru/<имя>`; только серверная.                         |
 | `MAX_WEBHOOK_SECRET` | Секрет. 5–256 символов `A-Z a-z 0-9 _ -`, сверяется с `X-Max-Bot-Api-Secret`. |
-| `MAX_API_BASE`       | Только тесты и e2e: фальшивый Bot API вместо `platform-api2.max.ru`.          |
+| `MAX_API_BASE`       | Только тесты и e2e: фальшивый Bot API вместо `platform-api.max.ru`.           |
 
 Без трёх первых интеграция выключена (`deps.max = null`): операции отвечают `max_unavailable` (503), кабинет показывает «MAX не подключён», в «Рассылке» отправка в MAX отклоняется.
 

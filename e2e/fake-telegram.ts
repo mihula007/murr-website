@@ -1,5 +1,5 @@
 // Фальшивые Bot API для Playwright (этапы 13, 15): принимает вызовы функции
-// `api` вместо api.telegram.org и platform-api2.max.ru, отвечает как Telegram
+// `api` вместо api.telegram.org и platform-api.max.ru, отвечает как Telegram
 // и MAX и отдаёт записанные вызовы тестам (`GET /calls?chat=<id>` — Telegram,
 // `GET /max-calls?user=<id>` — MAX, `GET /vk-calls?peer=<id>` — ВКонтакте,
 // методы ВКонтакте — по пути `/vk/<метод>`). Слушает все интерфейсы: функция в Docker

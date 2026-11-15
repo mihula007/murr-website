@@ -39,7 +39,7 @@ export type MaxGateway = {
 
 export type MaxGatewayOptions = {
   token: string
-  /** Подмена `https://platform-api2.max.ru` фальшивым API в тестах. */
+  /** Подмена `https://platform-api.max.ru` фальшивым API в тестах. */
   apiBase?: string | null
   fetch?: typeof fetch
   sleep?: (ms: number) => Promise<void>
@@ -55,7 +55,7 @@ type ApiResult = {
   }
 }
 
-export const MAX_API_BASE = 'https://platform-api2.max.ru'
+export const MAX_API_BASE = 'https://platform-api.max.ru'
 /** 429 приходит без `retry_after`: одна пауза и один повтор. */
 const RETRY_PAUSE_MS = 1_000
 

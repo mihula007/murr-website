@@ -23,7 +23,7 @@ function requireEnv(name: string) {
 }
 
 const token = requireEnv('MAX_BOT_TOKEN')
-const base = process.env.MAX_API_BASE || 'https://platform-api2.max.ru'
+const base = process.env.MAX_API_BASE || 'https://platform-api.max.ru'
 
 /** Запрос к MAX API; в ответ попадают только код и описание, без токена. */
 async function maxApi(
