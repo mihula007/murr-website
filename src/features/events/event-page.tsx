@@ -6,9 +6,7 @@ import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
 import { linkButtonClass } from '@/components/ui/button'
 import { Card } from '@/components/ui/surfaces'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useMediaQuery } from '@/components/virtual-list'
-import { DiscussionThread } from '@/features/discussions/discussion-thread'
+import { DiscussionDialog } from '@/features/discussions/discussion-dialog'
 import { cn } from '@/lib/utils'
 import { useEvent } from './api'
 import {
@@ -20,44 +18,24 @@ import {
 } from './event-card'
 import { EventGroupsSection } from './groups/event-groups'
 
-const discussionTitleClass = 'm-0 font-sans text-base font-bold text-foreground'
-
 /**
- * Группы и обсуждение события (DSC-01): на широком экране чат — колонкой
- * справа от групп, на узком — отдельной вкладкой, чтобы не уходить под
- * длинный список групп.
+ * Группы события и отдельное окно обсуждения (DSC-01).
  */
 function GroupsAndDiscussion({ event }: { event: EventDetails }) {
-  const wide = useMediaQuery('(min-width: 64rem)')
   const thread = { parent: 'event', parentId: event.id } as const
-  const count = event.messageCount ?? 0
-  if (wide) {
-    return (
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(320px,400px)] items-start gap-4">
-        <EventGroupsSection event={event} />
-        <Card className="sticky top-4 grid gap-3 p-4">
-          <h2 className={discussionTitleClass}>Обсуждение ({count})</h2>
-          <DiscussionThread
-            thread={thread}
-            listClassName="h-[min(60svh,560px)]"
-          />
-        </Card>
-      </div>
-    )
-  }
   return (
-    <Tabs defaultValue="groups">
-      <TabsList aria-label="Разделы события">
-        <TabsTrigger value="groups">Группы</TabsTrigger>
-        <TabsTrigger value="discussion">Обсуждение ({count})</TabsTrigger>
-      </TabsList>
-      <TabsContent value="groups">
-        <EventGroupsSection event={event} />
-      </TabsContent>
-      <TabsContent value="discussion">
-        <DiscussionThread thread={thread} listClassName="h-[60svh]" />
-      </TabsContent>
-    </Tabs>
+    <div className="grid gap-4">
+      <div className="flex justify-end">
+        <DiscussionDialog
+          thread={thread}
+          title={event.title}
+          messageCount={event.messageCount}
+          triggerLabel="Обсуждение ивента"
+          className="w-full sm:w-auto"
+        />
+      </div>
+      <EventGroupsSection event={event} />
+    </div>
   )
 }
 

@@ -265,6 +265,7 @@ function PoolPanel({ board }: { board: Board }) {
   const tabs = closed ? STATUS_TABS : ANSWER_TABS
   const [tab, setTab] = useState(tabs[0]!.value)
   const [search, setSearch] = useState('')
+  const [classFilter, setClassFilter] = useState('__all__')
   const { setNodeRef: dropRef, isOver } = useDroppable({
     id: 'pool',
     disabled: !board.editable,
@@ -277,14 +278,22 @@ function PoolPanel({ board }: { board: Board }) {
     : board.event.participants.filter((person) => !assigned.has(person.id))
   const current = tabs.find((item) => item.value === tab) ?? tabs[0]!
   const query = search.trim().toLocaleLowerCase('ru-RU')
+  const classOptions = [
+    { value: '__all__', label: 'Все классы' },
+    ...[...new Set(board.event.participants.map((person) => person.className))]
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, 'ru-RU'))
+      .map((className) => ({ value: className, label: className })),
+  ]
   const shown = free
     .filter(current.test)
     .filter(
+      (person) => classFilter === '__all__' || person.className === classFilter,
+    )
+    .filter(
       (person) =>
         !query ||
-        `${person.gameNickname} ${person.className}`
-          .toLocaleLowerCase('ru-RU')
-          .includes(query),
+        person.gameNickname.toLocaleLowerCase('ru-RU').includes(query),
     )
 
   return (
@@ -314,13 +323,21 @@ function PoolPanel({ board }: { board: Board }) {
           ))}
         </TabsList>
       </Tabs>
-      <Input
-        type="search"
-        aria-label="Поиск по нику или классу"
-        placeholder="Поиск по нику или классу"
-        value={search}
-        onChange={(change) => setSearch(change.target.value)}
-      />
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)]">
+        <Input
+          type="search"
+          aria-label="Поиск по нику"
+          placeholder="Поиск по нику"
+          value={search}
+          onChange={(change) => setSearch(change.target.value)}
+        />
+        <Select
+          aria-label="Фильтр по классу"
+          value={classFilter}
+          onValueChange={setClassFilter}
+          options={classOptions}
+        />
+      </div>
       {board.editable ? (
         <p className="m-0 text-xs text-muted-foreground">
           Назначенные в группы скрываются из вкладок. Перетащите человека за
@@ -732,9 +749,16 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
                 </p>
               </div>
             ) : (
-              event.groups.map((group) => (
-                <GroupCard key={group.id} board={board} group={group} />
-              ))
+              <ul
+                aria-label="Группы события"
+                className="m-0 grid list-none gap-3 p-0 xl:grid-flow-col xl:auto-cols-[minmax(15.3125rem,1fr)] xl:overflow-x-auto xl:pb-2"
+              >
+                {event.groups.map((group) => (
+                  <li key={group.id} className="min-w-0">
+                    <GroupCard board={board} group={group} />
+                  </li>
+                ))}
+              </ul>
             )}
           </section>
         </div>

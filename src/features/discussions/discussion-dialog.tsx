@@ -17,6 +17,7 @@ type DiscussionDialogProps = {
   /** Заголовок родителя в шапке окна. */
   title: string
   messageCount: number | undefined
+  triggerLabel?: string
   className?: string
 }
 
@@ -30,6 +31,7 @@ export function DiscussionDialog({
   thread,
   title,
   messageCount,
+  triggerLabel = 'Обсуждение',
   className,
 }: DiscussionDialogProps) {
   const [open, setOpen] = useState(false)
@@ -38,12 +40,12 @@ export function DiscussionDialog({
       <DialogTrigger asChild>
         <Button type="button" variant="secondary" className={className}>
           <MessagesSquare size={18} aria-hidden="true" />
-          Обсуждение ({messageCount ?? 0})
+          {triggerLabel} ({messageCount ?? 0})
         </Button>
       </DialogTrigger>
       <DialogContent className="flex h-[min(calc(100svh-28px),760px)] w-[min(calc(100vw-28px),720px)] flex-col gap-3 overflow-hidden max-xs:h-svh max-xs:w-screen max-xs:max-h-svh max-xs:rounded-none">
         <DialogHeader>
-          <DialogTitle>Обсуждение</DialogTitle>
+          <DialogTitle>{triggerLabel}</DialogTitle>
           <DialogDescription className="truncate">{title}</DialogDescription>
         </DialogHeader>
         {open ? (
