@@ -164,7 +164,12 @@ test('E2E-12: категория Арена при создании, измен�
 
   await page.goto('./#/market?q=' + encodeURIComponent(oldTitle))
   await expect(page.getByRole('link', { name: oldTitle })).toBeVisible()
-  await expect(page.getByText('Продажа')).toBeVisible()
+  await expect(
+    page
+      .getByRole('link', { name: oldTitle })
+      .locator('xpath=../../..')
+      .getByText('Продажа', { exact: true }),
+  ).toBeVisible()
   expect(await hasHorizontalScroll(page)).toBe(false)
 })
 
