@@ -31,6 +31,7 @@ import {
 import {
   deleteBroadcastTemplate,
   deleteDraft,
+  listBroadcastSubscriptions,
   listBroadcastTemplates,
   listDrafts,
   prefillBroadcast,
@@ -369,6 +370,8 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'audit/list': ({ actor, body }) => listAudit(deps, actor, body),
     'broadcasts/prefill': ({ actor, body }) =>
       prefillBroadcast(deps, actor, body),
+    'broadcasts/subscriptions': ({ actor, body }) =>
+      listBroadcastSubscriptions(deps, actor, body),
     'broadcasts/drafts': ({ actor }) => listDrafts(deps, actor),
     'broadcasts/save-draft': ({ actor, body }) => saveDraft(deps, actor, body),
     'broadcasts/delete-draft': ({ actor, body }) =>

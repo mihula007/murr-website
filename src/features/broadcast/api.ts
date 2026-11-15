@@ -1,8 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import type {
   BroadcastDraftsResponse,
   BroadcastRecipientsResponse,
   BroadcastSource,
+  BroadcastSubscriptionsResponse,
   BroadcastTemplatesResponse,
   PrefillResponse,
   SaveBroadcastTemplateRequest,
@@ -17,9 +23,27 @@ export const broadcastKeys = {
   all: ['broadcasts'] as const,
   drafts: ['broadcasts', 'drafts'] as const,
   templates: ['broadcasts', 'templates'] as const,
+  subscriptions: (search: string) =>
+    ['broadcasts', 'subscriptions', search] as const,
   recipients: ['broadcasts', 'recipients'] as const,
   prefill: (source: BroadcastSource, id: string) =>
     ['broadcasts', 'prefill', source, id] as const,
+}
+
+/** Состав и статусы привязок для вкладки рассылок (BRC-15). */
+export function useBroadcastSubscriptions(search: string, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: broadcastKeys.subscriptions(search),
+    queryFn: ({ pageParam }) =>
+      callApi<BroadcastSubscriptionsResponse>('broadcasts/subscriptions', {
+        cursor: pageParam,
+        ...(search ? { search } : {}),
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+    enabled,
+    select: (data) => data.pages.flatMap((page) => page.items),
+  })
 }
 
 /** Тема и текст из события, голосования или группы (BRC-02–04). */

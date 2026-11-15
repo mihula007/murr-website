@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useForm, useStore } from '@tanstack/react-form'
 import { Send, X } from 'lucide-react'
 import { z } from 'zod'
+import { hasRole, MANAGER_ROLES, useAccess } from '@/app/access'
 import {
   BROADCAST_CHANNEL_LABELS,
   BROADCAST_CHANNELS,
@@ -32,11 +33,13 @@ import { PageHeader } from '@/components/states/page-header'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
 import { Badge, Card, Notice } from '@/components/ui/surfaces'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { AppError, formErrorMessage, fieldMessage } from '@/lib/errors'
 import { formatDateTimeMsk } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
+import { SubscriptionsPanel } from './subscriptions-panel'
 import {
   useBroadcastTemplates,
   useDeleteBroadcastTemplate,
@@ -53,6 +56,8 @@ import {
 export const broadcastSearchSchema = z.object({
   source: z.enum(BROADCAST_SOURCES).optional().catch(undefined),
   id: z.guid().optional().catch(undefined),
+  tab: z.enum(['prepare', 'subscriptions']).catch('prepare'),
+  q: z.string().max(100).catch(''),
 })
 export type BroadcastSearch = z.output<typeof broadcastSearchSchema>
 
@@ -764,13 +769,24 @@ function BroadcastForm({
 }
 
 /** «Рассылка»: черновики, шаблоны и отправка анонса в Telegram и MAX (BRC, TGM, MAX). */
-export function BroadcastPage({ source, id }: Partial<BroadcastSearch>) {
+export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
   const navigate = useNavigate()
+  const { role } = useAccess()
+  const { source, id } = searchParams
+  const tab = searchParams.tab ?? 'prepare'
+  const search = searchParams.q ?? ''
+  const canViewSubscriptions = hasRole(role, MANAGER_ROLES)
   const target = source && id ? { source, id } : null
-  const prefill = usePrefill(target)
+  const prefill = usePrefill(tab === 'prepare' ? target : null)
   // Черновик сохранён — форма чистая: переход без вопроса о потере данных.
   const clearSource = () =>
     void navigate({ to: '/broadcast', search: {}, ignoreBlocker: true })
+  const changeSearch = (q: string) =>
+    void navigate({
+      to: '/broadcast',
+      search: (previous) => ({ ...previous, q: q || undefined }),
+      replace: true,
+    })
 
   let form
   if (target && prefill.isPending) {
@@ -822,22 +838,50 @@ export function BroadcastPage({ source, id }: Partial<BroadcastSearch>) {
         title="Рассылка"
         description="Анонсы клана в Telegram, ВКонтакте и MAX: отдельные и анонсы событий с кнопками ответа."
       />
-      <div
-        className={cn(
-          'grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-5 max-[900px]:grid-cols-1',
-        )}
+      <Tabs
+        value={tab}
+        onValueChange={(value) =>
+          void navigate({
+            to: '/broadcast',
+            search: (previous) => ({
+              ...previous,
+              tab: value === 'subscriptions' ? 'subscriptions' : 'prepare',
+            }),
+          })
+        }
       >
-        <Card className="grid gap-4">
-          {target ? (
-            <p className="m-0 text-sm text-muted-foreground">
-              Заполнено из контекста: {SOURCE_LABELS[target.source]}. Текст
-              можно изменить.
-            </p>
+        <TabsList aria-label="Рассылка">
+          <TabsTrigger value="prepare">Подготовка</TabsTrigger>
+          {canViewSubscriptions ? (
+            <TabsTrigger value="subscriptions">Подписки</TabsTrigger>
           ) : null}
-          {form}
-        </Card>
-        <Drafts />
-      </div>
+        </TabsList>
+        <TabsContent value="prepare">
+          <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-5 max-[900px]:grid-cols-1">
+            <Card className="grid gap-4">
+              {target ? (
+                <p className="m-0 text-sm text-muted-foreground">
+                  Заполнено из контекста: {SOURCE_LABELS[target.source]}. Текст
+                  можно изменить.
+                </p>
+              ) : null}
+              {form}
+            </Card>
+            <Drafts />
+          </div>
+        </TabsContent>
+        {canViewSubscriptions ? (
+          <TabsContent value="subscriptions">
+            <Card>
+              <SubscriptionsPanel
+                key={search}
+                search={search}
+                onSearchChange={changeSearch}
+              />
+            </Card>
+          </TabsContent>
+        ) : null}
+      </Tabs>
     </section>
   )
 }

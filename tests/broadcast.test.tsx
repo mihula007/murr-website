@@ -73,6 +73,79 @@ describe('broadcast page (BRC, E2E-07)', () => {
     expect(await screen.findByText('Нет доступа')).toBeVisible()
   })
 
+  it('shows messenger subscription states and highlights unlinked members', async () => {
+    routes['broadcasts/subscriptions'] = () => ({
+      items: [
+        {
+          id: 'member-1',
+          gameNickname: 'Ничего не привязано',
+          role: 'member',
+          telegram: { linked: false, blocked: false },
+          vk: { linked: false, blocked: false },
+          max: { linked: false, blocked: false },
+        },
+        {
+          id: 'member-2',
+          gameNickname: 'Telegram подключён',
+          role: 'officer',
+          telegram: { linked: true, blocked: false },
+          vk: { linked: true, blocked: true },
+          max: { linked: false, blocked: false },
+        },
+      ],
+      nextCursor: null,
+    })
+    await renderApp({ role: 'officer', path: '/broadcast' })
+    const subscriptionsTab = await screen.findByRole('tab', {
+      name: 'Подписки',
+    })
+    fireEvent.mouseDown(subscriptionsTab)
+    fireEvent.click(subscriptionsTab)
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    await waitFor(() =>
+      expect(subscriptionsTab).toHaveAttribute('data-state', 'active'),
+    )
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('broadcasts/subscriptions', {
+        cursor: null,
+      }),
+    )
+    const unlinked = await screen.findByText('Ничего не привязано')
+    const row = unlinked.closest('li')
+    expect(row?.firstElementChild).toHaveClass('bg-item-highlight!')
+    expect(
+      screen.getByRole('group', { name: 'Telegram: не привязан' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('group', { name: 'Telegram: привязан' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('group', { name: 'ВКонтакте: сообщения недоступны' }),
+    ).toBeVisible()
+  })
+
+  it('stores nickname search in the address and sends it after a short pause', async () => {
+    const requests: unknown[] = []
+    routes['broadcasts/subscriptions'] = (body) => {
+      requests.push(body)
+      return { items: [], nextCursor: null }
+    }
+    const { router } = await renderApp({
+      role: 'admin',
+      path: '/broadcast?tab=subscriptions',
+    })
+    fireEvent.change(await screen.findByLabelText('Поиск по нику'), {
+      target: { value: 'Мой ник' },
+    })
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({ q: 'Мой ник' }),
+    )
+    await waitFor(() =>
+      expect(requests).toContainEqual({ cursor: null, search: 'Мой ник' }),
+    )
+    expect(await screen.findByText('Участников не нашли')).toBeVisible()
+  })
+
   it('saves a draft; all three channels are chosen (Q-99, Q-102)', async () => {
     await renderApp({ role: 'officer', path: '/broadcast' })
     const telegram = await screen.findByRole('checkbox', { name: 'Telegram' })

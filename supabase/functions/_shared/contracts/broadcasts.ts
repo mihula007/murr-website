@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import type { AccessRole } from './account.ts'
+import { pageRequestShape, type Page } from './paging.ts'
 
 /**
  * Рассылки (BRC): черновики, шаблоны и отправка анонса в Telegram и MAX
@@ -149,6 +151,31 @@ export const prefillSchema = z.object({
   id: z.guid('not_found'),
 })
 export type PrefillRequest = z.input<typeof prefillSchema>
+
+/** Поиск и курсор для вкладки «Подписки» (BRC-15, Q-112). */
+export const broadcastSubscriptionsSchema = z.object({
+  ...pageRequestShape,
+  search: z
+    .string()
+    .trim()
+    .max(100, 'too_long')
+    .nullish()
+    .transform((value) => value || null),
+})
+export type BroadcastSubscriptionsRequest = z.input<
+  typeof broadcastSubscriptionsSchema
+>
+
+export type MessengerLinkStatus = { linked: boolean; blocked: boolean }
+export type BroadcastSubscription = {
+  id: string
+  gameNickname: string
+  role: AccessRole
+  telegram: MessengerLinkStatus
+  vk: MessengerLinkStatus
+  max: MessengerLinkStatus
+}
+export type BroadcastSubscriptionsResponse = Page<BroadcastSubscription>
 
 export type BroadcastRecipient = { gameNickname: string; isLeader: boolean }
 

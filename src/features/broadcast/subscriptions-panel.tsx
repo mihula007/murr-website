@@ -1,0 +1,193 @@
+import { useEffect, useState } from 'react'
+import { AlertTriangle, Check } from 'lucide-react'
+import type {
+  BroadcastSubscription,
+  MessengerLinkStatus,
+} from '@contracts/broadcasts'
+import { EmptyState } from '@/components/states/empty-state'
+import { ErrorState } from '@/components/states/error-state'
+import { LoadingState } from '@/components/states/loading-state'
+import { FormField } from '@/components/form/form-field'
+import { Input } from '@/components/ui/input'
+import { MessengerIcon, type Messenger } from '@/components/ui/messenger-icon'
+import { pagingOf, VirtualList } from '@/components/virtual-list'
+import { cn } from '@/lib/utils'
+import { useBroadcastSubscriptions } from './api'
+
+const CHANNELS: {
+  key: Messenger
+  label: string
+}[] = [
+  { key: 'telegram', label: 'Telegram' },
+  { key: 'vk', label: 'ВКонтакте' },
+  { key: 'max', label: 'MAX' },
+]
+
+function useDebounced(value: string, delay: number) {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return debounced
+}
+
+function MessengerState({
+  messenger,
+  label,
+  status,
+}: {
+  messenger: Messenger
+  label: string
+  status: MessengerLinkStatus
+}) {
+  const disabledState =
+    messenger === 'vk' ? 'сообщения недоступны' : 'бот остановлен'
+  const state = !status.linked
+    ? 'не привязан'
+    : status.blocked
+      ? disabledState
+      : 'привязан'
+  return (
+    <fieldset
+      aria-label={`${label}: ${state}`}
+      title={`${label}: ${state}`}
+      className="relative m-0 grid size-9 flex-none place-items-center border-0 p-0"
+    >
+      <MessengerIcon
+        messenger={messenger}
+        className={cn('size-7', !status.linked && 'opacity-40')}
+      />
+      {status.linked && !status.blocked ? (
+        <span
+          aria-hidden="true"
+          className="absolute -top-0.5 -right-0.5 grid size-4 place-items-center rounded-full border-2 border-card bg-live text-primary-foreground"
+        >
+          <Check size={10} strokeWidth={3} />
+        </span>
+      ) : null}
+      {status.linked && status.blocked ? (
+        <span
+          aria-hidden="true"
+          className="absolute -top-0.5 -right-0.5 grid size-4 place-items-center rounded-full border-2 border-card bg-destructive text-primary-foreground"
+        >
+          <AlertTriangle size={9} strokeWidth={3} />
+        </span>
+      ) : null}
+    </fieldset>
+  )
+}
+
+function SubscriptionRow({ member }: { member: BroadcastSubscription }) {
+  const statuses: Record<Messenger, MessengerLinkStatus> = {
+    telegram: member.telegram,
+    vk: member.vk,
+    max: member.max,
+  }
+  const hasNoLinks = CHANNELS.every(({ key }) => !statuses[key].linked)
+  return (
+    <div
+      className={cn(
+        'flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-inset px-3 py-2.5',
+        hasNoLinks && 'border-highlight-line bg-item-highlight!',
+      )}
+    >
+      <strong className="min-w-0 flex-1 break-words">
+        {member.gameNickname}
+      </strong>
+      <div className="flex flex-none items-center gap-2.5">
+        {CHANNELS.map(({ key, label }) => (
+          <MessengerState
+            key={key}
+            messenger={key}
+            label={label}
+            status={statuses[key]}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Read-only messenger link overview for officers and administrators (BRC-15). */
+export function SubscriptionsPanel({
+  search,
+  onSearchChange,
+}: {
+  search: string
+  onSearchChange: (search: string) => void
+}) {
+  const [text, setText] = useState(search)
+  const debounced = useDebounced(text, 350)
+  const subscriptions = useBroadcastSubscriptions(search)
+
+  useEffect(() => {
+    const value = debounced.trim()
+    if (value !== search) {
+      onSearchChange(value)
+    }
+  }, [debounced, search, onSearchChange])
+
+  let content
+  if (subscriptions.isPending) {
+    content = <LoadingState label="Загружаем подписки…" rows={3} />
+  } else if (subscriptions.isError) {
+    content = <ErrorState onRetry={() => void subscriptions.refetch()} />
+  } else if (subscriptions.data.length === 0) {
+    content = search ? (
+      <EmptyState title="Участников не нашли" description="Проверьте ник." />
+    ) : (
+      <EmptyState
+        title="Состав пока пуст"
+        description="Участники появятся здесь, когда получат внутренний доступ."
+      />
+    )
+  } else {
+    content = (
+      <>
+        <div
+          aria-hidden="true"
+          className="hidden grid-cols-[minmax(0,1fr)_128px] items-center gap-3 px-3 text-xs font-semibold text-muted-foreground min-[560px]:grid"
+        >
+          <span>Участник</span>
+          <span className="flex items-center gap-2.5 text-center">
+            {CHANNELS.map(({ key, label }) => (
+              <span key={key} className="grid size-9 place-items-center">
+                {label}
+              </span>
+            ))}
+          </span>
+        </div>
+        <VirtualList
+          label="Участники и привязки мессенджеров"
+          items={subscriptions.data}
+          getKey={(member) => member.id}
+          estimateSize={62}
+          paging={pagingOf(subscriptions)}
+          renderItem={(member) => <SubscriptionRow member={member} />}
+        />
+      </>
+    )
+  }
+
+  return (
+    <section aria-label="Подписки на рассылки" className="grid gap-4">
+      <p className="m-0 text-sm text-muted-foreground">
+        Привязанные каналы отмечены галочкой. Предупреждение означает, что
+        отправка в этот мессенджер остановлена. Строка с подсветкой — без
+        привязок.
+      </p>
+      <FormField id="broadcast-subscriptions-search" label="Поиск по нику">
+        <Input
+          id="broadcast-subscriptions-search"
+          type="search"
+          value={text}
+          maxLength={100}
+          onChange={(event) => setText(event.target.value)}
+          placeholder="Введите ник"
+        />
+      </FormField>
+      {content}
+    </section>
+  )
+}

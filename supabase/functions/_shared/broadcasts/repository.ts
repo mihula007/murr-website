@@ -4,6 +4,8 @@ import type {
   BroadcastSource,
 } from '../contracts/broadcasts.ts'
 import type { Executor } from '../db/client.ts'
+import type { NicknameKey } from '../roster/repository.ts'
+import { INTERNAL_ROLES } from '../membership.ts'
 
 /** Ключи блокировок: лимиты черновиков и шаблонов не обходятся гонкой. */
 const DRAFTS_LOCK_KEY = 11_000_001
@@ -25,7 +27,60 @@ export type TemplateValues = {
   channels: BroadcastChannel[]
 }
 
+export type SubscriptionPageOptions = {
+  search: string | null
+  after: NicknameKey | null
+  limit: number
+}
+
+function containsPattern(search: string) {
+  return `%${search.replace(/[\\%_]/g, '\\$&')}%`
+}
+
 export const broadcastRepository = {
+  /** Страница состава и только признаков наличия привязок (BRC-15). */
+  subscriptions(db: Executor, options: SubscriptionPageOptions) {
+    let query = db
+      .selectFrom('app.profiles as p')
+      .leftJoin('app.telegram_links as t', 't.user_id', 'p.id')
+      .leftJoin('app.vk_links as v', 'v.user_id', 'p.id')
+      .leftJoin('app.max_links as m', 'm.user_id', 'p.id')
+      .select([
+        'p.id',
+        'p.game_nickname',
+        'p.access_role',
+        't.user_id as telegram_linked',
+        't.blocked_at as telegram_blocked_at',
+        'v.user_id as vk_linked',
+        'v.blocked_at as vk_blocked_at',
+        'm.user_id as max_linked',
+        'm.blocked_at as max_blocked_at',
+      ])
+      .where('p.access_role', 'in', INTERNAL_ROLES)
+    if (options.search) {
+      query = query.where(
+        'p.game_nickname',
+        'ilike',
+        containsPattern(options.search),
+      )
+    }
+    if (options.after) {
+      const { gameNickname, id } = options.after
+      query = query.where((eb) =>
+        eb(
+          eb.refTuple('p.game_nickname', 'p.id'),
+          '>',
+          eb.tuple(gameNickname, id),
+        ),
+      )
+    }
+    return query
+      .orderBy('p.game_nickname')
+      .orderBy('p.id')
+      .limit(options.limit)
+      .execute()
+  },
+
   drafts(db: Executor, limit: number) {
     return db
       .selectFrom('app.broadcast_drafts as d')

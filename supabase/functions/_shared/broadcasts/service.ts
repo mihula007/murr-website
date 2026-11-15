@@ -1,9 +1,11 @@
 import type { AppDeps } from '../app.ts'
 import { auditPerson, writeAudit } from '../audit/service.ts'
 import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
+import type { AccessRole } from '../contracts/account.ts'
 import {
   BROADCAST_LIMITS,
   broadcastIdSchema,
+  broadcastSubscriptionsSchema,
   prefillSchema,
   saveBroadcastTemplateSchema,
   saveDraftSchema,
@@ -12,6 +14,7 @@ import {
   type BroadcastChannel,
   type BroadcastDraftsResponse,
   type BroadcastTemplatesResponse,
+  type BroadcastSubscriptionsResponse,
   type PrefillResponse,
   SENDABLE_CHANNELS,
   type BroadcastRecipientsResponse,
@@ -25,8 +28,10 @@ import { parseTimestamp, utcToMoscow } from '../contracts/moscow-time.ts'
 import { withTransaction } from '../db/client.ts'
 import { eventRepository } from '../events/repository.ts'
 import { groupRepository } from '../groups/repository.ts'
+import { decodeCursor, splitPage } from '../http/cursor.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
+import { nicknameCursor, nicknameKey } from '../roster/cursor.ts'
 import { deliverAnnouncement } from '../telegram/announcements.ts'
 import { telegramRepository } from '../telegram/repository.ts'
 import { requireTelegram } from '../telegram/service.ts'
@@ -42,6 +47,39 @@ import { broadcastRepository } from './repository.ts'
 
 /** Готовят рассылки офицеры и администраторы (BRC, Q-70). */
 export const BROADCAST_MANAGERS = ['officer', 'admin'] as const
+
+/** Read-only page of current members and messenger link states (BRC-15). */
+export async function listBroadcastSubscriptions(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<BroadcastSubscriptionsResponse> {
+  requireRole(actor, BROADCAST_MANAGERS)
+  const input = parseBody(broadcastSubscriptionsSchema, body ?? {})
+  const rows = await broadcastRepository.subscriptions(deps.db, {
+    search: input.search,
+    after: input.cursor ? decodeCursor(nicknameCursor, input.cursor) : null,
+    limit: input.limit + 1,
+  })
+  const page = splitPage(rows, input.limit, (row) =>
+    nicknameKey(row.game_nickname, row.id),
+  )
+  const status = (linkedId: string | null, blockedAt: string | null) => ({
+    linked: linkedId !== null,
+    blocked: linkedId !== null && blockedAt !== null,
+  })
+  return {
+    items: page.rows.map((row) => ({
+      id: row.id,
+      gameNickname: row.game_nickname,
+      role: row.access_role as AccessRole,
+      telegram: status(row.telegram_linked, row.telegram_blocked_at),
+      vk: status(row.vk_linked, row.vk_blocked_at),
+      max: status(row.max_linked, row.max_blocked_at),
+    })),
+    nextCursor: page.nextCursor,
+  }
+}
 
 const canDelete = (user: ProfiledActor, authorId: string) =>
   user.userId === authorId || user.profile.access_role === 'admin'

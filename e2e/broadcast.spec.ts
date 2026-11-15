@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
 import { hasHorizontalScroll, skipSplash } from './helpers'
 import {
@@ -6,6 +7,7 @@ import {
   createMember,
   expectSignedIn,
   signInUi,
+  sql,
 } from './supabase'
 
 test.skip(
@@ -124,5 +126,116 @@ test('E2E-07: подготовка рассылки из события, гол�
         channels: ['telegram'],
       })
     ).status,
+  ).toBe(403)
+})
+
+test('BRC-15: subscription list loads the next cursor page without duplicates', async ({
+  page,
+}) => {
+  const officer = await createMember('officer')
+  const prefix = randomBytes(2).toString('hex')
+  await sql(async (db) => {
+    await db`
+      with candidates as (
+        select gen_random_uuid() as id, n
+        from generate_series(1, 55) as n
+      ), users as (
+        insert into auth.users (id, instance_id, aud, role, email)
+        select id, '00000000-0000-0000-0000-000000000000',
+          'authenticated', 'authenticated', id::text || '@example.test'
+        from candidates
+        returning id
+      )
+      insert into app.profiles
+        (id, display_name, game_nickname, class_id, access_role)
+      select users.id, 'Тест', ${prefix} || lpad(candidates.n::text, 5, '0'),
+        1, 'member'
+      from users join candidates using (id)`
+  })
+
+  await signInUi(page, officer.email)
+  await expectSignedIn(page)
+
+  const isSubscriptionsPage = (response: { url: () => string }) =>
+    response.url().includes('/functions/v1/api/broadcasts/subscriptions')
+  const firstResponse = page.waitForResponse(isSubscriptionsPage)
+  await page.goto(
+    `./#/broadcast?tab=subscriptions&q=${encodeURIComponent(prefix)}`,
+  )
+  const first = (await (await firstResponse).json()) as {
+    items: { id: string; gameNickname: string }[]
+    nextCursor: string | null
+  }
+  expect(first.items).toHaveLength(50)
+  expect(first.nextCursor).toBeTruthy()
+
+  const secondResponse = page.waitForResponse(isSubscriptionsPage)
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+  const second = (await (await secondResponse).json()) as {
+    items: { id: string; gameNickname: string }[]
+    nextCursor: string | null
+  }
+  expect(second.items).toHaveLength(5)
+  expect(second.nextCursor).toBeNull()
+  expect(
+    new Set([...first.items, ...second.items].map((item) => item.id)).size,
+  ).toBe(first.items.length + second.items.length)
+
+  const lastNickname = second.items.at(-1)?.gameNickname
+  expect(lastNickname).toBeTruthy()
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+  await expect(page.getByText(lastNickname as string)).toBeVisible()
+})
+
+test('BRC-15: subscription tab shows messenger links to managers only', async ({
+  page,
+}) => {
+  const [officer, linked, unlinked] = await Promise.all([
+    createMember('officer'),
+    createMember('member'),
+    createMember('member'),
+  ])
+  await sql(async (db) => {
+    await db`
+      insert into app.telegram_links
+        (user_id, telegram_user_id, chat_id, display_name)
+      values (${linked.id}, 890001, 890001, ${linked.nickname})`
+    await db`
+      insert into app.vk_links
+        (user_id, vk_user_id, chat_id, display_name, blocked_at)
+      values (${linked.id}, 890002, 890002, ${linked.nickname}, now())`
+    await db`
+      insert into app.max_links
+        (user_id, max_user_id, chat_id, display_name)
+      values (${linked.id}, 890003, 890003, ${linked.nickname})`
+  })
+
+  await signInUi(page, officer.email)
+  await expectSignedIn(page)
+  await page.goto('./#/broadcast?tab=subscriptions')
+  await expect(page.getByRole('tab', { name: 'Подписки' })).toHaveAttribute(
+    'data-state',
+    'active',
+  )
+  await expect(page.getByText(linked.nickname)).toBeVisible()
+  await expect(page.getByText(unlinked.nickname)).toBeVisible()
+  await expect(
+    page.getByRole('group', { name: 'Telegram: привязан' }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('group', { name: 'ВКонтакте: сообщения недоступны' }),
+  ).toBeVisible()
+  await expect(page.getByRole('group', { name: 'MAX: привязан' })).toBeVisible()
+
+  await page.getByLabel('Поиск по нику').fill(linked.nickname.toUpperCase())
+  await expect(page.getByText(linked.nickname)).toBeVisible()
+  await expect(page.getByText(unlinked.nickname)).toHaveCount(0)
+  await page.setViewportSize({ width: 375, height: 812 })
+  expect(await hasHorizontalScroll(page)).toBe(false)
+
+  const memberToken = await accessToken(linked.email)
+  expect(
+    (await callApi('broadcasts/subscriptions', memberToken, { cursor: null }))
+      .status,
   ).toBe(403)
 })

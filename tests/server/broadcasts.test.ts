@@ -4,6 +4,7 @@ import { GUEST } from '../../supabase/functions/_shared/auth/actor.ts'
 import {
   deleteBroadcastTemplate,
   deleteDraft,
+  listBroadcastSubscriptions,
   listBroadcastTemplates,
   listDrafts,
   prefillBroadcast,
@@ -105,6 +106,99 @@ describe('broadcasts: access (BRC, ACL)', () => {
         code,
       )
     }
+  })
+})
+
+describe('broadcasts/subscriptions (BRC-15, Q-112)', () => {
+  it('returns only nick, role and messenger link states to managers', async () => {
+    const manager = await roleActor('officer')
+    const member = await createProfiledUser(db, 'member')
+    await db
+      .updateTable('app.profiles')
+      .set({ game_nickname: 'Target' })
+      .where('id', '=', member.id)
+      .execute()
+    await db
+      .insertInto('app.telegram_links')
+      .values({
+        user_id: member.id,
+        telegram_user_id: 81001,
+        chat_id: 81001,
+        display_name: 'Hidden Telegram name',
+      })
+      .execute()
+    await db
+      .insertInto('app.vk_links')
+      .values({
+        user_id: member.id,
+        vk_user_id: 81002,
+        chat_id: 81002,
+        display_name: 'Hidden VK name',
+        blocked_at: new Date().toISOString(),
+      })
+      .execute()
+    const result = await listBroadcastSubscriptions(deps, manager.actor, {})
+    const target = result.items.find((item) => item.gameNickname === 'Target')
+    expect(target).toEqual({
+      id: member.id,
+      gameNickname: 'Target',
+      role: 'member',
+      telegram: { linked: true, blocked: false },
+      vk: { linked: true, blocked: true },
+      max: { linked: false, blocked: false },
+    })
+    expect(target).not.toHaveProperty('email')
+    expect(target).not.toHaveProperty('displayName')
+  })
+
+  it('rejects non-managers and searches nicknames on the server', async () => {
+    const member = await createProfiledUser(db, 'member')
+    const reader = await createProfiledUser(db, 'reader')
+    const applicant = await createProfiledUser(db, 'applicant')
+    for (const user of [member, reader, applicant]) {
+      await rejects(
+        listBroadcastSubscriptions(deps, await actorOf(db, user.id), {}),
+        'forbidden',
+      )
+    }
+    const officer = await roleActor('officer')
+    await db
+      .updateTable('app.profiles')
+      .set({ game_nickname: 'NickMatch' })
+      .where('id', '=', member.id)
+      .execute()
+    const result = await listBroadcastSubscriptions(deps, officer.actor, {
+      search: 'nickm',
+    })
+    expect(result.items.map((item) => item.gameNickname)).toEqual(['NickMatch'])
+  })
+
+  it('continues after 50 nicknames without duplicates', async () => {
+    const admin = await roleActor('admin')
+    const ids: string[] = []
+    for (let index = 0; index < 51; index += 1) {
+      const user = await createProfiledUser(db, 'member')
+      ids.push(user.id)
+      await db
+        .updateTable('app.profiles')
+        .set({ game_nickname: `Page-${String(index).padStart(2, '0')}` })
+        .where('id', '=', user.id)
+        .execute()
+    }
+    const first = await listBroadcastSubscriptions(deps, admin.actor, {
+      limit: 50,
+    })
+    const second = await listBroadcastSubscriptions(deps, admin.actor, {
+      cursor: first.nextCursor,
+      limit: 50,
+    })
+    expect(first.items).toHaveLength(50)
+    expect(first.nextCursor).toBeTruthy()
+    expect(second.items).toHaveLength(2)
+    expect(second.nextCursor).toBeNull()
+    expect(
+      new Set([...first.items, ...second.items].map((item) => item.id)).size,
+    ).toBe(52)
   })
 })
 

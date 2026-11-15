@@ -357,6 +357,28 @@ await insert(
     })),
 )
 
+// Привязки других мессенджеров и одна остановленная связь для проверки
+// вкладки «Подписки» офицером и администратором.
+await insert(
+  'vk_links',
+  clan.slice(1, 4).map((u, index) => ({
+    user_id: u.id,
+    vk_user_id: 9_100_000_000 + index,
+    chat_id: 9_100_000_000 + index,
+    display_name: u.nickname,
+    blocked_at: index === 1 ? iso(NOW - DAY) : null,
+  })),
+)
+await insert(
+  'max_links',
+  clan.slice(2, 5).map((u, index) => ({
+    user_id: u.id,
+    max_user_id: 9_200_000_000 + index,
+    chat_id: 9_200_000_000 + index,
+    display_name: u.nickname,
+  })),
+)
+
 // ---------- Заявки и голосования ----------
 const applications: Record<string, unknown>[] = []
 const links: Record<string, unknown>[] = []
