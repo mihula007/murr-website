@@ -140,8 +140,8 @@ test('E2E-03: группы, лидер, закрытие, учёт активн�
     await page.getByLabel('Поиск', { exact: true }).fill(nickname)
     await expect(page).toHaveURL(new RegExp(`q=${nickname}`))
     const row = history
-      .getByRole('row')
-      .filter({ has: history.getByText(nickname, { exact: true }) })
+      .getByText(nickname, { exact: true })
+      .locator('xpath=ancestor::tr')
     await expect(row).toHaveCount(1)
     return row
   }

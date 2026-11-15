@@ -64,6 +64,8 @@ async function createVote(officer: Person) {
 /** Обсуждение события открывается отдельным окном из карточки события. */
 async function openEventDiscussion(page: Page, title: string) {
   await page.goto('./#/events?tab=active')
+  // The new event was created outside this page's query cache.
+  await page.reload()
   const card = page
     .getByRole('list', { name: 'Актуальные события' })
     .getByRole('listitem')
