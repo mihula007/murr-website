@@ -8,7 +8,12 @@ import {
   RECURRING_PRESETS,
 } from '@contracts/events'
 import { SMALL_LIST_LIMIT } from '@contracts/paging'
-import { hasRole, MANAGER_ROLES, useAccess } from '@/app/access'
+import {
+  hasRole,
+  INTERNAL_ROLES,
+  MANAGER_ROLES,
+  useAccess,
+} from '@/app/access'
 import { EmptyState } from '@/components/states/empty-state'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
@@ -22,6 +27,7 @@ import { pagingOf, VirtualList } from '@/components/virtual-list'
 import { errorMessage, type AppError } from '@/lib/errors'
 import { formatWeekdayTimeMsk } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
+import { useNotificationSummary } from '@/features/notifications/api'
 import { GroupTemplatesDialog } from './groups/group-templates-dialog'
 import { useActiveEvents, useEnsureWeeklyEvents, usePastEvents } from './api'
 import { EventCard } from './event-card'
@@ -125,6 +131,7 @@ export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
   const navigate = useNavigate()
   const { role } = useAccess()
   const isManager = hasRole(role, MANAGER_ROLES)
+  const notifications = useNotificationSummary(hasRole(role, INTERNAL_ROLES))
   // Счётчики нужны на обеих вкладках: список актуальных малый и кэшируется.
   const active = useActiveEvents()
   const past = usePastEvents(tab === 'past')
@@ -209,7 +216,14 @@ export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
             className="inline-flex items-center gap-2"
           >
             Актуальные
-            <NavBadge count={active.data?.activeCount} />
+            {active.data ? (
+              <>
+                <NavBadge count={notifications.data?.sections.events} />
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {active.data.activeCount}
+                </span>
+              </>
+            ) : null}
           </TabsTrigger>
           <TabsTrigger value="past" className="inline-flex items-center gap-2">
             Прошедшие

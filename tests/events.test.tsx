@@ -119,6 +119,38 @@ afterEach(() => {
 })
 
 describe('schedule (EVT-01)', () => {
+  it('shows unseen events separately from the active total, then clears only the badge', async () => {
+    let finishSeen: (() => void) | undefined
+    const seen = new Promise<{ ok: true }>((resolve) => {
+      finishSeen = () => resolve({ ok: true })
+    })
+    respond({
+      'notifications/summary': () => ({
+        unreadCount: 0,
+        sections: { events: 3, votes: 0, publications: 0, market: 0 },
+      }),
+      'notifications/section-seen': () => seen,
+      'events/list': () => list([summary()], { activeCount: 4 }),
+    })
+    await renderApp({ role: 'member', path: '/events' })
+
+    const activeTab = await screen.findByRole('tab', { name: /Актуальные/ })
+    await waitFor(() =>
+      expect(within(activeTab).getByLabelText('3 новых записей')).toBeVisible(),
+    )
+    expect(within(activeTab).getByText('4')).toHaveClass(
+      'text-muted-foreground',
+    )
+
+    finishSeen?.()
+    await waitFor(() =>
+      expect(
+        within(activeTab).queryByLabelText('3 новых записей'),
+      ).not.toBeInTheDocument(),
+    )
+    expect(within(activeTab).getByText('4')).toBeVisible()
+  })
+
   it('shows events with counts and Moscow time to a member, without management', async () => {
     respond({ 'events/list': () => list([summary()]) })
     await renderApp({ role: 'member', path: '/events' })
