@@ -198,6 +198,11 @@ type PersonRow = {
   game_nickname: string
   class_id: number
   class_name: string
+  pa?: number | string | null
+  pz?: number | string | null
+  bu?: number | string | null
+  hp?: number | string | null
+  bd?: number | string | null
   avatar_path: string | null
   answer: string | null
   status?: string
@@ -228,6 +233,11 @@ async function loadPeople(deps: AppDeps, eventId: string, closed: boolean) {
       gameNickname: person.game_nickname,
       classId: person.class_id,
       className: person.class_name,
+      pa: person.pa == null ? null : Number(person.pa),
+      pz: person.pz == null ? null : Number(person.pz),
+      bu: person.bu == null ? null : Number(person.bu),
+      hp: person.hp == null ? null : Number(person.hp),
+      bd: person.bd == null ? null : Number(person.bd),
       avatarUrl: person.avatar_path
         ? (urls.get(person.avatar_path) ?? null)
         : null,

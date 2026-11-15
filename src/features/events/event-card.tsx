@@ -17,6 +17,7 @@ import {
 } from '@contracts/events'
 import { hasRole, MANAGER_ROLES, useAccess } from '@/app/access'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
+import { DiscussionDialog } from '@/features/discussions/discussion-dialog'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -432,6 +433,13 @@ export function EventCard({ event, className }: EventCardProps) {
         ) : null}
       </p>
       <EventAnswers event={event} compact />
+      <DiscussionDialog
+        thread={{ parent: 'event', parentId: event.id }}
+        title={event.title}
+        messageCount={event.messageCount}
+        triggerLabel="Обсуждение ивента"
+        className="w-full sm:w-auto"
+      />
     </Card>
   )
 }

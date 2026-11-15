@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { AttendanceStatus, EventGroup } from './groups.ts'
+import type { CharacterStatFields } from './character-stats.ts'
 import { pageRequestShape, type Page } from './paging.ts'
 
 /** Ограничения событий и шаблонов (EVT-03, EVT-11). */
@@ -169,7 +170,10 @@ export type EventSummary = {
   messageCount?: number
 }
 
-export type EventParticipant = {
+export type EventParticipant = Pick<
+  CharacterStatFields,
+  'pa' | 'pz' | 'bu' | 'hp' | 'bd'
+> & {
   id: string
   /** У закрытого события — ник и класс на момент закрытия (ACT-03). */
   gameNickname: string

@@ -14,6 +14,7 @@ export function AppShell({ children }: PropsWithChildren) {
     select: (state) => state.location.pathname,
   })
   const showcase = isShowcase(pathname)
+  const wideEventPage = /^\/events\/[^/]+$/.test(pathname)
   return (
     <div className="relative isolate flex min-h-svh flex-col">
       {/* Фон под шапкой: высота картинки — 55vw (110% ширины, пропорции 2:1),
@@ -42,7 +43,12 @@ export function AppShell({ children }: PropsWithChildren) {
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto w-full max-w-[1240px] min-w-0 flex-1 px-[22px] py-14 outline-none max-sm:px-[14px] max-sm:py-9"
+        className={cn(
+          'mx-auto w-full min-w-0 flex-1 px-[22px] py-14 outline-none max-sm:px-[14px] max-sm:py-9',
+          wideEventPage
+            ? 'max-w-none px-[clamp(14px,3vw,56px)]'
+            : 'max-w-[1240px]',
+        )}
       >
         {children}
       </main>

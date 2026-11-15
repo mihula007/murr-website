@@ -12,6 +12,8 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core'
 import {
+  ArrowDown,
+  ArrowUp,
   Copy,
   EllipsisVertical,
   GripVertical,
@@ -19,12 +21,13 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react'
+import { type EventDetails, type EventParticipant } from '@contracts/events'
 import {
-  EVENT_ANSWER_LABELS,
-  type EventDetails,
-  type EventParticipant,
-} from '@contracts/events'
-import { ATTENDANCE_STATUS_LABELS, type EventGroup } from '@contracts/groups'
+  CHARACTER_STAT_FIELDS,
+  CHARACTER_STAT_LABELS,
+  type CharacterStatNumberField,
+} from '@contracts/character-stats'
+import type { EventGroup } from '@contracts/groups'
 import { MEMBER_LIST_LIMIT } from '@contracts/paging'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 import { Button } from '@/components/ui/button'
@@ -42,6 +45,7 @@ import { Badge, Card } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
 import { ClassIcon } from '@/features/catalog/class-icon'
+import { formatCharacterStat } from '@/features/roster/character-stats'
 import { errorMessage, fieldMessage, type AppError } from '@/lib/errors'
 import { cn } from '@/lib/utils'
 import {
@@ -122,7 +126,8 @@ function PersonRow({ board, person, group, index, isLeader }: PersonRowProps) {
     <li
       ref={dropRef}
       className={cn(
-        'flex min-w-0 items-center gap-2 rounded-lg border border-border bg-surface-inset px-2 py-1.5',
+        'flex min-w-0 items-center border border-border bg-surface-inset',
+        group ? 'gap-1.5 rounded-md px-1.5 py-1' : 'gap-2 rounded-lg px-2 py-1',
         isDragging && 'opacity-40',
         isOver && 'border-primary',
       )}
@@ -131,7 +136,10 @@ function PersonRow({ board, person, group, index, isLeader }: PersonRowProps) {
         <button
           ref={dragRef}
           type="button"
-          className="grid size-8 flex-none cursor-grab touch-none place-items-center rounded-md border-0 bg-transparent text-muted-foreground hover:text-primary"
+          className={cn(
+            'grid flex-none cursor-grab touch-none place-items-center rounded-md border-0 bg-transparent text-muted-foreground hover:text-primary',
+            group ? 'size-6' : 'size-7',
+          )}
           aria-label={`Перетащить ${person.gameNickname}`}
           {...listeners}
           {...attributes}
@@ -144,22 +152,39 @@ function PersonRow({ board, person, group, index, isLeader }: PersonRowProps) {
           {index + 1}.
         </span>
       ) : null}
-      <ClassIcon classId={person.classId} className={person.className} />
+      <ClassIcon
+        classId={person.classId}
+        className={person.className}
+        wrapperClassName={group ? 'size-5' : 'size-6'}
+      />
       <span className="grid min-w-0 flex-1">
-        <strong className="text-sm break-words">
+        <strong className={cn('break-words', group ? 'text-xs' : 'text-sm')}>
           {person.gameNickname}
           {isLeader ? (
-            <span className="font-normal text-primary"> — Пати лидер</span>
+            <span
+              className="font-normal text-primary"
+              title="Пати лидер"
+              aria-label="Пати лидер"
+            >
+              {' '}
+              — ПЛ
+            </span>
           ) : null}
         </strong>
-        <span className="text-xs text-muted-foreground">
-          {person.className}
-          {person.status
-            ? ` · ${ATTENDANCE_STATUS_LABELS[person.status]}`
-            : person.answer
-              ? ` · ${EVENT_ANSWER_LABELS[person.answer]}`
-              : ' · Без ответа'}
-        </span>
+        {!group ? (
+          <span
+            aria-label="Характеристики персонажа"
+            className="grid grid-cols-5 gap-x-2 pt-1 text-[10px] leading-tight text-muted-foreground sm:max-w-[19rem]"
+          >
+            {CHARACTER_STAT_FIELDS.map((field) => (
+              <span key={field} className="min-w-0">
+                <strong className="font-medium text-foreground tabular-nums">
+                  {formatCharacterStat(field, person[field])}
+                </strong>
+              </span>
+            ))}
+          </span>
+        ) : null}
       </span>
       {board.editable ? (
         <DropdownMenu>
@@ -168,7 +193,7 @@ function PersonRow({ board, person, group, index, isLeader }: PersonRowProps) {
               type="button"
               variant="ghost"
               size="icon"
-              className="size-8 flex-none"
+              className={cn('flex-none', group ? 'size-6' : 'size-8')}
               aria-label={`Действия: ${person.gameNickname}`}
             >
               <EllipsisVertical size={16} aria-hidden="true" />
@@ -266,6 +291,10 @@ function PoolPanel({ board }: { board: Board }) {
   const [tab, setTab] = useState(tabs[0]!.value)
   const [search, setSearch] = useState('')
   const [classFilter, setClassFilter] = useState('__all__')
+  const [statSort, setStatSort] = useState<{
+    field: CharacterStatNumberField
+    direction: 'asc' | 'desc'
+  } | null>(null)
   const { setNodeRef: dropRef, isOver } = useDroppable({
     id: 'pool',
     disabled: !board.editable,
@@ -285,7 +314,7 @@ function PoolPanel({ board }: { board: Board }) {
       .sort((a, b) => a.localeCompare(b, 'ru-RU'))
       .map((className) => ({ value: className, label: className })),
   ]
-  const shown = free
+  const filtered = free
     .filter(current.test)
     .filter(
       (person) => classFilter === '__all__' || person.className === classFilter,
@@ -295,16 +324,52 @@ function PoolPanel({ board }: { board: Board }) {
         !query ||
         person.gameNickname.toLocaleLowerCase('ru-RU').includes(query),
     )
+  const shown = statSort
+    ? [...filtered].sort((left, right) => {
+        const leftValue = left[statSort.field]
+        const rightValue = right[statSort.field]
+        if (leftValue == null && rightValue == null) {
+          return left.gameNickname.localeCompare(right.gameNickname, 'ru-RU')
+        }
+        if (leftValue == null) return 1
+        if (rightValue == null) return -1
+        const difference =
+          (Number(leftValue) - Number(rightValue)) *
+          (statSort.direction === 'asc' ? 1 : -1)
+        return (
+          difference ||
+          left.gameNickname.localeCompare(right.gameNickname, 'ru-RU')
+        )
+      })
+    : filtered
+
+  function toggleStatSort(field: CharacterStatNumberField) {
+    setStatSort((currentSort) =>
+      currentSort?.field === field
+        ? {
+            field,
+            direction: currentSort.direction === 'desc' ? 'asc' : 'desc',
+          }
+        : { field, direction: 'desc' },
+    )
+  }
 
   return (
     <Card
       ref={dropRef}
-      className={cn('grid content-start gap-3', isOver && 'border-primary')}
+      className={cn(
+        'grid content-start gap-2 p-3 lg:sticky lg:top-4 lg:flex lg:h-[calc(100svh-2rem)] lg:flex-col lg:overflow-hidden',
+        isOver && 'border-primary',
+      )}
     >
-      <h2 className={sectionTitleClass}>
+      <h2 className={cn(sectionTitleClass, 'lg:flex-none')}>
         {closed ? 'Итог посещения' : 'Участники'}
       </h2>
-      <Tabs value={current.value} onValueChange={setTab}>
+      <Tabs
+        value={current.value}
+        onValueChange={setTab}
+        className="lg:flex-none"
+      >
         <TabsList
           aria-label={closed ? 'Итог посещения' : 'Ответы участников'}
           className="grid grid-cols-2 overflow-visible"
@@ -323,7 +388,7 @@ function PoolPanel({ board }: { board: Board }) {
           ))}
         </TabsList>
       </Tabs>
-      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)]">
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)] lg:flex-none">
         <Input
           type="search"
           aria-label="Поиск по нику"
@@ -339,29 +404,72 @@ function PoolPanel({ board }: { board: Board }) {
         />
       </div>
       {board.editable ? (
-        <p className="m-0 text-xs text-muted-foreground">
+        <p className="m-0 text-xs text-muted-foreground lg:flex-none">
           Назначенные в группы скрываются из вкладок. Перетащите человека за
           маркер или выберите группу в меню «⋮»; перенос сюда снимает его с
           группы.
         </p>
       ) : null}
-      {shown.length === 0 ? (
-        <p className="m-0 text-muted-foreground">Никого нет.</p>
-      ) : (
-        <ul
-          aria-label={current.label}
-          className="m-0 grid list-none gap-1.5 p-0"
-        >
-          {shown.map((person) => (
-            <PersonRow key={person.id} board={board} person={person} />
-          ))}
-        </ul>
-      )}
-      {board.event.participantsTruncated ? (
-        <output className="text-sm text-muted-foreground">
-          Показаны первые {MEMBER_LIST_LIMIT} участников по нику.
-        </output>
-      ) : null}
+      <div className="min-h-0 lg:flex-1 lg:overflow-y-auto">
+        {shown.length === 0 ? (
+          <p className="m-0 text-muted-foreground">Никого нет.</p>
+        ) : (
+          <>
+            <div className="flex items-end gap-2 px-2 py-1 lg:sticky lg:top-0 lg:z-10 lg:bg-surface-from">
+              {board.editable ? (
+                <span aria-hidden="true" className="w-7" />
+              ) : null}
+              <span aria-hidden="true" className="size-6 flex-none" />
+              <div className="grid max-w-[19rem] flex-1 grid-cols-5 gap-x-2">
+                {CHARACTER_STAT_FIELDS.map((field) => {
+                  const activeSort = statSort?.field === field ? statSort : null
+                  const label = CHARACTER_STAT_LABELS[field]
+                  return (
+                    <button
+                      key={field}
+                      type="button"
+                      aria-label={
+                        activeSort
+                          ? `${label}, сортировка ${activeSort.direction === 'desc' ? 'по убыванию' : 'по возрастанию'}`
+                          : `Сортировать по ${label}`
+                      }
+                      aria-pressed={activeSort !== null}
+                      title={`Сортировать по ${label}`}
+                      className="inline-flex min-w-0 cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-left text-[10px] leading-tight text-muted-foreground hover:text-primary"
+                      onClick={() => toggleStatSort(field)}
+                    >
+                      {label}
+                      {activeSort ? (
+                        activeSort.direction === 'desc' ? (
+                          <ArrowDown size={10} aria-hidden="true" />
+                        ) : (
+                          <ArrowUp size={10} aria-hidden="true" />
+                        )
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+              {board.editable ? (
+                <span aria-hidden="true" className="w-8" />
+              ) : null}
+            </div>
+            <ul
+              aria-label={current.label}
+              className="m-0 grid list-none gap-1.5 p-0"
+            >
+              {shown.map((person) => (
+                <PersonRow key={person.id} board={board} person={person} />
+              ))}
+            </ul>
+          </>
+        )}
+        {board.event.participantsTruncated ? (
+          <output className="text-sm text-muted-foreground">
+            Показаны первые {MEMBER_LIST_LIMIT} участников по нику.
+          </output>
+        ) : null}
+      </div>
     </Card>
   )
 }
@@ -404,10 +512,10 @@ function GroupCard({ board, group }: { board: Board; group: EventGroup }) {
   return (
     <Card
       ref={dropRef}
-      className={cn('grid content-start gap-3', isOver && 'border-primary')}
+      className={cn('grid content-start gap-2 p-2', isOver && 'border-primary')}
     >
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <h3 className="m-0 min-w-0 flex-1 font-sans text-base font-bold break-words">
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        <h3 className="m-0 min-w-0 flex-1 font-sans text-sm font-bold break-words">
           {group.name}{' '}
           <span className="text-muted-foreground tabular-nums">
             · {group.members.length}
@@ -418,7 +526,7 @@ function GroupCard({ board, group }: { board: Board; group: EventGroup }) {
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8"
+            className="size-7"
             aria-label={`Переименовать «${group.name}»`}
             onClick={() => setRenaming(true)}
           >
@@ -427,10 +535,10 @@ function GroupCard({ board, group }: { board: Board; group: EventGroup }) {
         ) : null}
       </div>
       {board.editable ? (
-        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 max-xs:grid-cols-2">
+        <div className="grid gap-1.5">
           <Select
             aria-label={`Лидер группы «${group.name}»`}
-            className="max-xs:col-span-full"
+            className="h-7 min-h-7 rounded-md px-2 py-1 text-xs [&_svg]:size-3"
             value={leader?.userId ?? NO_LEADER}
             onValueChange={(value) =>
               void setLeader
@@ -451,27 +559,38 @@ function GroupCard({ board, group }: { board: Board; group: EventGroup }) {
               })),
             ]}
           />
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => void copyNicks()}
-          >
-            <Copy size={14} aria-hidden="true" /> Ники
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="text-destructive"
-            onClick={() => setDeleting(true)}
-          >
-            <Trash2 size={14} aria-hidden="true" /> Удалить
-          </Button>
+          <div className="flex flex-nowrap items-center gap-1">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-6 flex-none gap-0.5 whitespace-nowrap rounded-md px-1 py-1 text-[9px] leading-none"
+              onClick={() => void copyNicks()}
+            >
+              <Copy size={12} aria-hidden="true" /> Скопировать ники
+            </Button>
+            {members.length > 0 ? (
+              <PrepareBroadcastLink
+                source="group"
+                id={group.id}
+                label="Рассылка"
+                className="h-6 flex-none gap-0.5 whitespace-nowrap rounded-md px-1 py-1 text-[9px] leading-none"
+              />
+            ) : null}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-6 flex-none gap-0.5 whitespace-nowrap rounded-md px-1 py-1 text-[9px] leading-none text-destructive"
+              onClick={() => setDeleting(true)}
+            >
+              <Trash2 size={12} aria-hidden="true" /> Удалить
+            </Button>
+          </div>
         </div>
       ) : null}
       {members.length === 0 ? (
-        <p className="m-0 rounded-lg border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+        <p className="m-0 rounded-md border border-dashed border-border p-2 text-center text-xs text-muted-foreground">
           {board.editable
             ? 'Перетащите участников сюда или выберите группу в меню «⋮».'
             : 'В группе никого нет.'}
@@ -479,7 +598,7 @@ function GroupCard({ board, group }: { board: Board; group: EventGroup }) {
       ) : (
         <ol
           aria-label={`Состав «${group.name}»`}
-          className="m-0 grid list-none gap-1.5 p-0"
+          className="m-0 grid list-none gap-1 p-0"
         >
           {members.map((member, index) => (
             <PersonRow
@@ -493,13 +612,6 @@ function GroupCard({ board, group }: { board: Board; group: EventGroup }) {
           ))}
         </ol>
       )}
-      {board.editable && members.length > 0 ? (
-        <PrepareBroadcastLink
-          source="group"
-          id={group.id}
-          className="justify-self-start max-xs:justify-self-stretch"
-        />
-      ) : null}
       <GroupNameDialog
         open={renaming}
         onOpenChange={setRenaming}
@@ -531,32 +643,15 @@ function GroupCard({ board, group }: { board: Board; group: EventGroup }) {
   )
 }
 
-/** Панель офицера: новая группа, шаблоны, закрытие события (GRP-03, EVT-08). */
-function Toolbar({ board }: { board: Board }) {
+/** Завершение события остаётся в правой части общей верхней панели. */
+function EventToolbar({ board }: { board: Board }) {
   const { event } = board
-  const create = useCreateGroup()
   const close = useCloseEvent()
-  const [creating, setCreating] = useState(false)
-  const [templates, setTemplates] = useState(false)
   const [closing, setClosing] = useState(false)
   const hasGroups = event.groups.length > 0
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {board.editable ? (
-        <>
-          <Button type="button" onClick={() => setCreating(true)}>
-            <Plus size={16} aria-hidden="true" /> Создать группу
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setTemplates(true)}
-          >
-            Шаблоны групп
-          </Button>
-        </>
-      ) : null}
+    <div className="flex justify-end">
       {event.canClose ? (
         <Button
           type="button"
@@ -566,27 +661,6 @@ function Toolbar({ board }: { board: Board }) {
         >
           Завершить событие
         </Button>
-      ) : null}
-      <GroupNameDialog
-        open={creating}
-        onOpenChange={setCreating}
-        title="Новая группа"
-        description="Группа появится в конце списка; участников добавьте перетаскиванием или через меню."
-        submitLabel="Создать"
-        onSubmit={async (name) => {
-          await create.mutateAsync({
-            eventId: event.id,
-            input: { eventId: event.id, name },
-          })
-          toast('Группа создана')
-        }}
-      />
-      {board.editable ? (
-        <GroupTemplatesDialog
-          open={templates}
-          onOpenChange={setTemplates}
-          event={event}
-        />
       ) : null}
       <ConfirmActionDialog
         open={closing}
@@ -610,6 +684,49 @@ function Toolbar({ board }: { board: Board }) {
           await close.mutateAsync(event.id)
           toast('Событие завершено, итог сохранён')
         }}
+      />
+    </div>
+  )
+}
+
+/** Кнопки создания и шаблонов размещены в заголовке доски групп. */
+function GroupToolbar({ board }: { board: Board }) {
+  const { event } = board
+  const create = useCreateGroup()
+  const [creating, setCreating] = useState(false)
+  const [templates, setTemplates] = useState(false)
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <Button size="sm" type="button" onClick={() => setCreating(true)}>
+        <Plus size={14} aria-hidden="true" /> Создать группу
+      </Button>
+      <Button
+        size="sm"
+        type="button"
+        variant="secondary"
+        onClick={() => setTemplates(true)}
+      >
+        Шаблоны групп
+      </Button>
+      <GroupNameDialog
+        open={creating}
+        onOpenChange={setCreating}
+        title="Новая группа"
+        description="Группа появится в конце списка; участников добавьте перетаскиванием или через меню."
+        submitLabel="Создать"
+        onSubmit={async (name) => {
+          await create.mutateAsync({
+            eventId: event.id,
+            input: { eventId: event.id, name },
+          })
+          toast('Группа создана')
+        }}
+      />
+      <GroupTemplatesDialog
+        open={templates}
+        onOpenChange={setTemplates}
+        event={event}
       />
     </div>
   )
@@ -656,9 +773,33 @@ function DragPreview({
     return null
   }
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-primary bg-surface-menu px-3 py-2 shadow-popover">
-      <ClassIcon classId={person.classId} className={person.className} />
-      <strong className="text-sm">{person.gameNickname}</strong>
+    <div className="grid w-[min(23rem,calc(100vw-2rem))] grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1 rounded-lg border border-primary bg-surface-menu px-2 py-1.5 shadow-popover">
+      <GripVertical
+        size={14}
+        aria-hidden="true"
+        className="text-muted-foreground"
+      />
+      <div className="flex min-w-0 items-center gap-2">
+        <ClassIcon
+          classId={person.classId}
+          className={person.className}
+          wrapperClassName="size-6"
+        />
+        <strong className="min-w-0 text-sm break-words">
+          {person.gameNickname}
+        </strong>
+      </div>
+      <span aria-hidden="true" />
+      <span className="grid grid-cols-5 gap-x-2 text-[10px] leading-tight text-muted-foreground">
+        {CHARACTER_STAT_FIELDS.map((field) => (
+          <span key={field} className="grid">
+            <span>{CHARACTER_STAT_LABELS[field]}</span>
+            <strong className="font-medium text-foreground tabular-nums">
+              {formatCharacterStat(field, person[field])}
+            </strong>
+          </span>
+        ))}
+      </span>
     </div>
   )
 }
@@ -709,8 +850,6 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
     }
   }
 
-  const showToolbar = event.canManageGroups || event.canClose
-
   return (
     <DndContext
       sensors={sensors}
@@ -728,20 +867,24 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
       onDragEnd={onDragEnd}
     >
       <div className="grid gap-4">
-        {showToolbar ? <Toolbar board={board} /> : null}
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
+        {event.canClose ? <EventToolbar board={board} /> : null}
+        <div className="grid items-start gap-3 lg:grid-cols-[minmax(18rem,23rem)_minmax(0,1fr)]">
           <PoolPanel board={board} />
-          <section aria-labelledby="event-groups-title" className="grid gap-3">
-            <div className="flex items-center gap-2">
+          <section
+            aria-labelledby="event-groups-title"
+            className="grid min-h-0 gap-3 lg:sticky lg:top-4 lg:h-[calc(100svh-2rem)] lg:grid-rows-[auto_minmax(0,1fr)]"
+          >
+            <div className="flex flex-wrap items-center gap-2">
               <h2 id="event-groups-title" className={sectionTitleClass}>
                 Группы
               </h2>
               <Badge className="border-border text-muted-foreground">
                 {event.groups.length}
               </Badge>
+              {board.editable ? <GroupToolbar board={board} /> : null}
             </div>
             {event.groups.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border p-4">
+              <div className="min-h-0 rounded-xl border border-dashed border-border p-4 lg:overflow-y-auto">
                 <p className="m-0 text-muted-foreground">
                   {event.canManageGroups
                     ? 'Групп пока нет. Создайте группу или примените шаблон.'
@@ -751,7 +894,7 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
             ) : (
               <ul
                 aria-label="Группы события"
-                className="m-0 grid list-none gap-3 p-0 xl:grid-flow-col xl:auto-cols-[minmax(15.3125rem,1fr)] xl:overflow-x-auto xl:pb-2"
+                className="m-0 grid min-h-0 list-none grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-2 overflow-y-auto p-0 lg:pr-1"
               >
                 {event.groups.map((group) => (
                   <li key={group.id} className="min-w-0">

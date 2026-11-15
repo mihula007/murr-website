@@ -251,6 +251,11 @@ export const eventRepository = {
         'p.game_nickname',
         'p.avatar_path',
         'p.class_id',
+        'p.pa',
+        'p.pz',
+        'p.bu',
+        'p.hp',
+        'p.bd',
         'c.name as class_name',
         'a.answer',
       ])

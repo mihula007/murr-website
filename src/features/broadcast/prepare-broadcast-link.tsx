@@ -11,10 +11,12 @@ import { cn } from '@/lib/utils'
 export function PrepareBroadcastLink({
   source,
   id,
+  label = 'Подготовить рассылку',
   className,
 }: {
   source: BroadcastSource
   id: string
+  label?: string
   className?: string
 }) {
   return (
@@ -27,7 +29,7 @@ export function PrepareBroadcastLink({
         className,
       )}
     >
-      <Send size={14} aria-hidden="true" /> Подготовить рассылку
+      <Send size={14} aria-hidden="true" /> {label}
     </Link>
   )
 }

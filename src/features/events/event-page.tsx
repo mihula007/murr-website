@@ -5,13 +5,10 @@ import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
 import { linkButtonClass } from '@/components/ui/button'
-import { Card } from '@/components/ui/surfaces'
-import { DiscussionDialog } from '@/features/discussions/discussion-dialog'
 import { cn } from '@/lib/utils'
 import { useEvent } from './api'
 import {
   EventActions,
-  EventAnswers,
   EventBadges,
   EventStart,
   eventAuthor,
@@ -19,30 +16,14 @@ import {
 import { EventGroupsSection } from './groups/event-groups'
 
 /**
- * Группы события и отдельное окно обсуждения (DSC-01).
+ * Участники и группы события (GRP); обсуждение открывается из карточки события.
  */
 function GroupsAndDiscussion({ event }: { event: EventDetails }) {
-  const thread = { parent: 'event', parentId: event.id } as const
-  return (
-    <div className="grid gap-4">
-      <div className="flex justify-end">
-        <DiscussionDialog
-          thread={thread}
-          title={event.title}
-          messageCount={event.messageCount}
-          triggerLabel="Обсуждение ивента"
-          className="w-full sm:w-auto"
-        />
-      </div>
-      <EventGroupsSection event={event} />
-    </div>
-  )
+  return <EventGroupsSection event={event} />
 }
 
 /**
- * Шапка события: название — заголовок страницы, начало — вторая по
- * величине строка, ответ — отдельная панель справа (под шапкой на узком
- * экране). Управление — в меню «⋯» рядом с метками.
+ * Компактная шапка события. Сводка ответов остаётся в карточке расписания.
  */
 function EventOverview({
   event,
@@ -52,7 +33,7 @@ function EventOverview({
   onDeleted: () => void
 }) {
   return (
-    <div className="mb-6 grid items-start gap-x-4 gap-y-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
+    <div className="mb-4">
       <header className="grid min-w-0 gap-3">
         <div className="flex items-start justify-between gap-3">
           <EventBadges event={event} />
@@ -71,9 +52,6 @@ function EventOverview({
           Автор: {eventAuthor(event)}
         </p>
       </header>
-      <Card className="grid gap-3 p-4">
-        <EventAnswers event={event} />
-      </Card>
     </div>
   )
 }
