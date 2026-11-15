@@ -77,6 +77,8 @@ type DataTableProps<T extends RowData> = {
   sortable?: boolean
   /** Столбец «№» по текущему порядку строк. */
   numbered?: boolean
+  /** ID строки текущего пользователя, если её нужно подсветить. */
+  highlightRowId?: string | undefined
   empty: ReactNode
 }
 
@@ -88,6 +90,7 @@ export function DataTable<T extends RowData>({
   getRowId,
   sortable = false,
   numbered = false,
+  highlightRowId,
   empty,
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
@@ -151,7 +154,12 @@ export function DataTable<T extends RowData>({
       </thead>
       <tbody>
         {rows.map((row, index) => (
-          <tr key={row.id}>
+          <tr
+            key={row.id}
+            className={cn(
+              highlightRowId === getRowId(row.original) && 'bg-item-highlight!',
+            )}
+          >
             {numbered ? (
               <td className="text-primary tabular-nums max-[900px]:hidden!">
                 {index + 1}

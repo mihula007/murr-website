@@ -102,6 +102,7 @@ function StatsPanel({ roster }: { roster: RosterStatsResponse }) {
 
 type MemberCardProps = {
   member: RosterMember
+  isCurrentUser: boolean
   onBlock?: (() => void) | undefined
 }
 
@@ -124,9 +125,15 @@ function CharacterStatsSummary({ member }: { member: RosterMember }) {
 }
 
 /** Карточка участника; действие администратора — в меню «⋯» (ROS-07). */
-function MemberCard({ member, onBlock }: MemberCardProps) {
+function MemberCard({ member, isCurrentUser, onBlock }: MemberCardProps) {
   return (
-    <div className={cn(tileClass, 'flex h-full flex-col gap-4')}>
+    <div
+      className={cn(
+        tileClass,
+        'flex h-full flex-col gap-4',
+        isCurrentUser && 'bg-item-highlight!',
+      )}
+    >
       <div className="flex min-w-0 items-start gap-3.5">
         <Avatar
           size="sm"
@@ -226,6 +233,7 @@ function MembersList({
           <li key={member.id} className="min-w-0">
             <MemberCard
               member={member}
+              isCurrentUser={member.id === userId}
               onBlock={
                 isAdmin && member.role === 'member' && member.id !== userId
                   ? () => onBlock(member)

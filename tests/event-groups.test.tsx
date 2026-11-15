@@ -10,6 +10,7 @@ const callApi = vi.hoisted(() =>
   vi.fn<(route: string, body?: unknown) => Promise<unknown>>(),
 )
 const toast = vi.hoisted(() => vi.fn<(message: string) => void>())
+const sessionUserId = vi.hoisted(() => ({ current: null as string | null }))
 
 vi.mock('@/components/ui/toaster', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -18,6 +19,16 @@ vi.mock('@/components/ui/toaster', async (importOriginal) => ({
 vi.mock('@/lib/supabase/api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   callApi,
+}))
+vi.mock('@/features/auth/session', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useSession: () =>
+    sessionUserId.current
+      ? {
+          status: 'signedIn',
+          session: { user: { id: sessionUserId.current } },
+        }
+      : { status: 'unavailable', session: null },
 }))
 
 const EVENT_ID = '33333333-3333-4333-8333-333333333333'
@@ -96,9 +107,43 @@ const manager = (extra: Partial<EventDetails> = {}) =>
 beforeEach(() => {
   callApi.mockReset()
   toast.mockReset()
+  sessionUserId.current = null
 })
 
 describe('event groups: reading (GRP-01, GRP-16)', () => {
+  it('highlights the current participant in the free pool and group', async () => {
+    sessionUserId.current = ANNA
+    respond({
+      'events/get': () =>
+        details({
+          participants: [person(ANNA, 'Анна'), person(BORIS, 'Борис')],
+        }),
+    })
+    const { unmount } = await renderApp({
+      role: 'member',
+      path: `/events/${EVENT_ID}`,
+    })
+    const pool = await screen.findByRole('list', { name: 'Придут' })
+    const annaInPool = within(pool).getByText('Анна').closest('li')!
+    const borisInPool = within(pool).getByText('Борис').closest('li')!
+    expect(annaInPool).toHaveClass(/bg-item-highlight!?/)
+    expect(borisInPool).not.toHaveClass(/bg-item-highlight!?/)
+
+    unmount()
+    respond({
+      'events/get': () =>
+        details({ groups: [group([{ userId: ANNA, isLeader: false }])] }),
+    })
+    await renderApp({ role: 'member', path: `/events/${EVENT_ID}` })
+    const members = await screen.findByRole('list', {
+      name: 'Состав «Пати 1»',
+    })
+    expect(within(members).getByText('Анна').closest('li')).toHaveClass(
+      /bg-item-highlight!?/,
+    )
+    sessionUserId.current = null
+  })
+
   it('shows groups to a member without any management', async () => {
     respond({
       'events/get': () =>

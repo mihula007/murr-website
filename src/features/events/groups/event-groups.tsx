@@ -44,6 +44,7 @@ import { Select } from '@/components/ui/select'
 import { Badge, Card } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
+import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
 import { formatCharacterStat } from '@/features/roster/character-stats'
 import { errorMessage, fieldMessage, type AppError } from '@/lib/errors'
@@ -79,6 +80,7 @@ type Target = { groupId: string | null; position: number | null }
 type Board = {
   event: EventDetails
   people: Map<string, EventParticipant>
+  currentUserId: string | undefined
   editable: boolean
   move: (userId: string, target: Target) => void
 }
@@ -128,6 +130,7 @@ function PersonRow({ board, person, group, index, isLeader }: PersonRowProps) {
       className={cn(
         'flex min-w-0 items-center border border-border bg-surface-inset',
         group ? 'gap-1.5 rounded-md px-1.5 py-1' : 'gap-2 rounded-lg px-2 py-1',
+        person.id === board.currentUserId && 'bg-item-highlight!',
         isDragging && 'opacity-40',
         isOver && 'border-primary',
       )}
@@ -814,6 +817,7 @@ function DragPreview({
  * чтение (GRP-16).
  */
 export function EventGroupsSection({ event }: { event: EventDetails }) {
+  const currentUserId = useSession().session?.user.id
   const moveMember = useMoveMember()
   const [dragging, setDragging] = useState<string | null>(null)
   const sensors = useSensors(
@@ -825,6 +829,7 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
   const board: Board = {
     event,
     people: new Map(event.participants.map((person) => [person.id, person])),
+    currentUserId,
     editable: event.canManageGroups,
     move: (userId, target) =>
       void moveMember

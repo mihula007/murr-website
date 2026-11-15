@@ -7,6 +7,7 @@ import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/surfaces'
+import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
 import { useAttendanceRating } from './api'
 import {
@@ -72,6 +73,7 @@ const columns: ActivityColumns<RatingRow> = column.columns([
  */
 export function RatingPage() {
   const rating = useAttendanceRating()
+  const currentUserId = useSession().session?.user.id
   const [search, setSearch] = useState('')
 
   let content
@@ -113,6 +115,7 @@ export function RatingPage() {
           columns={columns}
           data={rows}
           getRowId={(row) => row.userId}
+          highlightRowId={currentUserId}
           sortable
           numbered
           empty={

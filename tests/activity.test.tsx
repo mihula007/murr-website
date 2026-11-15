@@ -16,6 +16,7 @@ const toast = vi.hoisted(() => vi.fn<(message: string) => void>())
 const downloadXlsx = vi.hoisted(() =>
   vi.fn<(fileName: string, sheets: Sheet[]) => void>(),
 )
+const sessionUserId = vi.hoisted(() => ({ current: null as string | null }))
 
 vi.mock('@/components/ui/toaster', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -28,6 +29,16 @@ vi.mock('@/lib/supabase/api', async (importOriginal) => ({
 vi.mock('@/lib/xlsx', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   downloadXlsx,
+}))
+vi.mock('@/features/auth/session', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useSession: () =>
+    sessionUserId.current
+      ? {
+          status: 'signedIn',
+          session: { user: { id: sessionUserId.current } },
+        }
+      : { status: 'unavailable', session: null },
 }))
 
 function respond(routes: Record<string, (body: unknown) => unknown>) {
@@ -151,9 +162,38 @@ beforeEach(() => {
   callApi.mockReset()
   toast.mockReset()
   downloadXlsx.mockReset()
+  sessionUserId.current = null
 })
 
 describe('attendance rating (ACT-14, ACT-15)', () => {
+  it('highlights the current user after sorting and search', async () => {
+    sessionUserId.current = 'u2'
+    respond({ 'activity/rating': () => rating })
+    await renderApp({ role: 'member', path: '/rating' })
+    const table = await screen.findByRole('table', {
+      name: 'Рейтинг посещения',
+    })
+    const anna = within(table).getByText('Анна').closest('tr')!
+    const boris = within(table).getByText('Борис').closest('tr')!
+    expect(anna).toHaveClass(/bg-item-highlight!?/)
+    expect(boris).not.toHaveClass(/bg-item-highlight!?/)
+
+    fireEvent.click(within(table).getByRole('button', { name: /Участник/ }))
+    expect(within(table).getByText('Анна').closest('tr')).toHaveClass(
+      /bg-item-highlight!?/,
+    )
+    fireEvent.change(screen.getByLabelText('Поиск по участнику'), {
+      target: { value: 'маг' },
+    })
+    expect(within(table).getByText('Анна').closest('tr')).toHaveClass(
+      /bg-item-highlight!?/,
+    )
+    expect(within(table).getByText('Вера').closest('tr')).not.toHaveClass(
+      /bg-item-highlight!?/,
+    )
+    sessionUserId.current = null
+  })
+
   it('shows the rating to a member with dashes, sorting and search', async () => {
     respond({ 'activity/rating': () => rating })
     await renderApp({ role: 'member', path: '/rating' })

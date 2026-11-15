@@ -15,9 +15,20 @@ vi.mock('@/lib/supabase/api', async (importOriginal) => ({
   callApi,
 }))
 const toast = vi.hoisted(() => vi.fn<(message: string) => void>())
+const sessionUserId = vi.hoisted(() => ({ current: null as string | null }))
 vi.mock('@/components/ui/toaster', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   toast,
+}))
+vi.mock('@/features/auth/session', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useSession: () =>
+    sessionUserId.current
+      ? {
+          status: 'signedIn',
+          session: { user: { id: sessionUserId.current } },
+        }
+      : { status: 'unavailable', session: null },
 }))
 
 type Handler = (body: unknown) => unknown
@@ -92,6 +103,7 @@ const READERS = {
 let routes: Record<string, Handler>
 beforeEach(() => {
   callApi.mockReset()
+  sessionUserId.current = null
   routes = {
     'catalog/classes': () => CLASSES,
     'roster/stats': () => STATS,
@@ -124,6 +136,22 @@ const cards = () =>
   )
 
 describe('roster page', () => {
+  it('highlights only the current member card', async () => {
+    sessionUserId.current = 'm2'
+    await renderApp({ role: 'member', path: '/roster' })
+    await screen.findByRole('heading', { name: 'Бета' })
+
+    const betaCard = screen
+      .getByRole('heading', { name: 'Бета' })
+      .closest('li')!
+    const alphaCard = screen
+      .getByRole('heading', { name: 'Альфа' })
+      .closest('li')!
+    expect(betaCard.firstElementChild).toHaveClass(/bg-item-highlight!?/)
+    expect(alphaCard.firstElementChild).not.toHaveClass(/bg-item-highlight!?/)
+    sessionUserId.current = null
+  })
+
   it('shows the stats panel for the whole roster and filters cards by class', async () => {
     await renderApp({ role: 'member', path: '/roster' })
     expect(await screen.findByRole('heading', { name: 'Альфа' })).toBeVisible()
