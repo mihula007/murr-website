@@ -113,6 +113,22 @@ describe('registration form', () => {
     expect(JSON.stringify(loadDraft())).not.toContain('secret-password')
   })
 
+  it('restores empty optional fields from the saved draft', async () => {
+    saveDraft({
+      ...validDraft,
+      displayName: '',
+      city: '',
+      birthDate: '',
+      about: '',
+    })
+    await renderApp({ path: '/register' })
+
+    expect(screen.getByLabelText('Имя')).toHaveValue('')
+    expect(screen.getByLabelText('Город')).toHaveValue('')
+    expect(screen.getByLabelText('Дата рождения')).toHaveValue('')
+    expect(screen.getByLabelText('Рассказ о себе')).toHaveValue('')
+  })
+
   it('sends an existing email to sign-in without creating anything', async () => {
     saveDraft(validDraft)
     setPendingAvatar(new Blob(['x'], { type: 'image/png' }))

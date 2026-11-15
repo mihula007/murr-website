@@ -163,10 +163,28 @@ test('прерванная регистрация продолжается по�
   await expect(
     next.getByRole('heading', { name: 'Завершите регистрацию' }),
   ).toBeVisible({ timeout: 15_000 })
-  await fillCharacter(next, nickname)
+  await fillRequiredCharacter(next, nickname)
   await next.getByRole('button', { name: 'Отправить заявку' }).click()
   await expect(next).toHaveURL(/#\/$/, { timeout: 30_000 })
   expect(await applicationCount(email)).toBe(1)
+  const [profile] = await sql(
+    (db) => db<
+      {
+        display_name: string
+        city: string | null
+        birth_date: string | null
+        about: string | null
+      }[]
+    >`select p.display_name, p.city, p.birth_date, p.about
+      from app.profiles p join auth.users u on u.id = p.id
+      where u.email = ${email}`,
+  )
+  expect(profile).toEqual({
+    display_name: '',
+    city: null,
+    birth_date: null,
+    about: null,
+  })
 
   // Повторный вход не создаёт вторую заявку.
   await next.goto('./#/register/complete')
