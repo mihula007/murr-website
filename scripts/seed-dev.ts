@@ -342,6 +342,21 @@ await insert(
   }),
 )
 
+// Привязка Telegram у каждого второго участника клана: окно подтверждения
+// анонса показывает получателей (TGM-14, Q-109). Чаты выдуманные — локальная
+// функция отправляет в поддельный бот.
+await insert(
+  'telegram_links',
+  clan
+    .filter((_, index) => index % 2 === 0)
+    .map((u, index) => ({
+      user_id: u.id,
+      telegram_user_id: 9_000_000_000 + index,
+      chat_id: 9_000_000_000 + index,
+      display_name: u.nickname,
+    })),
+)
+
 // ---------- Заявки и голосования ----------
 const applications: Record<string, unknown>[] = []
 const links: Record<string, unknown>[] = []
