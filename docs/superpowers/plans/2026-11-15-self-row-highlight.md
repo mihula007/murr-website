@@ -30,10 +30,12 @@
 ### Task 1: Подсветить свою карточку в составе
 
 **Files:**
+
 - Modify: `src/features/roster/roster-page.tsx`
 - Modify: `tests/roster-admin.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `userId` из текущей сессии, уже передаваемый в `MembersList`.
 - Produces: `MemberCard` принимает признак `isCurrentUser` и добавляет `bg-item-highlight` только своей карточке.
 
@@ -58,10 +60,12 @@ Expected: PASS; role actions and other cards remain unchanged.
 ### Task 2: Подсветить себя среди участников и групп события
 
 **Files:**
+
 - Modify: `src/features/events/groups/event-groups.tsx`
 - Modify: `tests/events.test.tsx`
 
 **Interfaces:**
+
 - Consumes: participant IDs from `EventDetails` and current session user ID.
 - Produces: `PersonRow` marks the matching user with `bg-item-highlight` in the free pool and assigned groups.
 
@@ -86,11 +90,13 @@ Expected: PASS; group actions and drag behavior remain available.
 ### Task 3: Подсветить себя в рейтинге посещения
 
 **Files:**
+
 - Modify: `src/features/activity/rating-page.tsx`
 - Modify: `src/features/activity/data-table.tsx`
 - Modify: `tests/activity.test.tsx`
 
 **Interfaces:**
+
 - Consumes: current session user ID and existing `DataTable` row IDs.
 - Produces: optional `highlightRowId?: string` on `DataTable`; rows with the matching ID use `bg-item-highlight` on desktop and mobile.
 
@@ -115,10 +121,12 @@ Expected: PASS; sorting, search, numbering and mobile table layout remain intact
 ### Task 4: Verify the visual result on desktop and phone
 
 **Files:**
+
 - Create: `e2e/self-highlight.spec.ts`
 - Modify: `docs/requirements/README.md` (E2E-12 is already recorded)
 
 **Interfaces:**
+
 - Consumes: existing Playwright helpers, seeded member account, and the three updated pages.
 - Produces: E2E-12 coverage for self-highlighting in roster, event participants/groups, and attendance rating at 375 px and 1240 px.
 

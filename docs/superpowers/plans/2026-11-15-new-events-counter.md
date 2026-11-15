@@ -30,10 +30,12 @@
 ### Task 1: Отдельно показать новизну и общее число событий
 
 **Files:**
+
 - Modify: `src/features/events/events-page.tsx`
 - Modify: `tests/events.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `useNotificationSummary(enabled)` из `src/features/notifications/api.ts`; ответ содержит `sections.events`.
 - Consumes: существующие `activeCount` и `pastCount` из `events/list`.
 - Produces: красный `NavBadge` только для `sections.events`; обычная подпись количества активных событий; отметка просмотра остаётся в `useHeaderNotifications`.
@@ -66,10 +68,12 @@ git commit -m "fix(events): show unseen events on active tab"
 ### Task 2: Verify the complete navigation behavior
 
 **Files:**
+
 - Modify: `e2e/events.spec.ts`
 - Modify: `docs/requirements/README.md` (E2E-12 is already recorded; keep its scenario aligned if selectors require wording changes)
 
 **Interfaces:**
+
 - Consumes: existing test helpers `createMember`, `signInUi`, `callApi`, and `sql` from `e2e/supabase.ts`.
 - Produces: E2E-12 coverage for a member who has not opened events, then opens the event schedule.
 

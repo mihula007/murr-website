@@ -30,10 +30,12 @@
 ### Task 1: Добавить категорию в общий контракт рынка
 
 **Files:**
+
 - Modify: `supabase/functions/_shared/contracts/market.ts`
 - Modify: `tests/server/market.test.ts`
 
 **Interfaces:**
+
 - Produces: `MarketCategory` включает `'arena'`; `MARKET_CATEGORY_LABELS.arena` равно `Арена`; схемы чтения и сохранения принимают категорию.
 - Consumes: существующие `MARKET_CATEGORIES`, `listMarketSchema` и `saveListingSchema`.
 
@@ -58,10 +60,12 @@ Expected: PASS; new and existing categories validate, unknown category remains r
 ### Task 2: Verify create, edit, filter and search
 
 **Files:**
+
 - Modify: `tests/materials.test.tsx`
 - Modify: `e2e/market.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `marketSection.categories` and `marketSection.categoryLabels` derived from the shared market contract.
 - Produces: coverage for the category editor, persisted label, market filter and search.
 
@@ -87,9 +91,11 @@ Expected: PASS.
 ### Task 3: Cover the owner flow and verify the change
 
 **Files:**
+
 - Modify: `e2e/market.spec.ts`
 
 **Interfaces:**
+
 - Consumes: existing market E2E helpers and category form.
 - Produces: E2E-12 coverage for saving, editing, filtering and searching an «Арена» listing.
 
