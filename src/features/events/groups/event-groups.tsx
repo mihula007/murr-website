@@ -331,8 +331,12 @@ function PoolPanel({ board }: { board: Board }) {
         if (leftValue == null && rightValue == null) {
           return left.gameNickname.localeCompare(right.gameNickname, 'ru-RU')
         }
-        if (leftValue == null) return 1
-        if (rightValue == null) return -1
+        if (leftValue == null) {
+          return 1
+        }
+        if (rightValue == null) {
+          return -1
+        }
         const difference =
           (Number(leftValue) - Number(rightValue)) *
           (statSort.direction === 'asc' ? 1 : -1)

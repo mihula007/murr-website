@@ -106,7 +106,7 @@ describe('event groups: reading (GRP-01, GRP-16)', () => {
     })
     await renderApp({ role: 'member', path: `/events/${EVENT_ID}` })
     const members = await screen.findByRole('list', { name: 'Состав «Пати 1»' })
-    expect(members).toHaveTextContent('Анна — Пати лидер')
+    expect(members).toHaveTextContent('Анна — ПЛ')
     // Назначенный скрыт из свободного списка (GRP-01).
     expect(screen.queryByRole('list', { name: 'Придут' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Создать группу' })).toBeNull()
@@ -201,7 +201,7 @@ describe('event groups: management (GRP-03–10)', () => {
   it('does not copy nicknames of an empty group (GRP-10)', async () => {
     respond({ 'events/get': () => manager({ groups: [group()] }) })
     await renderApp({ role: 'officer', path: `/events/${EVENT_ID}` })
-    fireEvent.click(await screen.findByRole('button', { name: /Ники/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /ники/i }))
     expect(toast).toHaveBeenCalledWith('В группе никого нет: копировать нечего')
   })
 
