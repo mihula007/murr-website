@@ -30,6 +30,7 @@ import {
 import type { EventGroup } from '@contracts/groups'
 import { MEMBER_LIST_LIMIT } from '@contracts/paging'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
+import { useAccess } from '@/app/access'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -817,6 +818,8 @@ function DragPreview({
  * чтение (GRP-16).
  */
 export function EventGroupsSection({ event }: { event: EventDetails }) {
+  const { role } = useAccess()
+  const isMember = role === 'member'
   const currentUserId = useSession().session?.user.id
   const moveMember = useMoveMember()
   const [dragging, setDragging] = useState<string | null>(null)
@@ -859,6 +862,51 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
     }
   }
 
+  const groupsPanel = (
+    <section
+      aria-labelledby="event-groups-title"
+      className={cn(
+        'grid min-h-0 gap-3',
+        !isMember &&
+          'lg:sticky lg:top-4 lg:h-[calc(100svh-2rem)] lg:grid-rows-[auto_minmax(0,1fr)]',
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 id="event-groups-title" className={sectionTitleClass}>
+          {isMember ? 'Ваша группа' : 'Группы'}
+        </h2>
+        {!isMember ? (
+          <Badge className="border-border text-muted-foreground">
+            {event.groups.length}
+          </Badge>
+        ) : null}
+        {board.editable ? <GroupToolbar board={board} /> : null}
+      </div>
+      {event.groups.length === 0 ? (
+        <div className="min-h-0 rounded-xl border border-dashed border-border p-4 lg:overflow-y-auto">
+          <p className="m-0 text-muted-foreground">
+            {isMember
+              ? 'Вы пока не распределены по группе'
+              : event.canManageGroups
+                ? 'Групп пока нет. Создайте группу или примените шаблон.'
+                : 'Группы ещё не сформированы.'}
+          </p>
+        </div>
+      ) : (
+        <ul
+          aria-label={isMember ? 'Ваша группа' : 'Группы события'}
+          className="m-0 grid content-start min-h-0 list-none grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-2 overflow-y-auto p-0 lg:pr-1"
+        >
+          {event.groups.map((group) => (
+            <li key={group.id} className="min-w-0">
+              <GroupCard board={board} group={group} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+
   return (
     <DndContext
       sensors={sensors}
@@ -877,43 +925,14 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
     >
       <div className="grid gap-4">
         {event.canClose ? <EventToolbar board={board} /> : null}
-        <div className="grid items-start gap-3 lg:grid-cols-[minmax(18rem,23rem)_minmax(0,1fr)]">
-          <PoolPanel board={board} />
-          <section
-            aria-labelledby="event-groups-title"
-            className="grid min-h-0 gap-3 lg:sticky lg:top-4 lg:h-[calc(100svh-2rem)] lg:grid-rows-[auto_minmax(0,1fr)]"
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 id="event-groups-title" className={sectionTitleClass}>
-                Группы
-              </h2>
-              <Badge className="border-border text-muted-foreground">
-                {event.groups.length}
-              </Badge>
-              {board.editable ? <GroupToolbar board={board} /> : null}
-            </div>
-            {event.groups.length === 0 ? (
-              <div className="min-h-0 rounded-xl border border-dashed border-border p-4 lg:overflow-y-auto">
-                <p className="m-0 text-muted-foreground">
-                  {event.canManageGroups
-                    ? 'Групп пока нет. Создайте группу или примените шаблон.'
-                    : 'Группы ещё не сформированы.'}
-                </p>
-              </div>
-            ) : (
-              <ul
-                aria-label="Группы события"
-                className="m-0 grid content-start min-h-0 list-none grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-2 overflow-y-auto p-0 lg:pr-1"
-              >
-                {event.groups.map((group) => (
-                  <li key={group.id} className="min-w-0">
-                    <GroupCard board={board} group={group} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
+        {isMember ? (
+          groupsPanel
+        ) : (
+          <div className="grid items-start gap-3 lg:grid-cols-[minmax(18rem,23rem)_minmax(0,1fr)]">
+            <PoolPanel board={board} />
+            {groupsPanel}
+          </div>
+        )}
       </div>
       <DragOverlay>
         {dragging ? <DragPreview person={board.people.get(dragging)} /> : null}

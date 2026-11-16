@@ -160,7 +160,11 @@ test('прямые вызовы запрещённых операций откл
     [member.email, 'roster/readers', {}],
     [member.email, 'accounts/restore-reader', { userId: target.id }],
     [officer.email, 'accounts/list', {}],
-    [officer.email, 'accounts/set-role', { userId: target.id, role: 'reader' }],
+    [
+      officer.email,
+      'accounts/set-role',
+      { userId: target.id, role: 'officer' },
+    ],
   ]
   const tokens = new Map<string, string>()
   for (const [email, route, body] of cases) {

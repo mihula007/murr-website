@@ -121,7 +121,7 @@ describe('event groups: reading (GRP-01, GRP-16)', () => {
           ],
         }),
     })
-    await renderApp({ role: 'member', path: `/events/${EVENT_ID}` })
+    await renderApp({ role: 'officer', path: `/events/${EVENT_ID}` })
     const groups = await screen.findByRole('list', { name: 'Группы события' })
     expect(groups).toHaveClass(/content-start/)
   })
@@ -135,7 +135,7 @@ describe('event groups: reading (GRP-01, GRP-16)', () => {
         }),
     })
     const { unmount } = await renderApp({
-      role: 'member',
+      role: 'officer',
       path: `/events/${EVENT_ID}`,
     })
     const pool = await screen.findByRole('list', { name: 'Придут' })

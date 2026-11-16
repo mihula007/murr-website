@@ -58,6 +58,14 @@ async function audit() {
     .execute()
 }
 
+async function notifications(userId: string) {
+  return db
+    .selectFrom('app.user_notifications')
+    .select(['kind', 'body'])
+    .where('recipient_id', '=', userId)
+    .execute()
+}
+
 describe('accounts/list', () => {
   it('is available only to admins', async () => {
     await rejects(listAccounts(deps, GUEST, {}), 'not_authenticated')
@@ -121,13 +129,13 @@ describe('accounts/list', () => {
 })
 
 describe('accounts/set-role', () => {
-  it('is available only to admins: officers neither change roles nor block (ACL-03, ADM-09)', async () => {
+  it('keeps non-manager roles from changing roles (ACL-03, ADM-09)', async () => {
     const member = await createProfiledUser(db, 'member')
     await rejects(
       setRole(deps, GUEST, { userId: member.id, role: 'reader' }),
       'not_authenticated',
     )
-    for (const role of ['applicant', 'reader', 'member', 'officer'] as const) {
+    for (const role of ['applicant', 'reader', 'member'] as const) {
       const { actor } = await roleActor(role)
       for (const next of ['reader', 'officer'] as const) {
         await rejects(
@@ -138,6 +146,68 @@ describe('accounts/set-role', () => {
     }
     expect((await profile(member.id)).access_role).toBe('member')
     expect(await audit()).toHaveLength(0)
+  })
+
+  it('lets officers assign members the reader role with audit and notification', async () => {
+    const { user: officer, actor } = await roleActor('officer')
+    const { user: member, actor: memberBefore } = await roleActor('member')
+    await setProfile(member.id, { joined_on: '2026-02-03' })
+    await listRoster(deps, memberBefore)
+
+    const result = await setRole(deps, actor, {
+      userId: member.id,
+      role: 'reader',
+    })
+    expect(result).toEqual({
+      userId: member.id,
+      role: 'reader',
+      joinedOn: '2026-02-03',
+    })
+    expect(await profile(member.id)).toMatchObject({
+      access_role: 'reader',
+      joined_on: '2026-02-03',
+    })
+    expect(await audit()).toMatchObject([
+      {
+        action: 'member_blocked',
+        category: 'participants',
+        actor_id: officer.id,
+        target_user_id: member.id,
+        details: { previous_role: 'member', role: 'reader' },
+      },
+    ])
+    expect(await notifications(member.id)).toEqual([
+      { kind: 'role_changed', body: 'Член клана → Чтец' },
+    ])
+    await rejects(listRoster(deps, await actorOf(db, member.id)), 'forbidden')
+  })
+
+  it('forbids officers from changing roles other than member to reader', async () => {
+    const { actor } = await roleActor('officer')
+    const member = await createProfiledUser(db, 'member')
+    const targets = await Promise.all(
+      (['officer', 'admin', 'reader', 'applicant'] as const).map((role) =>
+        createProfiledUser(db, role),
+      ),
+    )
+    for (const target of targets) {
+      await rejects(
+        setRole(deps, actor, { userId: target.id, role: 'reader' }),
+        'forbidden',
+      )
+    }
+    await rejects(
+      setRole(deps, actor, { userId: member.id, role: 'officer' }),
+      'forbidden',
+    )
+    expect(await profile(member.id)).toMatchObject({ access_role: 'member' })
+    expect(
+      await Promise.all(
+        targets.map(async (target) => (await profile(target.id)).access_role),
+      ),
+    ).toEqual(['officer', 'admin', 'reader', 'applicant'])
+    expect(await audit()).toHaveLength(0)
+    expect(await notifications(member.id)).toEqual([])
   })
 
   it('blocks a member: reader role, join date kept, audit, roster access lost at once (ADM-08)', async () => {

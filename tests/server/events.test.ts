@@ -10,6 +10,7 @@ import {
   utcToMoscow,
 } from '../../supabase/functions/_shared/contracts/moscow-time.ts'
 import {
+  closeEvent,
   createEvent,
   deleteEvent,
   deleteTemplate,
@@ -22,6 +23,10 @@ import {
   templateNextDate,
   updateEvent,
 } from '../../supabase/functions/_shared/events/service.ts'
+import {
+  createGroup,
+  moveMember,
+} from '../../supabase/functions/_shared/groups/service.ts'
 import {
   actorOf,
   createAuthUser,
@@ -437,6 +442,125 @@ describe('answers (EVT-04, EVT-05, Q-43, Q-45)', () => {
       'status',
     ])
     expect(card.participantsTruncated).toBe(false)
+  })
+
+  it('limits member event details to their assigned group and retains aggregate summary', async () => {
+    const { actor: officer } = await roleActor('officer')
+    const { actor: member, user: memberUser } = await roleActor('member')
+    const { user: teammate } = await roleActor('member')
+    const { user: otherMember } = await roleActor('member')
+    const event = await createEvent(deps, officer, fields())
+    for (const actor of [
+      member,
+      await actorOf(db, teammate.id),
+      await actorOf(db, otherMember.id),
+    ]) {
+      await respondToEvent(deps, actor, { eventId: event.id, answer: 'yes' })
+    }
+    const { groups } = await createGroup(deps, officer, {
+      eventId: event.id,
+      name: 'Первая группа',
+    })
+    const ownGroupId = groups[0]!.id
+    const { groups: groupsWithOther } = await createGroup(deps, officer, {
+      eventId: event.id,
+      name: 'Вторая группа',
+    })
+    await moveMember(deps, officer, {
+      eventId: event.id,
+      userId: memberUser.id,
+      groupId: ownGroupId,
+    })
+    await moveMember(deps, officer, {
+      eventId: event.id,
+      userId: teammate.id,
+      groupId: ownGroupId,
+    })
+    await moveMember(deps, officer, {
+      eventId: event.id,
+      userId: otherMember.id,
+      groupId: groupsWithOther[1]!.id,
+    })
+
+    const memberCard = await getEvent(deps, member, { id: event.id })
+    expect(memberCard.myAnswer).toBe('yes')
+    expect(memberCard.counts.yes).toBe(3)
+    expect(memberCard.groups.map((group) => group.id)).toEqual([ownGroupId])
+    expect(
+      memberCard.groups[0]!.members.map((person) => person.userId),
+    ).toEqual([memberUser.id, teammate.id])
+    expect(memberCard.participants.map((person) => person.id)).toEqual([
+      memberUser.id,
+      teammate.id,
+    ])
+
+    const officerCard = await getEvent(deps, officer, { id: event.id })
+    expect(officerCard.groups).toHaveLength(2)
+    expect(officerCard.participants).toHaveLength(4)
+  })
+
+  it('limits member event details for a closed event without changing officer history', async () => {
+    const { actor: officer } = await roleActor('officer')
+    const { actor: member, user: memberUser } = await roleActor('member')
+    const { user: teammate } = await roleActor('member')
+    const { user: otherMember } = await roleActor('member')
+    const { actor: admin } = await roleActor('admin')
+    const event = await createEvent(deps, officer, fields())
+    const { groups } = await createGroup(deps, officer, {
+      eventId: event.id,
+      name: 'Моя группа',
+    })
+    const ownGroupId = groups[0]!.id
+    const { groups: allGroups } = await createGroup(deps, officer, {
+      eventId: event.id,
+      name: 'Другая группа',
+    })
+    for (const userId of [memberUser.id, teammate.id]) {
+      await moveMember(deps, officer, {
+        eventId: event.id,
+        userId,
+        groupId: ownGroupId,
+      })
+    }
+    await moveMember(deps, officer, {
+      eventId: event.id,
+      userId: otherMember.id,
+      groupId: allGroups[1]!.id,
+    })
+    await closeEvent(deps, officer, { id: event.id })
+
+    const memberCard = await getEvent(deps, member, { id: event.id })
+    expect(memberCard.groups.map((group) => group.id)).toEqual([ownGroupId])
+    expect(memberCard.participants.map((person) => person.id)).toEqual([
+      memberUser.id,
+      teammate.id,
+    ])
+    const adminCard = await getEvent(deps, admin, { id: event.id })
+    expect(adminCard.groups).toHaveLength(2)
+    expect(adminCard.participants).toHaveLength(5)
+  })
+
+  it('returns no groups or participants for an unassigned member', async () => {
+    const { actor: officer } = await roleActor('officer')
+    const { actor: member } = await roleActor('member')
+    const { user: otherUser } = await roleActor('member')
+    const event = await createEvent(deps, officer, fields())
+    await respondToEvent(deps, member, { eventId: event.id, answer: 'maybe' })
+    const { groups } = await createGroup(deps, officer, {
+      eventId: event.id,
+      name: 'Участники группы',
+    })
+    await moveMember(deps, officer, {
+      eventId: event.id,
+      userId: otherUser.id,
+      groupId: groups[0]!.id,
+    })
+
+    const card = await getEvent(deps, member, { id: event.id })
+    expect(card.myAnswer).toBe('maybe')
+    expect(card.counts.maybe).toBe(1)
+    expect(card.groups).toEqual([])
+    expect(card.participants).toEqual([])
   })
 })
 

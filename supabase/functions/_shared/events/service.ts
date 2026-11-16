@@ -265,10 +265,27 @@ async function loadEventDetails(
     eventGroups(deps.db, id),
   ])
   const role = viewer.profile.access_role
+  const canViewFullRoster = (EVENT_MANAGERS as readonly string[]).includes(role)
+  const ownGroup = canViewFullRoster
+    ? null
+    : (groups.find((group) =>
+        group.members.some((member) => member.userId === viewer.userId),
+      ) ?? null)
+  const visibleGroups = canViewFullRoster ? groups : ownGroup ? [ownGroup] : []
+  const visibleMemberIds = new Set(
+    visibleGroups.flatMap((group) =>
+      group.members.map((member) => member.userId),
+    ),
+  )
   return {
     ...summary!,
-    ...people,
-    groups,
+    participants: canViewFullRoster
+      ? people.participants
+      : people.participants.filter((person) => visibleMemberIds.has(person.id)),
+    participantsTruncated: canViewFullRoster
+      ? people.participantsTruncated
+      : false,
+    groups: visibleGroups,
     canManageGroups:
       !closed && (EVENT_MANAGERS as readonly string[]).includes(role),
     canClose: !closed && canManageEvent(viewer, row),

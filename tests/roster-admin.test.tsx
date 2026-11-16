@@ -192,7 +192,7 @@ describe('roster page', () => {
     )
   })
 
-  it('lets an officer restore a reader but not block (ACL-03, ADM-09)', async () => {
+  it('lets an officer restore a reader (ACL-06, ADM-09)', async () => {
     routes['accounts/restore-reader'] = () => ({
       userId: 'r1',
       role: 'member',
@@ -200,10 +200,6 @@ describe('roster page', () => {
     })
     await renderApp({ role: 'officer', path: '/roster' })
     await screen.findByRole('heading', { name: 'Альфа' })
-    expect(
-      screen.queryByRole('button', { name: /^Действия с участником/ }),
-    ).toBeNull()
-
     await openReaders()
     fireEvent.click(
       await screen.findByRole('button', { name: 'Восстановить в клане' }),
@@ -221,6 +217,40 @@ describe('roster page', () => {
       }),
     )
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+  })
+
+  it('lets an officer assign only ordinary members as readers after confirmation (ROS-07)', async () => {
+    routes['accounts/set-role'] = () => ({
+      userId: 'm2',
+      role: 'reader',
+      joinedOn: null,
+    })
+    await renderApp({ role: 'officer', path: '/roster' })
+    await screen.findByRole('heading', { name: 'Альфа' })
+    const buttons = screen.getAllByRole('button', {
+      name: /^Действия с участником/,
+    })
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]!.closest('li')).toHaveTextContent('Бета')
+
+    fireEvent.keyDown(buttons[0]!, { key: 'Enter' })
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'Присвоить статус «Чтец»' }),
+    )
+    const dialog = await screen.findByRole('alertdialog')
+    expect(callApi).not.toHaveBeenCalledWith(
+      'accounts/set-role',
+      expect.anything(),
+    )
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Присвоить «Чтец»' }),
+    )
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('accounts/set-role', {
+        userId: 'm2',
+        role: 'reader',
+      }),
+    )
   })
 
   it('lets an admin block only plain members after confirmation (ROS-07)', async () => {

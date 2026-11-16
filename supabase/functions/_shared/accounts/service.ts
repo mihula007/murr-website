@@ -394,7 +394,8 @@ async function applyRole(
 }
 
 /**
- * Смена роли и блокировка (перевод в чтеца) администратором (ADM-04, ADM-08).
+ * Смена роли и блокировка (перевод в чтеца) администратором; офицер может
+ * переводить только обычного члена в чтеца (ROS-07).
  * Основного и последнего администратора понизить нельзя (ACL-07, ADM-06);
  * роль кандидата с активной заявкой меняется только решением по заявке.
  * Та же роль — без изменений и без аудита.
@@ -404,7 +405,7 @@ export async function setRole(
   actor: Actor,
   body: unknown,
 ): Promise<RoleChangeResult> {
-  const admin = requireRole(actor, ['admin'])
+  const manager = requireRole(actor, ['officer', 'admin'])
   const { userId, role } = parseBody(setRoleSchema, body)
 
   return withTransaction(deps.db, async (tx) => {
@@ -419,6 +420,12 @@ export async function setRole(
       throw new ApiError('state_conflict')
     }
     const previousRole = target.access_role as AccessRole
+    if (
+      manager.profile.access_role !== 'admin' &&
+      (previousRole !== 'member' || role !== 'reader')
+    ) {
+      throw new ApiError('forbidden')
+    }
     if (previousRole === role) {
       return { userId, role, joinedOn: target.joined_on }
     }
@@ -436,7 +443,7 @@ export async function setRole(
     return applyRole(
       tx,
       deps,
-      admin,
+      manager,
       target,
       role,
       role === 'reader' ? ROLE_AUDIT.blocked : ROLE_AUDIT.changed,

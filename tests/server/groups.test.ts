@@ -129,7 +129,15 @@ describe('groups: access (GRP, ACL)', () => {
 
   it('shows groups and management flags in event details', async () => {
     const { officer, event, a } = await setup()
-    await createGroup(deps, officer.actor, { eventId: event.id, name: 'Пати' })
+    const { groups } = await createGroup(deps, officer.actor, {
+      eventId: event.id,
+      name: 'Пати',
+    })
+    await moveMember(deps, officer.actor, {
+      eventId: event.id,
+      userId: a.user.id,
+      groupId: groups[0]!.id,
+    })
     const asMember = await getEvent(deps, a.actor, { id: event.id })
     expect(asMember.groups).toHaveLength(1)
     expect(asMember.canManageGroups).toBe(false)
@@ -629,12 +637,12 @@ describe('events/close (EVT-08, ACT-01–03)', () => {
       .set({ game_nickname: 'Новый', class_id: 2 })
       .where('id', '=', a.user.id)
       .execute()
-    const details = await getEvent(deps, a.actor, { id: event.id })
+    const details = await getEvent(deps, officer.actor, { id: event.id })
     const row = details.participants.find((p) => p.id === a.user.id)
     expect(row).toMatchObject({ gameNickname: a.user.nickname, classId: 1 })
     // Вступивший позже не появляется в итоге задним числом (ACT-02).
     const late = await roleActor('member')
-    const again = await getEvent(deps, late.actor, { id: event.id })
+    const again = await getEvent(deps, officer.actor, { id: event.id })
     expect(again.participants.some((p) => p.id === late.user.id)).toBe(false)
   })
 

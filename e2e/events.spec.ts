@@ -315,6 +315,151 @@ test('E2E-12: новые события снимаются с просмотра
   ).toHaveText(String(activeCount))
 })
 
+test('member sees only their assigned group while managers retain the full event roster', async ({
+  page,
+  browser,
+}) => {
+  const [officer, member, teammate, other, unassigned] = await Promise.all([
+    createMember('officer'),
+    createMember('member'),
+    createMember('member'),
+    createMember('member'),
+    createMember('member'),
+  ])
+  const tokens = await Promise.all(
+    [officer, member, teammate, other, unassigned].map((person) =>
+      accessToken(person.email),
+    ),
+  )
+  const officerToken = tokens[0]!
+  const memberToken = tokens[1]!
+  const teammateToken = tokens[2]!
+  const otherToken = tokens[3]!
+  const unassignedToken = tokens[4]!
+  const created = await callApi('events/create', officerToken, {
+    title: `E2E видимость ${Date.now()}`,
+    type: 'pve',
+    date: moscowDate(3),
+    time: '20:00',
+    description: 'Проверка видимости групп',
+  })
+  expect(created.status).toBe(200)
+  const id = created.body.id as string
+  for (const [token, answer] of [
+    [memberToken, 'yes'],
+    [teammateToken, 'no'],
+    [otherToken, 'maybe'],
+    [unassignedToken, 'yes'],
+  ] as const) {
+    expect(
+      (await callApi('events/respond', token, { eventId: id, answer })).status,
+    ).toBe(200)
+  }
+  const first = await callApi('groups/create', officerToken, {
+    eventId: id,
+    name: 'Группа члена',
+  })
+  const second = await callApi('groups/create', officerToken, {
+    eventId: id,
+    name: 'Чужая группа',
+  })
+  expect(first.status).toBe(200)
+  expect(second.status).toBe(200)
+  const ownGroupId = (first.body.groups as { id: string }[])[0]!.id
+  const otherGroupId = (second.body.groups as { id: string }[])[1]!.id
+  for (const person of [member, teammate]) {
+    expect(
+      (
+        await callApi('groups/move', officerToken, {
+          eventId: id,
+          userId: person.id,
+          groupId: ownGroupId,
+        })
+      ).status,
+    ).toBe(200)
+  }
+  expect(
+    (
+      await callApi('groups/move', officerToken, {
+        eventId: id,
+        userId: other.id,
+        groupId: otherGroupId,
+      })
+    ).status,
+  ).toBe(200)
+
+  const memberDetail = await callApi('events/get', memberToken, { id })
+  expect(memberDetail.status).toBe(200)
+  const memberDetailBody = memberDetail.body as {
+    myAnswer: string
+    counts: { yes: number; maybe: number; no: number }
+    groups: { id: string }[]
+    participants: { id: string }[]
+  }
+  expect(memberDetailBody.myAnswer).toBe('yes')
+  expect(memberDetailBody.counts).toMatchObject({ yes: 2, maybe: 1, no: 1 })
+  expect(memberDetailBody.groups).toHaveLength(1)
+  expect(memberDetailBody.groups[0]!.id).toBe(ownGroupId)
+  expect(
+    memberDetailBody.participants
+      .map((person: { id: string }) => person.id)
+      .sort(),
+  ).toEqual([member.id, teammate.id].sort())
+
+  const memberPage = await signedInPage(browser, member.email)
+  await memberPage.goto(`./#/events/${id}`)
+  await expect(
+    memberPage.getByRole('heading', { name: 'Ваша группа' }),
+  ).toBeVisible()
+  await expect(memberPage.getByText('Группа члена')).toBeVisible()
+  await expect(memberPage.getByText(member.nickname)).toBeVisible()
+  await expect(memberPage.getByText(teammate.nickname)).toBeVisible()
+  await expect(memberPage.getByText(other.nickname)).toHaveCount(0)
+  await expect(
+    memberPage.getByRole('tab', { name: /Не отметились/ }),
+  ).toHaveCount(0)
+  expect(await hasHorizontalScroll(memberPage)).toBe(false)
+
+  const unassignedPage = await signedInPage(browser, unassigned.email)
+  await unassignedPage.goto(`./#/events/${id}`)
+  await expect(
+    unassignedPage.getByText('Вы пока не распределены по группе'),
+  ).toBeVisible()
+  await expect(
+    unassignedPage.getByRole('tab', { name: /Не отметились/ }),
+  ).toHaveCount(0)
+
+  await signInUi(page, officer.email)
+  await expectSignedIn(page)
+  await page.goto(`./#/events/${id}`)
+  await expect(page.getByRole('heading', { name: 'Группы' })).toBeVisible()
+  await expect(page.getByText('Группа члена')).toBeVisible()
+  await expect(page.getByText('Чужая группа')).toBeVisible()
+  await expect(page.getByRole('tab', { name: /Придут/ })).toBeVisible()
+
+  expect((await callApi('events/close', officerToken, { id })).status).toBe(200)
+  const memberArchive = await callApi('events/get', memberToken, { id })
+  const officerArchive = await callApi('events/get', officerToken, { id })
+  const memberArchiveBody = memberArchive.body as {
+    groups: { id: string }[]
+    participants: { id: string }[]
+  }
+  const officerArchiveBody = officerArchive.body as {
+    groups: { id: string }[]
+    participants: { id: string }[]
+  }
+  expect(memberArchiveBody.groups.map((group) => group.id)).toEqual([
+    ownGroupId,
+  ])
+  expect(
+    memberArchiveBody.participants.map((person) => person.id).sort(),
+  ).toEqual([member.id, teammate.id].sort())
+  expect(officerArchiveBody.groups).toHaveLength(2)
+  expect(officerArchiveBody.participants).toHaveLength(5)
+  await memberPage.close()
+  await unassignedPage.close()
+})
+
 test('прямые запрещённые вызовы событий отклоняются', async () => {
   test.skip(
     test.info().project.name !== 'chromium',

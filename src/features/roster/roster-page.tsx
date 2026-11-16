@@ -124,7 +124,7 @@ function CharacterStatsSummary({ member }: { member: RosterMember }) {
   )
 }
 
-/** Карточка участника; действие администратора — в меню «⋯» (ROS-07). */
+/** Карточка участника; действие офицера и администратора — в меню «⋯» (ROS-07). */
 function MemberCard({ member, isCurrentUser, onBlock }: MemberCardProps) {
   return (
     <div
@@ -187,13 +187,13 @@ function MemberCard({ member, isCurrentUser, onBlock }: MemberCardProps) {
 function MembersList({
   classId,
   search,
-  isAdmin,
+  canAssignReader,
   userId,
   onBlock,
 }: {
   classId: number | null
   search: string
-  isAdmin: boolean
+  canAssignReader: boolean
   userId: string | undefined
   onBlock: (member: RosterMember) => void
 }) {
@@ -235,7 +235,9 @@ function MembersList({
               member={member}
               isCurrentUser={member.id === userId}
               onBlock={
-                isAdmin && member.role === 'member' && member.id !== userId
+                canAssignReader &&
+                member.role === 'member' &&
+                member.id !== userId
                   ? () => onBlock(member)
                   : undefined
               }
@@ -264,7 +266,6 @@ export function RosterPage({
   const setRole = useSetRole()
   const [blocking, setBlocking] = useState<RosterMember | null>(null)
   const [search, setSearch] = useState('')
-  const isAdmin = role === 'admin'
   const canRestore = role === 'officer' || role === 'admin'
   const showReaders = canRestore && view === 'readers'
   const go = (search: RosterSearch) =>
@@ -352,7 +353,7 @@ export function RosterPage({
           <MembersList
             classId={classId ?? null}
             search={search}
-            isAdmin={isAdmin}
+            canAssignReader={canRestore}
             userId={userId}
             onBlock={setBlocking}
           />

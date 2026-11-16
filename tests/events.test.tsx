@@ -281,7 +281,7 @@ describe('answers (EVT-04, EVT-05, Q-43)', () => {
 describe('event page (EVT-06)', () => {
   it('lists participants by answer', async () => {
     respond({ 'events/get': () => details() })
-    await renderApp({ role: 'member', path: `/events/${EVENT_ID}` })
+    await renderApp({ role: 'officer', path: `/events/${EVENT_ID}` })
     expect(
       await screen.findByRole('list', { name: 'Придут' }),
     ).toHaveTextContent('Анна')
@@ -289,6 +289,68 @@ describe('event page (EVT-06)', () => {
     expect(
       await screen.findByRole('list', { name: 'Не отметились' }),
     ).toHaveTextContent('Борис')
+  })
+
+  it('shows only the assigned group and hides the attendee pool for a member', async () => {
+    respond({
+      'events/get': () =>
+        details({
+          myAnswer: 'yes',
+          participants: [
+            {
+              id: 'p1',
+              gameNickname: 'Анна',
+              classId: 8,
+              className: 'Воин',
+              avatarUrl: null,
+              answer: 'yes',
+              status: null,
+            },
+            {
+              id: 'p2',
+              gameNickname: 'Борис',
+              classId: 7,
+              className: 'Маг',
+              avatarUrl: null,
+              answer: 'no',
+              status: null,
+            },
+          ],
+          groups: [
+            {
+              id: 'g1',
+              name: 'Пати Альфа',
+              members: [
+                { userId: 'p1', isLeader: false },
+                { userId: 'p2', isLeader: false },
+              ],
+            },
+          ],
+        }),
+    })
+    await renderApp({ role: 'member', path: `/events/${EVENT_ID}` })
+
+    expect(
+      await screen.findByRole('heading', { name: 'Ваша группа' }),
+    ).toBeVisible()
+    expect(screen.getByText('Пати Альфа')).toBeVisible()
+    expect(screen.getByText('Анна')).toBeVisible()
+    expect(screen.getByText('Борис')).toBeVisible()
+    expect(screen.queryByRole('list', { name: 'Придут' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: /Не отметились/ })).toBeNull()
+  })
+
+  it('shows the unassigned message for a member without a group', async () => {
+    respond({
+      'events/get': () => details({ participants: [], groups: [] }),
+    })
+    await renderApp({ role: 'member', path: `/events/${EVENT_ID}` })
+
+    expect(
+      await screen.findByText('Вы пока не распределены по группе'),
+    ).toBeVisible()
+    expect(screen.queryByRole('list', { name: 'Придут' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: /Не отметились/ })).toBeNull()
   })
 
   it('titles the page with the event name and spells out the start', async () => {
