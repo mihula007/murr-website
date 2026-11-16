@@ -144,6 +144,7 @@ export const accountRepository = {
       .selectFrom('app.profiles as p')
       .innerJoin('auth.users as u', 'u.id', 'p.id')
       .select([
+        'p.class_id',
         'p.city',
         'p.birth_date',
         'p.about',

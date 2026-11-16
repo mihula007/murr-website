@@ -15,6 +15,8 @@ import type {
   RoleChangeResult,
   SetPasswordRequest,
   SetPasswordResult,
+  SetProfileRequest,
+  SetProfileResult,
   SetRoleRequest,
 } from '@contracts/accounts'
 import type {
@@ -24,6 +26,7 @@ import type {
 import type { AuditListResponse } from '@contracts/audit'
 import { meQueryKey } from '@/features/account/use-me'
 import { useSession } from '@/features/auth/session'
+import { eventKeys } from '@/features/events/query-keys'
 import { rosterKeys } from '@/features/roster/query-keys'
 import { callApi } from '@/lib/supabase/api'
 import {
@@ -114,6 +117,32 @@ export function useSetPassword() {
     mutationFn: (input: SetPasswordRequest) =>
       callApi<SetPasswordResult>('accounts/set-password', input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: auditKeys.all }),
+  })
+}
+
+/** Изменение ника и класса в карточке аккаунта (ADM-16). */
+export function useSetAccountProfile() {
+  const queryClient = useQueryClient()
+  const currentUserId = useSession().session?.user.id
+  return useMutation({
+    mutationFn: (input: SetProfileRequest) =>
+      callApi<SetProfileResult>('accounts/set-profile', input),
+    onSuccess: async (result) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: accountKeys.lists }),
+        queryClient.invalidateQueries({
+          queryKey: accountKeys.card(result.userId),
+        }),
+        queryClient.invalidateQueries({ queryKey: rosterKeys.all }),
+        queryClient.invalidateQueries({ queryKey: eventKeys.all }),
+        queryClient.invalidateQueries({ queryKey: auditKeys.all }),
+        result.userId === currentUserId
+          ? queryClient.invalidateQueries({
+              queryKey: meQueryKey(currentUserId),
+            })
+          : null,
+      ])
+    },
   })
 }
 

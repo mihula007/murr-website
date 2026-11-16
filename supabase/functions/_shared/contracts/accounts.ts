@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { AccessRole, ApplicationStatus } from './account.ts'
 import type { CharacterStatFields } from './character-stats.ts'
 import { pageRequestShape, type Page } from './paging.ts'
+import { classIdSchema, gameNicknameSchema } from './account.ts'
 
 export const ACCESS_ROLES = [
   'applicant',
@@ -82,9 +83,23 @@ export type AccountsListResponse = Page<AccountListItem> & {
 export const accountIdSchema = z.object({ userId: z.guid('not_found') })
 export type AccountIdRequest = z.input<typeof accountIdSchema>
 
+/** Правка ника и класса администратором (ADM-16). */
+export const setProfileSchema = z.object({
+  userId: z.guid('not_found'),
+  gameNickname: gameNicknameSchema,
+  classId: classIdSchema,
+})
+export type SetProfileRequest = z.input<typeof setProfileSchema>
+export type SetProfileResult = {
+  userId: string
+  gameNickname: string
+  classId: number
+}
+
 /** Раскрытая карточка аккаунта (ADM-03): все данные, только администратору. */
 export type AccountCard = AccountListItem &
   CharacterStatFields & {
+    classId: number
     city: string | null
     birthDate: string | null
     about: string | null

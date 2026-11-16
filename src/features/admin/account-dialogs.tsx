@@ -1,16 +1,23 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useForm, useStore } from '@tanstack/react-form'
 import { z } from 'zod'
 import type { AccountListItem } from '@contracts/accounts'
-import { ROLE_LABELS } from '@/app/access'
 import { focusFirstInvalid } from '@/components/form/focus-first-invalid'
 import { FormError } from '@/components/form/form-error'
 import { FormField, fieldError } from '@/components/form/form-field'
 import { PasswordInput } from '@/components/form/password-input'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
-import { Avatar } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import {
   Dialog,
   DialogContent,
@@ -28,6 +35,8 @@ import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { formErrorMessage } from '@/lib/errors'
 import { formatDate, formatDateMsk } from '@/lib/format-date'
 import { useAccountCard, useDeleteAccount, useSetPassword } from './api'
+import { AccountProfileFields } from './account-profile-fields'
+import { cn } from '@/lib/utils'
 
 type DialogProps = {
   account: AccountListItem | null
@@ -45,7 +54,17 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 /** Все данные аккаунта для администратора (ADM-03). */
 export function AccountCardDialog({ account, onOpenChange }: DialogProps) {
+  const [profileDirty, setProfileDirty] = useState(false)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [confirmProfileClose, setConfirmProfileClose] = useState(false)
   const card = useAccountCard(account?.id ?? null)
+  const handleOpenChange = (open: boolean) => {
+    if (!open && profileDirty) {
+      setConfirmProfileClose(true)
+      return
+    }
+    onOpenChange(open)
+  }
   let content
   if (card.isPending) {
     content = <LoadingState label="Загружаем карточку…" rows={3} />
@@ -56,29 +75,17 @@ export function AccountCardDialog({ account, onOpenChange }: DialogProps) {
     content = (
       <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(340px,0.82fr)]">
         <div className="grid min-w-0 content-start gap-4">
-          <div className="flex items-center gap-3">
-            <Avatar
-              size="md"
-              name={data.gameNickname}
-              src={data.avatarUrl}
-              alt=""
-            />
-            <div className="grid min-w-0">
-              <strong className="text-lg break-words">
-                {data.gameNickname}
-              </strong>
-              <span className="text-sm text-muted-foreground">
-                {ROLE_LABELS[data.role]}
-                {data.isPrimaryAdmin ? ' · основной' : ''}
-              </span>
-            </div>
-          </div>
+          <AccountProfileFields
+            account={data}
+            onDirtyChange={setProfileDirty}
+            onSavingChange={setProfileSaving}
+            onSaveComplete={() => setConfirmProfileClose(false)}
+          />
           <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-3 max-[520px]:grid-cols-1">
             <Row label="Имя">{data.displayName}</Row>
             <Row label="Email">
               <span className="break-all">{data.email}</span>
             </Row>
-            <Row label="Класс">{data.className}</Row>
             <Row label="Город">{data.city}</Row>
             <Row label="Дата рождения">{formatDate(data.birthDate)}</Row>
             <Row label="Регистрация">{formatDateMsk(data.registeredAt)}</Row>
@@ -124,17 +131,50 @@ export function AccountCardDialog({ account, onOpenChange }: DialogProps) {
     )
   }
   return (
-    <Dialog open={account !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(calc(100vw-28px),980px)] max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Карточка аккаунта</DialogTitle>
-          <DialogDescription>
-            Данные видит только администратор.
-          </DialogDescription>
-        </DialogHeader>
-        {content}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={account !== null} onOpenChange={handleOpenChange}>
+        <DialogContent className="w-[min(calc(100vw-28px),980px)] max-h-[90dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Карточка аккаунта</DialogTitle>
+            <DialogDescription>
+              Данные видит только администратор.
+            </DialogDescription>
+          </DialogHeader>
+          {content}
+        </DialogContent>
+      </Dialog>
+      <AlertDialog
+        open={confirmProfileClose}
+        onOpenChange={setConfirmProfileClose}
+      >
+        <AlertDialogContent>
+          <AlertDialogTitle>Уйти без сохранения?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {profileSaving
+              ? 'Профиль сохраняется. Дождитесь окончания, прежде чем закрыть карточку.'
+              : 'Изменения профиля не сохранены и будут потеряны.'}
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              className={cn(
+                buttonVariants({ variant: 'secondary' }),
+                'text-destructive',
+              )}
+              disabled={profileSaving}
+              onClick={() => {
+                setProfileDirty(false)
+                onOpenChange(false)
+              }}
+            >
+              Уйти без сохранения
+            </AlertDialogAction>
+            <AlertDialogCancel className={buttonVariants()}>
+              Остаться
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 

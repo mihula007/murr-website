@@ -11,6 +11,7 @@ import {
   restoreReader,
   setCharacterStat,
   setCharacterStats,
+  setAccountProfile,
   setPassword,
   setRole,
 } from './accounts/service.ts'
@@ -360,6 +361,8 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       setCharacterStat(deps, actor, body),
     'accounts/set-character-stats': ({ actor, body }) =>
       setCharacterStats(deps, actor, body),
+    'accounts/set-profile': ({ actor, body }) =>
+      setAccountProfile(deps, actor, body),
     'accounts/restore-reader': ({ actor, body }) =>
       restoreReader(deps, actor, body),
     'accounts/get': ({ actor, body }) => getAccount(deps, actor, body),

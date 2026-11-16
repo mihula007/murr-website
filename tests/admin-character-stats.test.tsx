@@ -29,6 +29,7 @@ const account: AccountListItem = {
 
 const card: AccountCard = {
   ...account,
+  classId: 1,
   city: 'Москва',
   birthDate: null,
   about: null,

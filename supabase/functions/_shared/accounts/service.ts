@@ -1,8 +1,13 @@
 import { z } from 'zod'
 import { avatarUrl } from '../account/avatars.ts'
-import { profileRepository, type ProfileUpdate } from '../account/repository.ts'
+import {
+  NICKNAME_CONSTRAINT,
+  profileRepository,
+  type ProfileUpdate,
+} from '../account/repository.ts'
 import type { AppDeps } from '../app.ts'
 import { applicationRepository } from '../applications/repository.ts'
+import { catalogRepository } from '../catalog/repository.ts'
 import { auditPerson, writeAudit } from '../audit/service.ts'
 import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
 import { userRepository } from '../auth/repository.ts'
@@ -12,12 +17,15 @@ import {
   accountsListSchema,
   restoreReaderSchema,
   setPasswordSchema,
+  setProfileSchema,
   setRoleSchema,
   type AccountCard,
   type AccountListItem,
   type AccountsListResponse,
   type RoleChangeResult,
   type SetPasswordResult,
+  type SetProfileRequest,
+  type SetProfileResult,
 } from '../contracts/accounts.ts'
 import {
   CHARACTER_STAT_FIELDS,
@@ -30,6 +38,7 @@ import {
   type SetCharacterStatsResult,
 } from '../contracts/character-stats.ts'
 import { withTransaction, type Executor } from '../db/client.ts'
+import { isUniqueViolation } from '../db/errors.ts'
 import type { ProfileRow } from '../db/schema.ts'
 import { decodeCursor, splitPage } from '../http/cursor.ts'
 import { ApiError } from '../http/errors.ts'
@@ -119,6 +128,7 @@ export async function getAccount(
   }
   return {
     ...accountItem(row),
+    classId: card.class_id,
     city: card.city,
     birthDate: card.birth_date,
     about: card.about,
@@ -131,6 +141,94 @@ export async function getAccount(
     characterStatsSource: card.character_stats_source,
     equipmentLinks: links,
     passwordSet: card.password_set,
+  }
+}
+
+/** Изменение ника и класса любого аккаунта администратором (ADM-16). */
+export async function setAccountProfile(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<SetProfileResult> {
+  const admin = requireRole(actor, ['admin'])
+  const command: SetProfileRequest = parseBody(setProfileSchema, body)
+  try {
+    return await withTransaction(deps.db, async (tx) => {
+      const target = await profileRepository.findByIdForUpdate(
+        tx,
+        command.userId,
+      )
+      if (!target) {
+        throw new ApiError('not_found')
+      }
+      if (await userRepository.deletionPending(tx, command.userId)) {
+        throw new ApiError('state_conflict')
+      }
+      if (!(await catalogRepository.isActiveClass(tx, command.classId))) {
+        throw new ApiError('validation_failed', { classId: 'required' })
+      }
+      if (
+        await profileRepository.nicknameTaken(
+          tx,
+          command.gameNickname,
+          command.userId,
+        )
+      ) {
+        throw new ApiError('validation_failed', {
+          gameNickname: 'nickname_taken',
+        })
+      }
+
+      const changes: ProfileUpdate = {}
+      const changedFields: string[] = []
+      if (command.gameNickname !== target.game_nickname) {
+        changes.game_nickname = command.gameNickname
+        changedFields.push('game_nickname')
+      }
+      if (command.classId !== target.class_id) {
+        changes.class_id = command.classId
+        changedFields.push('class_id')
+      }
+      if (changedFields.length > 0) {
+        await profileRepository.update(tx, target.id, {
+          ...changes,
+          updated_at: deps.now().toISOString(),
+        })
+        const user = await userRepository.findById(tx, target.id)
+        await writeAudit(tx, {
+          category: 'profiles',
+          action: 'profile_updated',
+          summary: 'Изменение профиля',
+          actor: auditPerson(admin),
+          target: {
+            kind: 'profile',
+            id: target.id,
+            user: {
+              id: target.id,
+              role: target.access_role as AccessRole,
+              nickname: command.gameNickname,
+              email: user?.email ?? null,
+            },
+          },
+          details: {
+            user_id: target.id,
+            changed_fields: changedFields,
+          },
+        })
+      }
+      return {
+        userId: target.id,
+        gameNickname: command.gameNickname,
+        classId: command.classId,
+      }
+    })
+  } catch (error) {
+    if (isUniqueViolation(error, NICKNAME_CONSTRAINT)) {
+      throw new ApiError('validation_failed', {
+        gameNickname: 'nickname_taken',
+      })
+    }
+    throw error
   }
 }
 

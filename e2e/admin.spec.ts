@@ -33,6 +33,7 @@ test('ADM: поиск, карточка, журнал и безвозвратн�
     createMember('officer'),
     createMember('officer'),
   ])
+  const changedNickname = `M${Date.now().toString().slice(-8)}`
   // Событие удаляемого автора остаётся с подписью «Пользователь удалён».
   const title = `E2E удаление ${Date.now()}`
   const created = await callApi(
@@ -73,18 +74,52 @@ test('ADM: поиск, карточка, журнал и безвозвратн�
   const card = page.getByRole('dialog', { name: 'Карточка аккаунта' })
   await expect(card.getByText(target.email)).toBeVisible()
   await expect(card.getByText('Москва')).toBeVisible()
+  await card.getByRole('button', { name: 'Изменить профиль' }).click()
+  await card.getByLabel('Игровой ник').fill(changedNickname)
+  await card.getByRole('combobox', { name: 'Класс' }).click()
+  await page.getByRole('option', { name: 'Маг' }).click()
+  await card.getByRole('button', { name: 'Сохранить' }).click()
+  await expect(card.locator('strong')).toHaveText(changedNickname)
+  await expect(card.getByText('Маг', { exact: true })).toBeVisible()
+
+  const profileAudit = await sql(
+    (db) => db<{ details: { changed_fields: string[] } }[]>`
+      select details from app.audit_log
+      where target_user_id = ${target.id} and action = 'profile_updated'
+      order by created_at desc, id desc limit 1`,
+  )
+  expect(profileAudit[0]?.details.changed_fields).toEqual([
+    'game_nickname',
+    'class_id',
+  ])
+
   await page.keyboard.press('Escape')
+  await page
+    .getByLabel('Поиск по нику, имени, email и классу')
+    .fill(changedNickname)
+  await expect(
+    page.getByRole('row', { name: new RegExp(changedNickname) }),
+  ).toBeVisible()
+
+  await page.setViewportSize({ width: 375, height: 812 })
+  await page.getByRole('button', { name: 'Карточка' }).click()
+  const narrowCard = page.getByRole('dialog', { name: 'Карточка аккаунта' })
+  await narrowCard.getByRole('button', { name: 'Изменить профиль' }).click()
+  expect(await hasHorizontalScroll(page)).toBe(false)
+  await narrowCard.getByRole('button', { name: 'Отмена' }).click()
+  await page.keyboard.press('Escape')
+  await page.setViewportSize({ width: 1280, height: 800 })
   expect(await hasHorizontalScroll(page)).toBe(false)
 
   // Удаление с подтверждением ником (Q-73).
   await page
-    .getByRole('button', { name: `Действия с ${target.nickname}` })
+    .getByRole('button', { name: `Действия с ${changedNickname}` })
     .click()
   await page.getByRole('menuitem', { name: 'Удалить навсегда' }).click()
   const dialog = page.getByRole('dialog')
   await dialog
-    .getByLabel(`Введите ник «${target.nickname}» для подтверждения`)
-    .fill(target.nickname)
+    .getByLabel(`Введите ник «${changedNickname}» для подтверждения`)
+    .fill(changedNickname)
   await dialog.getByRole('button', { name: 'Удалить навсегда' }).click()
   await expect(dialog).toBeHidden({ timeout: 30_000 })
   await expect(page.getByText('Аккаунтов: 0', { exact: true })).toBeVisible()
@@ -107,12 +142,12 @@ test('ADM: поиск, карточка, журнал и безвозвратн�
 
   // Журнал: запись удаления с ником и email (ADM-10, ADM-11).
   await page.goto('./#/admin?tab=audit')
-  await page.getByLabel('Поиск по исполнителю и событию').fill(target.nickname)
+  await page.getByLabel('Поиск по исполнителю и событию').fill(changedNickname)
   const entry = page
     .getByRole('article')
     .filter({ hasText: 'Безвозвратное удаление пользователя' })
     .filter({ hasText: target.email })
   await expect(entry).toHaveCount(1)
-  await expect(entry.getByText(new RegExp(target.nickname))).toBeVisible()
+  await expect(entry.getByText(new RegExp(changedNickname))).toBeVisible()
   expect(await hasHorizontalScroll(page)).toBe(false)
 })

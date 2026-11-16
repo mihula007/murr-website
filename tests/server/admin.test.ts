@@ -4,6 +4,7 @@ import {
   getAccount,
   listAccounts,
   setPassword,
+  setAccountProfile,
 } from '../../supabase/functions/_shared/accounts/service.ts'
 import type { AppDeps } from '../../supabase/functions/_shared/app.ts'
 import { applicationRepository } from '../../supabase/functions/_shared/applications/repository.ts'
@@ -190,6 +191,7 @@ describe('admin: account card (ADM-03)', () => {
     expect(card).toMatchObject({
       id: target.user.id,
       email: target.user.email,
+      classId: 1,
       city: 'Казань',
       birthDate: '1990-01-02',
       about: 'О себе',
@@ -206,6 +208,241 @@ describe('admin: account card (ADM-03)', () => {
       }),
       'not_found',
     )
+  })
+})
+
+describe('admin: edit nickname and class (ADM-16)', () => {
+  it('allows admin to change nickname and class for another account', async () => {
+    const admin = await roleActor('admin')
+    const target = await roleActor('member')
+
+    const result = await setAccountProfile(deps, admin.actor, {
+      userId: target.user.id,
+      gameNickname: 'Новыйник',
+      classId: 2,
+    })
+
+    expect(result).toEqual({
+      userId: target.user.id,
+      gameNickname: 'Новыйник',
+      classId: 2,
+    })
+    await expect(
+      db
+        .selectFrom('app.profiles')
+        .select(['game_nickname', 'class_id'])
+        .where('id', '=', target.user.id)
+        .executeTakeFirstOrThrow(),
+    ).resolves.toEqual({ game_nickname: 'Новыйник', class_id: 2 })
+  })
+
+  it('allows admin to change own and another admin account', async () => {
+    const admin = await roleActor('admin')
+    const anotherAdmin = await roleActor('admin')
+
+    await setAccountProfile(deps, admin.actor, {
+      userId: admin.user.id,
+      gameNickname: 'АдминСвой',
+      classId: 2,
+    })
+    await setAccountProfile(deps, admin.actor, {
+      userId: anotherAdmin.user.id,
+      gameNickname: 'ДругАдм',
+      classId: 3,
+    })
+
+    const saved = await db
+      .selectFrom('app.profiles')
+      .select(['game_nickname', 'class_id'])
+      .where('id', 'in', [admin.user.id, anotherAdmin.user.id])
+      .execute()
+    expect(saved).toContainEqual({ game_nickname: 'АдминСвой', class_id: 2 })
+    expect(saved).toContainEqual({
+      game_nickname: 'ДругАдм',
+      class_id: 3,
+    })
+  })
+
+  it('rejects duplicate nickname and inactive class without changing profile', async () => {
+    const admin = await roleActor('admin')
+    const target = await roleActor('member')
+    const other = await roleActor('member')
+
+    await expect(
+      setAccountProfile(deps, admin.actor, {
+        userId: target.user.id,
+        gameNickname: other.user.nickname,
+        classId: 2,
+      }),
+    ).rejects.toMatchObject({
+      code: 'validation_failed',
+      fields: { gameNickname: 'nickname_taken' },
+    })
+    await expect(
+      setAccountProfile(deps, admin.actor, {
+        userId: target.user.id,
+        gameNickname: 'Новый2',
+        classId: 9999,
+      }),
+    ).rejects.toMatchObject({
+      code: 'validation_failed',
+      fields: { classId: 'required' },
+    })
+
+    await expect(
+      db
+        .selectFrom('app.profiles')
+        .select(['game_nickname', 'class_id'])
+        .where('id', '=', target.user.id)
+        .executeTakeFirstOrThrow(),
+    ).resolves.toEqual({
+      game_nickname: target.user.nickname,
+      class_id: 1,
+    })
+  })
+
+  it('rejects profile edits by every role except admin', async () => {
+    const target = await roleActor('member')
+    const input = {
+      userId: target.user.id,
+      gameNickname: 'НеАдмин',
+      classId: 2,
+    }
+    for (const [actor, code] of await nonAdmins()) {
+      await rejects(setAccountProfile(deps, actor, input), code)
+    }
+  })
+
+  it('does not update or audit unchanged values', async () => {
+    const admin = await roleActor('admin')
+    const target = await roleActor('member')
+
+    await setAccountProfile(deps, admin.actor, {
+      userId: target.user.id,
+      gameNickname: target.user.nickname,
+      classId: 1,
+    })
+
+    await expect(
+      db
+        .selectFrom('app.audit_log')
+        .select('id')
+        .where('action', '=', 'profile_updated')
+        .execute(),
+    ).resolves.toHaveLength(0)
+  })
+
+  it('records only changed field names without values or notification', async () => {
+    const admin = await roleActor('admin')
+    const target = await roleActor('member')
+    const notificationsBefore = await db
+      .selectFrom('app.user_notifications')
+      .select('id')
+      .where('recipient_id', '=', target.user.id)
+      .execute()
+
+    await setAccountProfile(deps, admin.actor, {
+      userId: target.user.id,
+      gameNickname: 'Новенький',
+      classId: 2,
+    })
+
+    const audit = await db
+      .selectFrom('app.audit_log')
+      .select(['category', 'action', 'summary', 'details'])
+      .where('action', '=', 'profile_updated')
+      .executeTakeFirstOrThrow()
+    expect(audit).toMatchObject({
+      category: 'profiles',
+      action: 'profile_updated',
+      summary: 'Изменение профиля',
+      details: {
+        changed_fields: ['game_nickname', 'class_id'],
+      },
+    })
+    expect(JSON.stringify(audit.details)).not.toContain('Новенький')
+    expect(JSON.stringify(audit.details)).not.toContain(target.user.nickname)
+    await expect(
+      db
+        .selectFrom('app.user_notifications')
+        .select('id')
+        .where('recipient_id', '=', target.user.id)
+        .execute(),
+    ).resolves.toHaveLength(notificationsBefore.length)
+  })
+
+  it('rejects edits while account deletion is pending', async () => {
+    const admin = await roleActor('admin')
+    const target = await roleActor('member')
+    await db
+      .insertInto('app.user_deletions')
+      .values({
+        user_id: target.user.id,
+        requested_by: admin.user.id,
+        nickname: target.user.nickname,
+        email: target.user.email,
+        stage: 'files',
+      })
+      .execute()
+
+    await rejects(
+      setAccountProfile(deps, admin.actor, {
+        userId: target.user.id,
+        gameNickname: 'Новыйник',
+        classId: 2,
+      }),
+      'state_conflict',
+    )
+    const saved = await db
+      .selectFrom('app.profiles')
+      .select('game_nickname')
+      .where('id', '=', target.user.id)
+      .executeTakeFirstOrThrow()
+    expect(saved.game_nickname).toBe(target.user.nickname)
+  })
+
+  it('keeps closed event attendance snapshots unchanged', async () => {
+    const admin = await roleActor('admin')
+    const target = await roleActor('member')
+    const event = await db
+      .insertInto('app.events')
+      .values({
+        title: 'Закрытый архив',
+        event_type: 'pve',
+        description: 'Исторический снимок',
+        starts_at: '2026-11-01T17:00:00Z',
+        created_by: target.user.id,
+        closed_at: '2026-11-01T19:00:00Z',
+        closed_by: admin.user.id,
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow()
+    await db
+      .insertInto('app.event_activity_records')
+      .values({
+        event_id: event.id,
+        user_id: target.user.id,
+        nickname: target.user.nickname,
+        class_id: 1,
+        status: 'visited',
+        group_name: 'Группа 1',
+        is_leader: false,
+      })
+      .execute()
+
+    await setAccountProfile(deps, admin.actor, {
+      userId: target.user.id,
+      gameNickname: 'Новыйник',
+      classId: 2,
+    })
+
+    const snapshot = await db
+      .selectFrom('app.event_activity_records')
+      .select(['nickname', 'class_id'])
+      .where('event_id', '=', event.id)
+      .where('user_id', '=', target.user.id)
+      .executeTakeFirstOrThrow()
+    expect(snapshot).toEqual({ nickname: target.user.nickname, class_id: 1 })
   })
 })
 
