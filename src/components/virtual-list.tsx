@@ -125,8 +125,6 @@ export function useWindowList({
     return () => observer.disconnect()
   }, [element])
 
-  // Проект не использует React Compiler; функции виртуализатора меняются
-  // при каждой отрисовке, и это ожидаемо (правило о мемоизации компилятором).
   // oxlint-disable-next-line react/incompatible-library
   const virtualizer = useWindowVirtualizer({
     count,
@@ -188,6 +186,8 @@ export function useElementList({
   const [element, setScrollElement] = useState<HTMLElement | null>(null)
   const [atBottom, setAtBottom] = useState(true)
 
+  // Проект не использует React Compiler; функции виртуализатора меняются
+  // при каждой отрисовке, и это ожидаемо (правило о мемоизации компилятором).
   // oxlint-disable-next-line react/incompatible-library
   const virtualizer = useVirtualizer({
     count,
@@ -435,9 +435,10 @@ export function ScrollableVirtualList<T>({
   viewportRows,
   gap = 'sm',
 }: ScrollableVirtualListProps<T>) {
-  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(
-    null,
-  )
+  const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null)
+  // Проект не использует React Compiler; функции виртуализатора меняются
+  // при каждой отрисовке, и это ожидаемо (правило о мемоизации компилятором).
+  // oxlint-disable-next-line react/incompatible-library
   const virtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => scrollElement,
@@ -468,12 +469,10 @@ export function ScrollableVirtualList<T>({
   }, [reachedEnd, hasMore, loadingMore, loadError, onLoadMore])
 
   return (
-    <div
+    <section
       ref={setScrollElement}
-      role="region"
       aria-label={`Прокручиваемый список: ${label}`}
       data-viewport-rows={viewportRows}
-      tabIndex={0}
       style={
         {
           '--virtual-height': `calc(${viewportRows} * ${estimateSize}px + ${viewportRows - 1} * ${GAP[gap]}px)`,
@@ -509,7 +508,7 @@ export function ScrollableVirtualList<T>({
         })}
       </ul>
       <LoadMore paging={paging} />
-    </div>
+    </section>
   )
 }
 

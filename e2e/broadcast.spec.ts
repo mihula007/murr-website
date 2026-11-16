@@ -281,12 +281,19 @@ test('BRC-16: excludes a recipient from one announcement only', async ({
     response.url().includes('/broadcasts/recipients'),
   )
   expect(recipientsResponse.ok()).toBe(true)
+  const recipientSummary = page.getByText(/^Получателей по каналам:/)
+  await expect(recipientSummary).toBeVisible()
+  const initialTelegramCountText = (
+    await recipientSummary.textContent()
+  )?.match(/Telegram: (\d+)/)?.[1]
+  expect(initialTelegramCountText).toBeDefined()
+  const initialTelegramCount = Number(initialTelegramCountText)
   await page
     .getByRole('checkbox', { name: `Получит: ${excluded.nickname}` })
     .uncheck()
-  await expect(
-    page.getByText('Получателей по каналам: Telegram: 1'),
-  ).toBeVisible()
+  await expect(recipientSummary).toHaveText(
+    `Получателей по каналам: Telegram: ${initialTelegramCount - 1}`,
+  )
 
   let sendBody: Record<string, unknown> | null = null
   await page.route('**/broadcasts/send', async (route) => {
