@@ -3,8 +3,9 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
-  // Сценарии аккаунта нагружают локальный Supabase в Docker: меньше параллелизма.
-  workers: process.env.CI ? 2 : 1,
+  // Все сценарии пишут в одну локальную БД; последовательность исключает
+  // взаимное влияние тестовых участников и очисток между сценариями.
+  workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
