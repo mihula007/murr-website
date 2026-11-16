@@ -27,7 +27,7 @@
 - More than 50 eligible people: cursor pages remain stable and search finds later names; prove in the recipients service test.
 - One person linked in multiple selected channels: one list row and one unique exclusion, while channel delivery counts change independently; prove in contract/service and UI tests.
 - Eligibility changes after list loading: send still applies active server-side role/link/event/group rules; prove in each affected channel delivery test.
-- All eligible people excluded: send is refused with the existing no-recipients or all-answered reason; prove in the send service test.
+- All eligible people excluded: send is refused with «После исключений получателей не осталось»; a genuinely empty event audience without exclusions keeps the all-answered reason; prove in the send service test.
 - Older callers omit exclusions: send behavior remains unchanged; prove in the schema and send service tests.
 
 ---
@@ -90,10 +90,10 @@
 - Pass exclusions to each channel delivery function; filter by profile ID against each channel's fresh recipient query before sending.
 - Add `excluded_recipients` to `broadcast_sent` audit details as the unique count of excluded profile IDs, without IDs or nicknames.
 
-- [ ] **Step 1: Write failing server tests** proving the excluded person receives nothing through Telegram, VK, and MAX; another selected channel still delivers to a person who is only linked there; all-channel counts exclude the skipped profile; event/group audience rules still apply; all excluded means refusal; and audit stores only the unique count.
+- [ ] **Step 1: Write failing server tests** proving the excluded person receives nothing through Telegram, VK, and MAX; another selected channel still delivers to a person who is only linked there; all-channel counts exclude the skipped profile; event/group audience rules still apply; all excluded means refusal with «После исключений получателей не осталось»; and audit stores only the unique count.
 - [ ] **Step 2: Run the focused channel server tests** with `npm run test:server -- tests/server/telegram-announcements.test.ts tests/server/max.test.ts tests/server/vk.test.ts`; confirm the new cases fail because send ignores exclusions.
 - [ ] **Step 3: Implement optional excluded-ID validation and pass the set to all three delivery functions.** Each channel filters its current recipients by ID immediately before delivery; no caller-provided nickname or channel account ID is trusted.
-- [ ] **Step 4: Refuse when filtering leaves zero recipients across every selected channel**, preserve the existing reason for event audiences whose linked members all answered, and write one audit entry with the number of unique excluded IDs and no member identities.
+- [ ] **Step 4: Refuse when filtering leaves zero recipients across every selected channel** with «После исключений получателей не осталось» when exclusions caused the empty result; preserve the existing all-answered reason when no exclusions caused it. Write one audit entry with the number of unique excluded IDs and no member identities.
 - [ ] **Step 5: Send the form's exclusion IDs**, keep them after a canceled confirmation, and clear them with the form after successful sending.
 - [ ] **Step 6: Run the focused server and component tests** and confirm the new delivery, count, audit, and cancellation cases pass.
 
