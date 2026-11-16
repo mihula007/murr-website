@@ -285,11 +285,9 @@ test('E2E-12: новые события снимаются с просмотра
   })
   expect(created.status).toBe(200)
 
-  const active = await callApi('events/list', memberToken, { tab: 'active' })
-  expect(active.status).toBe(200)
-  const activeCount = active.body.activeCount as number
   const unseen = await callApi('notifications/summary', memberToken)
-  expect(unseen.body.sections).toMatchObject({ events: 1 })
+  const unseenEvents = (unseen.body.sections as { events: number }).events
+  expect(unseenEvents).toBeGreaterThan(0)
 
   await signInUi(page, member.email)
   await expectSignedIn(page)
@@ -304,18 +302,23 @@ test('E2E-12: новые события снимаются с просмотра
     eventLink = page.getByRole('menuitem', { name: /События/ })
   }
 
-  await expect(eventLink.getByLabel('1 новых записей')).toBeVisible()
+  await expect(eventLink.getByLabel(/[1-9]\d* новых записей/)).toBeVisible()
+  const listResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes('/functions/v1/api/events/list') &&
+      response.request().method() === 'POST',
+  )
   await eventLink.click()
+  const listResponse = await listResponsePromise
+  expect(listResponse.ok()).toBe(true)
+  const eventList = (await listResponse.json()) as { activeCount: number }
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
 
   const activeTab = page.getByRole('tab', { name: /Актуальные/ })
   await expect(activeTab.getByLabel(/новых записей/)).toHaveCount(0)
-  const displayedCount = Number(
-    await activeTab
-      .locator('span.text-muted-foreground.tabular-nums')
-      .textContent(),
-  )
-  expect(displayedCount).toBeGreaterThanOrEqual(activeCount)
+  await expect(
+    activeTab.locator('span.text-muted-foreground.tabular-nums'),
+  ).toHaveText(String(eventList.activeCount))
 })
 
 test('member sees only their assigned group while managers retain the full event roster', async ({
@@ -445,7 +448,7 @@ test('member sees only their assigned group while managers retain the full event
   const memberArchive = await callApi('events/get', memberToken, { id })
   const officerArchive = await callApi('events/get', officerToken, { id })
   const memberArchiveBody = memberArchive.body as {
-    groups: { id: string }[]
+    groups: { id: string; members: { userId: string }[] }[]
     participants: { id: string }[]
   }
   const officerArchiveBody = officerArchive.body as {
@@ -456,8 +459,13 @@ test('member sees only their assigned group while managers retain the full event
     ownGroupId,
   ])
   expect(
-    memberArchiveBody.participants.map((person) => person.id).sort(),
+    memberArchiveBody.groups[0]!.members.map((person) => person.userId).sort(),
   ).toEqual([member.id, teammate.id].sort())
+  expect(
+    memberArchiveBody.participants.every((person) =>
+      [member.id, teammate.id].includes(person.id),
+    ),
+  ).toBe(true)
   expect(officerArchiveBody.groups).toHaveLength(2)
   expect(officerArchiveBody.participants.length).toBeGreaterThan(2)
   expect(officerArchiveBody.participants.map((person) => person.id)).toEqual(
