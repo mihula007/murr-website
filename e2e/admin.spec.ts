@@ -75,10 +75,13 @@ test('ADM: поиск, карточка, журнал и безвозвратн�
   await expect(card.getByText(target.email)).toBeVisible()
   await expect(card.getByText('Москва')).toBeVisible()
   await card.getByRole('button', { name: 'Изменить профиль' }).click()
-  await card.getByLabel('Игровой ник').fill(changedNickname)
-  await card.getByRole('combobox', { name: 'Класс' }).click()
+  const profile = card.getByRole('region', {
+    name: 'Изменение ника и класса',
+  })
+  await profile.getByLabel('Игровой ник').fill(changedNickname)
+  await profile.getByRole('combobox', { name: 'Класс' }).click()
   await page.getByRole('option', { name: 'Маг' }).click()
-  await card.getByRole('button', { name: 'Сохранить' }).click()
+  await profile.getByRole('button', { name: 'Сохранить' }).click()
   await expect(card.locator('strong')).toHaveText(changedNickname)
   await expect(card.getByText('Маг', { exact: true })).toBeVisible()
 
