@@ -412,8 +412,9 @@ test('member sees only their assigned group while managers retain the full event
     memberPage.getByRole('heading', { name: 'Ваша группа' }),
   ).toBeVisible()
   await expect(memberPage.getByText('Группа члена')).toBeVisible()
-  await expect(memberPage.getByText(member.nickname)).toBeVisible()
-  await expect(memberPage.getByText(teammate.nickname)).toBeVisible()
+  const ownGroup = memberPage.getByRole('list', { name: 'Ваша группа' })
+  await expect(ownGroup.getByText(member.nickname)).toBeVisible()
+  await expect(ownGroup.getByText(teammate.nickname)).toBeVisible()
   await expect(memberPage.getByText(other.nickname)).toHaveCount(0)
   await expect(
     memberPage.getByRole('tab', { name: /Не отметились/ }),

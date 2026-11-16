@@ -102,8 +102,9 @@ test('E2E-06: блокировка в чтеца и восстановление
   await expect(
     officerPage.getByRole('list', { name: 'Участники' }),
   ).toBeVisible()
+  const membersList = officerPage.getByRole('list', { name: 'Участники' })
   await expect(
-    officerPage.getByRole('button', { name: /^Действия с участником/ }),
+    membersList.getByRole('listitem').filter({ hasText: member.nickname }),
   ).toHaveCount(0)
   await officerPage.getByRole('tab', { name: 'Чтецы' }).click()
   const reader = officerPage
