@@ -202,8 +202,13 @@ export const vkRepository = {
     db: Executor,
     groupId: string | null = null,
     eventId: string | null = null,
+    excludedUserIds: string[] = [],
   ) {
-    const row = await recipientsQuery(db, groupId, eventId)
+    let query = recipientsQuery(db, groupId, eventId)
+    if (excludedUserIds.length > 0) {
+      query = query.where('l.user_id', 'not in', excludedUserIds)
+    }
+    const row = await query
       .select((eb) => eb.fn.countAll<string>().as('count'))
       .executeTakeFirstOrThrow()
     return Number(row.count)

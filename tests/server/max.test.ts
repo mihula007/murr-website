@@ -347,7 +347,7 @@ describe('max: announcements (MAX-05, MAX-06, MAX-09, MAX-10, MAX-12)', () => {
     await linked('member')
     await linked('reader')
     const { actor } = await roleActor('officer')
-    expect(await broadcastRecipients(deps, actor)).toEqual({
+    expect(await broadcastRecipients(deps, actor)).toMatchObject({
       count: 1,
       channels: {
         telegram: { configured: true, count: 1 },
@@ -426,6 +426,23 @@ describe('max: announcements (MAX-05, MAX-06, MAX-09, MAX-10, MAX-12)', () => {
         }),
       },
     ])
+  })
+
+  it('does not deliver MAX messages to excluded profiles (BRC-16)', async () => {
+    const excluded = await linked('member')
+    const included = await linked('officer')
+    const { actor } = await roleActor('admin')
+    const result = await sendAnnouncement(deps, actor, {
+      body: 'Сбор',
+      channels: ['max'],
+      excludedUserIds: [excluded.user.id],
+    })
+
+    expect(result.channels).toEqual({
+      max: { recipients: 1, sent: 1, failed: 0 },
+    })
+    expect(sentTo(excluded.maxUserId)).toEqual([])
+    expect(sentTo(included.maxUserId)).toHaveLength(1)
   })
 
   it('skips an empty channel, refuses when all are empty or unconfigured', async () => {

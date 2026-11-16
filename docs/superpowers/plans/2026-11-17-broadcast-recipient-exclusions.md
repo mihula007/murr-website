@@ -35,44 +35,49 @@
 ### Task 1: Add paged eligible-recipient listing
 
 **Files:**
+
 - Modify: `supabase/functions/_shared/contracts/broadcasts.ts`
 - Modify: `supabase/functions/_shared/broadcasts/repository.ts`
 - Modify: `supabase/functions/_shared/broadcasts/service.ts`
 - Modify: `tests/server/broadcasts.test.ts`
 
 **Interfaces:**
+
 - Extend the `broadcasts/recipients` request with selected `channels`, optional `search`, and standard cursor/limit fields, while continuing to accept the existing group/event request. Accept optional `excludedUserIds` for a fresh count check immediately before confirmation.
 - Extend its response with a page of unique eligible `{ id, gameNickname, channels }` records and `nextCursor`; keep the existing per-channel counts and answered counts, calculated after supplied exclusions.
 - The eligible page includes a person when at least one selected channel would currently deliver to them; `channels` names every active messenger link for that person. Search, source restrictions, active roles, and blocked links are applied in SQL before paging.
 
-- [ ] **Step 1: Write failing server tests** in `tests/server/broadcasts.test.ts` for officer/admin access, selected channel union (one profile linked to two channels is returned once), event responders omitted, group audience limited to group members, nickname search, cursor continuation after 50 records, and per-channel counts after exclusions.
-- [ ] **Step 2: Run the focused server tests** with `npm run test:server -- tests/server/broadcasts.test.ts`; confirm the new cases fail because the response is not paged and does not include eligible people.
-- [ ] **Step 3: Implement the shared recipient request/response schema and repository query** using nickname key `(game_nickname, id)` and the existing cursor helpers. Validate channel selections against `SENDABLE_CHANNELS` and deduplicate the union by profile ID.
-- [ ] **Step 4: Implement the service response** with the page and current per-channel counts; do not return email, messenger account IDs, or display names.
-- [ ] **Step 5: Run the focused server tests** and confirm all new recipients cases pass.
+- [x] **Step 1: Write failing server tests** in `tests/server/broadcasts.test.ts` for officer/admin access, selected channel union (one profile linked to two channels is returned once), event responders omitted, group audience limited to group members, nickname search, cursor continuation after 50 records, and per-channel counts after exclusions.
+- [x] **Step 2: Run the focused server tests** with `npm run test:server -- tests/server/broadcasts.test.ts`; confirm the new cases fail because the response is not paged and does not include eligible people.
+- [x] **Step 3: Implement the shared recipient request/response schema and repository query** using nickname key `(game_nickname, id)` and the existing cursor helpers. Validate channel selections against `SENDABLE_CHANNELS` and deduplicate the union by profile ID.
+- [x] **Step 4: Implement the service response** with the page and current per-channel counts; do not return email, messenger account IDs, or display names.
+- [x] **Step 5: Run the focused server tests** and confirm all new recipients cases pass.
 
 ### Task 2: Show and manage exclusions in the form
 
 **Files:**
+
 - Modify: `src/features/broadcast/api.ts`
 - Create: `src/features/broadcast/recipient-exclusions.tsx`
 - Modify: `src/features/broadcast/broadcast-page.tsx`
 - Modify: `tests/broadcast.test.tsx`
 
 **Interfaces:**
+
 - Add `useInfiniteQuery` for `broadcasts/recipients`, keyed by search, channels, group, and event; use `pagingOf` and `VirtualList`.
 - `RecipientExclusions` consumes the paged eligible recipients and a `Set<string>` of excluded profile IDs; it reports checkbox changes by profile ID.
 - Changing selected channels refreshes eligible recipients/counts but preserves exclusions for users who remain eligible.
 
-- [ ] **Step 1: Write failing component tests** in `tests/broadcast.test.tsx` for the default all-included state, toggling an exclusion, one row for a recipient with multiple selected channels, server search and page loading, and preserving checked state when the confirmation dialog is canceled.
-- [ ] **Step 2: Run `npm run test -- tests/broadcast.test.tsx`** and confirm the new UI cases fail because the form has no recipient list.
-- [ ] **Step 3: Implement the recipient list UI** with Russian labels, search by nickname, checkbox rows on wide screens, cards on narrow screens, loading/error/empty states, and the explanatory copy that one unchecked person is skipped across all chosen messengers.
-- [ ] **Step 4: Keep exclusions in form state only**; do not pass them to draft/template saves. Recalculate visible counts locally using each recipient's active channel list; before opening confirmation, refresh server counts with the excluded IDs.
-- [ ] **Step 5: Run the focused component tests** and confirm the new cases pass.
+- [x] **Step 1: Write failing component tests** in `tests/broadcast.test.tsx` for the default all-included state, toggling an exclusion, one row for a recipient with multiple selected channels, server search and page loading, and preserving checked state when the confirmation dialog is canceled.
+- [x] **Step 2: Run `npm run test -- tests/broadcast.test.tsx`** and confirm the new UI cases fail because the form has no recipient list.
+- [x] **Step 3: Implement the recipient list UI** with Russian labels, search by nickname, checkbox rows on wide screens, cards on narrow screens, loading/error/empty states, and the explanatory copy that one unchecked person is skipped across all chosen messengers.
+- [x] **Step 4: Keep exclusions in form state only**; do not pass them to draft/template saves. Recalculate visible counts locally using each recipient's active channel list; before opening confirmation, refresh server counts with the excluded IDs.
+- [x] **Step 5: Run the focused component tests** and confirm the new cases pass.
 
 ### Task 3: Apply exclusions during delivery and audit
 
 **Files:**
+
 - Modify: `supabase/functions/_shared/contracts/broadcasts.ts`
 - Modify: `supabase/functions/_shared/broadcasts/service.ts`
 - Modify: `supabase/functions/_shared/telegram/announcements.ts`
@@ -86,36 +91,39 @@
 - Modify: `tests/broadcast.test.tsx`
 
 **Interfaces:**
+
 - Add optional, unique `excludedUserIds` to both the recipient count request and `sendAnnouncementSchema`; reject malformed IDs and cap each list at `MEMBER_LIST_LIMIT`.
 - Pass exclusions to each channel delivery function; filter by profile ID against each channel's fresh recipient query before sending.
 - Add `excluded_recipients` to `broadcast_sent` audit details as the unique count of excluded profile IDs, without IDs or nicknames.
 
-- [ ] **Step 1: Write failing server tests** proving the excluded person receives nothing through Telegram, VK, and MAX; another selected channel still delivers to a person who is only linked there; all-channel counts exclude the skipped profile; event/group audience rules still apply; all excluded means refusal with «После исключений получателей не осталось»; and audit stores only the unique count.
-- [ ] **Step 2: Run the focused channel server tests** with `npm run test:server -- tests/server/telegram-announcements.test.ts tests/server/max.test.ts tests/server/vk.test.ts`; confirm the new cases fail because send ignores exclusions.
-- [ ] **Step 3: Implement optional excluded-ID validation and pass the set to all three delivery functions.** Each channel filters its current recipients by ID immediately before delivery; no caller-provided nickname or channel account ID is trusted.
-- [ ] **Step 4: Refuse when filtering leaves zero recipients across every selected channel** with «После исключений получателей не осталось» when exclusions caused the empty result; preserve the existing all-answered reason when no exclusions caused it. Write one audit entry with the number of unique excluded IDs and no member identities.
-- [ ] **Step 5: Send the form's exclusion IDs**, keep them after a canceled confirmation, and clear them with the form after successful sending.
-- [ ] **Step 6: Run the focused server and component tests** and confirm the new delivery, count, audit, and cancellation cases pass.
+- [x] **Step 1: Write failing server tests** proving the excluded person receives nothing through Telegram, VK, and MAX; another selected channel still delivers to a person who is only linked there; all-channel counts exclude the skipped profile; event/group audience rules still apply; all excluded means refusal with «После исключений получателей не осталось»; and audit stores only the unique count.
+- [x] **Step 2: Run the focused channel server tests** with `npm run test:server -- tests/server/telegram-announcements.test.ts tests/server/max.test.ts tests/server/vk.test.ts`; confirm the new cases fail because send ignores exclusions.
+- [x] **Step 3: Implement optional excluded-ID validation and pass the set to all three delivery functions.** Each channel filters its current recipients by ID immediately before delivery; no caller-provided nickname or channel account ID is trusted.
+- [x] **Step 4: Refuse when filtering leaves zero recipients across every selected channel** with «После исключений получателей не осталось» when exclusions caused the empty result; preserve the existing all-answered reason when no exclusions caused it. Write one audit entry with the number of unique excluded IDs and no member identities.
+- [x] **Step 5: Send the form's exclusion IDs**, keep them after a canceled confirmation, and clear them with the form after successful sending.
+- [x] **Step 6: Run the focused server and component tests** and confirm the new delivery, count, audit, and cancellation cases pass.
 
 ### Task 4: Cover the complete flow in end-to-end acceptance
 
 **Files:**
+
 - Modify: `e2e/broadcast.spec.ts`
 
-- [ ] **Step 1: Add an end-to-end case** that opens the broadcast form, searches for an eligible member, excludes them, confirms the remaining channel count, and verifies the request contains the excluded profile ID.
-- [ ] **Step 2: Check the test source and fixtures** for a stable seeded recipient and ensure the test does not depend on live Telegram/VK/MAX credentials.
-- [ ] **Step 3: Do not run e2e locally.** CI runs all e2e tests during the approved release step.
+- [x] **Step 1: Add an end-to-end case** that opens the broadcast form, searches for an eligible member, excludes them, confirms the remaining channel count, and verifies the request contains the excluded profile ID.
+- [x] **Step 2: Check the test source and fixtures** for a stable seeded recipient and ensure the test does not depend on live Telegram/VK/MAX credentials.
+- [x] **Step 3: Do not run e2e locally.** CI runs all e2e tests during the approved release step.
 
 ### Task 5: Run required local checks and save implementation
 
 **Files:**
+
 - Verify all changed files from Tasks 1–4.
 
-- [ ] **Step 1: Run `npm run test -- tests/broadcast.test.tsx`** and confirm all broadcast UI tests pass.
-- [ ] **Step 2: Run `npm run test:server`** and confirm server tests pass.
-- [ ] **Step 3: Run `npm run check:quick`** and confirm secrets, styles, architecture, formatting, lint, types, and changed-file Vitest checks pass.
-- [ ] **Step 4: Review the complete diff and stage only the intended implementation files.**
-- [ ] **Step 5: Commit once on `main`** with a Conventional Commit message such as `feat(broadcast): exclude recipients from one announcement`.
+- [x] **Step 1: Run `npm run test -- tests/broadcast.test.tsx`** and confirm all broadcast UI tests pass.
+- [x] **Step 2: Run `npm run test:server`** and confirm server tests pass.
+- [x] **Step 3: Run `npm run check:quick`** and confirm secrets, styles, architecture, formatting, lint, types, and changed-file Vitest checks pass.
+- [x] **Step 4: Review the complete diff and stage only the intended implementation files.**
+- [x] **Step 5: Commit once on `main`** with a Conventional Commit message such as `feat(broadcast): exclude recipients from one announcement`.
 
 ---
 

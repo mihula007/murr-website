@@ -33,6 +33,8 @@ const recipients = (
     vk: { configured: true, count: vk },
     max: { configured: maxConfigured, count: max },
   },
+  items: [],
+  nextCursor: null,
 })
 const SEND = 'Отправить анонс'
 
@@ -52,6 +54,7 @@ beforeEach(() => {
     'broadcasts/drafts': () => ({ items: [] }),
     'broadcasts/templates': () => ({ items: [template] }),
     'broadcasts/save-draft': () => ({ items: [] }),
+    'broadcasts/recipients': () => recipients(0, 0),
   }
   callApi.mockReset()
   callApi.mockImplementation((route, body) => {
@@ -191,6 +194,171 @@ describe('broadcast page (BRC, E2E-07)', () => {
     )
   })
 
+  it('excludes one person from every chosen channel and keeps it after cancel', async () => {
+    const excludedId = '00000000-0000-4000-8000-000000000011'
+    const rows = [
+      {
+        id: excludedId,
+        gameNickname: 'Альфа',
+        channels: ['telegram', 'max'],
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000012',
+        gameNickname: 'Бета',
+        channels: ['telegram'],
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000013',
+        gameNickname: 'Гамма',
+        channels: ['max'],
+      },
+    ]
+    routes['broadcasts/recipients'] = (body) => {
+      const excluded =
+        (body as { excludedUserIds?: string[] } | undefined)?.excludedUserIds ??
+        []
+      return {
+        ...recipients(
+          2 - Number(excluded.includes(rows[0]!.id)),
+          2 - Number(excluded.includes(rows[0]!.id)),
+        ),
+        items: rows,
+        nextCursor: null,
+      }
+    }
+    routes['broadcasts/send'] = () => ({
+      recipients: 2,
+      sent: 2,
+      failed: 0,
+      channels: {
+        telegram: { recipients: 1, sent: 1, failed: 0 },
+        max: { recipients: 1, sent: 1, failed: 0 },
+      },
+    })
+
+    await renderApp({ role: 'officer', path: '/broadcast' })
+    const excluded = await screen.findByRole('checkbox', {
+      name: 'Получит: Альфа',
+    })
+    expect(excluded).toBeChecked()
+    fireEvent.click(excluded)
+    expect(excluded).not.toBeChecked()
+    expect(
+      screen.getByText(
+        /Получателей по каналам: Telegram: 1, ВКонтакте: 0, MAX: 1/,
+      ),
+    ).toBeVisible()
+
+    fireEvent.change(screen.getByLabelText('Текст рассылки'), {
+      target: { value: 'Сбор' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: SEND }))
+    const dialog = await screen.findByRole('alertdialog')
+    expect(
+      within(dialog).getByText(
+        /Получателей — Telegram: 1, ВКонтакте: 0, MAX: 1/,
+      ),
+    ).toBeVisible()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Отмена' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    expect(excluded).not.toBeChecked()
+
+    fireEvent.click(screen.getByRole('button', { name: SEND }))
+    const confirm = await screen.findByRole('alertdialog')
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Отправить' }))
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith(
+        'broadcasts/send',
+        expect.objectContaining({
+          excludedUserIds: [excludedId],
+        }),
+      ),
+    )
+  })
+
+  it('shows the approved message when exclusions leave no recipients', async () => {
+    const personId = '00000000-0000-4000-8000-000000000014'
+    routes['broadcasts/recipients'] = (body) => {
+      const excluded =
+        (body as { excludedUserIds?: string[] } | undefined)?.excludedUserIds ??
+        []
+      return {
+        ...recipients(excluded.includes(personId) ? 0 : 1, 0),
+        items: excluded.includes(personId)
+          ? []
+          : [{ id: personId, gameNickname: 'Один', channels: ['telegram'] }],
+        nextCursor: null,
+      }
+    }
+    await renderApp({ role: 'officer', path: '/broadcast' })
+    fireEvent.click(
+      await screen.findByRole('checkbox', { name: 'Получит: Один' }),
+    )
+    fireEvent.change(screen.getByLabelText('Текст рассылки'), {
+      target: { value: 'Объявление' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: SEND }))
+    expect(
+      await screen.findByText('После исключений получателей не осталось'),
+    ).toBeVisible()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(callApi).not.toHaveBeenCalledWith(
+      'broadcasts/send',
+      expect.anything(),
+    )
+  })
+
+  it('searches recipients on the server and asks for the next cursor page', async () => {
+    const requests: Array<Record<string, unknown>> = []
+    routes['broadcasts/recipients'] = (body) => {
+      const request = body as Record<string, unknown>
+      requests.push(request)
+      if (request.search) {
+        return {
+          ...recipients(1, 0),
+          items: [
+            {
+              id: '00000000-0000-4000-8000-000000000021',
+              gameNickname: 'Найденный',
+              channels: ['telegram'],
+            },
+          ],
+          nextCursor: null,
+        }
+      }
+      return {
+        ...recipients(2, 0),
+        items: [
+          {
+            id: '00000000-0000-4000-8000-000000000022',
+            gameNickname: 'Первый',
+            channels: ['telegram'],
+          },
+        ],
+        nextCursor: request.cursor ? null : 'cursor-1',
+      }
+    }
+
+    await renderApp({ role: 'admin', path: '/broadcast' })
+    expect(await screen.findByText('Первый')).toBeVisible()
+    await waitFor(() =>
+      expect(requests).toContainEqual(
+        expect.objectContaining({ cursor: 'cursor-1' }),
+      ),
+    )
+
+    fireEvent.change(screen.getByLabelText('Поиск по нику'), {
+      target: { value: 'Найденный' },
+    })
+    expect(await screen.findByText('Найденный')).toBeVisible()
+    await waitFor(() =>
+      expect(requests).toContainEqual(
+        expect.objectContaining({ cursor: null, search: 'Найденный' }),
+      ),
+    )
+  })
+
   it('sends a standalone announcement after confirming the recipients', async () => {
     routes['broadcasts/recipients'] = () => recipients(3, 2, true, 1)
     routes['broadcasts/send'] = () => ({
@@ -207,10 +375,11 @@ describe('broadcast page (BRC, E2E-07)', () => {
     const send = await screen.findByRole('button', { name: SEND })
     fireEvent.click(send)
     expect(await screen.findByText('Заполните поле')).toBeVisible()
-    expect(callApi).not.toHaveBeenCalledWith(
-      'broadcasts/recipients',
-      expect.anything(),
-    )
+    expect(callApi).toHaveBeenCalledWith('broadcasts/recipients', {
+      cursor: null,
+      channels: ['telegram', 'vk', 'max'],
+    })
+    expect(callApi).not.toHaveBeenCalledWith('broadcasts/recipients', undefined)
 
     fireEvent.change(screen.getByLabelText('Тема (необязательно)'), {
       target: { value: 'Сбор' },
@@ -348,6 +517,8 @@ describe('broadcast page (BRC, E2E-07)', () => {
         vk: { configured: true, count: 0, answered: 0 },
         max: { configured: true, count: 0, answered: 1 },
       },
+      items: [],
+      nextCursor: null,
     }
     routes['broadcasts/recipients'] = () => answered
     const id = '00000000-0000-4000-8000-000000000001'
@@ -410,7 +581,10 @@ describe('broadcast page (BRC, E2E-07)', () => {
     expect(
       await screen.findByText(/никто из участников группы не привязал/),
     ).toBeVisible()
-    expect(asked).toEqual([{ groupId: id }])
+    expect(asked).toEqual([
+      { cursor: null, channels: ['telegram', 'vk', 'max'], groupId: id },
+      { groupId: id },
+    ])
 
     routes['broadcasts/recipients'] = () => recipients(1, 1)
     routes['broadcasts/send'] = () => ({

@@ -31,8 +31,17 @@ export async function deliverVkAnnouncement(
   eventId: string | null,
   /** Анонс группы — только её участникам (Q-104). */
   groupId: string | null = null,
+  excludedUserIds: string[] = [],
 ): Promise<DeliveryResult> {
-  const recipients = await vkRepository.recipients(deps.db, eventId, groupId)
+  const fetchedRecipients = await vkRepository.recipients(
+    deps.db,
+    eventId,
+    groupId,
+  )
+  const excluded = new Set(excludedUserIds)
+  const recipients = fetchedRecipients.filter(
+    (recipient) => !excluded.has(recipient.userId),
+  )
   const announcementId = eventId
     ? await vkRepository.createAnnouncement(deps.db, {
         eventId,

@@ -15,6 +15,7 @@ import type {
   SaveDraftRequest,
   SendAnnouncementRequest,
   SendAnnouncementResponse,
+  SendableChannel,
 } from '@contracts/broadcasts'
 import { callApi } from '@/lib/supabase/api'
 
@@ -43,6 +44,37 @@ export function useBroadcastSubscriptions(search: string, enabled = true) {
     getNextPageParam: (last) => last.nextCursor,
     enabled,
     select: (data) => data.pages.flatMap((page) => page.items),
+  })
+}
+
+/** Cursor pages of people who can receive the current announcement (BRC-16). */
+export function useBroadcastRecipientOptions(
+  search: string,
+  channels: SendableChannel[],
+  groupId: string | null,
+  eventId: string | null,
+) {
+  return useInfiniteQuery({
+    queryKey: [
+      ...broadcastKeys.recipients,
+      'options',
+      channels,
+      groupId,
+      eventId,
+      search,
+    ],
+    queryFn: ({ pageParam }) =>
+      callApi<BroadcastRecipientsResponse>('broadcasts/recipients', {
+        cursor: pageParam,
+        channels,
+        ...(groupId ? { groupId } : {}),
+        ...(eventId ? { eventId } : {}),
+        ...(search ? { search } : {}),
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+    enabled: channels.length > 0,
+    staleTime: 0,
   })
 }
 
@@ -129,16 +161,26 @@ export function useFetchRecipients() {
   const queryClient = useQueryClient()
   // Анонс группы — получатели только из неё (Q-104); анонс события — без
   // ответивших на него (Q-109).
-  return (groupId: string | null = null, eventId: string | null = null) =>
+  return (
+    groupId: string | null = null,
+    eventId: string | null = null,
+    excludedUserIds: string[] = [],
+  ) =>
     queryClient.fetchQuery({
-      queryKey: [...broadcastKeys.recipients, groupId, eventId],
+      queryKey: [
+        ...broadcastKeys.recipients,
+        groupId,
+        eventId,
+        excludedUserIds,
+      ],
       queryFn: () =>
         callApi<BroadcastRecipientsResponse>(
           'broadcasts/recipients',
-          groupId || eventId
+          groupId || eventId || excludedUserIds.length > 0
             ? {
                 ...(groupId ? { groupId } : {}),
                 ...(eventId ? { eventId } : {}),
+                ...(excludedUserIds.length > 0 ? { excludedUserIds } : {}),
               }
             : undefined,
         ),

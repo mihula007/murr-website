@@ -36,10 +36,15 @@ import { Badge, Card, Notice } from '@/components/ui/surfaces'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
+import { MEMBER_LIST_LIMIT } from '@contracts/paging'
 import { AppError, formErrorMessage, fieldMessage } from '@/lib/errors'
 import { formatDateTimeMsk } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
 import { SubscriptionsPanel } from './subscriptions-panel'
+import {
+  RecipientExclusions,
+  type ExcludedRecipient,
+} from './recipient-exclusions'
 import {
   useBroadcastTemplates,
   useDeleteBroadcastTemplate,
@@ -78,12 +83,21 @@ const draftSchema = z.object({
     .min(1, 'required')
     .max(BROADCAST_LIMITS.body, 'too_long'),
   channels: z.array(z.enum(BROADCAST_CHANNELS)).min(1, 'required'),
+  excludedRecipients: z
+    .array(
+      z.object({
+        id: z.guid(),
+        channels: z.array(z.enum(SENDABLE_CHANNELS)).min(1),
+      }),
+    )
+    .max(MEMBER_LIST_LIMIT),
 })
 
 type FormValues = {
   subject: string
   body: string
   channels: BroadcastChannel[]
+  excludedRecipients: ExcludedRecipient[]
 }
 
 /** Подключены Telegram, ВКонтакте и MAX (Q-99, Q-102). */
@@ -94,6 +108,7 @@ const EMPTY: FormValues = {
   subject: '',
   body: '',
   channels: [...CONNECTED_CHANNELS],
+  excludedRecipients: [],
 }
 
 const NO_RECIPIENTS =
@@ -102,6 +117,7 @@ const NO_GROUP_RECIPIENTS =
   'Отправить некому: никто из участников группы не привязал выбранные мессенджеры.'
 const ALL_ANSWERED =
   'Отправить некому: все участники, привязавшие выбранные мессенджеры, уже ответили на событие.'
+const ALL_EXCLUDED = 'После исключений получателей не осталось'
 
 const isSendable = (channel: BroadcastChannel): channel is SendableChannel =>
   (SENDABLE_CHANNELS as readonly BroadcastChannel[]).includes(channel)
@@ -161,6 +177,8 @@ function sendRefusal(error: AppError, forGroup: boolean) {
     return null
   }
   switch (error.fields.reason) {
+    case 'excluded_no_recipients':
+      return ALL_EXCLUDED
     case 'no_recipients':
       return forGroup ? NO_GROUP_RECIPIENTS : NO_RECIPIENTS
     case 'all_answered':
@@ -464,7 +482,7 @@ function BroadcastForm({
   const [sendError, setSendError] = useState<string | null>(null)
   const [confirmCounts, setConfirmCounts] = useState<ChannelCounts | null>(null)
   const form = useForm({
-    defaultValues: initial,
+    defaultValues: { ...EMPTY, ...initial },
     validators: { onChange: draftSchema },
     onSubmitInvalid: focusFirstInvalid,
     onSubmit: async ({ value }) => {
@@ -498,17 +516,22 @@ function BroadcastForm({
     setSendError(null)
     setChecking(true)
     try {
-      const response = await fetchRecipients(groupId, eventId)
+      const excludedUserIds = form.state.values.excludedRecipients.map(
+        (recipient) => recipient.id,
+      )
+      const response = await fetchRecipients(groupId, eventId, excludedUserIds)
       const counts = chosenCounts(response, chosen)
       if (typeof counts === 'string') {
         setSendError(counts)
       } else if (Object.values(counts).every((count) => count === 0)) {
         setSendError(
-          groupId
-            ? NO_GROUP_RECIPIENTS
-            : chosen.some((c) => (response.channels?.[c].answered ?? 0) > 0)
-              ? ALL_ANSWERED
-              : NO_RECIPIENTS,
+          excludedUserIds.length > 0
+            ? ALL_EXCLUDED
+            : groupId
+              ? NO_GROUP_RECIPIENTS
+              : chosen.some((c) => (response.channels?.[c].answered ?? 0) > 0)
+                ? ALL_ANSWERED
+                : NO_RECIPIENTS,
         )
       } else {
         setConfirmCounts(counts)
@@ -668,6 +691,17 @@ function BroadcastForm({
             </>
           )}
         </form.Subscribe>
+        <form.Field name="excludedRecipients">
+          {(field) => (
+            <RecipientExclusions
+              selectedChannels={chosen}
+              groupId={groupId}
+              eventId={eventId}
+              excludedRecipients={field.state.value}
+              onChange={field.handleChange}
+            />
+          )}
+        </form.Field>
         <div className="col-span-full grid gap-3">
           <FormError
             message={
@@ -748,6 +782,13 @@ function BroadcastForm({
               eventId,
               groupId,
               channels,
+              ...(values.excludedRecipients.length > 0
+                ? {
+                    excludedUserIds: values.excludedRecipients.map(
+                      (recipient) => recipient.id,
+                    ),
+                  }
+                : {}),
             })
             toast(sentText(result, channels))
             form.reset(EMPTY)
@@ -819,6 +860,7 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
         initial={
           data
             ? {
+                ...EMPTY,
                 subject: data.subject,
                 body: data.body,
                 channels: [...CONNECTED_CHANNELS],

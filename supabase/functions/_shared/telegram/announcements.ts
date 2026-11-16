@@ -32,11 +32,16 @@ export async function deliverAnnouncement(
   eventId: string | null,
   /** Анонс группы — только её участникам (Q-104). */
   groupId: string | null = null,
+  excludedUserIds: string[] = [],
 ): Promise<DeliveryResult> {
-  const recipients = await telegramRepository.recipients(
+  const fetchedRecipients = await telegramRepository.recipients(
     deps.db,
     eventId,
     groupId,
+  )
+  const excluded = new Set(excludedUserIds)
+  const recipients = fetchedRecipients.filter(
+    (recipient) => !excluded.has(recipient.userId),
   )
   const announcementId = eventId
     ? await telegramRepository.createAnnouncement(deps.db, {

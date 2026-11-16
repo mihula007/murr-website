@@ -242,3 +242,78 @@ test('BRC-15: subscription tab shows messenger links to managers only', async ({
       .status,
   ).toBe(403)
 })
+
+test('BRC-16: excludes a recipient from one announcement only', async ({
+  page,
+}) => {
+  const [officer, excluded, included] = await Promise.all([
+    createMember('officer'),
+    createMember('member'),
+    createMember('member'),
+  ])
+  const telegramIds = [
+    randomInt(1_000_000, 2_000_000_000),
+    randomInt(1_000_000, 2_000_000_000),
+  ]
+  await sql(async (db) => {
+    for (const [member, telegramId] of [
+      [excluded, telegramIds[0]!],
+      [included, telegramIds[1]!],
+    ] as const) {
+      await db`
+        insert into app.telegram_links
+          (user_id, telegram_user_id, chat_id, display_name)
+        values (${member.id}, ${telegramId}, ${telegramId}, ${member.nickname})`
+    }
+  })
+
+  await signInUi(page, officer.email)
+  await expectSignedIn(page)
+  await page.goto('./#/broadcast')
+  await page.getByLabel('Тема (необязательно)').fill('Проверка исключения')
+  await page
+    .getByLabel('Текст рассылки')
+    .fill('Сообщение для оставшегося участника')
+  await page.getByRole('checkbox', { name: 'ВКонтакте' }).uncheck()
+  await page.getByRole('checkbox', { name: 'MAX' }).uncheck()
+  await page.getByLabel('Поиск по нику').fill(excluded.nickname)
+  const recipientsResponse = await page.waitForResponse((response) =>
+    response.url().includes('/broadcasts/recipients'),
+  )
+  expect(recipientsResponse.ok()).toBe(true)
+  await page
+    .getByRole('checkbox', { name: `Получит: ${excluded.nickname}` })
+    .uncheck()
+  await expect(
+    page.getByText('Получателей по каналам: Telegram: 1'),
+  ).toBeVisible()
+
+  let sendBody: Record<string, unknown> | null = null
+  await page.route('**/broadcasts/send', async (route) => {
+    sendBody = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        recipients: 1,
+        sent: 1,
+        failed: 0,
+        channels: { telegram: { recipients: 1, sent: 1, failed: 0 } },
+      }),
+    })
+  })
+  await page.getByRole('button', { name: 'Отправить анонс' }).click()
+  await page.getByRole('button', { name: 'Отправить', exact: true }).click()
+  await expect
+    .poll(() => sendBody)
+    .toMatchObject({
+      excludedUserIds: [excluded.id],
+      channels: ['telegram'],
+    })
+  expect(sendBody).not.toHaveProperty('recipientNicknames')
+  await expect(page.getByText('Отправлено — Telegram: 1')).toBeVisible()
+  await page.getByLabel('Поиск по нику').fill(included.nickname)
+  await expect(
+    page.getByRole('checkbox', { name: `Получит: ${included.nickname}` }),
+  ).toBeChecked()
+})

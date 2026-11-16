@@ -46,6 +46,8 @@ const DETAIL_KEYS = new Set([
   'recipients',
   'sent',
   'failed',
+  // Количество уникальных исключённых получателей рассылки (BRC-16).
+  'excluded_recipients',
   // Разбивка отправки анонса по каналам (MAX-12).
   'telegram_sent',
   'telegram_failed',

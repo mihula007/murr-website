@@ -31,8 +31,17 @@ export async function deliverMaxAnnouncement(
   eventId: string | null,
   /** Анонс группы — только её участникам (Q-104). */
   groupId: string | null = null,
+  excludedUserIds: string[] = [],
 ): Promise<DeliveryResult> {
-  const recipients = await maxRepository.recipients(deps.db, eventId, groupId)
+  const fetchedRecipients = await maxRepository.recipients(
+    deps.db,
+    eventId,
+    groupId,
+  )
+  const excluded = new Set(excludedUserIds)
+  const recipients = fetchedRecipients.filter(
+    (recipient) => !excluded.has(recipient.userId),
+  )
   const announcementId = eventId
     ? await maxRepository.createAnnouncement(deps.db, {
         eventId,

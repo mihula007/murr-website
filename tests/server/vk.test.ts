@@ -326,6 +326,27 @@ describe('vk: announcements (VK-05, VK-06, VK-09)', () => {
     expect(audit.details).toMatchObject({ vk_sent: 1, vk_failed: 0 })
   })
 
+  it('does not deliver VK messages to excluded profiles (BRC-16)', async () => {
+    const excluded = await linked('member')
+    const included = await linked('officer')
+    const { actor } = await roleActor('admin')
+    const result = await sendAnnouncement(deps, actor, {
+      body: 'Сбор',
+      channels: ['vk'],
+      excludedUserIds: [excluded.user.id],
+    })
+
+    expect(result.channels).toEqual({
+      vk: { recipients: 1, sent: 1, failed: 0 },
+    })
+    expect(fake.calls.filter((call) => call.method === 'send')).toEqual([
+      expect.objectContaining({ peerId: included.vkUserId }),
+    ])
+    expect(fake.calls.some((call) => call.peerId === excluded.vkUserId)).toBe(
+      false,
+    )
+  })
+
   it('refuses an unconfigured VK and marks denied messages', async () => {
     const member = await linked('member')
     const { actor } = await roleActor('officer')

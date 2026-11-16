@@ -2,6 +2,7 @@ import { sql } from 'kysely'
 import type {
   BroadcastChannel,
   BroadcastSource,
+  SendableChannel,
 } from '../contracts/broadcasts.ts'
 import type { Executor } from '../db/client.ts'
 import type { NicknameKey } from '../roster/repository.ts'
@@ -30,6 +31,15 @@ export type TemplateValues = {
 export type SubscriptionPageOptions = {
   search: string | null
   after: NicknameKey | null
+  limit: number
+}
+
+export type RecipientPageOptions = {
+  channels: SendableChannel[]
+  search: string | null
+  after: NicknameKey | null
+  groupId: string | null
+  eventId: string | null
   limit: number
 }
 
@@ -74,6 +84,114 @@ export const broadcastRepository = {
         ),
       )
     }
+    return query
+      .orderBy('p.game_nickname')
+      .orderBy('p.id')
+      .limit(options.limit)
+      .execute()
+  },
+
+  /** Unique active recipients in the current audience for a cursor page (BRC-16). */
+  recipientPage(db: Executor, options: RecipientPageOptions) {
+    let query = db
+      .selectFrom('app.profiles as p')
+      .leftJoin('app.telegram_links as t', 't.user_id', 'p.id')
+      .leftJoin('app.vk_links as v', 'v.user_id', 'p.id')
+      .leftJoin('app.max_links as m', 'm.user_id', 'p.id')
+      .select([
+        'p.id',
+        'p.game_nickname',
+        't.user_id as telegram_linked',
+        't.blocked_at as telegram_blocked_at',
+        'v.user_id as vk_linked',
+        'v.blocked_at as vk_blocked_at',
+        'm.user_id as max_linked',
+        'm.blocked_at as max_blocked_at',
+      ])
+      .where('p.access_role', 'in', INTERNAL_ROLES)
+      .where((eb) =>
+        eb.not(
+          eb.exists(
+            eb
+              .selectFrom('app.user_deletions as d')
+              .select('d.user_id')
+              .whereRef('d.user_id', '=', 'p.id'),
+          ),
+        ),
+      )
+    if (options.search) {
+      query = query.where(
+        'p.game_nickname',
+        'ilike',
+        containsPattern(options.search),
+      )
+    }
+    if (options.after) {
+      const { gameNickname, id } = options.after
+      query = query.where((eb) =>
+        eb(
+          eb.refTuple('p.game_nickname', 'p.id'),
+          '>',
+          eb.tuple(gameNickname, id),
+        ),
+      )
+    }
+    if (options.groupId) {
+      query = query.where((eb) =>
+        eb.exists(
+          eb
+            .selectFrom('app.event_group_members as g')
+            .select('g.user_id')
+            .where('g.group_id', '=', options.groupId!)
+            .whereRef('g.user_id', '=', 'p.id'),
+        ),
+      )
+    }
+    if (options.eventId) {
+      query = query.where((eb) =>
+        eb.not(
+          eb.exists(
+            eb
+              .selectFrom('app.event_attendance as a')
+              .select('a.user_id')
+              .where('a.event_id', '=', options.eventId!)
+              .whereRef('a.user_id', '=', 'p.id'),
+          ),
+        ),
+      )
+    }
+    query = query.where((eb) =>
+      eb.or(
+        options.channels.map((channel) => {
+          switch (channel) {
+            case 'telegram':
+              return eb.exists(
+                eb
+                  .selectFrom('app.telegram_links as l')
+                  .select('l.user_id')
+                  .whereRef('l.user_id', '=', 'p.id')
+                  .where('l.blocked_at', 'is', null),
+              )
+            case 'vk':
+              return eb.exists(
+                eb
+                  .selectFrom('app.vk_links as l')
+                  .select('l.user_id')
+                  .whereRef('l.user_id', '=', 'p.id')
+                  .where('l.blocked_at', 'is', null),
+              )
+            case 'max':
+              return eb.exists(
+                eb
+                  .selectFrom('app.max_links as l')
+                  .select('l.user_id')
+                  .whereRef('l.user_id', '=', 'p.id')
+                  .where('l.blocked_at', 'is', null),
+              )
+          }
+        }),
+      ),
+    )
     return query
       .orderBy('p.game_nickname')
       .orderBy('p.id')

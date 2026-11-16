@@ -257,6 +257,38 @@ describe('announcements: access and recipients (TGM-11, TGM-14, Q-81, Q-83)', ()
       }),
     ])
   })
+
+  it('skips excluded people and audits only their unique count (BRC-16)', async () => {
+    const excluded = await linked('member')
+    const included = await linked('member')
+    const manager = await createProfiledUser(db, 'officer')
+    const result = await sendAnnouncement(deps, await actorOf(db, manager.id), {
+      body: 'Сбор',
+      channels: ['telegram'],
+      excludedUserIds: [excluded.user.id, excluded.user.id],
+    })
+
+    expect(result).toMatchObject({ recipients: 1, sent: 1, failed: 0 })
+    expect(sentTo(excluded.chatId)).toEqual([])
+    expect(sentTo(included.chatId)).toHaveLength(1)
+    const audit = await db
+      .selectFrom('app.audit_log')
+      .select('details')
+      .where('action', '=', 'broadcast_sent')
+      .executeTakeFirstOrThrow()
+    expect(audit.details).toMatchObject({ excluded_recipients: 1 })
+    expect(audit.details).not.toHaveProperty('excluded_user_ids')
+
+    await rejects(
+      sendAnnouncement(deps, await actorOf(db, manager.id), {
+        body: 'Ещё раз',
+        channels: ['telegram'],
+        excludedUserIds: [excluded.user.id, included.user.id],
+      }),
+      'state_conflict',
+      'excluded_no_recipients',
+    )
+  })
 })
 
 describe('announcements: event messages (TGM-17–TGM-24, Q-78, Q-92)', () => {

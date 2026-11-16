@@ -18,6 +18,7 @@ import {
   type PrefillResponse,
   SENDABLE_CHANNELS,
   type BroadcastRecipientsResponse,
+  type BroadcastRecipientOption,
   type ChannelDelivery,
   type ChannelRecipients,
   type SendableChannel,
@@ -365,12 +366,14 @@ const CHANNELS: Record<
       deps: AppDeps,
       groupId: string | null,
       eventId: string | null,
+      excludedUserIds?: string[],
     ) => Promise<number>
     deliver: (
       deps: AppDeps,
       text: AnnouncementText,
       eventId: string | null,
       groupId: string | null,
+      excludedUserIds: string[],
     ) => Promise<ChannelDelivery>
   }
 > = {
@@ -378,28 +381,54 @@ const CHANNELS: Record<
     name: 'Telegram',
     configured: (deps) => Boolean(deps.telegram),
     require: requireTelegram,
-    count: (deps, groupId, eventId) =>
-      telegramRepository.recipientCount(deps.db, groupId, eventId),
-    deliver: (deps, text, eventId, groupId) =>
-      deliverAnnouncement(deps, requireTelegram(deps), text, eventId, groupId),
+    count: (deps, groupId, eventId, excludedUserIds = []) =>
+      telegramRepository.recipientCount(
+        deps.db,
+        groupId,
+        eventId,
+        excludedUserIds,
+      ),
+    deliver: (deps, text, eventId, groupId, excludedUserIds) =>
+      deliverAnnouncement(
+        deps,
+        requireTelegram(deps),
+        text,
+        eventId,
+        groupId,
+        excludedUserIds,
+      ),
   },
   vk: {
     name: 'ВКонтакте',
     configured: (deps) => Boolean(deps.vk),
     require: requireVk,
-    count: (deps, groupId, eventId) =>
-      vkRepository.recipientCount(deps.db, groupId, eventId),
-    deliver: (deps, text, eventId, groupId) =>
-      deliverVkAnnouncement(deps, requireVk(deps), text, eventId, groupId),
+    count: (deps, groupId, eventId, excludedUserIds = []) =>
+      vkRepository.recipientCount(deps.db, groupId, eventId, excludedUserIds),
+    deliver: (deps, text, eventId, groupId, excludedUserIds) =>
+      deliverVkAnnouncement(
+        deps,
+        requireVk(deps),
+        text,
+        eventId,
+        groupId,
+        excludedUserIds,
+      ),
   },
   max: {
     name: 'MAX',
     configured: (deps) => Boolean(deps.max),
     require: requireMax,
-    count: (deps, groupId, eventId) =>
-      maxRepository.recipientCount(deps.db, groupId, eventId),
-    deliver: (deps, text, eventId, groupId) =>
-      deliverMaxAnnouncement(deps, requireMax(deps), text, eventId, groupId),
+    count: (deps, groupId, eventId, excludedUserIds = []) =>
+      maxRepository.recipientCount(deps.db, groupId, eventId, excludedUserIds),
+    deliver: (deps, text, eventId, groupId, excludedUserIds) =>
+      deliverMaxAnnouncement(
+        deps,
+        requireMax(deps),
+        text,
+        eventId,
+        groupId,
+        excludedUserIds,
+      ),
   },
 }
 
@@ -408,9 +437,12 @@ const linkedCounts = (
   deps: AppDeps,
   channels: readonly SendableChannel[],
   groupId: string | null,
+  excludedUserIds: string[],
 ) =>
   Promise.all(
-    channels.map((channel) => CHANNELS[channel].count(deps, groupId, null)),
+    channels.map((channel) =>
+      CHANNELS[channel].count(deps, groupId, null, excludedUserIds),
+    ),
   )
 
 /**
@@ -423,15 +455,41 @@ export async function broadcastRecipients(
   body: unknown = {},
 ): Promise<BroadcastRecipientsResponse> {
   requireRole(actor, BROADCAST_MANAGERS)
-  const { groupId, eventId } = parseBody(recipientsSchema, body ?? {})
-  const [counts, linked] = await Promise.all([
+  const input = parseBody(recipientsSchema, body ?? {})
+  if (input.groupId && input.eventId) {
+    throw new ApiError('validation_failed', { groupId: 'invalid' })
+  }
+  const [counts, linked, rows] = await Promise.all([
     Promise.all(
       SENDABLE_CHANNELS.map((channel) =>
-        CHANNELS[channel].count(deps, groupId, eventId),
+        CHANNELS[channel].count(
+          deps,
+          input.groupId,
+          input.eventId,
+          input.excludedUserIds,
+        ),
       ),
     ),
-    eventId ? linkedCounts(deps, SENDABLE_CHANNELS, groupId) : null,
+    input.eventId
+      ? linkedCounts(
+          deps,
+          SENDABLE_CHANNELS,
+          input.groupId,
+          input.excludedUserIds,
+        )
+      : null,
+    broadcastRepository.recipientPage(deps.db, {
+      channels: input.channels,
+      search: input.search,
+      after: input.cursor ? decodeCursor(nicknameCursor, input.cursor) : null,
+      groupId: input.groupId,
+      eventId: input.eventId,
+      limit: input.limit + 1,
+    }),
   ])
+  const page = splitPage(rows, input.limit, (row) =>
+    nicknameKey(row.game_nickname, row.id),
+  )
   const channels = Object.fromEntries(
     SENDABLE_CHANNELS.map((channel, index) => [
       channel,
@@ -442,7 +500,28 @@ export async function broadcastRecipients(
       },
     ]),
   ) as Record<SendableChannel, ChannelRecipients>
-  return { count: channels.telegram.count, channels }
+  const active = (linkedId: string | null, blockedAt: string | null): boolean =>
+    linkedId !== null && blockedAt === null
+  const items: BroadcastRecipientOption[] = page.rows.map((row) => ({
+    id: row.id,
+    gameNickname: row.game_nickname,
+    channels: SENDABLE_CHANNELS.filter((channel) => {
+      switch (channel) {
+        case 'telegram':
+          return active(row.telegram_linked, row.telegram_blocked_at)
+        case 'vk':
+          return active(row.vk_linked, row.vk_blocked_at)
+        case 'max':
+          return active(row.max_linked, row.max_blocked_at)
+      }
+    }),
+  }))
+  return {
+    count: channels.telegram.count,
+    channels,
+    items,
+    nextCursor: page.nextCursor,
+  }
 }
 
 const EMPTY_DELIVERY: ChannelDelivery = { recipients: 0, sent: 0, failed: 0 }
@@ -504,13 +583,18 @@ export async function sendAnnouncement(
   const eventId = event?.id ?? null
   const counts = await Promise.all(
     input.channels.map((channel) =>
-      CHANNELS[channel].count(deps, groupId, eventId),
+      CHANNELS[channel].count(deps, groupId, eventId, input.excludedUserIds),
     ),
   )
   if (counts.every((count) => count === 0)) {
+    if (input.excludedUserIds.length > 0) {
+      throw new ApiError('state_conflict', {
+        reason: 'excluded_no_recipients',
+      })
+    }
     // Анонс события: привязавшие есть, но все уже ответили (Q-109).
     const linked = eventId
-      ? await linkedCounts(deps, input.channels, groupId)
+      ? await linkedCounts(deps, input.channels, groupId, [])
       : []
     throw new ApiError('state_conflict', {
       reason: linked.some((count) => count > 0)
@@ -524,7 +608,13 @@ export async function sendAnnouncement(
   const results = await Promise.all(
     input.channels.map((channel, index) =>
       counts[index]! > 0
-        ? CHANNELS[channel].deliver(deps, text, eventId, groupId)
+        ? CHANNELS[channel].deliver(
+            deps,
+            text,
+            eventId,
+            groupId,
+            input.excludedUserIds,
+          )
         : EMPTY_DELIVERY,
     ),
   )
@@ -563,6 +653,7 @@ export async function sendAnnouncement(
         ...(group ? { group_id: group.id } : {}),
         channels: input.channels,
         recipients: totals.recipients,
+        excluded_recipients: input.excludedUserIds.length,
         sent: totals.sent,
         failed: totals.failed,
         ...perChannel,

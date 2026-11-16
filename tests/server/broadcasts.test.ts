@@ -4,6 +4,7 @@ import { GUEST } from '../../supabase/functions/_shared/auth/actor.ts'
 import {
   deleteBroadcastTemplate,
   deleteDraft,
+  broadcastRecipients,
   listBroadcastSubscriptions,
   listBroadcastTemplates,
   listDrafts,
@@ -16,6 +17,7 @@ import { BROADCAST_LIMITS } from '../../supabase/functions/_shared/contracts/bro
 import {
   closeEvent,
   createEvent,
+  respondToEvent,
 } from '../../supabase/functions/_shared/events/service.ts'
 import {
   createGroup,
@@ -160,6 +162,10 @@ describe('broadcasts/subscriptions (BRC-15, Q-112)', () => {
         listBroadcastSubscriptions(deps, await actorOf(db, user.id), {}),
         'forbidden',
       )
+      await rejects(
+        broadcastRecipients(deps, await actorOf(db, user.id), {}),
+        'forbidden',
+      )
     }
     const officer = await roleActor('officer')
     await db
@@ -199,6 +205,197 @@ describe('broadcasts/subscriptions (BRC-15, Q-112)', () => {
     expect(
       new Set([...first.items, ...second.items].map((item) => item.id)).size,
     ).toBe(52)
+  })
+})
+
+describe('broadcasts/recipients (BRC-16)', () => {
+  it('pages unique eligible profiles across selected channels', async () => {
+    const manager = await roleActor('officer')
+    const both = await createProfiledUser(db, 'member')
+    const vkOnly = await createProfiledUser(db, 'admin')
+    const blocked = await createProfiledUser(db, 'member')
+    await db
+      .updateTable('app.profiles')
+      .set({ game_nickname: 'A both' })
+      .where('id', '=', both.id)
+      .execute()
+    await db
+      .updateTable('app.profiles')
+      .set({ game_nickname: 'B VK' })
+      .where('id', '=', vkOnly.id)
+      .execute()
+
+    await db
+      .insertInto('app.telegram_links')
+      .values([
+        {
+          user_id: both.id,
+          telegram_user_id: 91001,
+          chat_id: 91001,
+          display_name: 'Hidden Telegram name',
+        },
+        {
+          user_id: blocked.id,
+          telegram_user_id: 91002,
+          chat_id: 91002,
+          display_name: 'Blocked',
+          blocked_at: new Date().toISOString(),
+        },
+      ])
+      .execute()
+    await db
+      .insertInto('app.vk_links')
+      .values([
+        {
+          user_id: both.id,
+          vk_user_id: 92001,
+          chat_id: 92001,
+          display_name: 'Hidden VK name',
+        },
+        {
+          user_id: vkOnly.id,
+          vk_user_id: 92002,
+          chat_id: 92002,
+          display_name: 'Hidden VK name',
+        },
+      ])
+      .execute()
+
+    const first = await broadcastRecipients(deps, manager.actor, {
+      channels: ['telegram', 'vk'],
+      limit: 1,
+    })
+    expect(first).toMatchObject({
+      items: [
+        { id: both.id, gameNickname: 'A both', channels: ['telegram', 'vk'] },
+      ],
+      nextCursor: expect.any(String),
+      channels: {
+        telegram: { count: 1 },
+        vk: { count: 2 },
+      },
+    })
+
+    const second = await broadcastRecipients(deps, manager.actor, {
+      channels: ['telegram', 'vk'],
+      cursor: first.nextCursor,
+      limit: 1,
+    })
+    expect(second).toMatchObject({
+      items: [{ id: vkOnly.id, gameNickname: 'B VK', channels: ['vk'] }],
+      nextCursor: null,
+    })
+
+    const excluded = await broadcastRecipients(deps, manager.actor, {
+      channels: ['telegram', 'vk'],
+      excludedUserIds: [both.id],
+    })
+    expect(excluded).toMatchObject({
+      channels: {
+        telegram: { count: 0 },
+        vk: { count: 1 },
+      },
+    })
+  })
+
+  it('searches on the server and continues after 50 recipients', async () => {
+    const manager = await roleActor('admin')
+    const members = []
+    for (let index = 0; index < 51; index += 1) {
+      members.push(await createProfiledUser(db, 'member'))
+    }
+    await db
+      .insertInto('app.telegram_links')
+      .values(
+        members.map((member, index) => ({
+          user_id: member.id,
+          telegram_user_id: 93000 + index,
+          chat_id: 93000 + index,
+          display_name: member.nickname,
+        })),
+      )
+      .execute()
+
+    const first = await broadcastRecipients(deps, manager.actor, {
+      channels: ['telegram'],
+    })
+    const firstPage = first as unknown as {
+      items: { id: string; gameNickname: string }[]
+      nextCursor: string | null
+    }
+    expect(firstPage.items).toHaveLength(50)
+    expect(firstPage.nextCursor).toEqual(expect.any(String))
+
+    const last = await broadcastRecipients(deps, manager.actor, {
+      channels: ['telegram'],
+      cursor: firstPage.nextCursor,
+    })
+    expect(last).toMatchObject({
+      items: [{ id: expect.any(String), gameNickname: expect.any(String) }],
+      nextCursor: null,
+    })
+
+    const search = await broadcastRecipients(deps, manager.actor, {
+      channels: ['telegram'],
+      search: members[50]!.nickname,
+    })
+    expect(search).toMatchObject({
+      items: [{ id: members[50]!.id, gameNickname: members[50]!.nickname }],
+      nextCursor: null,
+    })
+  })
+
+  it('uses the group and event audience rules for the picker', async () => {
+    const officer = await roleActor('officer')
+    const inGroup = await createProfiledUser(db, 'member')
+    const outsideGroup = await createProfiledUser(db, 'member')
+    const event = await createEvent(deps, officer.actor, eventFields)
+    const { groups } = await createGroup(deps, officer.actor, {
+      eventId: event.id,
+      name: 'Пати',
+    })
+    const groupId = groups[0]!.id
+    await moveMember(deps, officer.actor, {
+      eventId: event.id,
+      userId: inGroup.id,
+      groupId,
+    })
+    await db
+      .insertInto('app.telegram_links')
+      .values([
+        {
+          user_id: inGroup.id,
+          telegram_user_id: 94001,
+          chat_id: 94001,
+          display_name: 'In group',
+        },
+        {
+          user_id: outsideGroup.id,
+          telegram_user_id: 94002,
+          chat_id: 94002,
+          display_name: 'Outside group',
+        },
+      ])
+      .execute()
+    await respondToEvent(deps, await actorOf(db, outsideGroup.id), {
+      eventId: event.id,
+      answer: 'yes',
+    })
+
+    const groupPage = await broadcastRecipients(deps, officer.actor, {
+      channels: ['telegram'],
+      groupId,
+    })
+    expect(groupPage).toMatchObject({
+      items: [{ id: inGroup.id }],
+    })
+    const eventPage = await broadcastRecipients(deps, officer.actor, {
+      channels: ['telegram'],
+      eventId: event.id,
+    })
+    expect(eventPage).toMatchObject({
+      items: [{ id: inGroup.id }],
+    })
   })
 })
 

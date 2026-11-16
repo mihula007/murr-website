@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { AccessRole } from './account.ts'
-import { pageRequestShape, type Page } from './paging.ts'
+import { MEMBER_LIST_LIMIT, pageRequestShape, type Page } from './paging.ts'
 
 /**
  * Рассылки (BRC): черновики, шаблоны и отправка анонса в Telegram и MAX
@@ -102,6 +102,11 @@ export const sendAnnouncementSchema = z.object({
     .transform((items): SendableChannel[] =>
       items ? SENDABLE_CHANNELS.filter((c) => items.includes(c)) : ['telegram'],
     ),
+  excludedUserIds: z
+    .array(z.guid('invalid'), 'invalid')
+    .max(MEMBER_LIST_LIMIT, 'too_many')
+    .nullish()
+    .transform((items) => Array.from(new Set(items ?? []))),
 })
 export type SendAnnouncementRequest = z.input<typeof sendAnnouncementSchema>
 
@@ -110,8 +115,30 @@ export type SendAnnouncementRequest = z.input<typeof sendAnnouncementSchema>
  * `eventId` — анонс события: без ответивших на него (Q-109).
  */
 export const recipientsSchema = z.object({
+  ...pageRequestShape,
   groupId: optionalId,
   eventId: optionalId,
+  channels: z
+    .array(z.enum(SENDABLE_CHANNELS, 'invalid'), 'invalid')
+    .min(1, 'required')
+    .max(SENDABLE_CHANNELS.length, 'invalid')
+    .nullish()
+    .transform((items): SendableChannel[] =>
+      items
+        ? SENDABLE_CHANNELS.filter((channel) => items.includes(channel))
+        : [...SENDABLE_CHANNELS],
+    ),
+  search: z
+    .string()
+    .trim()
+    .max(100, 'too_long')
+    .nullish()
+    .transform((value) => value || null),
+  excludedUserIds: z
+    .array(z.guid('invalid'), 'invalid')
+    .max(MEMBER_LIST_LIMIT, 'too_many')
+    .nullish()
+    .transform((items) => Array.from(new Set(items ?? []))),
 })
 export type RecipientsRequest = z.input<typeof recipientsSchema>
 
@@ -142,6 +169,13 @@ export type BroadcastRecipientsResponse = {
   /** Получатели Telegram — для прежнего клиента. */
   count: number
   channels?: Record<SendableChannel, ChannelRecipients>
+} & Page<BroadcastRecipientOption>
+
+export type BroadcastRecipientOption = {
+  id: string
+  gameNickname: string
+  /** Активные каналы, в которые этот профиль может получить объявление. */
+  channels: SendableChannel[]
 }
 
 export const broadcastIdSchema = z.object({ id: z.guid('not_found') })
