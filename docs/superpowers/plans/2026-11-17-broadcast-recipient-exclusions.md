@@ -132,3 +132,9 @@
 - No database migration is needed; exclusions are sent as part of the current request and are not stored.
 - The new recipient page is manager-only and returns only profile ID, game nickname, and channel eligibility.
 - An old client with no exclusion IDs continues to send to every currently eligible recipient.
+
+## Follow-up from manual review (17.11.2026)
+
+- Add a single-class server-side filter to the recipient options list; default to all classes. The filter changes only which people are visible, not who is in the announcement audience, and switching it preserves all checked/excluded IDs.
+- Keep the recipient list in an internal scroll area sized for about 15 rows. Continue cursor pagination as the operator scrolls inside that area, and retain keyboard/screen-reader access and the narrow-screen card layout.
+- Update the recipient list registry, BRC-16 acceptance, and the focused server/component coverage. Do not run the full check set during this remark pass; prepare the local app for manual validation.

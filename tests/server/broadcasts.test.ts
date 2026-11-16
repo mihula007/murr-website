@@ -209,6 +209,56 @@ describe('broadcasts/subscriptions (BRC-15, Q-112)', () => {
 })
 
 describe('broadcasts/recipients (BRC-16)', () => {
+  it('filters visible rows by class without narrowing channel totals', async () => {
+    const manager = await roleActor('officer')
+    const classes = await db
+      .selectFrom('app.character_classes')
+      .select('id')
+      .orderBy('id')
+      .limit(2)
+      .execute()
+    expect(classes).toHaveLength(2)
+    const classId = Number(classes[0]!.id)
+    const otherClassId = Number(classes[1]!.id)
+    const selectedClass = await createProfiledUser(db, 'member')
+    const otherClass = await createProfiledUser(db, 'member')
+    await db
+      .updateTable('app.profiles')
+      .set({ class_id: classId })
+      .where('id', '=', selectedClass.id)
+      .execute()
+    await db
+      .updateTable('app.profiles')
+      .set({ class_id: otherClassId })
+      .where('id', '=', otherClass.id)
+      .execute()
+    await db
+      .insertInto('app.telegram_links')
+      .values([
+        {
+          user_id: selectedClass.id,
+          telegram_user_id: 92901,
+          chat_id: 92901,
+          display_name: selectedClass.nickname,
+        },
+        {
+          user_id: otherClass.id,
+          telegram_user_id: 92902,
+          chat_id: 92902,
+          display_name: otherClass.nickname,
+        },
+      ])
+      .execute()
+
+    const result = await broadcastRecipients(deps, manager.actor, {
+      channels: ['telegram'],
+      classId,
+    })
+    expect(result.items.map((item) => item.id)).toContain(selectedClass.id)
+    expect(result.items.map((item) => item.id)).not.toContain(otherClass.id)
+    expect(result.channels?.telegram.count).toBe(2)
+  })
+
   it('pages unique eligible profiles across selected channels', async () => {
     const manager = await roleActor('officer')
     const both = await createProfiledUser(db, 'member')

@@ -480,6 +480,7 @@ export async function broadcastRecipients(
       : null,
     broadcastRepository.recipientPage(deps.db, {
       channels: input.channels,
+      classId: input.classId,
       search: input.search,
       after: input.cursor ? decodeCursor(nicknameCursor, input.cursor) : null,
       groupId: input.groupId,

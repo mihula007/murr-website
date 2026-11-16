@@ -51,6 +51,7 @@ export function useBroadcastSubscriptions(search: string, enabled = true) {
 export function useBroadcastRecipientOptions(
   search: string,
   channels: SendableChannel[],
+  classId: number | null,
   groupId: string | null,
   eventId: string | null,
 ) {
@@ -59,6 +60,7 @@ export function useBroadcastRecipientOptions(
       ...broadcastKeys.recipients,
       'options',
       channels,
+      classId,
       groupId,
       eventId,
       search,
@@ -67,6 +69,7 @@ export function useBroadcastRecipientOptions(
       callApi<BroadcastRecipientsResponse>('broadcasts/recipients', {
         cursor: pageParam,
         channels,
+        ...(classId !== null ? { classId } : {}),
         ...(groupId ? { groupId } : {}),
         ...(eventId ? { eventId } : {}),
         ...(search ? { search } : {}),

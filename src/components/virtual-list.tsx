@@ -412,6 +412,107 @@ export function VirtualList<T>({
   )
 }
 
+type ScrollableVirtualListProps<T> = {
+  items: readonly T[]
+  getKey: (item: T) => string
+  renderItem: (item: T) => ReactNode
+  label: string
+  estimateSize: number
+  paging: Paging
+  /** Высота области в примерных строках. */
+  viewportRows: number
+  gap?: keyof typeof GAP
+}
+
+/** Виртуализированный список с собственной прокруткой и догрузкой вниз. */
+export function ScrollableVirtualList<T>({
+  items,
+  getKey,
+  renderItem,
+  label,
+  estimateSize,
+  paging,
+  viewportRows,
+  gap = 'sm',
+}: ScrollableVirtualListProps<T>) {
+  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(
+    null,
+  )
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => scrollElement,
+    estimateSize: () => estimateSize,
+    gap: GAP[gap],
+    overscan: 4,
+    getItemKey: (index) => {
+      const item = items[index]
+      return item ? getKey(item) : String(index)
+    },
+    initialRect: {
+      width: 360,
+      height: estimateSize * viewportRows,
+    },
+  })
+  const virtualItems = virtualizer.getVirtualItems()
+  const first = virtualItems[0]
+  const last = virtualItems.at(-1)
+  const before = first?.start ?? 0
+  const after = last ? Math.max(0, virtualizer.getTotalSize() - last.end) : 0
+  const reachedEnd = last !== undefined && last.index >= items.length - 1
+  const { hasMore, loadingMore, loadError, onLoadMore } = paging
+
+  useEffect(() => {
+    if (reachedEnd && hasMore && !loadingMore && !loadError) {
+      onLoadMore()
+    }
+  }, [reachedEnd, hasMore, loadingMore, loadError, onLoadMore])
+
+  return (
+    <div
+      ref={setScrollElement}
+      role="region"
+      aria-label={`Прокручиваемый список: ${label}`}
+      data-viewport-rows={viewportRows}
+      tabIndex={0}
+      style={
+        {
+          '--virtual-height': `calc(${viewportRows} * ${estimateSize}px + ${viewportRows - 1} * ${GAP[gap]}px)`,
+        } as CSSProperties
+      }
+      className="max-h-(--virtual-height) overflow-y-auto overscroll-contain rounded-lg"
+    >
+      <ul
+        aria-label={label}
+        style={
+          {
+            '--virtual-before': `${before}px`,
+            '--virtual-after': `${after}px`,
+          } as CSSProperties
+        }
+        className={cn(
+          'm-0 grid list-none px-0 pt-(--virtual-before) pb-(--virtual-after)',
+          gapClass[gap],
+        )}
+      >
+        {virtualItems.map((row) => {
+          const item = items[row.index]
+          return item === undefined ? null : (
+            <li
+              key={getKey(item)}
+              data-index={row.index}
+              ref={virtualizer.measureElement}
+              className="min-w-0"
+            >
+              {renderItem(item)}
+            </li>
+          )
+        })}
+      </ul>
+      <LoadMore paging={paging} />
+    </div>
+  )
+}
+
 /** Отступ таблицы до или после видимых строк (`<tr>` внутри `<tbody>`). */
 export function VirtualSpacerRow({
   height,

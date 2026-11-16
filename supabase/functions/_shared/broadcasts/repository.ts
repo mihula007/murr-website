@@ -36,6 +36,7 @@ export type SubscriptionPageOptions = {
 
 export type RecipientPageOptions = {
   channels: SendableChannel[]
+  classId: number | null
   search: string | null
   after: NicknameKey | null
   groupId: string | null
@@ -125,6 +126,9 @@ export const broadcastRepository = {
         'ilike',
         containsPattern(options.search),
       )
+    }
+    if (options.classId !== null) {
+      query = query.where('p.class_id', '=', options.classId)
     }
     if (options.after) {
       const { gameNickname, id } = options.after

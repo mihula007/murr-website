@@ -1,5 +1,13 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 import type { BroadcastTemplate } from '@contracts/broadcasts'
 import { AppError } from '@/lib/errors'
 import { renderApp } from './support/render-app'
@@ -54,6 +62,7 @@ beforeEach(() => {
     'broadcasts/drafts': () => ({ items: [] }),
     'broadcasts/templates': () => ({ items: [template] }),
     'broadcasts/save-draft': () => ({ items: [] }),
+    'catalog/classes': () => ({ classes: [] }),
     'broadcasts/recipients': () => recipients(0, 0),
   }
   callApi.mockReset()
@@ -68,6 +77,27 @@ beforeEach(() => {
       return Promise.reject(error)
     }
   })
+})
+
+beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    configurable: true,
+    get: () => 900,
+  })
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+    configurable: true,
+    get: () => 400,
+  })
+  Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+    configurable: true,
+    get: () => 2_000,
+  })
+})
+
+afterAll(() => {
+  Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight')
+  Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth')
+  Reflect.deleteProperty(HTMLElement.prototype, 'scrollHeight')
 })
 
 describe('broadcast page (BRC, E2E-07)', () => {
@@ -309,6 +339,72 @@ describe('broadcast page (BRC, E2E-07)', () => {
     )
   })
 
+  it('filters the visible list by class and preserves exclusions across classes', async () => {
+    const requests: Array<Record<string, unknown>> = []
+    const rows = [
+      {
+        id: '00000000-0000-4000-8000-000000000015',
+        gameNickname: 'Воин 1',
+        channels: ['telegram'],
+        classId: 1,
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000016',
+        gameNickname: 'Маг 1',
+        channels: ['telegram'],
+        classId: 2,
+      },
+    ]
+    routes['catalog/classes'] = () => ({
+      classes: [
+        { id: 1, name: 'Воин', slug: 'warrior' },
+        { id: 2, name: 'Маг', slug: 'mage' },
+      ],
+    })
+    routes['broadcasts/recipients'] = (body) => {
+      const request = body as Record<string, unknown>
+      requests.push(request)
+      return {
+        ...recipients(2, 0),
+        items: request.classId
+          ? rows.filter((item) => item.classId === request.classId)
+          : rows,
+        nextCursor: null,
+      }
+    }
+
+    await renderApp({ role: 'officer', path: '/broadcast' })
+    const excluded = await screen.findByRole('checkbox', {
+      name: 'Получит: Воин 1',
+    })
+    expect(
+      screen.getByLabelText('Прокручиваемый список: Получатели объявления'),
+    ).toHaveAttribute('data-viewport-rows', '15')
+    fireEvent.click(excluded)
+
+    const classFilter = screen.getByRole('combobox', {
+      name: 'Класс получателя',
+    })
+    fireEvent.keyDown(classFilter, { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Маг' }))
+    expect(
+      await screen.findByRole('checkbox', { name: 'Получит: Маг 1' }),
+    ).toBeChecked()
+    await waitFor(() => expect(requests.at(-1)?.classId).toBe(2))
+    expect(
+      screen.queryByRole('checkbox', { name: 'Получит: Воин 1' }),
+    ).toBeNull()
+
+    fireEvent.keyDown(classFilter, { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Все классы' }))
+    expect(
+      await screen.findByRole('checkbox', { name: 'Получит: Воин 1' }),
+    ).not.toBeChecked()
+    expect(
+      screen.getByText(/Получателей по каналам: Telegram: 1/),
+    ).toBeVisible()
+  })
+
   it('searches recipients on the server and asks for the next cursor page', async () => {
     const requests: Array<Record<string, unknown>> = []
     routes['broadcasts/recipients'] = (body) => {
@@ -329,24 +425,36 @@ describe('broadcast page (BRC, E2E-07)', () => {
       }
       return {
         ...recipients(2, 0),
-        items: [
-          {
-            id: '00000000-0000-4000-8000-000000000022',
-            gameNickname: 'Первый',
-            channels: ['telegram'],
-          },
-        ],
+        items: request.cursor
+          ? [
+              {
+                id: '00000000-0000-4000-8000-000000000072',
+                gameNickname: 'Продолжение',
+                channels: ['telegram'],
+              },
+            ]
+          : Array.from({ length: 50 }, (_, index) => ({
+              id: `00000000-0000-4000-8000-${String(index + 22).padStart(12, '0')}`,
+              gameNickname: index === 0 ? 'Первый' : `Участник ${index}`,
+              channels: ['telegram'],
+            })),
         nextCursor: request.cursor ? null : 'cursor-1',
       }
     }
 
     await renderApp({ role: 'admin', path: '/broadcast' })
     expect(await screen.findByText('Первый')).toBeVisible()
+    const recipientScroller = screen.getByLabelText(
+      'Прокручиваемый список: Получатели объявления',
+    )
+    recipientScroller.scrollTop = 4_000
+    fireEvent.scroll(recipientScroller)
     await waitFor(() =>
       expect(requests).toContainEqual(
         expect.objectContaining({ cursor: 'cursor-1' }),
       ),
     )
+    expect(await screen.findByText('Продолжение')).toBeVisible()
 
     fireEvent.change(screen.getByLabelText('Поиск по нику'), {
       target: { value: 'Найденный' },

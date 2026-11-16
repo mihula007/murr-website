@@ -118,6 +118,12 @@ export const recipientsSchema = z.object({
   ...pageRequestShape,
   groupId: optionalId,
   eventId: optionalId,
+  classId: z
+    .number()
+    .int()
+    .positive()
+    .nullish()
+    .transform((value) => value ?? null),
   channels: z
     .array(z.enum(SENDABLE_CHANNELS, 'invalid'), 'invalid')
     .min(1, 'required')

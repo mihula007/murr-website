@@ -10,8 +10,10 @@ import { EmptyState } from '@/components/states/empty-state'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
 import { Input } from '@/components/ui/input'
-import { pagingOf, VirtualList } from '@/components/virtual-list'
+import { Select } from '@/components/ui/select'
+import { pagingOf, ScrollableVirtualList } from '@/components/virtual-list'
 import { cn } from '@/lib/utils'
+import { useClasses } from '@/features/catalog/use-classes'
 import { useBroadcastRecipientOptions } from './api'
 
 export type ExcludedRecipient = {
@@ -100,10 +102,13 @@ export function RecipientExclusions({
   onChange: (value: ExcludedRecipient[]) => void
 }) {
   const [search, setSearch] = useState('')
+  const [classId, setClassId] = useState<number | null>(null)
   const debouncedSearch = useDebounced(search, 350)
+  const classes = useClasses()
   const recipients = useBroadcastRecipientOptions(
     debouncedSearch.trim(),
     selectedChannels,
+    classId,
     groupId,
     eventId,
   )
@@ -158,11 +163,13 @@ export function RecipientExclusions({
     )
   } else {
     content = (
-      <VirtualList
+      <ScrollableVirtualList
+        key={`${classId ?? 'all'}:${debouncedSearch}:${selectedChannels.join(',')}`}
         label="Получатели объявления"
         items={items}
         getKey={(member) => member.id}
         estimateSize={62}
+        viewportRows={15}
         paging={pagingOf(recipients)}
         renderItem={(member) => (
           <RecipientRow
@@ -198,6 +205,27 @@ export function RecipientExclusions({
           placeholder="Введите ник"
         />
       </FormField>
+      <FormField id="broadcast-recipient-class" label="Класс получателя">
+        <Select
+          id="broadcast-recipient-class"
+          aria-label="Класс получателя"
+          value={classId === null ? 'all' : String(classId)}
+          onValueChange={(value) =>
+            setClassId(value === 'all' ? null : Number(value))
+          }
+          options={[
+            { value: 'all', label: 'Все классы' },
+            ...(classes.data ?? []).map((item) => ({
+              value: String(item.id),
+              label: item.name,
+            })),
+          ]}
+        />
+      </FormField>
+      <p className="m-0 text-sm text-muted-foreground">
+        Фильтр помогает найти участников; на отправку влияют только снятые
+        отметки.
+      </p>
       {content}
       {selectedChannels.length > 0 && firstPage ? (
         <p aria-live="polite" className="m-0 text-sm text-muted-foreground">
