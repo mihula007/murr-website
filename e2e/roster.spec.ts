@@ -6,6 +6,7 @@ import {
   createMember,
   expectSignedIn,
   signInUi,
+  sql,
 } from './supabase'
 
 test.skip(
@@ -33,6 +34,11 @@ test('officer assigns a member the reader role from the roster', async ({
 }) => {
   const officer = await createMember('officer')
   const member = await createMember('member')
+  member.nickname = `0${member.nickname}`
+  await sql(
+    (db) =>
+      db`update app.profiles set game_nickname = ${member.nickname} where id = ${member.id}`,
+  )
 
   await signInUi(page, officer.email)
   await expectSignedIn(page)

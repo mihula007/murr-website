@@ -14,6 +14,7 @@ import {
   moscowToday,
   PASSWORD,
   signInUi,
+  sql,
 } from './supabase'
 
 test.skip(
@@ -42,6 +43,11 @@ test('E2E-06: блокировка в чтеца и восстановление
   const member = await createMember('member')
   const admin = await createMember('admin')
   const officer = await createMember('officer')
+  member.nickname = `0${member.nickname}`
+  await sql(
+    (db) =>
+      db`update app.profiles set game_nickname = ${member.nickname} where id = ${member.id}`,
+  )
 
   await signInUi(page, member.email)
   await expectSignedIn(page)
