@@ -95,7 +95,7 @@ function SubscriptionRow({ member }: { member: BroadcastSubscription }) {
       <strong className="min-w-0 flex-1 break-words">
         {member.gameNickname}
       </strong>
-      <div className="grid w-44 flex-none grid-cols-3 gap-1">
+      <div className="grid w-48 flex-none grid-cols-3">
         {CHANNELS.map(({ key, label }) => (
           <MessengerState
             key={key}
@@ -145,11 +145,11 @@ export function SubscriptionsPanel({
   } else {
     content = (
       <>
-        <div className="hidden grid-cols-[minmax(0,1fr)_176px] items-center gap-3 px-3 text-xs font-semibold text-muted-foreground min-[560px]:grid">
+        <div className="hidden grid-cols-[minmax(0,1fr)_192px] items-center gap-3 px-3 text-xs font-semibold text-muted-foreground min-[560px]:grid">
           <span>Участник</span>
           <fieldset
             aria-label="Подписи каналов"
-            className="m-0 grid w-44 grid-cols-3 gap-1 border-0 p-0 text-center"
+            className="m-0 grid w-48 grid-cols-3 border-0 p-0 text-center"
           >
             {CHANNELS.map(({ key, label }) => (
               <span key={key} className="min-w-0 break-words leading-tight">
