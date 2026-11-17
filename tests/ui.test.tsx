@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { pageItems, Pagination } from '@/components/ui/pagination'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 describe('guild UI primitives', () => {
   it('renders a disabled action as a native disabled button', () => {
@@ -18,6 +19,21 @@ describe('guild UI primitives', () => {
       </label>,
     )
     expect(screen.getByRole('textbox', { name: 'Имя' })).toBeInTheDocument()
+  })
+
+  it('uses the selected-tab highlight without a clipped focus outline', () => {
+    render(
+      <Tabs defaultValue="published">
+        <TabsList aria-label="Публикации">
+          <TabsTrigger value="published">Опубликованные</TabsTrigger>
+          <TabsTrigger value="drafts">Черновики</TabsTrigger>
+        </TabsList>
+      </Tabs>,
+    )
+
+    expect(screen.getByRole('tab', { name: 'Опубликованные' })).toHaveClass(
+      'focus-visible:outline-none',
+    )
   })
 })
 
