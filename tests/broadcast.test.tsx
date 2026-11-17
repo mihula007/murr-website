@@ -155,6 +155,15 @@ describe('broadcast page (BRC, E2E-07)', () => {
     expect(
       screen.getByRole('group', { name: 'ВКонтакте: сообщения недоступны' }),
     ).toBeVisible()
+    const scrollRegion = screen.getByRole('region', {
+      name: 'Прокручиваемый список: Участники и привязки мессенджеров',
+    })
+    expect(scrollRegion).toHaveAttribute('data-viewport-rows', '15')
+    expect(
+      within(screen.getByRole('group', { name: 'Подписи каналов' })).getByText(
+        'ВКонтакте',
+      ),
+    ).toHaveClass('min-w-0', 'break-words')
   })
 
   it('stores nickname search in the address and sends it after a short pause', async () => {

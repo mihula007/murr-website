@@ -10,7 +10,7 @@ import { LoadingState } from '@/components/states/loading-state'
 import { FormField } from '@/components/form/form-field'
 import { Input } from '@/components/ui/input'
 import { MessengerIcon, type Messenger } from '@/components/ui/messenger-icon'
-import { pagingOf, VirtualList } from '@/components/virtual-list'
+import { pagingOf, ScrollableVirtualList } from '@/components/virtual-list'
 import { cn } from '@/lib/utils'
 import { useBroadcastSubscriptions } from './api'
 
@@ -52,7 +52,7 @@ function MessengerState({
     <fieldset
       aria-label={`${label}: ${state}`}
       title={`${label}: ${state}`}
-      className="relative m-0 grid size-9 flex-none place-items-center border-0 p-0"
+      className="relative m-0 grid size-9 flex-none place-items-center justify-self-center border-0 p-0"
     >
       <MessengerIcon
         messenger={messenger}
@@ -95,7 +95,7 @@ function SubscriptionRow({ member }: { member: BroadcastSubscription }) {
       <strong className="min-w-0 flex-1 break-words">
         {member.gameNickname}
       </strong>
-      <div className="flex flex-none items-center gap-2.5">
+      <div className="grid w-44 flex-none grid-cols-3 gap-1">
         {CHANNELS.map(({ key, label }) => (
           <MessengerState
             key={key}
@@ -145,24 +145,25 @@ export function SubscriptionsPanel({
   } else {
     content = (
       <>
-        <div
-          aria-hidden="true"
-          className="hidden grid-cols-[minmax(0,1fr)_128px] items-center gap-3 px-3 text-xs font-semibold text-muted-foreground min-[560px]:grid"
-        >
+        <div className="hidden grid-cols-[minmax(0,1fr)_176px] items-center gap-3 px-3 text-xs font-semibold text-muted-foreground min-[560px]:grid">
           <span>Участник</span>
-          <span className="flex items-center gap-2.5 text-center">
+          <fieldset
+            aria-label="Подписи каналов"
+            className="m-0 grid w-44 grid-cols-3 gap-1 border-0 p-0 text-center"
+          >
             {CHANNELS.map(({ key, label }) => (
-              <span key={key} className="grid size-9 place-items-center">
+              <span key={key} className="min-w-0 break-words leading-tight">
                 {label}
               </span>
             ))}
-          </span>
+          </fieldset>
         </div>
-        <VirtualList
+        <ScrollableVirtualList
           label="Участники и привязки мессенджеров"
           items={subscriptions.data}
           getKey={(member) => member.id}
           estimateSize={62}
+          viewportRows={15}
           paging={pagingOf(subscriptions)}
           renderItem={(member) => <SubscriptionRow member={member} />}
         />

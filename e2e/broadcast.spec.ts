@@ -168,9 +168,21 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
   }
   expect(first.items).toHaveLength(50)
   expect(first.nextCursor).toBeTruthy()
+  const subscriptions = page.getByRole('region', {
+    name: 'Прокручиваемый список: Участники и привязки мессенджеров',
+  })
+  await expect(subscriptions).toHaveAttribute('data-viewport-rows', '15')
+  expect(
+    await subscriptions.evaluate(
+      (element) => element.scrollHeight > element.clientHeight,
+    ),
+  ).toBe(true)
 
   const secondResponse = page.waitForResponse(isSubscriptionsPage)
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+  await subscriptions.scrollIntoViewIfNeeded()
+  await subscriptions.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
   const second = (await (await secondResponse).json()) as {
     items: { id: string; gameNickname: string }[]
     nextCursor: string | null
@@ -183,7 +195,9 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
 
   const lastNickname = second.items.at(-1)?.gameNickname
   expect(lastNickname).toBeTruthy()
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+  await subscriptions.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
   await expect(page.getByText(lastNickname as string)).toBeVisible()
 })
 
