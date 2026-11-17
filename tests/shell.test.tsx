@@ -57,6 +57,15 @@ describe('оболочка приложения', () => {
     ])
   })
 
+  it('категории не показывают рамку клавиатурного фокуса', async () => {
+    await renderApp({ role: 'admin' })
+    await screen.findByRole('link', { name: 'Аккаунт' })
+    expect(categoryButtons()).toHaveLength(3)
+    for (const button of categoryButtons()) {
+      expect(button).toHaveClass('focus-visible:outline-none')
+    }
+  })
+
   it('открытие второй категории закрывает первую (HOM-03)', async () => {
     await renderApp({ role: 'admin' })
     const [clan, community] = categoryButtons()
