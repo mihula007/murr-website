@@ -156,9 +156,20 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
   await signInUi(page, officer.email)
   await expectSignedIn(page)
 
-  const isSubscriptionsPage = (response: { url: () => string }) =>
-    response.url().includes('/functions/v1/api/broadcasts/subscriptions')
-  const firstResponse = page.waitForResponse(isSubscriptionsPage)
+  const isSubscriptionsPage = (response: {
+    url: () => string
+    request: () => { postData: () => string | null }
+  }) => response.url().includes('/functions/v1/api/broadcasts/subscriptions')
+  const firstResponse = page.waitForResponse((response) => {
+    if (!isSubscriptionsPage(response)) {
+      return false
+    }
+    const body = JSON.parse(response.request().postData() ?? '{}') as {
+      cursor?: string | null
+      search?: string
+    }
+    return body.cursor === null && body.search === prefix
+  })
   await page.goto(
     `./#/broadcast?tab=subscriptions&q=${encodeURIComponent(prefix)}`,
   )
@@ -167,6 +178,9 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
     nextCursor: string | null
   }
   expect(first.items).toHaveLength(50)
+  expect(
+    first.items.every((item) => item.gameNickname.startsWith(prefix)),
+  ).toBe(true)
   expect(first.nextCursor).toBeTruthy()
   const subscriptions = page.getByRole('region', {
     name: 'Прокручиваемый список: Участники и привязки мессенджеров',
@@ -178,7 +192,16 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
     ),
   ).toBe(true)
 
-  const secondResponse = page.waitForResponse(isSubscriptionsPage)
+  const secondResponse = page.waitForResponse((response) => {
+    if (!isSubscriptionsPage(response)) {
+      return false
+    }
+    const body = JSON.parse(response.request().postData() ?? '{}') as {
+      cursor?: string | null
+      search?: string
+    }
+    return body.cursor === first.nextCursor && body.search === prefix
+  })
   await subscriptions.scrollIntoViewIfNeeded()
   await subscriptions.evaluate((element) => {
     element.scrollTop = element.scrollHeight
