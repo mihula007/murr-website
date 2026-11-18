@@ -90,6 +90,8 @@ export async function listAccounts(
   const input = parseBody(accountsListSchema, body ?? {})
   const query = {
     search: input.search,
+    classId: input.classId ?? null,
+    role: input.role ?? null,
     sort: input.sort,
     direction: input.direction,
   }
@@ -100,7 +102,7 @@ export async function listAccounts(
       input.cursor ? decodeCursor(accountCursor, input.cursor) : null,
       input.limit + 1,
     ),
-    accountRepository.count(deps.db, input.search),
+    accountRepository.count(deps.db, query),
   ])
   const page = splitPage(rows, input.limit, (row) => [row.sort_key, row.id])
   return {

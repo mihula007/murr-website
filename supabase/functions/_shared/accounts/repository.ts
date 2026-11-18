@@ -1,10 +1,13 @@
 import { sql, type RawBuilder } from 'kysely'
 import type { Executor } from '../db/client.ts'
 import { ACTIVE_STATUSES } from '../applications/repository.ts'
+import type { AccessRole } from '../contracts/account.ts'
 import type { AccountSort, SortDirection } from '../contracts/accounts.ts'
 
 export type AccountQuery = {
   search: string | null
+  classId: number | null
+  role: AccessRole | null
   sort: AccountSort
   direction: SortDirection
 }
@@ -12,27 +15,14 @@ export type AccountQuery = {
 /** Ключ курсора: значение сортировки и `id` последней строки. */
 export type AccountKey = { value: string | number; id: string }
 
-/** Порядок ролей при сортировке: от администратора к кандидату. */
-const ROLE_RANK = sql<number>`case p.access_role
-  when 'admin' then 0 when 'officer' then 1 when 'member' then 2
-  when 'reader' then 3 else 4 end`
-
 /**
  * Выражение сортировки. Пустая дата вступления — в конце при любом
  * направлении: заменяется крайней датой со стороны конца списка.
  */
-function sortExpression(sort: AccountSort, direction: SortDirection) {
+function sortExpression(sort: AccountSort): RawBuilder<string | number> {
   const expressions: Record<AccountSort, RawBuilder<string | number>> = {
     nickname: sql<string>`p.game_nickname`,
-    name: sql<string>`p.display_name`,
-    class: sql<string>`c.name`,
-    email: sql<string>`coalesce(u.email, '')`,
-    role: ROLE_RANK,
     registered: sql<string>`p.created_at`,
-    joined:
-      direction === 'asc'
-        ? sql<string>`coalesce(p.joined_on, date '9999-12-31')`
-        : sql<string>`coalesce(p.joined_on, date '0001-01-01')`,
   }
   return expressions[sort]
 }
@@ -86,10 +76,13 @@ function accounts(db: Executor) {
     ])
 }
 
-function filtered(db: Executor, search: string | null) {
+function filtered(
+  db: Executor,
+  options: Pick<AccountQuery, 'search' | 'classId' | 'role'>,
+) {
   let query = accounts(db)
-  if (search) {
-    const pattern = containsPattern(search)
+  if (options.search) {
+    const pattern = containsPattern(options.search)
     query = query.where((eb) =>
       eb.or([
         eb('p.game_nickname', 'ilike', pattern),
@@ -98,6 +91,12 @@ function filtered(db: Executor, search: string | null) {
         eb('c.name', 'ilike', pattern),
       ]),
     )
+  }
+  if (options.classId !== null) {
+    query = query.where('p.class_id', '=', options.classId)
+  }
+  if (options.role !== null) {
+    query = query.where('p.access_role', '=', options.role)
   }
   return query
 }
@@ -110,8 +109,8 @@ export const accountRepository = {
     after: AccountKey | null,
     limit: number,
   ) {
-    const key = sortExpression(options.sort, options.direction)
-    let query = filtered(db, options.search).select(key.as('sort_key'))
+    const key = sortExpression(options.sort)
+    let query = filtered(db, options).select(key.as('sort_key'))
     if (after) {
       query = query.where(
         options.direction === 'asc'
@@ -126,8 +125,11 @@ export const accountRepository = {
       .execute()
   },
 
-  async count(db: Executor, search: string | null) {
-    const row = await filtered(db, search)
+  async count(
+    db: Executor,
+    options: Pick<AccountQuery, 'search' | 'classId' | 'role'>,
+  ) {
+    const row = await filtered(db, options)
       .clearSelect()
       .select((eb) => eb.fn.countAll<string>().as('count'))
       .executeTakeFirstOrThrow()

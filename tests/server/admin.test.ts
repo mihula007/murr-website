@@ -93,35 +93,98 @@ describe('admin: access (ADM, ACL-03)', () => {
 })
 
 describe('admin: account search and sort (ADM-01, ADM-02)', () => {
-  it('pages every sort in both directions without gaps or repeats', async () => {
+  it('supports only nickname and registration sorts with cursors in both directions', async () => {
     const admin = await roleActor('admin')
-    await roleActor('officer')
-    await roleActor('member')
-    await roleActor('reader')
-    const applicant = await roleActor('applicant')
-    await db
-      .updateTable('app.profiles')
-      .set({ class_id: 2, display_name: 'Яна' })
-      .where('id', '=', applicant.user.id)
-      .execute()
+    const profiles = [
+      admin,
+      await roleActor('officer'),
+      await roleActor('member'),
+      await roleActor('reader'),
+      await roleActor('applicant'),
+    ]
+    for (const [index, item] of profiles.entries()) {
+      await db
+        .updateTable('app.profiles')
+        .set({ created_at: `2026-01-0${index + 1}T00:00:00Z` })
+        .where('id', '=', item.user.id)
+        .execute()
+    }
     const ids = (
       await db.selectFrom('app.profiles').select('id').execute()
     ).map((row) => row.id)
+    expect(ACCOUNT_SORTS).toEqual(['nickname', 'registered'])
     for (const sort of ACCOUNT_SORTS) {
       for (const direction of ['asc', 'desc'] as const) {
         const items = await allPages(admin.actor, { sort, direction })
         expect(items.map((item) => item.id).sort()).toEqual([...ids].sort())
       }
     }
-    // Без даты вступления — в конце при любом направлении.
-    for (const direction of ['asc', 'desc'] as const) {
-      const items = await allPages(admin.actor, { sort: 'joined', direction })
-      expect(items.at(-1)!.joinedOn).toBeNull()
+    const registeredAsc = await allPages(admin.actor, {
+      sort: 'registered',
+      direction: 'asc',
+    })
+    const registeredDesc = await allPages(admin.actor, {
+      sort: 'registered',
+      direction: 'desc',
+    })
+    expect(registeredAsc.map((item) => item.id)).toEqual(
+      profiles.map((item) => item.user.id),
+    )
+    expect(registeredDesc.map((item) => item.id)).toEqual(
+      profiles.map((item) => item.user.id).reverse(),
+    )
+  })
+
+  it('applies class, role and search before count and cursor paging', async () => {
+    const admin = await roleActor('admin')
+    const eligible = [await roleActor('applicant'), await roleActor('applicant')]
+    const wrongClass = await roleActor('applicant')
+    const wrongRole = await roleActor('member')
+    for (const [index, item] of eligible.entries()) {
+      await db
+        .updateTable('app.profiles')
+        .set({ class_id: 2, game_nickname: `needle-${index ? 'b' : 'a'}` })
+        .where('id', '=', item.user.id)
+        .execute()
     }
-    const byRole = async (direction: 'asc' | 'desc') =>
-      (await allPages(admin.actor, { sort: 'role', direction }))[0]!.role
-    expect(await byRole('asc')).toBe('admin')
-    expect(await byRole('desc')).toBe('applicant')
+    await db
+      .updateTable('app.profiles')
+      .set({ game_nickname: 'needle-c' })
+      .where('id', '=', wrongClass.user.id)
+      .execute()
+    await db
+      .updateTable('app.profiles')
+      .set({ class_id: 2, game_nickname: 'needle-d' })
+      .where('id', '=', wrongRole.user.id)
+      .execute()
+
+    const query = {
+      search: 'needle',
+      classId: 2,
+      role: 'applicant',
+      sort: 'nickname',
+      direction: 'asc',
+      limit: 1,
+    } as const
+    const first = await listAccounts(deps, admin.actor, query)
+    const second = await listAccounts(deps, admin.actor, {
+      ...query,
+      cursor: first.nextCursor,
+    })
+
+    expect(first.total).toBe(2)
+    expect(first.items.map((item) => item.gameNickname)).toEqual(['needle-a'])
+    expect(first.nextCursor).not.toBeNull()
+    expect(second.total).toBe(2)
+    expect(second.items.map((item) => item.gameNickname)).toEqual(['needle-b'])
+    expect(second.nextCursor).toBeNull()
+  })
+
+  it('rejects unsupported sort, role and class filter values', async () => {
+    const admin = await roleActor('admin')
+    await rejects(listAccounts(deps, admin.actor, { sort: 'email' }), 'validation_failed')
+    await rejects(listAccounts(deps, admin.actor, { role: 'not-a-role' }), 'validation_failed')
+    await rejects(listAccounts(deps, admin.actor, { classId: 1.5 }), 'validation_failed')
   })
 
   it('searches nickname, name, email and class and counts the result', async () => {

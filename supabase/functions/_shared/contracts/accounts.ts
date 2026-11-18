@@ -24,12 +24,7 @@ export type RestoreReaderRequest = z.input<typeof restoreReaderSchema>
 /** Сортировки таблицы «Аккаунты» (ADM-02); направление — отдельно. */
 export const ACCOUNT_SORTS = [
   'nickname',
-  'name',
-  'class',
-  'email',
-  'role',
   'registered',
-  'joined',
 ] as const
 export type AccountSort = (typeof ACCOUNT_SORTS)[number]
 export const SORT_DIRECTIONS = ['asc', 'desc'] as const
@@ -73,6 +68,8 @@ export const accountsListSchema = z.object({
     .transform((value) => value || null),
   sort: z.enum(ACCOUNT_SORTS).default('nickname'),
   direction: z.enum(SORT_DIRECTIONS).default('asc'),
+  classId: classIdSchema.nullish(),
+  role: z.enum(ACCESS_ROLES).nullish(),
 })
 export type AccountsListRequest = z.input<typeof accountsListSchema>
 export type AccountsListResponse = Page<AccountListItem> & {
