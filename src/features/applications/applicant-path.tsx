@@ -17,6 +17,7 @@ const STEPS = [
 const ACTIVE_STEP: Record<ApplicationStatus, number> = {
   pending_officer_review: 1,
   pending_vote: 2,
+  vote_completed: 3,
   officer_approved: 3,
   officer_rejected: 3,
   admin_approved: 3,
@@ -26,6 +27,7 @@ const ACTIVE_STEP: Record<ApplicationStatus, number> = {
 const TITLES: Record<ApplicationStatus, string> = {
   pending_officer_review: 'Заявка отправлена',
   pending_vote: 'Заявка на голосовании',
+  vote_completed: 'Голосование завершено',
   officer_approved: 'Заявка принята',
   officer_rejected: 'Заявка отклонена',
   admin_approved: 'Заявка принята',

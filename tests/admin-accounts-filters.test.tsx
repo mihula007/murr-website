@@ -26,6 +26,7 @@ const account: AccountListItem = {
   deletionPending: false,
 }
 let accountListRole = 'member'
+let accountListStatus: AccountListItem['applicationStatus'] = null
 
 beforeEach(() => {
   Object.defineProperty(window, 'scrollTo', {
@@ -38,11 +39,26 @@ beforeEach(() => {
   })
   callApi.mockReset()
   accountListRole = 'member'
+  accountListStatus = null
   callApi.mockImplementation((route, body) => {
     if (route === 'accounts/list') {
       const query = body as { classId?: number | null; role?: string | null }
       if (query.classId === 2 && query.role === 'applicant') {
         return Promise.resolve({ items: [], total: 0, nextCursor: null })
+      }
+      if (query.role === 'applicant') {
+        return Promise.resolve({
+          items: [
+            {
+              ...account,
+              role: 'applicant',
+              applicationStatus: accountListStatus,
+              hasActiveApplication: true,
+            },
+          ],
+          total: 1,
+          nextCursor: null,
+        })
       }
       if (query.role === 'member' && accountListRole !== 'member') {
         return Promise.resolve({ items: [], total: 0, nextCursor: null })
@@ -188,6 +204,14 @@ describe('фильтры аккаунтов', () => {
     await choose('Фильтр по роли', 'Кандидат')
 
     expect(await screen.findByText('Ничего не найдено')).toBeVisible()
+  })
+
+  it('shows candidate accounts whose voting status is already completed', async () => {
+    accountListStatus = 'vote_completed'
+    await renderApp({ role: 'admin', path: '/admin?role=applicant' })
+
+    expect(await screen.findByRole('table')).toBeVisible()
+    expect(await screen.findByText('Голосование завершено')).toBeVisible()
   })
 
   it('clears each filter independently with its All option', async () => {
