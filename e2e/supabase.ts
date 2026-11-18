@@ -91,6 +91,8 @@ test.afterEach(async () => {
 
     await db`delete from app.market_listings
       where author_id in ${db(ids)} and status = 'draft'`
+    await db`delete from app.publications
+      where author_id in ${db(ids)} and status = 'draft'`
     await db`delete from app.profiles where id in ${db(ids)}`
     await db`delete from auth.users where id in ${db(ids)}`
     const remaining = await db<{ id: string }[]>`
