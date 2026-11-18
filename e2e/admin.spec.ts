@@ -25,6 +25,86 @@ function moscowDate(days = 0) {
     .slice(0, 10)
 }
 
+test('E2E-14: фильтры класса и роли сохраняются на компьютере и телефоне', async ({
+  page,
+}) => {
+  const [admin, member, otherMember, officer] = await Promise.all([
+    createMember('admin'),
+    createMember('member'),
+    createMember('member'),
+    createMember('officer'),
+  ])
+  const classIds = await sql(async (db) => {
+    const [classes] = await db<{ mage: number; warrior: number }[]>`
+      select
+        (select id from app.character_classes where slug = 'mage') as mage,
+        (select id from app.character_classes where slug = 'warrior') as warrior
+    `
+    if (!classes) {
+      throw new Error('Не найдены тестовые классы')
+    }
+    return classes
+  })
+  const filterPrefix = `F${Date.now().toString().slice(-6)}`
+  const matchingNickname = `${filterPrefix}A`
+  await Promise.all([
+    sql(
+      (db) => db`
+      update app.profiles set class_id = ${classIds.mage}, game_nickname = ${matchingNickname}
+      where id = ${member.id}
+    `,
+    ),
+    sql(
+      (db) => db`
+      update app.profiles set class_id = ${classIds.warrior}, game_nickname = ${`${filterPrefix}B`}
+      where id = ${otherMember.id}
+    `,
+    ),
+    sql(
+      (db) => db`
+      update app.profiles set class_id = ${classIds.mage}, game_nickname = ${`${filterPrefix}C`}
+      where id = ${officer.id}
+    `,
+    ),
+  ])
+
+  await signInUi(page, admin.email)
+  await expectSignedIn(page)
+  await page.goto('./#/admin')
+  await page.getByRole('table').waitFor()
+
+  await page.getByRole('combobox', { name: 'Фильтр по классу' }).click()
+  await page.getByRole('option', { name: 'Маг' }).click()
+  await page.getByRole('combobox', { name: 'Фильтр по роли' }).click()
+  await page.getByRole('option', { name: 'Член клана' }).click()
+  await page
+    .getByLabel('Поиск по нику, имени, email и классу')
+    .fill(filterPrefix)
+
+  await expect(page.getByText('Аккаунтов: 1', { exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('row', { name: new RegExp(matchingNickname) }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('row', { name: new RegExp(officer.nickname) }),
+  ).toHaveCount(0)
+  await page.getByRole('combobox', { name: 'Сортировка' }).click()
+  await page.getByRole('option', { name: 'Дата регистрации' }).click()
+  await expect(page).toHaveURL(new RegExp(`classId=${classIds.mage}`))
+  await expect(page).toHaveURL(/role=member/)
+  await expect(page).toHaveURL(/sort=registered/)
+
+  await page.setViewportSize({ width: 375, height: 812 })
+  const filtersButton = page.getByRole('button', { name: 'Фильтры' })
+  await expect(filtersButton).toHaveAttribute('aria-expanded', 'false')
+  await filtersButton.click()
+  await expect(filtersButton).toHaveAttribute('aria-expanded', 'true')
+  await expect(
+    page.getByRole('combobox', { name: 'Фильтр по классу' }),
+  ).toBeVisible()
+  expect(await hasHorizontalScroll(page)).toBe(false)
+})
+
 test('ADM: поиск, карточка, журнал и безвозвратное удаление', async ({
   page,
 }) => {

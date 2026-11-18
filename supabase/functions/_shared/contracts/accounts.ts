@@ -22,10 +22,7 @@ export const restoreReaderSchema = z.object({ userId: z.guid('not_found') })
 export type RestoreReaderRequest = z.input<typeof restoreReaderSchema>
 
 /** Сортировки таблицы «Аккаунты» (ADM-02); направление — отдельно. */
-export const ACCOUNT_SORTS = [
-  'nickname',
-  'registered',
-] as const
+export const ACCOUNT_SORTS = ['nickname', 'registered'] as const
 export type AccountSort = (typeof ACCOUNT_SORTS)[number]
 export const SORT_DIRECTIONS = ['asc', 'desc'] as const
 export type SortDirection = (typeof SORT_DIRECTIONS)[number]

@@ -1,8 +1,11 @@
+import type { AccessRole } from '@contracts/account'
 import type { AccountSort, SortDirection } from '@contracts/accounts'
 import type { AuditCategory } from '@contracts/audit'
 
 export type AccountsQuery = {
   search: string
+  classId: number | null
+  role: AccessRole | null
   sort: AccountSort
   direction: SortDirection
 }

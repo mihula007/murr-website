@@ -137,7 +137,10 @@ describe('admin: account search and sort (ADM-01, ADM-02)', () => {
 
   it('applies class, role and search before count and cursor paging', async () => {
     const admin = await roleActor('admin')
-    const eligible = [await roleActor('applicant'), await roleActor('applicant')]
+    const eligible = [
+      await roleActor('applicant'),
+      await roleActor('applicant'),
+    ]
     const wrongClass = await roleActor('applicant')
     const wrongRole = await roleActor('member')
     for (const [index, item] of eligible.entries()) {
@@ -182,9 +185,18 @@ describe('admin: account search and sort (ADM-01, ADM-02)', () => {
 
   it('rejects unsupported sort, role and class filter values', async () => {
     const admin = await roleActor('admin')
-    await rejects(listAccounts(deps, admin.actor, { sort: 'email' }), 'validation_failed')
-    await rejects(listAccounts(deps, admin.actor, { role: 'not-a-role' }), 'validation_failed')
-    await rejects(listAccounts(deps, admin.actor, { classId: 1.5 }), 'validation_failed')
+    await rejects(
+      listAccounts(deps, admin.actor, { sort: 'email' }),
+      'validation_failed',
+    )
+    await rejects(
+      listAccounts(deps, admin.actor, { role: 'not-a-role' }),
+      'validation_failed',
+    )
+    await rejects(
+      listAccounts(deps, admin.actor, { classId: 1.5 }),
+      'validation_failed',
+    )
   })
 
   it('searches nickname, name, email and class and counts the result', async () => {

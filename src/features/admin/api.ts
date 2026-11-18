@@ -37,8 +37,9 @@ import {
 } from './query-keys'
 
 /**
- * Аккаунты — большой список: страницы по курсору, поиск и сортировка — на
- * сервере (ADM-01, ADM-02). Смена параметров начинает список заново.
+ * Аккаунты — большой список: страницы по курсору, поиск, фильтры класса и
+ * роли, подсчёт и сортировка — на сервере (ADM-01, ADM-02, ADM-17).
+ * Смена параметров начинает список заново.
  */
 export function useAccounts(query: AccountsQuery) {
   return useInfiniteQuery({
@@ -47,6 +48,8 @@ export function useAccounts(query: AccountsQuery) {
       callApi<AccountsListResponse>('accounts/list', {
         cursor: pageParam,
         search: query.search || null,
+        classId: query.classId,
+        role: query.role,
         sort: query.sort,
         direction: query.direction,
       }),

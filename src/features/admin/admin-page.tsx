@@ -1,7 +1,11 @@
 import { useCallback } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { z } from 'zod'
-import { ACCOUNT_SORTS, SORT_DIRECTIONS } from '@contracts/accounts'
+import {
+  ACCESS_ROLES,
+  ACCOUNT_SORTS,
+  SORT_DIRECTIONS,
+} from '@contracts/accounts'
 import { AUDIT_CATEGORIES } from '@contracts/audit'
 import { PageHeader } from '@/components/states/page-header'
 import { Card } from '@/components/ui/surfaces'
@@ -11,14 +15,16 @@ import { AuditPanel } from './audit-panel'
 import type { AccountsQuery, AuditQuery } from './query-keys'
 
 /**
- * Параметры адреса: вкладка, поиск и сортировка аккаунтов, раздел и поиск
- * журнала — ссылка и «назад» сохраняют выбор.
+ * Параметры адреса: вкладка, поиск, фильтры и сортировка аккаунтов, раздел и
+ * поиск журнала — ссылка и «назад» сохраняют выбор.
  */
 export const adminSearchSchema = z.object({
   tab: z.enum(['accounts', 'audit']).catch('accounts'),
   q: z.string().max(100).catch(''),
   sort: z.enum(ACCOUNT_SORTS).catch('nickname'),
   dir: z.enum(SORT_DIRECTIONS).catch('asc'),
+  classId: z.number().int().positive().optional().catch(undefined),
+  role: z.enum(ACCESS_ROLES).optional().catch(undefined),
   category: z.enum(AUDIT_CATEGORIES).optional().catch(undefined),
   aq: z.string().max(100).catch(''),
 })
@@ -43,6 +49,8 @@ export function AdminPage(props: Partial<AdminSearch>) {
   )
   const accountsQuery: AccountsQuery = {
     search: search.q,
+    classId: search.classId ?? null,
+    role: search.role ?? null,
     sort: search.sort,
     direction: search.dir,
   }
@@ -55,7 +63,7 @@ export function AdminPage(props: Partial<AdminSearch>) {
     <section>
       <PageHeader
         title="Администрирование"
-        description="Аккаунты: поиск, роли, пароль и удаление. Журнал важных действий."
+        description="Аккаунты: поиск, фильтры класса и роли, сортировка, пароль и удаление. Журнал важных действий."
       />
       <Tabs
         value={search.tab}
@@ -80,7 +88,13 @@ export function AdminPage(props: Partial<AdminSearch>) {
           <AccountsPanel
             query={accountsQuery}
             onQueryChange={(query) =>
-              go({ q: query.search, sort: query.sort, dir: query.direction })
+              go({
+                q: query.search,
+                classId: query.classId ?? undefined,
+                role: query.role ?? undefined,
+                sort: query.sort,
+                dir: query.direction,
+              })
             }
           />
         )}
