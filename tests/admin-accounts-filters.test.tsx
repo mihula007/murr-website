@@ -25,6 +25,7 @@ const account: AccountListItem = {
   hasActiveApplication: false,
   deletionPending: false,
 }
+let accountListRole = 'member'
 
 beforeEach(() => {
   Object.defineProperty(window, 'scrollTo', {
@@ -36,13 +37,25 @@ beforeEach(() => {
     value: vi.fn<() => void>(),
   })
   callApi.mockReset()
+  accountListRole = 'member'
   callApi.mockImplementation((route, body) => {
     if (route === 'accounts/list') {
       const query = body as { classId?: number | null; role?: string | null }
       if (query.classId === 2 && query.role === 'applicant') {
         return Promise.resolve({ items: [], total: 0, nextCursor: null })
       }
+      if (query.role === 'member' && accountListRole !== 'member') {
+        return Promise.resolve({ items: [], total: 0, nextCursor: null })
+      }
       return Promise.resolve({ items: [account], total: 1, nextCursor: null })
+    }
+    if (route === 'accounts/set-role') {
+      accountListRole = 'officer'
+      return Promise.resolve({
+        userId: account.id,
+        role: 'officer',
+        joinedOn: null,
+      })
     }
     if (route === 'accounts/deletions') {
       return Promise.resolve({ items: [], truncated: false })
@@ -148,6 +161,25 @@ describe('фильтры аккаунтов', () => {
     })
   })
 
+  it('ignores class IDs outside the database range in a saved link', async () => {
+    const { router } = await renderApp({
+      role: 'admin',
+      path: '/admin?classId=32768',
+    })
+    await screen.findByRole('table')
+
+    expect(
+      screen.getByRole('combobox', { name: 'Фильтр по классу' }),
+    ).toHaveTextContent('Все классы')
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith(
+        'accounts/list',
+        expect.objectContaining({ classId: null }),
+      ),
+    )
+    expect(router.state.location.search.classId).toBeUndefined()
+  })
+
   it('shows an empty state when active filters have no matches', async () => {
     await renderApp({ role: 'admin', path: '/admin' })
     await screen.findByRole('table')
@@ -182,5 +214,18 @@ describe('фильтры аккаунтов', () => {
       expect(router.state.location.search.classId).toBeUndefined(),
     )
     expect(router.state.location.search.role).toBeUndefined()
+  })
+
+  it('removes an account from the list after its role stops matching the filter', async () => {
+    await renderApp({ role: 'admin', path: '/admin?role=member' })
+    await screen.findByRole('table')
+    await screen.findByRole('combobox', { name: 'Роль Боец' })
+
+    await choose('Роль Боец', 'Офицер')
+    await screen.findByRole('alertdialog')
+    fireEvent.click(screen.getByRole('button', { name: 'Сменить роль' }))
+
+    expect(await screen.findByText('Аккаунтов: 0')).toBeVisible()
+    expect(await screen.findByText('Ничего не найдено')).toBeVisible()
   })
 })

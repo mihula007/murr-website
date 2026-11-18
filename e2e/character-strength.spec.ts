@@ -52,6 +52,10 @@ test('характеристики доступны админу и внутре
   await signInUi(page, admin.email)
   await expectSignedIn(page)
   await page.goto('./#/admin')
+  const filtersButton = page.getByRole('button', { name: 'Фильтры' })
+  if (await filtersButton.isVisible()) {
+    await filtersButton.click()
+  }
 
   for (const [member, value, saved] of [
     [first, '125,5к', '125500'],

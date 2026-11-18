@@ -23,7 +23,20 @@ export type RestoreReaderRequest = z.input<typeof restoreReaderSchema>
 
 /** Сортировки таблицы «Аккаунты» (ADM-02); направление — отдельно. */
 export const ACCOUNT_SORTS = ['nickname', 'registered'] as const
+/** Сохранены для уже открытых вкладок до обновления клиента. */
+export const LEGACY_ACCOUNT_SORTS = [
+  'name',
+  'class',
+  'email',
+  'role',
+  'joined',
+] as const
+export const ACCOUNT_API_SORTS = [
+  ...ACCOUNT_SORTS,
+  ...LEGACY_ACCOUNT_SORTS,
+] as const
 export type AccountSort = (typeof ACCOUNT_SORTS)[number]
+export type AccountApiSort = (typeof ACCOUNT_API_SORTS)[number]
 export const SORT_DIRECTIONS = ['asc', 'desc'] as const
 export type SortDirection = (typeof SORT_DIRECTIONS)[number]
 
@@ -63,7 +76,7 @@ export const accountsListSchema = z.object({
     .max(ACCOUNT_LIMITS.search, 'too_long')
     .nullish()
     .transform((value) => value || null),
-  sort: z.enum(ACCOUNT_SORTS).default('nickname'),
+  sort: z.enum(ACCOUNT_API_SORTS).default('nickname'),
   direction: z.enum(SORT_DIRECTIONS).default('asc'),
   classId: classIdSchema.nullish(),
   role: z.enum(ACCESS_ROLES).nullish(),

@@ -100,6 +100,7 @@ export function useSetRole() {
           },
       )
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: accountKeys.lists }),
         queryClient.invalidateQueries({ queryKey: rosterKeys.all }),
         queryClient.invalidateQueries({
           queryKey: accountKeys.card(result.userId),

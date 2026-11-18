@@ -45,7 +45,11 @@ export const birthDateSchema = z.iso
 
 const optionalRegistrationBirthDate = z.union([z.literal(''), birthDateSchema])
 
-export const classIdSchema = z.number('required').int().positive('required')
+export const classIdSchema = z
+  .number('required')
+  .int()
+  .positive('required')
+  .max(32767, 'too_large')
 
 export const equipmentLinkSchema = z
   .string()

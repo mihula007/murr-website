@@ -433,11 +433,21 @@ describe('admin accounts', () => {
   })
 
   it('changes a role after confirmation and updates the row', async () => {
-    routes['accounts/set-role'] = () => ({
-      userId: 'm1',
-      role: 'officer',
-      joinedOn: '2026-11-01',
+    let roleChanged = false
+    routes['accounts/list'] = () => ({
+      nextCursor: null,
+      total: 4,
+      items: [
+        account('a1', 'Глава', 'admin', { isPrimaryAdmin: true }),
+        account('a2', 'Зам', 'admin'),
+        account('c1', 'Кандидат', 'applicant', { hasActiveApplication: true }),
+        account('m1', 'Боец', roleChanged ? 'officer' : 'member'),
+      ],
     })
+    routes['accounts/set-role'] = () => {
+      roleChanged = true
+      return { userId: 'm1', role: 'officer', joinedOn: '2026-11-01' }
+    }
     await renderApp({ role: 'admin', path: '/admin' })
     chooseOption(
       await screen.findByRole('combobox', { name: 'Роль Боец' }),

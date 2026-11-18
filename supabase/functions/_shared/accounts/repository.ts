@@ -2,27 +2,43 @@ import { sql, type RawBuilder } from 'kysely'
 import type { Executor } from '../db/client.ts'
 import { ACTIVE_STATUSES } from '../applications/repository.ts'
 import type { AccessRole } from '../contracts/account.ts'
-import type { AccountSort, SortDirection } from '../contracts/accounts.ts'
+import type { AccountApiSort, SortDirection } from '../contracts/accounts.ts'
 
 export type AccountQuery = {
   search: string | null
   classId: number | null
   role: AccessRole | null
-  sort: AccountSort
+  sort: AccountApiSort
   direction: SortDirection
 }
 
 /** Ключ курсора: значение сортировки и `id` последней строки. */
 export type AccountKey = { value: string | number; id: string }
 
+/** Порядок ролей для уже открытых вкладок до обновления клиента. */
+const ROLE_RANK = sql<number>`case p.access_role
+  when 'admin' then 0 when 'officer' then 1 when 'member' then 2
+  when 'reader' then 3 else 4 end`
+
 /**
  * Выражение сортировки. Пустая дата вступления — в конце при любом
  * направлении: заменяется крайней датой со стороны конца списка.
  */
-function sortExpression(sort: AccountSort): RawBuilder<string | number> {
-  const expressions: Record<AccountSort, RawBuilder<string | number>> = {
+function sortExpression(
+  sort: AccountApiSort,
+  direction: SortDirection,
+): RawBuilder<string | number> {
+  const expressions: Record<AccountApiSort, RawBuilder<string | number>> = {
     nickname: sql<string>`p.game_nickname`,
+    name: sql<string>`p.display_name`,
+    class: sql<string>`c.name`,
+    email: sql<string>`coalesce(u.email, '')`,
+    role: ROLE_RANK,
     registered: sql<string>`p.created_at`,
+    joined:
+      direction === 'asc'
+        ? sql<string>`coalesce(p.joined_on, date '9999-12-31')`
+        : sql<string>`coalesce(p.joined_on, date '0001-01-01')`,
   }
   return expressions[sort]
 }
@@ -109,7 +125,7 @@ export const accountRepository = {
     after: AccountKey | null,
     limit: number,
   ) {
-    const key = sortExpression(options.sort)
+    const key = sortExpression(options.sort, options.direction)
     let query = filtered(db, options).select(key.as('sort_key'))
     if (after) {
       query = query.where(

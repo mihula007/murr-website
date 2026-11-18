@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { hasHorizontalScroll, skipSplash } from './helpers'
 import {
   accessToken,
@@ -23,6 +23,13 @@ function moscowDate(days = 0) {
   return new Date(Date.now() + (3 + 24 * days) * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10)
+}
+
+async function openFiltersWhenNarrow(page: Page) {
+  const button = page.getByRole('button', { name: 'Фильтры' })
+  if (await button.isVisible()) {
+    await button.click()
+  }
 }
 
 test('E2E-14: фильтры класса и роли сохраняются на компьютере и телефоне', async ({
@@ -72,6 +79,7 @@ test('E2E-14: фильтры класса и роли сохраняются н�
   await expectSignedIn(page)
   await page.goto('./#/admin')
   await page.getByRole('table').waitFor()
+  await openFiltersWhenNarrow(page)
 
   await page.getByRole('combobox', { name: 'Фильтр по классу' }).click()
   await page.getByRole('option', { name: 'Маг' }).click()
@@ -94,8 +102,11 @@ test('E2E-14: фильтры класса и роли сохраняются н�
   await expect(page).toHaveURL(/role=member/)
   await expect(page).toHaveURL(/sort=registered/)
 
-  await page.setViewportSize({ width: 375, height: 812 })
   const filtersButton = page.getByRole('button', { name: 'Фильтры' })
+  if (await filtersButton.isVisible()) {
+    await filtersButton.click()
+  }
+  await page.setViewportSize({ width: 375, height: 812 })
   await expect(filtersButton).toHaveAttribute('aria-expanded', 'false')
   await filtersButton.click()
   await expect(filtersButton).toHaveAttribute('aria-expanded', 'true')
@@ -144,6 +155,7 @@ test('ADM: поиск, карточка, журнал и безвозвратн�
   await signInUi(page, admin.email)
   await expectSignedIn(page)
   await page.goto('./#/admin')
+  await openFiltersWhenNarrow(page)
 
   // Поиск и карточка (ADM-02, ADM-03).
   await page

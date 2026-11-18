@@ -105,7 +105,12 @@ describe('admin: account search and sort (ADM-01, ADM-02)', () => {
     for (const [index, item] of profiles.entries()) {
       await db
         .updateTable('app.profiles')
-        .set({ created_at: `2026-01-0${index + 1}T00:00:00Z` })
+        .set({
+          created_at:
+            index < 3
+              ? '2026-01-01T00:00:00Z'
+              : `2026-01-0${index + 1}T00:00:00Z`,
+        })
         .where('id', '=', item.user.id)
         .execute()
     }
@@ -127,12 +132,41 @@ describe('admin: account search and sort (ADM-01, ADM-02)', () => {
       sort: 'registered',
       direction: 'desc',
     })
-    expect(registeredAsc.map((item) => item.id)).toEqual(
-      profiles.map((item) => item.user.id),
+    const registrationDates = new Map(
+      profiles.map((item, index) => [
+        item.user.id,
+        index < 3 ? '2026-01-01T00:00:00Z' : `2026-01-0${index + 1}T00:00:00Z`,
+      ]),
     )
+    const expectedRegisteredAsc = [...profiles]
+      .map((item) => item.user.id)
+      .sort(
+        (left, right) =>
+          registrationDates
+            .get(left)!
+            .localeCompare(registrationDates.get(right)!) ||
+          left.localeCompare(right),
+      )
+    expect(registeredAsc.map((item) => item.id)).toEqual(expectedRegisteredAsc)
     expect(registeredDesc.map((item) => item.id)).toEqual(
-      profiles.map((item) => item.user.id).reverse(),
+      expectedRegisteredAsc.reverse(),
     )
+  })
+
+  it('accepts legacy sort keys for already-open clients with cursor paging', async () => {
+    const admin = await roleActor('admin')
+    const profiles = [
+      admin,
+      await roleActor('member'),
+      await roleActor('officer'),
+      await roleActor('reader'),
+    ]
+    for (const sort of ['name', 'class', 'email', 'role', 'joined'] as const) {
+      const items = await allPages(admin.actor, { sort })
+      expect(items.map((item) => item.id).sort()).toEqual(
+        profiles.map((item) => item.user.id).sort(),
+      )
+    }
   })
 
   it('applies class, role and search before count and cursor paging', async () => {
@@ -186,7 +220,7 @@ describe('admin: account search and sort (ADM-01, ADM-02)', () => {
   it('rejects unsupported sort, role and class filter values', async () => {
     const admin = await roleActor('admin')
     await rejects(
-      listAccounts(deps, admin.actor, { sort: 'email' }),
+      listAccounts(deps, admin.actor, { sort: 'not-supported' }),
       'validation_failed',
     )
     await rejects(
@@ -195,6 +229,10 @@ describe('admin: account search and sort (ADM-01, ADM-02)', () => {
     )
     await rejects(
       listAccounts(deps, admin.actor, { classId: 1.5 }),
+      'validation_failed',
+    )
+    await rejects(
+      listAccounts(deps, admin.actor, { classId: 32768 }),
       'validation_failed',
     )
   })

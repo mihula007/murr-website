@@ -6,6 +6,7 @@ import {
   ACCOUNT_SORTS,
   SORT_DIRECTIONS,
 } from '@contracts/accounts'
+import { classIdSchema } from '@contracts/account'
 import { AUDIT_CATEGORIES } from '@contracts/audit'
 import { PageHeader } from '@/components/states/page-header'
 import { Card } from '@/components/ui/surfaces'
@@ -23,7 +24,7 @@ export const adminSearchSchema = z.object({
   q: z.string().max(100).catch(''),
   sort: z.enum(ACCOUNT_SORTS).catch('nickname'),
   dir: z.enum(SORT_DIRECTIONS).catch('asc'),
-  classId: z.number().int().positive().optional().catch(undefined),
+  classId: classIdSchema.optional().catch(undefined),
   role: z.enum(ACCESS_ROLES).optional().catch(undefined),
   category: z.enum(AUDIT_CATEGORIES).optional().catch(undefined),
   aq: z.string().max(100).catch(''),
