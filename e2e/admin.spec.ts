@@ -18,10 +18,10 @@ test.afterEach(async () => {
   }
 
   await sql(async (db) => {
-    await db`delete from app.profiles where id = any(${db.array(ids)}::uuid[])`
-    await db`delete from auth.users where id = any(${db.array(ids)}::uuid[])`
+    await db`delete from app.profiles where id in ${db(ids)}`
+    await db`delete from auth.users where id in ${db(ids)}`
     const remaining = await db<{ id: string }[]>`
-      select id from app.profiles where id = any(${db.array(ids)}::uuid[])
+      select id from app.profiles where id in ${db(ids)}
     `
     expect(remaining).toHaveLength(0)
   })
