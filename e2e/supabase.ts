@@ -31,7 +31,7 @@ export const PASSWORD = 'e2e-password-1'
 export const AVATAR = 'src/assets/murrclan-eye.png'
 
 export function uniqueEmail(prefix = 'e2e') {
-  return `${prefix}-${randomUUID().slice(0, 8)}@example.test`
+  return `e2e-${prefix}-${randomUUID().slice(0, 8)}@example.test`
 }
 
 export function uniqueNickname() {
@@ -76,19 +76,21 @@ export async function sql<T>(
 
 /**
  * E2E tests share one local database across desktop and mobile projects.
- * Remove disposable example.test users after each scenario so global member
- * lists stay below their 250-record safety cap.
+ * Remove disposable e2e-* users after each scenario so global member lists
+ * stay below their 250-record safety cap, while preserving seed-dev users.
  */
 test.afterEach(async () => {
   await sql(async (db) => {
     const users = await db<{ id: string }[]>`
-      select id from auth.users where email like '%@example.test'
+      select id from auth.users where email like 'e2e-%@example.test'
     `
     const ids = users.map((user) => user.id)
     if (ids.length === 0) {
       return
     }
 
+    await db`delete from app.market_listings
+      where author_id in ${db(ids)} and status = 'draft'`
     await db`delete from app.profiles where id in ${db(ids)}`
     await db`delete from auth.users where id in ${db(ids)}`
     const remaining = await db<{ id: string }[]>`
@@ -109,7 +111,7 @@ export async function seedMembers(count: number, prefix: string) {
         insert into auth.users (id, instance_id, aud, role, email)
         select gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
           'authenticated', 'authenticated',
-          ${prefix} || n || '-' || substr(md5(random()::text), 1, 8) || '@example.test'
+          'e2e-' || ${prefix} || n || '-' || substr(md5(random()::text), 1, 8) || '@example.test'
         from generate_series(1, ${count}) as n
         returning id
       )
