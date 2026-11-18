@@ -1,6 +1,8 @@
 // Шаг 0 процесса сопровождающего (AGENTS.md) одной командой:
 //   1. доступ к GitHub (gh, git push --dry-run) — с кешем на 7 дней;
-//   2. ветка main без несохранённых изменений, догнана до origin/main;
+//   2. ветка main без несохранённых изменений, догнана до origin/main
+//      (битые снимки Codex `refs/codex/…`, ломающие fetch, удаляются —
+//      codex-refs.ts);
 //   3. Node.js 24;
 //   4. зависимости: `npm clean-install`, только если изменился
 //      package-lock.json или версия Node (отметка в node_modules);
@@ -16,6 +18,7 @@
 // Код выхода 1 — есть проблема, мешающая работе ([!!] в отчёте).
 import { spawn } from 'node:child_process'
 import { existsSync, openSync, readFileSync, writeFileSync } from 'node:fs'
+import { isCodexRefFailure, removeCodexRefs } from './codex-refs.ts'
 import {
   PROJECT_REF,
   STATE_DIR,
@@ -100,7 +103,12 @@ if (dirty) {
 } else if (branch !== 'main' && !run('git switch main').ok) {
   fail(`Не удалось переключиться на main с ветки ${branch}.`)
 } else {
-  const fetch = run('git fetch origin')
+  let fetch = run('git fetch origin')
+  if (!fetch.ok && isCodexRefFailure(fetch.out)) {
+    removeCodexRefs(run('git rev-parse --git-common-dir').out.trim())
+    report.note('Удалены битые служебные снимки Codex (refs/codex/…)')
+    fetch = run('git fetch origin')
+  }
   if (!fetch.ok) {
     fail(`git fetch origin не прошёл:\n${tail(fetch.out, 5)}`)
   } else {
