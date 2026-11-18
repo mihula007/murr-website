@@ -1,8 +1,9 @@
 // Шаг 0 процесса сопровождающего (AGENTS.md) одной командой:
 //   1. доступ к GitHub (gh, git push --dry-run) — с кешем на 7 дней;
-//   2. ветка main без несохранённых изменений, догнана до origin/main
-//      (битые снимки Codex `refs/codex/…`, ломающие fetch, удаляются —
-//      codex-refs.ts);
+//   2. ветка main без несохранённых изменений, догнана до origin/main;
+//      свои неотправленные коммиты переносятся поверх неё и печатаются как
+//      незавершённое изменение (sync-main.ts); битые снимки Codex
+//      `refs/codex/…`, ломающие fetch, удаляются (codex-refs.ts);
 //   3. Node.js 24;
 //   4. зависимости: `npm clean-install`, только если изменился
 //      package-lock.json или версия Node (отметка в node_modules);
@@ -19,6 +20,7 @@
 import { spawn } from 'node:child_process'
 import { existsSync, openSync, readFileSync, writeFileSync } from 'node:fs'
 import { isCodexRefFailure, removeCodexRefs } from './codex-refs.ts'
+import { syncMain } from './sync-main.ts'
 import {
   PROJECT_REF,
   STATE_DIR,
@@ -112,27 +114,18 @@ if (dirty) {
   if (!fetch.ok) {
     fail(`git fetch origin не прошёл:\n${tail(fetch.out, 5)}`)
   } else {
-    const [ahead = 0, behind = 0] = run(
-      'git rev-list --left-right --count main...origin/main',
-    )
-      .out.trim()
-      .split(/\s+/)
-      .map(Number)
-    if (ahead > 0 && behind > 0) {
-      fail(
-        `main разошлась с origin/main (своих коммитов ${ahead}, чужих ${behind}).`,
-      )
-    } else if (ahead > 0) {
-      fail(`В main ${ahead} неотправленных коммитов — ничего не трогаю.`)
-    } else if (behind > 0) {
-      const pull = run('git pull --ff-only origin main')
-      if (pull.ok) {
-        report.ok(`main догнана до origin/main (+${behind} коммитов)`)
-      } else {
-        fail(`git pull --ff-only не прошёл:\n${tail(pull.out, 5)}`)
-      }
+    const sync = syncMain((args) => run(`git ${args}`))
+    if (sync.kind === 'fail') {
+      fail(sync.message)
     } else {
-      report.ok('main совпадает с origin/main, изменений нет')
+      report.ok(sync.message)
+      if (sync.unfinished.length > 0) {
+        report.note(
+          `НЕЗАВЕРШЁННОЕ ИЗМЕНЕНИЕ: в main ${sync.unfinished.length} неотправленных коммитов ` +
+            `(AGENTS.md, шаг 0 — спросить сопровождающего: продолжить или отказаться):\n` +
+            sync.unfinished.join('\n'),
+        )
+      }
     }
   }
 }
