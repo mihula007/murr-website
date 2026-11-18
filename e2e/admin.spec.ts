@@ -9,24 +9,6 @@ import {
   sql,
 } from './supabase'
 
-const filterTestUserIds: string[] = []
-
-test.afterEach(async () => {
-  const ids = filterTestUserIds.splice(0)
-  if (ids.length === 0) {
-    return
-  }
-
-  await sql(async (db) => {
-    await db`delete from app.profiles where id in ${db(ids)}`
-    await db`delete from auth.users where id in ${db(ids)}`
-    const remaining = await db<{ id: string }[]>`
-      select id from app.profiles where id in ${db(ids)}
-    `
-    expect(remaining).toHaveLength(0)
-  })
-})
-
 test.skip(
   ({ baseURL }) => Boolean(baseURL?.includes('/repository/')),
   'Сценарии администрирования проверяются на корневом пути',
@@ -59,7 +41,6 @@ test('E2E-14: фильтры класса и роли сохраняются н�
     createMember('member'),
     createMember('officer'),
   ])
-  filterTestUserIds.push(admin.id, member.id, otherMember.id, officer.id)
   const classIds = await sql(async (db) => {
     const [classes] = await db<{ mage: number; warrior: number }[]>`
       select

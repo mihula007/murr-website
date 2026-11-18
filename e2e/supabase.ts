@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
-import { expect, type Page } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import postgres from 'postgres'
 
 type Status = {
@@ -73,6 +73,30 @@ export async function sql<T>(
     await db.end()
   }
 }
+
+/**
+ * E2E tests share one local database across desktop and mobile projects.
+ * Remove disposable example.test users after each scenario so global member
+ * lists stay below their 250-record safety cap.
+ */
+test.afterEach(async () => {
+  await sql(async (db) => {
+    const users = await db<{ id: string }[]>`
+      select id from auth.users where email like '%@example.test'
+    `
+    const ids = users.map((user) => user.id)
+    if (ids.length === 0) {
+      return
+    }
+
+    await db`delete from app.profiles where id in ${db(ids)}`
+    await db`delete from auth.users where id in ${db(ids)}`
+    const remaining = await db<{ id: string }[]>`
+      select id from auth.users where id in ${db(ids)}
+    `
+    expect(remaining).toHaveLength(0)
+  })
+})
 
 /**
  * Много участников одним запросом — фикстура для больших списков (больше
