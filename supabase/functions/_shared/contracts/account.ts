@@ -121,7 +121,8 @@ export type AvatarUploadResponse = {
   token: string
 }
 
-export type AccessRole = 'applicant' | 'reader' | 'member' | 'officer' | 'admin'
+export type AccessRole =
+  'applicant' | 'reader' | 'member' | 'officer' | 'master' | 'admin'
 
 export type ApplicationStatus =
   | 'pending_officer_review'

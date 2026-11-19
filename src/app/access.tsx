@@ -8,7 +8,7 @@ import { useSession } from '@/features/auth/session'
 import { useMe } from '@/features/account/use-me'
 
 export type AccessRole =
-  'guest' | 'applicant' | 'reader' | 'member' | 'officer' | 'admin'
+  'guest' | 'applicant' | 'reader' | 'member' | 'officer' | 'master' | 'admin'
 
 export const ACCESS_ROLES: readonly AccessRole[] = [
   'guest',
@@ -16,14 +16,20 @@ export const ACCESS_ROLES: readonly AccessRole[] = [
   'reader',
   'member',
   'officer',
+  'master',
   'admin',
 ]
 export const INTERNAL_ROLES: readonly AccessRole[] = [
   'member',
   'officer',
+  'master',
   'admin',
 ]
-export const MANAGER_ROLES: readonly AccessRole[] = ['officer', 'admin']
+export const MANAGER_ROLES: readonly AccessRole[] = [
+  'officer',
+  'master',
+  'admin',
+]
 export const ADMIN_ROLES: readonly AccessRole[] = ['admin']
 
 export const ROLE_LABELS: Record<AccessRole, string> = {
@@ -32,6 +38,7 @@ export const ROLE_LABELS: Record<AccessRole, string> = {
   reader: 'Чтец',
   member: 'Член клана',
   officer: 'Офицер',
+  master: 'Мастер',
   admin: 'Администратор',
 }
 

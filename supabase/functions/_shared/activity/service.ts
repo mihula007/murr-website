@@ -34,7 +34,7 @@ import { INTERNAL_ROLES, moscowDate } from '../membership.ts'
 import { activityRepository, type Period } from './repository.ts'
 
 /** Учёт активности и Excel — офицер и администратор (01-roles, Q-25). */
-const ACCOUNTANTS = ['officer', 'admin'] as const
+const ACCOUNTANTS = ['officer', 'master', 'admin'] as const
 
 const isReaderRole = (role: string) =>
   !(INTERNAL_ROLES as readonly string[]).includes(role)

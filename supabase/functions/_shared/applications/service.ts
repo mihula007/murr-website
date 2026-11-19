@@ -43,7 +43,7 @@ const decidedCursor = z
   .transform(([decidedAt, id]) => ({ decidedAt, id }))
 
 /** Рассматривают заявки офицеры и администраторы (APP-03, ACL). */
-const REVIEWERS = ['officer', 'admin'] as const
+const REVIEWERS = ['officer', 'master', 'admin'] as const
 
 const NEW_STATUS = 'pending_officer_review'
 /** Ждёт окончательного решения администратора после голосования (APP-07). */

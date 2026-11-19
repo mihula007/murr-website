@@ -336,7 +336,11 @@ export function MessageItem({
         </span>
         {message.author.state === 'shown' && message.author.badge ? (
           <span className="rounded-full border border-border-accent px-1.5 text-2xs text-tag-foreground">
-            {message.author.badge === 'admin' ? 'Админ' : 'Офицер'}
+            {message.author.badge === 'admin'
+              ? 'Админ'
+              : message.author.badge === 'master'
+                ? 'Мастер'
+                : 'Офицер'}
           </span>
         ) : null}
         <time dateTime={message.createdAt} className="text-muted-foreground">

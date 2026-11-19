@@ -64,11 +64,12 @@ describe('roster/count', () => {
       'member',
       'member',
       'officer',
+      'master',
       'admin',
     ] as const) {
       await createProfiledUser(db, role)
     }
-    expect(await countRoster(deps)).toEqual({ count: 4 })
+    expect(await countRoster(deps)).toEqual({ count: 5 })
   })
 })
 
@@ -88,6 +89,7 @@ describe('roster/list', () => {
   it('lists the current roster by nickname without closed fields (ROS-01–03)', async () => {
     const zed = await createProfiledUser(db, 'member')
     const amy = await createProfiledUser(db, 'officer')
+    const master = await createProfiledUser(db, 'master')
     await setProfile(zed.id, {
       game_nickname: 'zed',
       city: 'Казань',
@@ -95,6 +97,7 @@ describe('roster/list', () => {
       about: 'Рассказ',
     })
     await setProfile(amy.id, { game_nickname: 'amy' })
+    await setProfile(master.id, { game_nickname: 'beta' })
     await createProfiledUser(db, 'applicant')
     await createProfiledUser(db, 'reader')
     const { user: admin, actor } = await roleActor('admin')
@@ -103,17 +106,19 @@ describe('roster/list', () => {
     const roster = await listRoster(deps, actor)
     expect(roster.items.map((member) => member.gameNickname)).toEqual([
       'amy',
+      'beta',
       'mid',
       'zed',
     ])
     expect(roster.truncated).toBe(false)
-    expect((await rosterStats(deps, actor)).total).toBe(3)
+    expect((await rosterStats(deps, actor)).total).toBe(4)
     for (const member of roster.items) {
       expect(Object.keys(member).sort()).toEqual(CARD_KEYS)
       expect(member).not.toHaveProperty('characterStatsSource')
     }
     expect(roster.items.map((member) => member.role)).toEqual([
       'officer',
+      'master',
       'admin',
       'member',
     ])
@@ -179,7 +184,7 @@ describe('roster/readers', () => {
     for (const actor of denied) {
       await rejects(listReaders(deps, actor, {}), 'forbidden')
     }
-    for (const role of ['officer', 'admin'] as const) {
+    for (const role of ['officer', 'master', 'admin'] as const) {
       const { items: readers } = await listReaders(
         deps,
         (await roleActor(role)).actor,

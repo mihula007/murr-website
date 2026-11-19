@@ -47,6 +47,15 @@ describe('AccessProvider from the session', () => {
     expect(screen.getByText('officer:ready')).toBeInTheDocument()
   })
 
+  it('preserves the master role from the server profile', async () => {
+    await renderAccess(signedIn, {
+      isPending: false,
+      isError: false,
+      data: { state: 'ready', profile: { role: 'master' } },
+    })
+    expect(screen.getByText('master:ready')).toBeInTheDocument()
+  })
+
   it('provides the current nickname from the profile', async () => {
     await renderAccess(signedIn, {
       isPending: false,

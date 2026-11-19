@@ -94,14 +94,14 @@ export const markReadSchema = z.object({
 
 export const messageIdSchema = z.object({ messageId: z.guid() })
 
-/** Подпись автора: роль офицера/админа — значок (DSC-02); удалён — DSC-16. */
+/** Подпись автора: роли офицера, мастера и админа — значок (DSC-02); удалён — DSC-16. */
 export type DiscussionAuthor =
   | {
       state: 'shown'
       id: string
       gameNickname: string
       avatarUrl: string | null
-      badge: 'officer' | 'admin' | null
+      badge: 'officer' | 'master' | 'admin' | null
     }
   | { state: 'deleted' }
 

@@ -29,6 +29,7 @@ const ROLES: AccessRole[] = [
   'reader',
   'member',
   'officer',
+  'master',
   'admin',
 ]
 

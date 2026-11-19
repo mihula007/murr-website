@@ -9,6 +9,7 @@ export const ACCESS_ROLES = [
   'reader',
   'member',
   'officer',
+  'master',
   'admin',
 ] as const satisfies readonly AccessRole[]
 

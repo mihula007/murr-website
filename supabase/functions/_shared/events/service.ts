@@ -49,7 +49,7 @@ import { syncEventMessages } from '../messenger/sync.ts'
 /** Читают и отвечают члены, офицеры и администраторы (ACL, EVT-04). */
 const ATTENDEES = INTERNAL_ROLES
 /** Создают события и шаблоны офицеры и администраторы. */
-export const EVENT_MANAGERS = ['officer', 'admin'] as const
+export const EVENT_MANAGERS = ['officer', 'master', 'admin'] as const
 
 /** Курсор прошедших: `[closed_at, id]`. */
 const closedCursor = z
@@ -58,7 +58,7 @@ const closedCursor = z
 
 /**
  * Право на правку и удаление (ACL-04, Q-47): администратор — любое событие;
- * офицер — своё и постоянный выпуск без автора. Событие удалённого автора
+ * офицер или мастер — своё и постоянный выпуск без автора. Событие удалённого автора
  * (не постоянное) — только администратор.
  */
 export function canManageEvent(
@@ -69,7 +69,7 @@ export function canManageEvent(
   if (role === 'admin') {
     return true
   }
-  if (role !== 'officer') {
+  if (role !== 'officer' && role !== 'master') {
     return false
   }
   return (

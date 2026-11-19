@@ -50,7 +50,7 @@ import {
 
 /** Читают внутренние роли (PUB, ACL); создают офицеры и администраторы (Q-02). */
 const READERS = INTERNAL_ROLES
-export const PUBLICATION_EDITORS = ['officer', 'admin'] as const
+export const PUBLICATION_EDITORS = ['officer', 'master', 'admin'] as const
 
 const ATTACHMENT_PATH_CONSTRAINT = 'publication_attachments_path_key'
 
@@ -58,14 +58,17 @@ const iso = (value: string) => parseTimestamp(value).toISOString()
 
 /**
  * Право на правку, публикацию, снятие и удаление (ACL-11, Q-03):
- * администратор — любой материал, офицер — только свой.
+ * администратор — любой материал, офицер или мастер — только свой.
  */
 export function canManagePublication(
   viewer: ProfiledActor,
   authorId: string | null,
 ) {
   const role = viewer.profile.access_role
-  return role === 'admin' || (role === 'officer' && authorId === viewer.userId)
+  return (
+    role === 'admin' ||
+    ((role === 'officer' || role === 'master') && authorId === viewer.userId)
+  )
 }
 
 /** Черновик виден автору-редактору и администратору (PUB-05). */

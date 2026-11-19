@@ -27,6 +27,7 @@ import type { AuditListResponse } from '@contracts/audit'
 import { meQueryKey } from '@/features/account/use-me'
 import { useSession } from '@/features/auth/session'
 import { eventKeys } from '@/features/events/query-keys'
+import { notificationKeys } from '@/features/notifications/query-keys'
 import { rosterKeys } from '@/features/roster/query-keys'
 import { callApi } from '@/lib/supabase/api'
 import {
@@ -102,6 +103,14 @@ export function useSetRole() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: accountKeys.lists }),
         queryClient.invalidateQueries({ queryKey: rosterKeys.all }),
+        queryClient.invalidateQueries({
+          queryKey: notificationKeys.all,
+          refetchType: 'none',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: auditKeys.all,
+          refetchType: 'none',
+        }),
         queryClient.invalidateQueries({
           queryKey: accountKeys.card(result.userId),
         }),

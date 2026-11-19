@@ -43,7 +43,7 @@ export function withDateLabels(messages: readonly DiscussionMessage[]) {
   })
 }
 
-const READ_LIST_ROLES = new Set(['officer', 'admin'])
+const READ_LIST_ROLES = new Set(['officer', 'master', 'admin'])
 
 type DiscussionThreadProps = {
   thread: ThreadRef

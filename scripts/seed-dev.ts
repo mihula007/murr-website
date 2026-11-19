@@ -263,10 +263,11 @@ if (reset) {
 }
 
 // ---------- Пользователи ----------
-type Role = 'applicant' | 'reader' | 'member' | 'officer' | 'admin'
+type Role = 'applicant' | 'reader' | 'member' | 'officer' | 'master' | 'admin'
 const PLAN: [Role, number][] = [
   ['admin', 3],
   ['officer', 8],
+  ['master', 1],
   ['member', 100],
   ['reader', 15],
   ['applicant', 34],
@@ -292,7 +293,9 @@ for (const [role, count] of PLAN) {
     specs.push({
       email: primary
         ? 'seed-admin@example.test'
-        : `seed-${role}-${i}@example.test`,
+        : role === 'master'
+          ? 'seed-master@example.test'
+          : `seed-${role}-${i}@example.test`,
       role,
       primary,
       nickname: `${pick(NICK_ROOTS).slice(0, 5)}${String(n).padStart(3, '0')}`,
@@ -306,15 +309,17 @@ console.log(`Создание ${specs.length} пользователей Auth…
 const authIds = await createAuthUsers(specs.map((s) => s.email))
 const users: User[] = specs.map((s) => ({ ...s, id: authIds.get(s.email)! }))
 const byRole = (...roles: Role[]) => users.filter((u) => roles.includes(u.role))
-const staff = byRole('officer', 'admin')
-const clan = byRole('member', 'officer', 'admin')
+const staff = byRole('officer', 'master', 'admin')
+const clan = byRole('member', 'officer', 'master', 'admin')
 const registered = users
 
 console.log('Вставка данных:')
 await insert(
   'profiles',
   users.map((u, index) => {
-    const hasCharacterStats = ['member', 'officer', 'admin'].includes(u.role)
+    const hasCharacterStats = ['member', 'officer', 'master', 'admin'].includes(
+      u.role,
+    )
     return {
       id: u.id,
       display_name: pick(NAMES),
@@ -333,7 +338,7 @@ await insert(
       bd: hasCharacterStats ? 8_000 + index * 250 : null,
       character_stats_source: hasCharacterStats ? 'Тестовые данные' : null,
       is_primary_admin: u.primary,
-      joined_on: ['member', 'officer', 'admin'].includes(u.role)
+      joined_on: ['member', 'officer', 'master', 'admin'].includes(u.role)
         ? dateOnly(u.createdAt + int(1, 10) * DAY)
         : null,
       created_at: iso(u.createdAt),

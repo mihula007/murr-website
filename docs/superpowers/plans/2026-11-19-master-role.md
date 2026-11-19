@@ -90,6 +90,7 @@
 - Modify: `supabase/functions/_shared/broadcasts/service.ts`
 - Modify: `supabase/functions/_shared/discussions/service.ts`
 - Modify: `supabase/functions/_shared/contracts/discussions.ts`
+- Modify: `src/features/discussions/message.tsx`
 - Modify: `supabase/functions/_shared/events/service.ts`
 - Modify: `supabase/functions/_shared/groups/service.ts`
 - Modify: `supabase/functions/_shared/market/service.ts`
@@ -106,11 +107,11 @@
 - Reader listing and restoration include master, matching officer rights.
 - Discussion role badges and roster count/role ordering support `master`.
 
-- [ ] **Step 1: Add failing server tests.** In `accounts.test.ts`, add `lets masters change only member and reader roles`, `rejects master role changes to officer, master, and admin targets`, `rejects master and admin role destinations`, and `keeps active applications and deletion-pending accounts protected`. Update each officer-only service test in the listed suites to exercise both `officer` and `master` for its existing authorized operation; keep admin-only negative cases unchanged.
-- [ ] **Step 2: Run focused server tests and confirm they fail.** Run `npm run test:server -- tests/server/accounts.test.ts tests/server/account.test.ts tests/server/applications.test.ts tests/server/activity.test.ts tests/server/broadcasts.test.ts tests/server/discussions.test.ts tests/server/events.test.ts tests/server/groups.test.ts tests/server/market.test.ts tests/server/notifications.test.ts tests/server/publications.test.ts tests/server/roster.test.ts tests/server/votes.test.ts`.
-- [ ] **Step 3: Add master to officer permission checks.** Update explicit officer/admin role lists and role equality checks; leave admin-only checks unchanged.
-- [ ] **Step 4: Apply the master-specific `accounts/set-role` policy.** Retain the officer member-to-reader rule and admin full-management behavior; reject unauthorized targets or destination roles with `forbidden` and retain `application_pending` for an active application.
-- [ ] **Step 5: Run focused server tests and confirm they pass.** Repeat the command from Step 2.
+- [x] **Step 1: Add failing server tests.** In `accounts.test.ts`, add `lets masters change only member and reader roles`, `rejects master role changes to officer, master, and admin targets`, `rejects master and admin role destinations`, and `keeps active applications and deletion-pending accounts protected`. Update each officer-only service test in the listed suites to exercise both `officer` and `master` for its existing authorized operation; keep admin-only negative cases unchanged.
+- [x] **Step 2: Run focused server tests and confirm they fail.** Run `npm run test:server -- tests/server/accounts.test.ts tests/server/account.test.ts tests/server/applications.test.ts tests/server/activity.test.ts tests/server/broadcasts.test.ts tests/server/discussions.test.ts tests/server/events.test.ts tests/server/groups.test.ts tests/server/market.test.ts tests/server/notifications.test.ts tests/server/publications.test.ts tests/server/roster.test.ts tests/server/votes.test.ts`.
+- [x] **Step 3: Add master to officer permission checks.** Update explicit officer/admin role lists and role equality checks; leave admin-only checks unchanged.
+- [x] **Step 4: Apply the master-specific `accounts/set-role` policy.** Retain the officer member-to-reader rule and admin full-management behavior; reject unauthorized targets or destination roles with `forbidden` and retain `application_pending` for an active application.
+- [x] **Step 5: Run focused server tests and confirm they pass.** Repeat the command from Step 2.
 
 ### Task 4: Add roster role controls and local master fixture
 
@@ -129,12 +130,12 @@
 - After success, invalidate role, roster, reader, count, notification, and audit queries using existing query keys.
 - Seed `seed-master@example.test` with role `master` and include master among officer-equivalent users for local checks.
 
-- [ ] **Step 1: Add failing component tests.** Cover menu visibility, all four role choices for member and reader targets, confirmation/cancel, successful updates, errors, and unchanged officer/admin behavior.
-- [ ] **Step 2: Run the focused component test and confirm it fails.** Run `npx vitest run tests/roster-admin.test.tsx`.
-- [ ] **Step 3: Implement the role picker and confirmation in roster cards.** Reuse existing role mutation and error handling; do not expose closed account fields or horizontal scrolling on mobile.
-- [ ] **Step 4: Add the master seed account.** Keep the seeded test password unchanged and local-only.
-- [ ] **Step 5: Run the focused component test and confirm it passes.** Run `npx vitest run tests/roster-admin.test.tsx`.
-- [ ] **Step 6: Add E2E-15.** In `e2e/roster.spec.ts`, assign master as admin, verify officer-equivalent access but no admin section, change a member and reader role, verify protected targets and active applications are rejected, and verify audit/notification. CI runs this scenario; do not run e2e locally.
+- [x] **Step 1: Add failing component tests.** Cover menu visibility, all four role choices for member and reader targets, confirmation/cancel, successful updates, errors, and unchanged officer/admin behavior.
+- [x] **Step 2: Run the focused component test and confirm it fails.** Run `npx vitest run tests/roster-admin.test.tsx`.
+- [x] **Step 3: Implement the role picker and confirmation in roster cards.** Reuse existing role mutation and error handling; do not expose closed account fields or horizontal scrolling on mobile.
+- [x] **Step 4: Add the master seed account.** Keep the seeded test password unchanged and local-only.
+- [x] **Step 5: Run the focused component test and confirm it passes.** Run `npx vitest run tests/roster-admin.test.tsx`.
+- [x] **Step 6: Add E2E-15.** In `e2e/roster.spec.ts`, assign master as admin, verify officer-equivalent access but no admin section, change a member and reader role, verify protected targets and active applications are rejected, and verify audit/notification. CI runs this scenario; do not run e2e locally.
 
 ### Task 5: Full verification and review handoff
 
@@ -143,8 +144,8 @@
 - Modify: `docs/requirements/01-roles.md`, `docs/requirements/10-roster.md`, and `docs/requirements/15-admin.md` status tables after implementation
 - Modify: `docs/requirements/README.md` E2E-15 implementation reference
 
-- [ ] **Step 1: Run `npm run test:server`.** Confirm all server tests pass.
-- [ ] **Step 2: Run `npm run supabase:test`.** Confirm all pgTAP tests pass.
+- [x] **Step 1: Run `npm run test:server`.** Confirm all server tests pass.
+- [x] **Step 2: Run `npm run supabase:test`.** Confirm all pgTAP tests pass.
 - [ ] **Step 3: Run `npm run check:quick`.** Confirm secrets, styles, architecture, formatting, lint, types, and affected Vitest tests pass.
 - [ ] **Step 4: Run `npm run security:check` and inspect the complete staged diff.** Confirm no secrets and no unrelated changes.
 - [ ] **Step 5: Save implementation as a Conventional Commit in `main`.** Do not push; the owner must review through the local site first.

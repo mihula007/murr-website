@@ -27,6 +27,7 @@ const expected: Record<AccessRole, string[]> = {
   reader: [],
   member: MEMBER_SECTIONS,
   officer: OFFICER_SECTIONS,
+  master: OFFICER_SECTIONS,
   admin: [...OFFICER_SECTIONS, 'admin'],
 }
 
@@ -80,6 +81,8 @@ describe('canAccessPath', () => {
     expect(canAccessPath('member', '/admin')).toBe(false)
     expect(canAccessPath('officer', '/applications')).toBe(true)
     expect(canAccessPath('officer', '/admin')).toBe(false)
+    expect(canAccessPath('master', '/applications')).toBe(true)
+    expect(canAccessPath('master', '/admin')).toBe(false)
     expect(canAccessPath('admin', '/admin')).toBe(true)
   })
 

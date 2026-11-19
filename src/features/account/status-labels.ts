@@ -41,6 +41,7 @@ export const APPLICATION_STATUS: Record<
 export const ROLE_STATUS: Record<Exclude<AccessRole, 'applicant'>, string> = {
   admin: 'Администратор',
   officer: 'Офицер клана',
+  master: 'Мастер клана',
   member: 'Принят в клан',
   reader: 'Чтец · доступ только к профилю',
 }

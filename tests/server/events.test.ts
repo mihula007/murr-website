@@ -141,6 +141,12 @@ describe('access matrix', () => {
       canManage: false,
       counts: { yes: 0, maybe: 1, no: 0 },
     })
+
+    const { actor: master } = await roleActor('master')
+    const masterEvent = await createEvent(deps, master, fields())
+    expect(
+      await updateEvent(deps, master, { id: masterEvent.id, ...fields() }),
+    ).toMatchObject({ id: masterEvent.id })
   })
 
   it('applies authorship: own and recurring for officers, any for admins (ACL-04, Q-47)', async () => {

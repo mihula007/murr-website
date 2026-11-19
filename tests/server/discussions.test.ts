@@ -222,6 +222,14 @@ describe('discussions service', () => {
     expect(message.body).toBe('<b>x</b>\nстрока')
     expect(message.author).toMatchObject({ state: 'shown', badge: 'officer' })
     expect(message.mine).toBe(true)
+
+    const master = await roleActor('master')
+    const masterThread = await makeEvent(master.actor)
+    const masterMessage = await send(master.actor, masterThread, 'От мастера')
+    expect(masterMessage.author).toMatchObject({
+      state: 'shown',
+      badge: 'master',
+    })
   })
 
   it('closes writing in a finished event or vote but keeps history', async () => {
@@ -459,6 +467,10 @@ describe('discussions service', () => {
     ).toEqual(expected)
     expect(
       await messageReaders(deps, officer.actor, { messageId: message.id }),
+    ).toEqual(expected)
+    const master = await roleActor('master')
+    expect(
+      await messageReaders(deps, master.actor, { messageId: message.id }),
     ).toEqual(expected)
     await rejects(
       messageReaders(deps, other.actor, { messageId: message.id }),

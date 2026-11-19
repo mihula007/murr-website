@@ -150,6 +150,17 @@ describe('market: access (MKT-01, ACL-12, Q-04)', () => {
       listing({ status: 'published', category: 'buy', title: 'Куплю щит' }),
     )
     expect(own.canManage).toBe(true)
+
+    const master = await roleActor('master')
+    const masterListing = await saveListing(
+      deps,
+      master.actor,
+      listing({ title: 'Объявление мастера' }),
+    )
+    expect(masterListing).toMatchObject({
+      title: 'Объявление мастера',
+      canManage: true,
+    })
   })
 
   it('lets an admin see and edit any listing, including drafts (MKT-07, приёмка MKT 3)', async () => {

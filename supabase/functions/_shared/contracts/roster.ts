@@ -3,7 +3,7 @@ import type { AccessRole } from './account.ts'
 import type { CharacterStatFields } from './character-stats.ts'
 import { pageRequestShape, type MemberList, type Page } from './paging.ts'
 
-/** Численность текущего состава (member + officer + admin) — видна всем. */
+/** Численность текущего состава (member + officer + master + admin) — видна всем. */
 export type RosterCountResponse = { count: number }
 
 /**

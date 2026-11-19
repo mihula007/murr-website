@@ -108,6 +108,14 @@ describe('broadcasts: access (BRC, ACL)', () => {
         code,
       )
     }
+
+    const master = await roleActor('master')
+    const saved = await saveDraft(deps, master.actor, draft())
+    expect((await listDrafts(deps, master.actor)).items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: saved.items[0]!.id }),
+      ]),
+    )
   })
 })
 

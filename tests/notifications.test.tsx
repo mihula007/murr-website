@@ -93,6 +93,12 @@ describe('колокольчик (NTF-01, NTF-02, NTF-05)', () => {
     expect(await bell()).toHaveAccessibleName('Уведомления')
   })
 
+  it('мастер видит колокольчик', async () => {
+    responses['notifications/summary'] = { unreadCount: 0, sections: {} }
+    await renderApp({ role: 'master' })
+    expect(await bell()).toHaveAccessibleName('Уведомления')
+  })
+
   it('значок показывает «99+» свыше 99 непрочитанных', async () => {
     responses['notifications/summary'] = { unreadCount: 150, sections: {} }
     await renderApp({ role: 'member' })
@@ -182,6 +188,9 @@ describe('переход по уведомлению (NTF-06, NTF-07)', () => {
     ).toEqual({ to: '/account' })
     expect(
       notificationRoute({ kind: 'join_application', id: 'a1' }, 'officer'),
+    ).toEqual({ to: '/applications/$id', params: { id: 'a1' } })
+    expect(
+      notificationRoute({ kind: 'join_application', id: 'a1' }, 'master'),
     ).toEqual({ to: '/applications/$id', params: { id: 'a1' } })
     expect(notificationRoute({ kind: 'unknown', id: 'x' }, 'member')).toBe(null)
     expect(notificationRoute(null, 'member')).toBe(null)

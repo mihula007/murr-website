@@ -66,10 +66,10 @@ beforeEach(() => {
       return Promise.resolve({ items: [account], total: 1, nextCursor: null })
     }
     if (route === 'accounts/set-role') {
-      accountListRole = 'officer'
+      accountListRole = (body as { role: string }).role
       return Promise.resolve({
         userId: account.id,
-        role: 'officer',
+        role: accountListRole,
         joinedOn: null,
       })
     }
@@ -257,5 +257,21 @@ describe('фильтры аккаунтов', () => {
 
     expect(await screen.findByText('Аккаунтов: 0')).toBeVisible()
     expect(await screen.findByText('Ничего не найдено')).toBeVisible()
+  })
+
+  it('lets an administrator assign the master role', async () => {
+    await renderApp({ role: 'admin', path: '/admin?role=member' })
+    await screen.findByRole('table')
+
+    await choose('Роль Боец', 'Мастер')
+    await screen.findByRole('alertdialog')
+    fireEvent.click(screen.getByRole('button', { name: 'Сменить роль' }))
+
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('accounts/set-role', {
+        userId: account.id,
+        role: 'master',
+      }),
+    )
   })
 })

@@ -1,18 +1,35 @@
 import { useState } from 'react'
 import type { RosterMember } from '@contracts/roster'
+import { ROLE_LABELS } from '@/app/access'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { MoreHorizontal } from 'lucide-react'
 import { Card } from '@/components/ui/surfaces'
 import { toast } from '@/components/ui/toaster'
 import { pagingOf, VirtualList } from '@/components/virtual-list'
 import { ClassIcon } from '@/features/catalog/class-icon'
 import { useReaders, useRestoreReader } from './api'
 
+const MASTER_ROLES = ['member', 'officer', 'reader', 'applicant'] as const
+type MasterRole = (typeof MASTER_ROLES)[number]
+
 /** Чтецы и их восстановление в клане для офицера и администратора (ACL-06). */
-export function ReadersPanel() {
+export function ReadersPanel({
+  canManageRoles = false,
+  onChangeRole,
+}: {
+  canManageRoles?: boolean
+  onChangeRole?: (reader: RosterMember, role: MasterRole) => void
+}) {
   const readers = useReaders()
   const restore = useRestoreReader()
   const [restoring, setRestoring] = useState<RosterMember | null>(null)
@@ -53,14 +70,40 @@ export function ReadersPanel() {
                 </span>
               </span>
             </div>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setRestoring(reader)}
-            >
-              Восстановить в клане
-            </Button>
+            {canManageRoles ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="flex-none px-2"
+                    aria-label={`Действия с чтецом «${reader.gameNickname}»`}
+                  >
+                    <MoreHorizontal size={18} aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {MASTER_ROLES.map((role) => (
+                    <DropdownMenuItem
+                      key={role}
+                      onSelect={() => onChangeRole?.(reader, role)}
+                    >
+                      Назначить роль «{ROLE_LABELS[role]}»
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setRestoring(reader)}
+              >
+                Восстановить в клане
+              </Button>
+            )}
           </div>
         )}
       />

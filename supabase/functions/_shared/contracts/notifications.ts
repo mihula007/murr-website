@@ -16,6 +16,7 @@ export const NOTIFICATION_VIEWERS = [
   'applicant',
   'member',
   'officer',
+  'master',
   'admin',
 ] as const satisfies readonly AccessRole[]
 
@@ -42,7 +43,7 @@ export const NEWS_SECTIONS = [
 ] as const
 export type NewsSection = (typeof NEWS_SECTIONS)[number]
 
-const INTERNAL = ['member', 'officer', 'admin'] as const
+const INTERNAL = ['member', 'officer', 'master', 'admin'] as const
 
 /** Кому доступен счётчик раздела — те же роли, что у раздела (NTF-09). */
 export const NEWS_SECTION_ROLES: Record<NewsSection, readonly AccessRole[]> = {
@@ -50,7 +51,7 @@ export const NEWS_SECTION_ROLES: Record<NewsSection, readonly AccessRole[]> = {
   votes: INTERNAL,
   publications: INTERNAL,
   market: INTERNAL,
-  applications: ['officer', 'admin'],
+  applications: ['officer', 'master', 'admin'],
   accounts: ['admin'],
 }
 

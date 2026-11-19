@@ -131,6 +131,16 @@ describe('access matrix', () => {
       optionId: vote.options[1]!.id,
     })
     expect(result.myOptionId).toBe(vote.options[1]!.id)
+
+    const { actor: master } = await roleActor('master')
+    const masterVote = await createGeneral(master)
+    expect(
+      await updateVote(deps, master, {
+        id: masterVote.id,
+        title: 'Новое название',
+        context: 'Новое описание',
+      }),
+    ).toMatchObject({ id: masterVote.id })
   })
 
   it('shows ballots only to officers and admins (VOT-07, Q-16)', async () => {

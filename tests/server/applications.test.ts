@@ -136,6 +136,23 @@ describe('access matrix', () => {
     )
   })
 
+  it('lets a master review and decide an application', async () => {
+    const applicant = await createApplicant()
+    const { actor: master } = await roleActor('master')
+    const queue = await listApplications(deps, master, { tab: 'new' })
+    expect(queue.items.map((item) => item.id)).toContain(
+      applicant.applicationId,
+    )
+
+    await decideApplication(deps, master, {
+      id: applicant.applicationId,
+      decision: 'accept',
+    })
+    expect(await application(applicant.applicationId)).toMatchObject({
+      status: 'officer_approved',
+    })
+  })
+
   it('lets only applicants resubmit', async () => {
     for (const role of ['reader', 'member', 'officer', 'admin'] as const) {
       const { actor } = await roleActor(role)

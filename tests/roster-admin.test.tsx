@@ -313,6 +313,128 @@ describe('roster page', () => {
     )
   })
 
+  it('lets a master choose any role for a plain member after confirmation (ROS-12)', async () => {
+    routes['accounts/set-role'] = () => ({
+      userId: 'm2',
+      role: 'applicant',
+      joinedOn: '2026-11-01',
+    })
+    await renderApp({ role: 'master', path: '/roster' })
+    await screen.findByRole('heading', { name: 'Альфа' })
+    const buttons = screen.getAllByRole('button', {
+      name: /^Действия с участником/,
+    })
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]!.closest('li')).toHaveTextContent('Бета')
+
+    fireEvent.keyDown(buttons[0]!, { key: 'Enter' })
+    for (const role of ['Член клана', 'Офицер', 'Чтец', 'Кандидат']) {
+      expect(
+        await screen.findByRole('menuitem', {
+          name: `Назначить роль «${role}»`,
+        }),
+      ).toBeVisible()
+    }
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: 'Назначить роль «Кандидат»' }),
+    )
+    const dialog = await screen.findByRole('alertdialog')
+    expect(
+      within(dialog).getByText('Сменить роль Бета на «Кандидат»?'),
+    ).toBeVisible()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Отмена' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    expect(callApi).not.toHaveBeenCalledWith(
+      'accounts/set-role',
+      expect.anything(),
+    )
+
+    fireEvent.keyDown(buttons[0]!, { key: 'Enter' })
+    fireEvent.click(
+      await screen.findByRole('menuitem', {
+        name: 'Назначить роль «Кандидат»',
+      }),
+    )
+    const confirm = await screen.findByRole('alertdialog')
+    fireEvent.click(
+      within(confirm).getByRole('button', { name: 'Сменить роль' }),
+    )
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('accounts/set-role', {
+        userId: 'm2',
+        role: 'applicant',
+      }),
+    )
+  })
+
+  it('lets a master choose all four roles for readers and restores through the existing action', async () => {
+    routes['accounts/restore-reader'] = () => ({
+      userId: 'r1',
+      role: 'member',
+      joinedOn: '2026-11-19',
+    })
+    await renderApp({ role: 'master', path: '/roster' })
+    await screen.findByRole('heading', { name: 'Альфа' })
+    await openReaders()
+    const trigger = await screen.findByRole('button', {
+      name: 'Действия с чтецом «Чтец1»',
+    })
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    for (const role of ['Член клана', 'Офицер', 'Чтец', 'Кандидат']) {
+      expect(
+        await screen.findByRole('menuitem', {
+          name: `Назначить роль «${role}»`,
+        }),
+      ).toBeVisible()
+    }
+    fireEvent.click(
+      screen.getByRole('menuitem', {
+        name: 'Назначить роль «Член клана»',
+      }),
+    )
+    const dialog = await screen.findByRole('alertdialog')
+    expect(
+      within(dialog).getByText('Сменить роль Чтец1 на «Член клана»?'),
+    ).toBeVisible()
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Сменить роль' }),
+    )
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('accounts/restore-reader', {
+        userId: 'r1',
+      }),
+    )
+  })
+
+  it('keeps a master on the roster card when role changes fail', async () => {
+    routes['accounts/set-role'] = () => {
+      throw new AppError('application_pending')
+    }
+    await renderApp({ role: 'master', path: '/roster' })
+    await screen.findByRole('heading', { name: 'Альфа' })
+    const trigger = screen.getByRole('button', {
+      name: 'Действия с участником «Бета»',
+    })
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    fireEvent.click(
+      await screen.findByRole('menuitem', {
+        name: 'Назначить роль «Кандидат»',
+      }),
+    )
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Сменить роль' }),
+    )
+    expect(
+      await within(dialog).findByText(
+        'У пользователя есть заявка на рассмотрении: решение принимается в разделе «Заявки».',
+      ),
+    ).toBeVisible()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Отмена' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    expect(screen.getByRole('heading', { name: 'Бета' })).toBeVisible()
+  })
+
   it('is closed to readers and applicants (ACL-09)', async () => {
     for (const role of ['reader', 'applicant'] as const) {
       const { unmount } = await renderApp({ role, path: '/roster' })

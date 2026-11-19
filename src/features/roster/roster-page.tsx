@@ -31,11 +31,13 @@ import { useSetRole } from '@/features/admin/api'
 import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
 import { cn } from '@/lib/utils'
-import { useRoster, useRosterStats } from './api'
+import { useRestoreReader, useRoster, useRosterStats } from './api'
 import { formatCharacterStat } from './character-stats'
 import { ReadersPanel } from './readers-panel'
 
 const ALL = 'all'
+const MASTER_ROLES = ['member', 'officer', 'reader', 'applicant'] as const
+type MasterRole = (typeof MASTER_ROLES)[number]
 
 /**
  * Параметры адреса состава: фильтр класса и вкладка. Чтецы — отдельная
@@ -104,6 +106,7 @@ type MemberCardProps = {
   member: RosterMember
   isCurrentUser: boolean
   onBlock?: (() => void) | undefined
+  onChangeRole?: ((role: MasterRole) => void) | undefined
 }
 
 function CharacterStatsSummary({ member }: { member: RosterMember }) {
@@ -125,7 +128,12 @@ function CharacterStatsSummary({ member }: { member: RosterMember }) {
 }
 
 /** Карточка участника; действие офицера и администратора — в меню «⋯» (ROS-07). */
-function MemberCard({ member, isCurrentUser, onBlock }: MemberCardProps) {
+function MemberCard({
+  member,
+  isCurrentUser,
+  onBlock,
+  onChangeRole,
+}: MemberCardProps) {
   return (
     <div
       className={cn(
@@ -156,7 +164,7 @@ function MemberCard({ member, isCurrentUser, onBlock }: MemberCardProps) {
             {member.className}
           </span>
         </div>
-        {onBlock ? (
+        {onBlock || onChangeRole ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -170,12 +178,23 @@ function MemberCard({ member, isCurrentUser, onBlock }: MemberCardProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={onBlock}>
-                <span className="inline-flex items-center gap-2">
-                  <UserRoundX size={16} aria-hidden="true" />
-                  Присвоить статус «Чтец»
-                </span>
-              </DropdownMenuItem>
+              {onChangeRole
+                ? MASTER_ROLES.map((role) => (
+                    <DropdownMenuItem
+                      key={role}
+                      onSelect={() => onChangeRole(role)}
+                    >
+                      Назначить роль «{ROLE_LABELS[role]}»
+                    </DropdownMenuItem>
+                  ))
+                : onBlock && (
+                    <DropdownMenuItem onSelect={onBlock}>
+                      <span className="inline-flex items-center gap-2">
+                        <UserRoundX size={16} aria-hidden="true" />
+                        Присвоить статус «Чтец»
+                      </span>
+                    </DropdownMenuItem>
+                  )}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
@@ -188,14 +207,18 @@ function MembersList({
   classId,
   search,
   canAssignReader,
+  canManageRoles,
   userId,
   onBlock,
+  onChangeRole,
 }: {
   classId: number | null
   search: string
   canAssignReader: boolean
+  canManageRoles: boolean
   userId: string | undefined
   onBlock: (member: RosterMember) => void
+  onChangeRole: (member: RosterMember, role: MasterRole) => void
 }) {
   const roster = useRoster()
   if (roster.isPending) {
@@ -235,10 +258,18 @@ function MembersList({
               member={member}
               isCurrentUser={member.id === userId}
               onBlock={
+                !canManageRoles &&
                 canAssignReader &&
                 member.role === 'member' &&
                 member.id !== userId
                   ? () => onBlock(member)
+                  : undefined
+              }
+              onChangeRole={
+                canManageRoles &&
+                member.role === 'member' &&
+                member.id !== userId
+                  ? (role) => onChangeRole(member, role)
                   : undefined
               }
             />
@@ -264,9 +295,15 @@ export function RosterPage({
   const navigate = useNavigate()
   const stats = useRosterStats()
   const setRole = useSetRole()
+  const restoreReader = useRestoreReader()
   const [blocking, setBlocking] = useState<RosterMember | null>(null)
+  const [changing, setChanging] = useState<{
+    member: RosterMember
+    role: MasterRole
+  } | null>(null)
   const [search, setSearch] = useState('')
-  const canRestore = role === 'officer' || role === 'admin'
+  const canManageRoles = role === 'master'
+  const canRestore = role === 'officer' || role === 'master' || role === 'admin'
   const showReaders = canRestore && view === 'readers'
   const go = (search: RosterSearch) =>
     void navigate({ to: '/roster', search, replace: true })
@@ -330,7 +367,7 @@ export function RosterPage({
     <section>
       <PageHeader
         title="Состав"
-        description="Текущие участники клана: члены, офицеры и администраторы."
+        description="Текущие участники клана: члены, офицеры, мастера и администраторы."
       />
       {canRestore ? (
         <Tabs
@@ -346,16 +383,25 @@ export function RosterPage({
         </Tabs>
       ) : null}
       {showReaders ? (
-        <ReadersPanel />
+        <ReadersPanel
+          canManageRoles={canManageRoles}
+          onChangeRole={(member, nextRole) =>
+            setChanging({ member, role: nextRole })
+          }
+        />
       ) : (
         <>
           {filters}
           <MembersList
             classId={classId ?? null}
             search={search}
-            canAssignReader={canRestore}
+            canAssignReader={canRestore && !canManageRoles}
+            canManageRoles={canManageRoles}
             userId={userId}
             onBlock={setBlocking}
+            onChangeRole={(member, nextRole) =>
+              setChanging({ member, role: nextRole })
+            }
           />
         </>
       )}
@@ -376,6 +422,34 @@ export function RosterPage({
           }
           await setRole.mutateAsync({ userId: blocking.id, role: 'reader' })
           toast(`${blocking.gameNickname} теперь чтец`)
+        }}
+      />
+      <ConfirmActionDialog
+        open={changing !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setChanging(null)
+          }
+        }}
+        title={`Сменить роль ${changing?.member.gameNickname ?? ''} на «${changing ? ROLE_LABELS[changing.role] : ''}»?`}
+        description="Изменение будет записано в журнал, а участнику придёт уведомление."
+        confirmLabel="Сменить роль"
+        pendingLabel="Сохраняем…"
+        onConfirm={async () => {
+          if (!changing) {
+            return
+          }
+          if (changing.member.role === 'reader' && changing.role === 'member') {
+            await restoreReader.mutateAsync({ userId: changing.member.id })
+          } else {
+            await setRole.mutateAsync({
+              userId: changing.member.id,
+              role: changing.role,
+            })
+          }
+          toast(
+            `${changing.member.gameNickname}: новая роль — ${ROLE_LABELS[changing.role]}`,
+          )
         }}
       />
     </section>

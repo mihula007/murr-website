@@ -71,7 +71,13 @@ describe('accounts/list', () => {
     await rejects(listAccounts(deps, GUEST, {}), 'not_authenticated')
     const incomplete = await actorOf(db, (await createAuthUser()).id)
     await rejects(listAccounts(deps, incomplete, {}), 'registration_incomplete')
-    for (const role of ['applicant', 'reader', 'member', 'officer'] as const) {
+    for (const role of [
+      'applicant',
+      'reader',
+      'member',
+      'officer',
+      'master',
+    ] as const) {
       await rejects(
         listAccounts(deps, (await roleActor(role)).actor, {}),
         'forbidden',
@@ -208,6 +214,83 @@ describe('accounts/set-role', () => {
     ).toEqual(['officer', 'admin', 'reader', 'applicant'])
     expect(await audit()).toHaveLength(0)
     expect(await notifications(member.id)).toEqual([])
+  })
+
+  it('lets masters change only member and reader roles', async () => {
+    const { actor } = await roleActor('master')
+    const changes = [
+      ['member', 'officer'],
+      ['member', 'reader'],
+      ['member', 'applicant'],
+      ['reader', 'member'],
+      ['reader', 'officer'],
+      ['reader', 'applicant'],
+    ] as const
+
+    for (const [previous, next] of changes) {
+      const target = await createProfiledUser(db, previous)
+      await expect(
+        setRole(deps, actor, { userId: target.id, role: next }),
+      ).resolves.toMatchObject({ userId: target.id, role: next })
+      expect(await profile(target.id)).toMatchObject({ access_role: next })
+    }
+  })
+
+  it('rejects master role changes to officer, master, and admin targets', async () => {
+    const { actor } = await roleActor('master')
+    for (const role of ['officer', 'master', 'admin'] as const) {
+      const target = await createProfiledUser(db, role)
+      await rejects(
+        setRole(deps, actor, { userId: target.id, role: 'reader' }),
+        'forbidden',
+      )
+      expect(await profile(target.id)).toMatchObject({ access_role: role })
+    }
+    expect(await audit()).toHaveLength(0)
+  })
+
+  it('rejects master and admin role destinations', async () => {
+    const { actor } = await roleActor('master')
+    const member = await createProfiledUser(db, 'member')
+    await rejects(
+      setRole(deps, actor, { userId: member.id, role: 'master' }),
+      'forbidden',
+    )
+    await rejects(
+      setRole(deps, actor, { userId: member.id, role: 'admin' }),
+      'forbidden',
+    )
+    expect(await profile(member.id)).toMatchObject({ access_role: 'member' })
+    expect(await audit()).toHaveLength(0)
+  })
+
+  it('keeps active applications and deletion-pending accounts protected', async () => {
+    const { user: actorUser, actor } = await roleActor('master')
+    const active = await createProfiledUser(db, 'member')
+    await applicationRepository.create(db, active.id, [])
+    await rejects(
+      setRole(deps, actor, { userId: active.id, role: 'applicant' }),
+      'application_pending',
+    )
+
+    const deleting = await createProfiledUser(db, 'member')
+    await db
+      .insertInto('app.user_deletions')
+      .values({
+        user_id: deleting.id,
+        requested_by: actorUser.id,
+        nickname: deleting.nickname,
+        email: deleting.email,
+        stage: 'files',
+      })
+      .execute()
+    await rejects(
+      setRole(deps, actor, { userId: deleting.id, role: 'officer' }),
+      'state_conflict',
+    )
+    expect(await profile(active.id)).toMatchObject({ access_role: 'member' })
+    expect(await profile(deleting.id)).toMatchObject({ access_role: 'member' })
+    expect(await audit()).toHaveLength(0)
   })
 
   it('blocks a member: reader role, join date kept, audit, roster access lost at once (ADM-08)', async () => {
@@ -362,7 +445,7 @@ describe('accounts/set-role', () => {
 
 describe('accounts/restore-reader', () => {
   it('lets officers and admins restore a reader as a member from today (ACL-06)', async () => {
-    for (const role of ['officer', 'admin'] as const) {
+    for (const role of ['officer', 'master', 'admin'] as const) {
       const { user: keeper, actor } = await roleActor(role)
       const reader = await createProfiledUser(db, 'reader')
       await setProfile(reader.id, { joined_on: '2025-05-05' })

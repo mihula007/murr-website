@@ -47,7 +47,7 @@ import { voteRepository } from '../votes/repository.ts'
 import { broadcastRepository } from './repository.ts'
 
 /** Готовят рассылки офицеры и администраторы (BRC, Q-70). */
-export const BROADCAST_MANAGERS = ['officer', 'admin'] as const
+export const BROADCAST_MANAGERS = ['officer', 'master', 'admin'] as const
 
 /** Read-only page of current members and messenger link states (BRC-15). */
 export async function listBroadcastSubscriptions(

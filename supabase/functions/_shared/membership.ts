@@ -4,6 +4,7 @@ import type { AccessRole } from './contracts/account.ts'
 export const INTERNAL_ROLES = [
   'member',
   'officer',
+  'master',
   'admin',
 ] as const satisfies readonly AccessRole[]
 

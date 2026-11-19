@@ -1,6 +1,12 @@
 import { expect, test, type Browser } from '@playwright/test'
-import { hasHorizontalScroll, scrollUntilVisible, skipSplash } from './helpers'
 import {
+  expectInternalMenu,
+  hasHorizontalScroll,
+  scrollUntilVisible,
+  skipSplash,
+} from './helpers'
+import {
+  auditActions,
   accessToken,
   callApi,
   createMember,
@@ -73,4 +79,126 @@ test('officer assigns a member the reader role from the roster', async ({
     memberPage.getByText('Чтец · доступ только к профилю'),
   ).toBeVisible()
   await memberPage.context().close()
+})
+
+test('E2E-15: admin assigns a master who changes only member and reader roles', async ({
+  page,
+  browser,
+}) => {
+  const [
+    admin,
+    master,
+    member,
+    reader,
+    officer,
+    otherMaster,
+    otherAdmin,
+    candidate,
+  ] = await Promise.all([
+    createMember('admin'),
+    createMember('member'),
+    createMember('member'),
+    createMember('reader'),
+    createMember('officer'),
+    createMember('master'),
+    createMember('admin'),
+    createMember('applicant'),
+  ])
+
+  await sql(async (db) => {
+    await db`insert into app.join_applications (applicant_id, status)
+      values (${candidate.id}, 'pending_officer_review')`
+  })
+
+  await signInUi(page, admin.email)
+  await expectSignedIn(page)
+  await page.goto('./#/admin')
+  await page
+    .getByLabel('Поиск по нику, имени, email и классу')
+    .fill(master.nickname)
+  const roleSelect = page.getByRole('combobox', {
+    name: `Роль ${master.nickname}`,
+  })
+  await roleSelect.click()
+  await page.getByRole('option', { name: 'Мастер' }).click()
+  const assignment = page.getByRole('alertdialog')
+  await expect(assignment).toContainText(`Сменить роль ${master.nickname}?`)
+  await assignment.getByRole('button', { name: 'Сменить роль' }).click()
+  await expect(assignment).toBeHidden()
+
+  const masterPage = await signedInPage(browser, master.email)
+  await expectInternalMenu(masterPage, true)
+  await masterPage.goto('./#/admin')
+  await expect(masterPage.getByText('Нет доступа')).toBeVisible()
+  await masterPage.goto('./#/roster')
+
+  const memberCard = masterPage
+    .getByRole('list', { name: 'Участники' })
+    .getByRole('listitem')
+    .filter({ has: masterPage.getByRole('heading', { name: member.nickname }) })
+  await scrollUntilVisible(masterPage, memberCard)
+  await memberCard
+    .getByRole('button', { name: /^Действия с участником/ })
+    .click()
+  await masterPage
+    .getByRole('menuitem', { name: 'Назначить роль «Офицер»' })
+    .click()
+  const memberChange = masterPage.getByRole('alertdialog')
+  await expect(memberChange).toContainText(
+    `Сменить роль ${member.nickname} на «Офицер»?`,
+  )
+  await memberChange.getByRole('button', { name: 'Сменить роль' }).click()
+  await expect(memberChange).toBeHidden()
+  await expect(memberCard).toContainText('Офицер')
+
+  await masterPage.getByRole('tab', { name: 'Чтецы' }).click()
+  const readerRow = masterPage
+    .getByRole('list', { name: 'Чтецы' })
+    .getByRole('listitem')
+    .filter({ hasText: reader.nickname })
+  await scrollUntilVisible(masterPage, readerRow)
+  await readerRow
+    .getByRole('button', { name: `Действия с чтецом «${reader.nickname}»` })
+    .click()
+  await masterPage
+    .getByRole('menuitem', { name: 'Назначить роль «Член клана»' })
+    .click()
+  const readerChange = masterPage.getByRole('alertdialog')
+  await expect(readerChange).toContainText(
+    `Сменить роль ${reader.nickname} на «Член клана»?`,
+  )
+  await readerChange.getByRole('button', { name: 'Сменить роль' }).click()
+  await expect(readerChange).toBeHidden()
+  await expect(readerRow).toHaveCount(0)
+
+  const masterToken = await accessToken(master.email)
+  for (const target of [officer, otherMaster, otherAdmin, candidate]) {
+    expect(
+      (
+        await callApi('accounts/set-role', masterToken, {
+          userId: target.id,
+          role: 'reader',
+        })
+      ).status,
+    ).toBe(403)
+  }
+  for (const role of ['master', 'admin'] as const) {
+    expect(
+      (
+        await callApi('accounts/set-role', masterToken, {
+          userId: member.id,
+          role,
+        })
+      ).status,
+    ).toBe(403)
+  }
+
+  const memberToken = await accessToken(member.email)
+  const notifications = await callApi('notifications/list', memberToken)
+  expect(notifications.body.items).toEqual(
+    expect.arrayContaining([expect.objectContaining({ kind: 'role_changed' })]),
+  )
+  expect(await auditActions(member.id)).toContain('role_changed')
+  expect(await hasHorizontalScroll(masterPage)).toBe(false)
+  await masterPage.context().close()
 })

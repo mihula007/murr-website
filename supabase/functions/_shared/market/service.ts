@@ -43,7 +43,7 @@ const iso = (value: string) => parseTimestamp(value).toISOString()
 
 /**
  * Управление объявлением (MKT-06, MKT-07): администратор — любое, член и
- * офицер — только своё. Офицер не получает доступа к чужим объявлениям.
+ * офицер или мастер — только своё. Они не получают доступа к чужим объявлениям.
  */
 export function canManageListing(
   viewer: ProfiledActor,
@@ -53,7 +53,10 @@ export function canManageListing(
   if (role === 'admin') {
     return true
   }
-  return (role === 'member' || role === 'officer') && authorId === viewer.userId
+  return (
+    (role === 'member' || role === 'officer' || role === 'master') &&
+    authorId === viewer.userId
+  )
 }
 
 /** Черновик виден автору и администратору (MKT-05). */

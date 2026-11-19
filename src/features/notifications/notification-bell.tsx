@@ -29,6 +29,7 @@ export function canSeeNotifications(role: AccessRole) {
     role === 'applicant' ||
     role === 'member' ||
     role === 'officer' ||
+    role === 'master' ||
     role === 'admin'
   )
 }

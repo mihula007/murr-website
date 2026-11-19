@@ -17,8 +17,8 @@ export type AccountKey = { value: string | number; id: string }
 
 /** Порядок ролей для уже открытых вкладок до обновления клиента. */
 const ROLE_RANK = sql<number>`case p.access_role
-  when 'admin' then 0 when 'officer' then 1 when 'member' then 2
-  when 'reader' then 3 else 4 end`
+  when 'admin' then 0 when 'master' then 1 when 'officer' then 2
+  when 'member' then 3 when 'reader' then 4 else 5 end`
 
 /**
  * Выражение сортировки. Пустая дата вступления — в конце при любом

@@ -34,7 +34,7 @@ import { useSetRole } from './api'
 
 /** Роли в порядке ADM-04. */
 const ROLE_OPTIONS = (
-  ['admin', 'officer', 'member', 'reader', 'applicant'] as const
+  ['admin', 'master', 'officer', 'member', 'reader', 'applicant'] as const
 ).map((role) => ({ value: role, label: ROLE_LABELS[role] }))
 
 /** Почему роль аккаунта нельзя выбрать здесь; `null` — можно. */

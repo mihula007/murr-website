@@ -144,6 +144,10 @@ describe('publications: access (ACL-11, Q-02, Q-03)', () => {
     const officer = await roleActor('officer')
     const saved = await savePublication(deps, officer.actor, material())
     expect(saved).toMatchObject({ status: 'draft', canManage: true })
+    const master = await roleActor('master')
+    expect(await savePublication(deps, master.actor, material())).toMatchObject(
+      { status: 'draft', canManage: true },
+    )
     const admin = await roleActor('admin')
     expect(
       (await savePublication(deps, admin.actor, material())).canManage,

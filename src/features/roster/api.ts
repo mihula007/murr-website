@@ -15,7 +15,8 @@ import type {
   RosterStatsResponse,
 } from '@contracts/roster'
 import { callApi } from '@/lib/supabase/api'
-import { accountKeys } from '@/features/admin/query-keys'
+import { accountKeys, auditKeys } from '@/features/admin/query-keys'
+import { notificationKeys } from '@/features/notifications/query-keys'
 import { rosterKeys } from './query-keys'
 
 /** Численность видна всем; кэш на 5 минут бережёт квоту вызовов Free. */
@@ -69,6 +70,14 @@ export function useRestoreReader() {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: rosterKeys.all }),
         queryClient.invalidateQueries({ queryKey: accountKeys.all }),
+        queryClient.invalidateQueries({
+          queryKey: auditKeys.all,
+          refetchType: 'none',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: notificationKeys.all,
+          refetchType: 'none',
+        }),
       ]),
   })
 }

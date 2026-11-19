@@ -144,6 +144,13 @@ describe('activity: access (01-roles, Q-25)', () => {
     }
     expect((await attendanceRating(deps, member.actor)).eventCount).toBe(1)
     expect((await monthTop(deps, member.actor)).eventCount).toBe(1)
+
+    const master = await roleActor('master')
+    expect((await activitySummary(deps, master.actor, {})).eventCount).toBe(1)
+    expect(
+      (await activityHistory(deps, master.actor, {})).items.length,
+    ).toBeGreaterThan(0)
+    expect((await activityEvents(deps, master.actor, {})).items).toHaveLength(1)
   })
 })
 

@@ -46,7 +46,13 @@ import {
 } from './repository.ts'
 
 /** Роли, которым показывается статус своей заявки (матрица ACL, ACC-05). */
-const APPLICATION_VISIBLE_TO = ['applicant', 'member', 'officer', 'admin']
+const APPLICATION_VISIBLE_TO = [
+  'applicant',
+  'member',
+  'officer',
+  'master',
+  'admin',
+]
 
 const nicknameTaken = () =>
   new ApiError('validation_failed', { gameNickname: 'nickname_taken' })

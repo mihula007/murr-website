@@ -29,7 +29,7 @@ import { voteRepository, type VoteRow } from './repository.ts'
 /** Читают и голосуют члены, офицеры и администраторы (ACL-04). */
 const VOTERS = INTERNAL_ROLES
 /** Создают и управляют офицеры и администраторы независимо от автора. */
-export const VOTE_MANAGERS = ['officer', 'admin'] as const
+export const VOTE_MANAGERS = ['officer', 'master', 'admin'] as const
 
 const isManager = (actor: ProfiledActor) =>
   (VOTE_MANAGERS as readonly string[]).includes(actor.profile.access_role)

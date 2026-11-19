@@ -120,11 +120,17 @@ describe('groups: access (GRP, ACL)', () => {
     // Группами события управляет любой офицер, не только автор.
     const other = await roleActor('officer')
     await createGroup(deps, other.actor, { eventId: event.id, name: 'Пати' })
-    const { groups } = await createGroup(deps, admin.actor, {
+    await createGroup(deps, admin.actor, {
       eventId: event.id,
       name: 'Пати 2',
     })
-    expect(groups.map((g) => g.name)).toEqual(['Пати', 'Пати 2'])
+    const master = await roleActor('master')
+    await createGroup(deps, master.actor, {
+      eventId: event.id,
+      name: 'Пати 3',
+    })
+    const { groups } = await getEvent(deps, admin.actor, { id: event.id })
+    expect(groups.map((g) => g.name)).toEqual(['Пати', 'Пати 2', 'Пати 3'])
   })
 
   it('shows groups and management flags in event details', async () => {

@@ -18,7 +18,7 @@ import { nicknameCursor, nicknameKey } from './cursor.ts'
 import { rosterRepository } from './repository.ts'
 
 /** Восстанавливают чтеца офицер и администратор (ACL-06, ADM-09). */
-const READER_KEEPERS = ['officer', 'admin'] as const
+const READER_KEEPERS = ['officer', 'master', 'admin'] as const
 
 type CardRow = Awaited<ReturnType<typeof rosterRepository.listByRoles>>[number]
 

@@ -34,7 +34,7 @@ export function notificationRoute(
       return { to: '/market/$id', params }
     case 'join_application':
       // Кандидат видит свою заявку в кабинете, офицер — в разделе заявок.
-      return role === 'officer' || role === 'admin'
+      return role === 'officer' || role === 'master' || role === 'admin'
         ? { to: '/applications/$id', params }
         : { to: '/account' }
     case 'account':

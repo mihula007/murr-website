@@ -48,7 +48,7 @@ import { notify } from '../notifications/service.ts'
 import { accountRepository, type AccountKey } from './repository.ts'
 
 /** Восстанавливают чтеца офицер и администратор (ACL-06, ADM-09). */
-const READER_KEEPERS = ['officer', 'admin'] as const
+const READER_KEEPERS = ['officer', 'master', 'admin'] as const
 
 /** Курсор таблицы аккаунтов: `[значение сортировки, id]`. */
 const accountCursor = z
@@ -434,6 +434,7 @@ const ROLE_NAMES: Record<AccessRole, string> = {
   reader: 'Чтец',
   member: 'Член клана',
   officer: 'Офицер',
+  master: 'Мастер',
   admin: 'Администратор',
 }
 
@@ -505,7 +506,7 @@ export async function setRole(
   actor: Actor,
   body: unknown,
 ): Promise<RoleChangeResult> {
-  const manager = requireRole(actor, ['officer', 'admin'])
+  const manager = requireRole(actor, ['officer', 'master', 'admin'])
   const { userId, role } = parseBody(setRoleSchema, body)
 
   return withTransaction(deps.db, async (tx) => {
@@ -520,7 +521,14 @@ export async function setRole(
       throw new ApiError('state_conflict')
     }
     const previousRole = target.access_role as AccessRole
-    if (
+    if (manager.profile.access_role === 'master') {
+      if (
+        !['member', 'reader'].includes(previousRole) ||
+        !['applicant', 'member', 'reader', 'officer'].includes(role)
+      ) {
+        throw new ApiError('forbidden')
+      }
+    } else if (
       manager.profile.access_role !== 'admin' &&
       (previousRole !== 'member' || role !== 'reader')
     ) {
@@ -546,7 +554,11 @@ export async function setRole(
       manager,
       target,
       role,
-      role === 'reader' ? ROLE_AUDIT.blocked : ROLE_AUDIT.changed,
+      role === 'reader'
+        ? ROLE_AUDIT.blocked
+        : previousRole === 'reader' && role === 'member'
+          ? ROLE_AUDIT.restored
+          : ROLE_AUDIT.changed,
     )
   })
 }

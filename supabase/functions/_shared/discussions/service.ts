@@ -34,7 +34,7 @@ import { parentAccess, parentOfThread, type ParentAccess } from './parents.ts'
 /** Ветки читают и пишут члены, офицеры и администраторы (DSC, ACL). */
 const PARTICIPANTS = INTERNAL_ROLES
 /** Список прочитавших любого сообщения (Q-59); автор видит свой всегда. */
-const READ_LIST_ROLES: readonly string[] = ['officer', 'admin']
+const READ_LIST_ROLES: readonly string[] = ['officer', 'master', 'admin']
 
 const iso = (value: string) => parseTimestamp(value).toISOString()
 
@@ -76,7 +76,9 @@ async function toMessages(
               ? (urls.get(row.author_avatar_path) ?? null)
               : null,
             badge:
-              row.author_role === 'officer' || row.author_role === 'admin'
+              row.author_role === 'officer' ||
+              row.author_role === 'master' ||
+              row.author_role === 'admin'
                 ? row.author_role
                 : null,
           }
