@@ -123,5 +123,5 @@
 - After manual review, align the scene to the right edge for archer, paladin, bard, mystic, guard, and blood-spirit cards so the main figure remains in view at card proportions.
 - Existing data, permissions, role changes, audit entries, notifications, homepage and event/group/rating list consumers stay on existing paths.
 - Search and class filter are included in query keys and server requests; new filter values begin at a fresh cursor.
-- Legacy end-to-end scenarios now load roster pages while scrolling at a human pace, including the desktop list's own scroll area; they no longer expect all members in the first response.
+- Legacy end-to-end scenarios now wait for and scroll the desktop roster's own list area, or the page on phones, while loading cursor pages; they no longer expect all members in the first response.
 - E2E is added but not run locally; `npm run test:server` is run before step 4, and `npm run review:prepare` will reset local data before the manual review.

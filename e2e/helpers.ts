@@ -17,9 +17,20 @@ export async function skipSplash(page: Page) {
 export async function scrollUntilVisible(page: Page, target: Locator) {
   // Прокрутка до цели или до конца страницы: локальная БД копит записи
   // от прогона к прогону, фиксированного числа экранов не хватает.
+  const location = new URL(page.url())
+  const [routePath, routeQuery = ''] = location.hash.slice(1).split('?')
+  const isMemberRoster =
+    routePath === '/roster' &&
+    new URLSearchParams(routeQuery).get('view') !== 'readers'
+  const isDesktop = (page.viewportSize()?.width ?? 1280) >= 1024
   const rosterScroller = page.getByRole('region', {
     name: 'Прокручиваемый список: Участники',
   })
+  if (isMemberRoster && isDesktop && (await target.count()) === 0) {
+    await rosterScroller
+      .waitFor({ state: 'visible', timeout: 15_000 })
+      .catch(() => undefined)
+  }
   if ((await rosterScroller.count()) > 0) {
     let stalled = 0
     for (let step = 0; step < 1000 && stalled < 20; step += 1) {
