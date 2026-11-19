@@ -24,7 +24,7 @@
 ## Review Focus
 
 - A master receives every officer capability but never sees or calls admin-only account management or the action journal.
-- A master can change a `member`, `officer`, or `reader` target to an allowed role different from the current one. Officers can only be demoted to `member`, `reader`, or `applicant`; masters/admins cannot be changed, and `master`/`admin` cannot be assigned.
+- A master can change a `member`, `officer`, or `reader` target to an allowed role different from the current one. Members can become `officer` or `reader`; officers can only be demoted to `member` or `reader`; readers can become `member` or `officer`. Masters/admins cannot be changed, and `applicant`, `master`, or `admin` cannot be assigned.
 - A target with an active application remains unchanged and returns `application_pending`, including a requested role of `applicant`.
 - Reader restoration, date-of-entry rules, notification, audit, and idempotent same-role behavior remain consistent with the existing operation.
 - Role changes update current access, roster totals, role labels, notification access, and desktop/mobile roster actions without changing historical snapshots.
@@ -103,7 +103,7 @@
 **Interfaces:**
 
 - Server role groups treat `master` as internal and officer-equivalent; administrator-only account listing, profile editing, deletion, and audit listing remain admin-only.
-- `accounts/set-role`: admins retain existing full role management. Officers retain only member-to-reader. Masters may change members and readers to a different allowed role, and may demote officers to `member`, `reader`, or `applicant`. Masters/admins cannot be changed or assigned. All actors remain subject to the active-application guard, pending deletion guard, audit, notification, and date rules.
+- `accounts/set-role`: admins retain existing full role management. Officers retain only member-to-reader. Masters may change members/readers to the other permitted internal role and may demote officers to `member` or `reader`; masters/admins/candidates cannot be changed or assigned. All actors remain subject to the active-application guard, pending deletion guard, audit, notification, and date rules.
 - Reader listing and restoration include master, matching officer rights.
 - Discussion role badges and roster count/role ordering support `master`.
 
@@ -125,12 +125,12 @@
 
 **Interfaces:**
 
-- A master sees role-selection actions for ordinary members, officers, and reader cards on the «Чтецы» tab. Each menu omits the target’s current role; officer choices are demotions only. Officers retain the current reader-only action; admins retain their existing behavior. Reader-to-member uses the existing restore operation so its date and `reader_restored` audit semantics remain unchanged; the other transitions use `accounts/set-role`.
+- A master sees role-selection actions for ordinary members, officers, and reader cards on the «Чтецы» tab. Each menu omits the target’s current role and the applicant destination; officer choices are demotions only. Officers retain the current reader-only action; admins retain their existing behavior. Reader-to-member uses the existing restore operation so its date and `reader_restored` audit semantics remain unchanged; the other transitions use `accounts/set-role`.
 - The confirmation names the target nickname and chosen role. Cancel leaves data unchanged; mutation errors keep the current card and display the existing error message.
 - After success, invalidate role, roster, reader, count, notification, and audit queries using existing query keys.
 - Seed `seed-master@example.test` with role `master` and include master among officer-equivalent users for local checks.
 
-- [x] **Step 1: Add failing component tests.** Cover menu visibility, role choices for member, officer, and reader targets (excluding the current role), confirmation/cancel, successful updates, errors, and unchanged officer/admin behavior.
+- [x] **Step 1: Add failing component tests.** Cover menu visibility, role choices for member, officer, and reader targets (excluding the current role and candidate), confirmation/cancel, successful updates, errors, and unchanged officer/admin behavior.
 - [x] **Step 2: Run the focused component test and confirm it fails.** Run `npx vitest run tests/roster-admin.test.tsx`.
 - [x] **Step 3: Implement the role picker and confirmation in roster cards.** Reuse existing role mutation and error handling; do not expose closed account fields or horizontal scrolling on mobile.
 - [x] **Step 4: Add the master seed account.** Keep the seeded test password unchanged and local-only.

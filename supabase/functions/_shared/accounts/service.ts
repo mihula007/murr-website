@@ -525,9 +525,9 @@ export async function setRole(
       const masterRoleChoices: Partial<
         Record<AccessRole, readonly AccessRole[]>
       > = {
-        member: ['officer', 'reader', 'applicant'],
-        officer: ['member', 'reader', 'applicant'],
-        reader: ['member', 'officer', 'applicant'],
+        member: ['officer', 'reader'],
+        officer: ['member', 'reader'],
+        reader: ['member', 'officer'],
       }
       if (!masterRoleChoices[previousRole]?.includes(role)) {
         throw new ApiError('forbidden')

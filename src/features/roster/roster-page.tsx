@@ -37,9 +37,9 @@ import { ReadersPanel } from './readers-panel'
 
 const ALL = 'all'
 const MASTER_ROLE_CHOICES = {
-  member: ['officer', 'reader', 'applicant'],
-  officer: ['member', 'reader', 'applicant'],
-  reader: ['member', 'officer', 'applicant'],
+  member: ['officer', 'reader'],
+  officer: ['member', 'reader'],
+  reader: ['member', 'officer'],
 } as const
 type MasterRole =
   (typeof MASTER_ROLE_CHOICES)[keyof typeof MASTER_ROLE_CHOICES][number]

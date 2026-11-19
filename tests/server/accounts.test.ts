@@ -216,18 +216,15 @@ describe('accounts/set-role', () => {
     expect(await notifications(member.id)).toEqual([])
   })
 
-  it('lets masters change only member and reader roles', async () => {
+  it('lets masters change member, officer, and reader roles without assigning applicants', async () => {
     const { actor } = await roleActor('master')
     const changes = [
       ['member', 'officer'],
       ['member', 'reader'],
-      ['member', 'applicant'],
       ['officer', 'member'],
       ['officer', 'reader'],
-      ['officer', 'applicant'],
       ['reader', 'member'],
       ['reader', 'officer'],
-      ['reader', 'applicant'],
     ] as const
 
     for (const [previous, next] of changes) {
@@ -252,17 +249,12 @@ describe('accounts/set-role', () => {
     expect(await audit()).toHaveLength(0)
   })
 
-  it('rejects master and admin role destinations', async () => {
+  it('rejects applicant, master, and admin role destinations', async () => {
     const { actor } = await roleActor('master')
     const member = await createProfiledUser(db, 'member')
-    await rejects(
-      setRole(deps, actor, { userId: member.id, role: 'master' }),
-      'forbidden',
-    )
-    await rejects(
-      setRole(deps, actor, { userId: member.id, role: 'admin' }),
-      'forbidden',
-    )
+    for (const role of ['applicant', 'master', 'admin'] as const) {
+      await rejects(setRole(deps, actor, { userId: member.id, role }), 'forbidden')
+    }
     expect(await profile(member.id)).toMatchObject({ access_role: 'member' })
     expect(await audit()).toHaveLength(0)
   })
@@ -272,7 +264,7 @@ describe('accounts/set-role', () => {
     const active = await createProfiledUser(db, 'member')
     await applicationRepository.create(db, active.id, [])
     await rejects(
-      setRole(deps, actor, { userId: active.id, role: 'applicant' }),
+      setRole(deps, actor, { userId: active.id, role: 'reader' }),
       'application_pending',
     )
 

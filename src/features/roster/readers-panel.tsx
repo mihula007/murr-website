@@ -19,7 +19,7 @@ import { pagingOf, VirtualList } from '@/components/virtual-list'
 import { ClassIcon } from '@/features/catalog/class-icon'
 import { useReaders, useRestoreReader } from './api'
 
-const MASTER_ROLE_CHOICES = ['member', 'officer', 'applicant'] as const
+const MASTER_ROLE_CHOICES = ['member', 'officer'] as const
 type MasterRole = (typeof MASTER_ROLE_CHOICES)[number]
 
 /** Чтецы и их восстановление в клане для офицера и администратора (ACL-06). */

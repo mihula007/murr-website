@@ -316,7 +316,7 @@ describe('roster page', () => {
   it('lets a master choose a different role for a plain member after confirmation (ROS-12)', async () => {
     routes['accounts/set-role'] = () => ({
       userId: 'm2',
-      role: 'applicant',
+      role: 'officer',
       joinedOn: '2026-11-01',
     })
     await renderApp({ role: 'master', path: '/roster' })
@@ -331,7 +331,10 @@ describe('roster page', () => {
     expect(
       screen.queryByRole('menuitem', { name: 'Назначить роль «Член клана»' }),
     ).toBeNull()
-    for (const role of ['Офицер', 'Чтец', 'Кандидат']) {
+    expect(
+      screen.queryByRole('menuitem', { name: 'Назначить роль «Кандидат»' }),
+    ).toBeNull()
+    for (const role of ['Офицер', 'Чтец']) {
       expect(
         await screen.findByRole('menuitem', {
           name: `Назначить роль «${role}»`,
@@ -339,11 +342,11 @@ describe('roster page', () => {
       ).toBeVisible()
     }
     fireEvent.click(
-      screen.getByRole('menuitem', { name: 'Назначить роль «Кандидат»' }),
+      screen.getByRole('menuitem', { name: 'Назначить роль «Офицер»' }),
     )
     const dialog = await screen.findByRole('alertdialog')
     expect(
-      within(dialog).getByText('Сменить роль Бета на «Кандидат»?'),
+      within(dialog).getByText('Сменить роль Бета на «Офицер»?'),
     ).toBeVisible()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Отмена' }))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
@@ -355,7 +358,7 @@ describe('roster page', () => {
     fireEvent.keyDown(buttons[0]!, { key: 'Enter' })
     fireEvent.click(
       await screen.findByRole('menuitem', {
-        name: 'Назначить роль «Кандидат»',
+        name: 'Назначить роль «Офицер»',
       }),
     )
     const confirm = await screen.findByRole('alertdialog')
@@ -365,7 +368,7 @@ describe('roster page', () => {
     await waitFor(() =>
       expect(callApi).toHaveBeenCalledWith('accounts/set-role', {
         userId: 'm2',
-        role: 'applicant',
+        role: 'officer',
       }),
     )
   })
@@ -385,7 +388,10 @@ describe('roster page', () => {
     expect(
       screen.queryByRole('menuitem', { name: 'Назначить роль «Офицер»' }),
     ).toBeNull()
-    for (const role of ['Член клана', 'Чтец', 'Кандидат']) {
+    expect(
+      screen.queryByRole('menuitem', { name: 'Назначить роль «Кандидат»' }),
+    ).toBeNull()
+    for (const role of ['Член клана', 'Чтец']) {
       expect(
         await screen.findByRole('menuitem', {
           name: `Назначить роль «${role}»`,
@@ -421,7 +427,10 @@ describe('roster page', () => {
     expect(
       screen.queryByRole('menuitem', { name: 'Назначить роль «Чтец»' }),
     ).toBeNull()
-    for (const role of ['Член клана', 'Офицер', 'Кандидат']) {
+    expect(
+      screen.queryByRole('menuitem', { name: 'Назначить роль «Кандидат»' }),
+    ).toBeNull()
+    for (const role of ['Член клана', 'Офицер']) {
       expect(
         await screen.findByRole('menuitem', {
           name: `Назначить роль «${role}»`,
@@ -458,9 +467,7 @@ describe('roster page', () => {
     })
     fireEvent.keyDown(trigger, { key: 'Enter' })
     fireEvent.click(
-      await screen.findByRole('menuitem', {
-        name: 'Назначить роль «Кандидат»',
-      }),
+      await screen.findByRole('menuitem', { name: 'Назначить роль «Чтец»' }),
     )
     const dialog = await screen.findByRole('alertdialog')
     fireEvent.click(

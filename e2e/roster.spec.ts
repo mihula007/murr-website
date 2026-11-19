@@ -140,6 +140,9 @@ test('E2E-15: admin assigns a master who changes member, officer, and reader rol
   await memberCard
     .getByRole('button', { name: /^Действия с участником/ })
     .click()
+  await expect(
+    masterPage.getByRole('menuitem', { name: 'Назначить роль «Кандидат»' }),
+  ).toHaveCount(0)
   await masterPage
     .getByRole('menuitem', { name: 'Назначить роль «Офицер»' })
     .click()
@@ -174,6 +177,9 @@ test('E2E-15: admin assigns a master who changes member, officer, and reader rol
   await readerRow
     .getByRole('button', { name: `Действия с чтецом «${reader.nickname}»` })
     .click()
+  await expect(
+    masterPage.getByRole('menuitem', { name: 'Назначить роль «Кандидат»' }),
+  ).toHaveCount(0)
   await masterPage
     .getByRole('menuitem', { name: 'Назначить роль «Член клана»' })
     .click()
