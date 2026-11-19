@@ -11,6 +11,8 @@ import type {
 import type {
   RosterCountResponse,
   RosterListResponse,
+  RosterPageRequest,
+  RosterPageResponse,
   RosterReadersResponse,
   RosterStatsResponse,
 } from '@contracts/roster'
@@ -45,6 +47,24 @@ export function useRoster() {
   return useQuery({
     queryKey: rosterKeys.list,
     queryFn: () => callApi<RosterListResponse>('roster/list'),
+  })
+}
+
+/** Состав страницы участников с фильтрами на сервере (ROS-14). */
+export function useRosterPages(filters: {
+  classId?: number
+  search: string
+}) {
+  const normalized = { ...filters, search: filters.search.trim() }
+  return useInfiniteQuery({
+    queryKey: rosterKeys.page(normalized),
+    queryFn: ({ pageParam }) =>
+      callApi<RosterPageResponse>('roster/page', {
+        ...normalized,
+        cursor: pageParam,
+      } satisfies RosterPageRequest),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
   })
 }
 

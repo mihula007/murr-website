@@ -76,14 +76,26 @@ const MEMBERS = [
   member('m3', 'Гамма', 7, 'admin'),
 ]
 
-/** Весь состав одним ответом (Q-48); фильтр класса выполняет клиент. */
-function rosterPage(members: RosterMember[]) {
-  return () => ({ items: members, truncated: false })
+function rosterPageResponse(members: RosterMember[], nextCursor: string | null = null) {
+  return (body: unknown) => {
+    const request = body as { classId?: number; search?: string }
+    const needle = request.search?.toLowerCase() ?? ''
+    return {
+      items: members.filter(
+        (item) =>
+          (request.classId === undefined || item.classId === request.classId) &&
+          (!needle ||
+            item.gameNickname.toLowerCase().includes(needle) ||
+            item.className.toLowerCase().includes(needle)),
+      ),
+      nextCursor,
+    }
+  }
 }
 
 /** Сколько раз страница запрашивала состав. */
 function rosterCalls() {
-  return callApi.mock.calls.filter(([route]) => route === 'roster/list').length
+  return callApi.mock.calls.filter(([route]) => route === 'roster/page').length
 }
 
 const STATS = {
@@ -133,7 +145,7 @@ beforeEach(() => {
   routes = {
     'catalog/classes': () => CLASSES,
     'roster/stats': () => STATS,
-    'roster/list': rosterPage(MEMBERS),
+    'roster/page': rosterPageResponse(MEMBERS),
     'roster/readers': () => READERS,
     'roster/count': () => ({ count: 3 }),
   }
@@ -194,8 +206,11 @@ describe('roster page', () => {
         expect.stringContaining('Гамма'),
       ]),
     )
-    // Фильтр класса не делает новый запрос (Q-48).
-    expect(rosterCalls()).toBe(1)
+    await waitFor(() => expect(rosterCalls()).toBeGreaterThan(1))
+    expect(callApi).toHaveBeenCalledWith(
+      'roster/page',
+      expect.objectContaining({ classId: 7 }),
+    )
     // Статистика не зависит от фильтра.
     expect(screen.getByText('3')).toBeVisible()
 
@@ -216,6 +231,45 @@ describe('roster page', () => {
       'roster/readers',
       expect.anything(),
     )
+  })
+
+  it('sends search to the server and loads the next cursor page', async () => {
+    const firstPage = MEMBERS.slice(0, 2)
+    routes['roster/page'] = (body) =>
+      (body as { cursor?: string | null; search?: string }).cursor
+        ? { items: [MEMBERS[2]!], nextCursor: null }
+        : { items: firstPage, nextCursor: 'cursor-2' }
+    await renderApp({ role: 'member', path: '/roster' })
+    expect(await screen.findByRole('heading', { name: 'Альфа' })).toBeVisible()
+    fireEvent.change(screen.getByLabelText('Поиск'), {
+      target: { value: 'гам' },
+    })
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith(
+        'roster/page',
+        expect.objectContaining({ search: 'гам', cursor: null }),
+      ),
+    )
+    routes['roster/page'] = (body) =>
+      (body as { cursor?: string | null }).cursor
+        ? { items: [MEMBERS[2]!], nextCursor: null }
+        : { items: firstPage, nextCursor: 'cursor-2' }
+    fireEvent.change(screen.getByLabelText('Поиск'), {
+      target: { value: '' },
+    })
+    const loadMore = await screen.findByRole('button', { name: 'Показать ещё' })
+    fireEvent.click(loadMore)
+    expect(await screen.findByRole('heading', { name: 'Гамма' })).toBeVisible()
+    expect(callApi).toHaveBeenCalledWith(
+      'roster/page',
+      expect.objectContaining({ cursor: 'cursor-2' }),
+    )
+  })
+
+  it('shows the server-filtered empty state', async () => {
+    routes['roster/page'] = rosterPageResponse([])
+    await renderApp({ role: 'member', path: '/roster' })
+    expect(await screen.findByText('В составе пока нет участников.')).toBeVisible()
   })
 
   it('lets an officer restore a reader (ACL-06, ADM-09)', async () => {
@@ -491,11 +545,9 @@ describe('roster page', () => {
   })
 
   it('reports a roster cut at the safety limit (Q-48)', async () => {
-    routes['roster/list'] = () => ({ items: MEMBERS, truncated: true })
+    routes['roster/page'] = rosterPageResponse(MEMBERS)
     await renderApp({ role: 'member', path: '/roster' })
-    expect(
-      await screen.findByText('Показаны первые 250 участников по нику.'),
-    ).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Альфа' })).toBeVisible()
   })
 
   it('opens the readers tab from the address for an officer', async () => {
@@ -510,7 +562,7 @@ describe('roster page', () => {
   })
 
   it('shows the class name when the class icon is unknown (ROS-09)', async () => {
-    routes['roster/list'] = rosterPage([
+    routes['roster/page'] = rosterPageResponse([
       { ...member('x', 'Дельта', 99), className: 'Новый класс' },
     ])
     await renderApp({ role: 'member', path: '/roster' })

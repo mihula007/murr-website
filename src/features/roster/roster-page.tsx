@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { MoreHorizontal, UserRoundX } from 'lucide-react'
 import { z } from 'zod'
@@ -26,12 +26,12 @@ import { Select } from '@/components/ui/select'
 import { Badge, tileClass } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
-import { MEMBER_LIST_LIMIT } from '@contracts/paging'
+import { LoadMore, pagingOf } from '@/components/virtual-list'
 import { useSetRole } from '@/features/admin/api'
 import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
 import { cn } from '@/lib/utils'
-import { useRestoreReader, useRoster, useRosterStats } from './api'
+import { useRestoreReader, useRosterPages, useRosterStats } from './api'
 import { formatCharacterStat } from './character-stats'
 import { ReadersPanel } from './readers-panel'
 
@@ -237,32 +237,29 @@ function MembersList({
   onBlock: (member: RosterMember) => void
   onChangeRole: (member: RosterMember, role: MasterRole) => void
 }) {
-  const roster = useRoster()
+  const roster = useRosterPages({
+    ...(classId === null ? {} : { classId }),
+    search,
+  })
   if (roster.isPending) {
     return <LoadingState label="Загружаем состав…" />
   }
   if (roster.isError) {
     return <ErrorState onRetry={() => void roster.refetch()} />
   }
-  // Весь состав приходит одним ответом (Q-48): поиск — на клиенте.
   const needle = search.trim().toLowerCase()
-  const members = roster.data.items.filter(
-    (member) =>
-      (classId === null || member.classId === classId) &&
-      (needle === '' ||
-        member.gameNickname.toLowerCase().includes(needle) ||
-        member.className.toLowerCase().includes(needle)),
-  )
+  const members = roster.data.pages.flatMap((page) => page.items)
   if (members.length === 0) {
     let description = 'В составе пока нет участников.'
-    if (needle) {
+    if (needle && classId !== null) {
+      description = 'Никто не подходит под поиск и класс.'
+    } else if (needle) {
       description = 'Никто не подходит под поиск.'
     } else if (classId !== null) {
       description = 'В составе нет участников этого класса.'
     }
     return <EmptyState title="Никого нет" description={description} />
   }
-  // Участников клана до 200 (Q-48): весь список рисуется без виртуализации.
   return (
     <>
       <ul
@@ -293,11 +290,7 @@ function MembersList({
           </li>
         ))}
       </ul>
-      {roster.data.truncated ? (
-        <output className="mt-4 block text-sm text-muted-foreground">
-          Показаны первые {MEMBER_LIST_LIMIT} участников по нику.
-        </output>
-      ) : null}
+      <LoadMore paging={pagingOf(roster)} />
     </>
   )
 }
@@ -319,11 +312,17 @@ export function RosterPage({
     role: MasterRole
   } | null>(null)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const canManageRoles = role === 'master'
   const canRestore = hasOfficerPermission('roster.reader_roles')
   const showReaders = canRestore && view === 'readers'
   const go = (search: RosterSearch) =>
     void navigate({ to: '/roster', search, replace: true })
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedSearch(search.trim()), 250)
+    return () => window.clearTimeout(timeout)
+  }, [search])
 
   let filters
   if (stats.isPending) {
@@ -411,7 +410,7 @@ export function RosterPage({
           {filters}
           <MembersList
             classId={classId ?? null}
-            search={search}
+            search={debouncedSearch}
             canAssignReader={canRestore && !canManageRoles}
             canManageRoles={canManageRoles}
             userId={userId}
