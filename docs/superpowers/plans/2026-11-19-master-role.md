@@ -44,10 +44,10 @@
 - The existing `app.profiles.access_role` column accepts `master` while retaining all current values and the `is_primary_admin` constraint.
 - No new table, column, or database function is introduced.
 
-- [ ] **Step 1: Add the failing pgTAP assertions.** Verify an account can be inserted with `access_role = 'master'` and an unsupported role still violates the role constraint.
-- [ ] **Step 2: Run the focused database test and confirm it fails before the migration.** Run `npm run supabase:test`.
-- [ ] **Step 3: Add the forward migration.** Replace the role check constraint with the same accepted role set plus `master`; leave all other constraints untouched.
-- [ ] **Step 4: Run database tests and confirm the assertions pass.** Run `npm run supabase:test`.
+- [x] **Step 1: Add the failing pgTAP assertions.** Verify an account can be inserted with `access_role = 'master'` and an unsupported role still violates the role constraint.
+- [x] **Step 2: Run the focused database test and confirm it fails before the migration.** Run `npm run supabase:test`.
+- [x] **Step 3: Add the forward migration.** Replace the role check constraint with the same accepted role set plus `master`; leave all other constraints untouched.
+- [x] **Step 4: Run database tests and confirm the assertions pass.** Run `npm run supabase:test`.
 
 ### Task 2: Add master to shared role types and client access
 
@@ -72,10 +72,10 @@
 - Keep `ADMIN_ROLES` as `['admin']`; the administrator’s account selector includes `master`.
 - Give master the same notification bell, internal sections, management sections, and application news count as officer. The `accounts` news section remains admin-only.
 
-- [ ] **Step 1: Add failing client tests.** Assert master sees every officer navigation section except «Администрирование», has officer-level route access, sees the «Мастер» label and bell, receives the applications count but not the accounts count, and the admin role selector includes master.
-- [ ] **Step 2: Run the focused tests and confirm they fail.** Run `npx vitest run tests/access.test.tsx tests/navigation.test.ts tests/notifications.test.tsx tests/admin-accounts-filters.test.tsx`.
-- [ ] **Step 3: Extend shared and client role types and access lists.** Preserve `ADMIN_ROLES` as admin-only, add master only to officer-equivalent sets, and add master to the administrator’s role selector.
-- [ ] **Step 4: Run the focused tests and confirm they pass.** Repeat the command from Step 2.
+- [x] **Step 1: Add failing client tests.** Assert master sees every officer navigation section except «Администрирование», has officer-level route access, sees the «Мастер» label and bell, receives the applications count but not the accounts count, and the admin role selector includes master.
+- [x] **Step 2: Run the focused tests and confirm they fail.** Run `npx vitest run tests/access.test.tsx tests/navigation.test.ts tests/notifications.test.tsx tests/admin-accounts-filters.test.tsx`.
+- [x] **Step 3: Extend shared and client role types and access lists.** Preserve `ADMIN_ROLES` as admin-only, add master only to officer-equivalent sets, and add master to the administrator’s role selector.
+- [x] **Step 4: Run the focused tests and confirm they pass.** Repeat the command from Step 2.
 
 ### Task 3: Enforce officer-equivalent rights and narrow role assignment on the server
 
@@ -146,10 +146,10 @@
 
 - [x] **Step 1: Run `npm run test:server`.** Confirm all server tests pass.
 - [x] **Step 2: Run `npm run supabase:test`.** Confirm all pgTAP tests pass.
-- [ ] **Step 3: Run `npm run check:quick`.** Confirm secrets, styles, architecture, formatting, lint, types, and affected Vitest tests pass.
-- [ ] **Step 4: Run `npm run security:check` and inspect the complete staged diff.** Confirm no secrets and no unrelated changes.
-- [ ] **Step 5: Save implementation as a Conventional Commit in `main`.** Do not push; the owner must review through the local site first.
-- [ ] **Step 6: Prepare manual review.** Run `npm run review:prepare`; start background `npm run e2e:functions` and `npm run dev` if not already running; provide local links and test credentials, including `seed-master@example.test`, and ask for acceptance or remarks.
+- [x] **Step 3: Run `npm run check:quick`.** Confirm secrets, styles, architecture, formatting, lint, types, and affected Vitest tests pass.
+- [x] **Step 4: Run `npm run security:check` and inspect the complete staged diff.** Confirm no secrets and no unrelated changes.
+- [x] **Step 5: Save implementation as a Conventional Commit in `main`.** Do not push; the owner must review through the local site first.
+- [x] **Step 6: Prepare manual review.** Run `npm run review:prepare`; start background `npm run e2e:functions` and `npm run dev` if not already running; provide local links and test credentials, including `seed-master@example.test`, and ask for acceptance or remarks.
 
 ## Separate saves required by the project workflow
 
