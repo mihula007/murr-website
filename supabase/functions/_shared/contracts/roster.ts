@@ -1,7 +1,11 @@
 import { z } from 'zod'
 import type { AccessRole } from './account.ts'
 import type { CharacterStatFields } from './character-stats.ts'
-import { pageRequestShape, type MemberList, type Page } from './paging.ts'
+import {
+  pageRequestShape,
+  type MemberList,
+  type Page,
+} from './paging.ts'
 
 /** Численность текущего состава (member + officer + master + admin) — видна всем. */
 export type RosterCountResponse = { count: number }
@@ -37,6 +41,15 @@ export type RosterStatsResponse = {
  * выполняет клиент.
  */
 export type RosterListResponse = MemberList<RosterMember>
+
+/** Параметры неограниченного списка участников вкладки состава (ROS-14). */
+export const rosterPageRequestSchema = z.object({
+  cursor: pageRequestShape.cursor,
+  classId: z.number().int().positive().optional(),
+  search: z.string().trim().max(100).default(''),
+})
+export type RosterPageRequest = z.input<typeof rosterPageRequestSchema>
+export type RosterPageResponse = Page<RosterMember>
 
 /** Страница чтецов для восстановления (ACL-06, ADM-09). */
 export const readersListSchema = z.object(pageRequestShape)

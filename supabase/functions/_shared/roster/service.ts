@@ -5,9 +5,11 @@ import type { AccessRole } from '../contracts/account.ts'
 import { MEMBER_LIST_LIMIT } from '../contracts/paging.ts'
 import {
   readersListSchema,
+  rosterPageRequestSchema,
   type RosterCountResponse,
   type RosterListResponse,
   type RosterMember,
+  type RosterPageResponse,
   type RosterReadersResponse,
   type RosterStatsResponse,
 } from '../contracts/roster.ts'
@@ -68,10 +70,12 @@ async function cardPage(
   roles: readonly string[],
   cursor: string | null,
   limit: number,
+  options: { classId?: number | undefined; search?: string | undefined } = {},
 ) {
   const rows = await rosterRepository.listByRoles(deps.db, {
     roles,
-    classId: null,
+    classId: options.classId ?? null,
+    search: options.search,
     after: cursor ? decodeCursor(nicknameCursor, cursor) : null,
     limit: limit + 1,
   })
@@ -100,6 +104,20 @@ export async function listRoster(
     items: await toCards(deps, rows.slice(0, MEMBER_LIST_LIMIT)),
     truncated: rows.length > MEMBER_LIST_LIMIT,
   }
+}
+
+/** Страница текущего состава с серверными поиском и фильтром (ROS-14). */
+export async function listRosterPage(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<RosterPageResponse> {
+  requireRole(actor, INTERNAL_ROLES)
+  const { cursor, classId, search } = parseBody(
+    rosterPageRequestSchema,
+    body ?? {},
+  )
+  return cardPage(deps, INTERNAL_ROLES, cursor, 24, { classId, search })
 }
 
 /** Страница чтецов для офицера и администратора (ACL-06, ADM-09). */

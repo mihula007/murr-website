@@ -6,8 +6,14 @@ export type NicknameKey = { gameNickname: string; id: string }
 export type CardPageOptions = {
   roles: readonly string[]
   classId: number | null
+  search?: string | undefined
   after: NicknameKey | null
   limit: number
+}
+
+/** Экранирует шаблонные знаки ILIKE, чтобы поиск считал их обычными буквами. */
+function searchPattern(value: string) {
+  return `%${value.replace(/[\\%_]/g, '\\$&')}%`
 }
 
 export const rosterRepository = {
@@ -45,6 +51,15 @@ export const rosterRepository = {
       .where('p.access_role', 'in', options.roles)
     if (options.classId !== null) {
       query = query.where('p.class_id', '=', options.classId)
+    }
+    if (options.search) {
+      const pattern = searchPattern(options.search)
+      query = query.where((eb) =>
+        eb.or([
+          eb('p.game_nickname', 'ilike', pattern),
+          eb('c.name', 'ilike', pattern),
+        ]),
+      )
     }
     if (options.after) {
       const { gameNickname, id } = options.after

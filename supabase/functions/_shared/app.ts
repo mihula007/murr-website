@@ -120,6 +120,7 @@ import {
   countRoster,
   listReaders,
   listRoster,
+  listRosterPage,
   rosterStats,
 } from './roster/service.ts'
 import { createStorageGateway, type StorageGateway } from './storage/gateway.ts'
@@ -358,6 +359,7 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'roster/count': () => countRoster(deps),
     'roster/stats': ({ actor }) => rosterStats(deps, actor),
     'roster/list': ({ actor }) => listRoster(deps, actor),
+    'roster/page': ({ actor, body }) => listRosterPage(deps, actor, body),
     'roster/readers': ({ actor, body }) => listReaders(deps, actor, body),
     'accounts/list': ({ actor, body }) => listAccounts(deps, actor, body),
     'accounts/set-role': ({ actor, body }) => setRole(deps, actor, body),

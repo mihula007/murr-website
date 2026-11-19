@@ -3,10 +3,12 @@ import {
   GUEST,
   type Actor,
 } from '../../supabase/functions/_shared/auth/actor.ts'
+import { createRoutes } from '../../supabase/functions/_shared/app.ts'
 import type { AccessRole } from '../../supabase/functions/_shared/contracts/account.ts'
 import {
   countRoster,
   listReaders,
+  listRosterPage,
   listRoster,
   rosterStats,
 } from '../../supabase/functions/_shared/roster/service.ts'
@@ -169,6 +171,99 @@ describe('roster/list', () => {
     await setProfile(user.id, { avatar_path: path })
     const [card] = (await listRoster(deps, actor)).items
     expect(card?.avatarUrl).toContain('/storage/v1/object/sign/avatars/')
+  })
+})
+
+describe('roster/page', () => {
+  it('registers the paged operation in the shared API dispatcher', () => {
+    expect(createRoutes(deps)['roster/page']).toEqual(expect.any(Function))
+  })
+
+  it('rejects guests, applicants, readers, and incomplete accounts', async () => {
+    await rejects(listRosterPage(deps, GUEST, {}), 'not_authenticated')
+    const incomplete = await actorOf(db, (await createAuthUser()).id)
+    await rejects(listRosterPage(deps, incomplete, {}), 'registration_incomplete')
+    for (const role of ['applicant', 'reader'] as const) {
+      await rejects(
+        listRosterPage(deps, (await roleActor(role)).actor, {}),
+        'forbidden',
+      )
+    }
+  })
+
+  it('continues beyond the legacy 250-member cap in stable 24-item pages', async () => {
+    const { user: first, actor } = await roleActor('member')
+    await setProfile(first.id, { game_nickname: 'a00', city: 'Казань' })
+    const users: Awaited<ReturnType<typeof createProfiledUser>>[] = []
+    for (let start = 0; start < 250; start += 25) {
+      users.push(
+        ...(await Promise.all(
+          Array.from({ length: 25 }, () => createProfiledUser(db, 'member')),
+        )),
+      )
+    }
+    await Promise.all(
+      users.map((user, index) =>
+        setProfile(user.id, {
+          game_nickname: `m${String(index).padStart(3, '0')}`,
+          city: 'Казань',
+        }),
+      ),
+    )
+
+    const all: Awaited<ReturnType<typeof listRosterPage>>['items'] = []
+    const pageSizes: number[] = []
+    let cursor: string | null = null
+    do {
+      const page = await listRosterPage(deps, actor, { cursor })
+      all.push(...page.items)
+      pageSizes.push(page.items.length)
+      cursor = page.nextCursor
+    } while (cursor !== null)
+
+    expect(pageSizes).toEqual([...Array<number>(10).fill(24), 11])
+    expect(all).toHaveLength(251)
+    expect(all.map((item) => item.gameNickname)).toEqual([
+      ...all.map((item) => item.gameNickname).toSorted(),
+    ])
+    expect(all[0]?.gameNickname).toBe('a00')
+    expect(new Set(all.map((item) => item.id)).size).toBe(251)
+    for (const item of all) {
+      expect(Object.keys(item).sort()).toEqual(CARD_KEYS)
+      expect(item).not.toHaveProperty('city')
+    }
+  }, 120_000)
+
+  it('searches nick and class case-insensitively and combines class filtering', async () => {
+    const { actor } = await roleActor('member')
+    const mystic = await createProfiledUser(db, 'member')
+    const other = await createProfiledUser(db, 'member')
+    const wildcard = await createProfiledUser(db, 'member')
+    await setProfile(mystic.id, { game_nickname: 'Mystic1', class_id: 13 })
+    await setProfile(other.id, { game_nickname: 'Other1', class_id: 1 })
+    await setProfile(wildcard.id, { game_nickname: 'A%1', class_id: 1 })
+
+    const byNickname = await listRosterPage(deps, actor, { search: 'mYsTiC' })
+    expect(byNickname.items.map((item) => item.id)).toEqual([mystic.id])
+
+    const byClass = await listRosterPage(deps, actor, {
+      classId: 13,
+      search: 'МИСТ',
+    })
+    expect(byClass.items.map((item) => item.id)).toEqual([mystic.id])
+
+    const literalPercent = await listRosterPage(deps, actor, { search: '%' })
+    expect(literalPercent.items.map((item) => item.id)).toEqual([wildcard.id])
+  })
+
+  it('rejects invalid cursors, classes, and search strings longer than 100 characters', async () => {
+    const { actor } = await roleActor('member')
+    await rejects(listRosterPage(deps, actor, { cursor: 'broken' }), 'validation_failed')
+    await rejects(listRosterPage(deps, actor, { classId: 0 }), 'validation_failed')
+    await rejects(
+      listRosterPage(deps, actor, { search: 'x'.repeat(101) }),
+      'validation_failed',
+    )
   })
 })
 
