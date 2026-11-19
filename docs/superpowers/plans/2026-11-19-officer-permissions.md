@@ -52,7 +52,7 @@
 - `OfficerPermissionCode` — объединение кодов из каталога OFP; список допустимых кодов и русские названия определены в одном общем контракте.
 - `getOfficerPermissions(db, officerId)` возвращает только включённые права; у офицера без строк — пустой список.
 - `requireOfficerPermission(deps, actor, permission)` разрешает только `officer` с выданным правом и безусловно пропускает `master` и `admin`; другие роли получают `forbidden`.
-- `officer-permissions/list` возвращает все аккаунты с ролью `officer` (не более 50), ник и список выданных кодов для каждого; `officer-permissions/save` принимает ID выбранной цели и полный набор включённых кодов и применяет его транзакционно.
+- `officer-permissions/list` возвращает все аккаунты с ролью `officer`, ник и список выданных кодов для каждого; владелец подтвердил, что офицеров не больше 50, поэтому список показывается целиком без поиска и страниц. Запрос не обрезает результат, чтобы при неожиданном превышении никто не потерял доступ к настройкам. `officer-permissions/save` принимает ID выбранной цели и полный набор включённых кодов и применяет его транзакционно.
 - Операции настройки доступны только `master` и `admin`; каждая цель записи должна иметь роль `officer`.
 - Для `applications.submit_vote`, `applications.decide_after_vote` и `applications.decide_direct` обязательна также `applications.review`; сервер отвергает недопустимую комбинацию до записи.
 - Таблица содержит строки только для включённых прав; уникальность пары офицер/код не допускает дубликатов, код ограничен каталогом, удаление профиля очищает строки каскадно, доступ через публичный Data API закрыт.
@@ -152,7 +152,7 @@
 
 - `AccessContext` exposes typed `officerPermissions`; `hasOfficerPermission(code)` returns true for a listed officer grant and for `master`/`admin` bypass roles.
 - Navigation and `RouteGate` accept a required permission in addition to current role visibility. «Мастерка» itself is visible only to Mастер and Администратор. A management category disappears when all of its specific management actions are unavailable; shared/member destinations stay visible.
-- The page loads up to 50 officers and their current enabled-code list. Every catalog row has an accessible switch, grouped and ordered as the requirements table; all unchecked means disabled. `applications.review` controls dependent switches and turning it off also clears them in the form.
+- The page loads the complete officer roster and enabled-code lists; the owner confirmed the roster is at most 50, so there is no search or pagination. Every catalog row has an accessible switch, grouped and ordered as the requirements table; all unchecked means disabled. `applications.review` controls dependent switches and turning it off also clears them in the form.
 - The page uses TanStack Form + zod and `useUnsavedChangesGuard`; one «Сохранить» button submits all selected codes. Changing officer prompts before discarding dirty values. Errors preserve the form and saved state; success refreshes officer list/details and current `account/me` when relevant.
 - Switches use the project’s existing accessible controls and styling tokens; no new package.
 - At phone widths rows wrap without horizontal scrolling; on desktop label and switch stay on one row.
