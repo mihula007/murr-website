@@ -109,8 +109,17 @@ export function OfficerPermissionsPage() {
   )
   const [pendingOfficerId, setPendingOfficerId] = useState<string | null>(null)
   const activeOfficerId = useRef<string | null>(null)
+  const officers = useMemo(
+    () => roster.data?.officers ?? [],
+    [roster.data?.officers],
+  )
+  const selectedOfficer = officers.find(
+    (officer) => officer.id === selectedOfficerId,
+  )
   const form = useForm({
-    defaultValues: { permissions: emptyPermissions },
+    defaultValues: {
+      permissions: selectedOfficer?.permissions ?? emptyPermissions,
+    },
     validators: { onChange: permissionFormSchema },
     onSubmit: async ({ value }) => {
       if (!selectedOfficerId) {
@@ -131,10 +140,6 @@ export function OfficerPermissionsPage() {
   })
   const isDirty = useStore(form.store, (state) => state.isDirty)
   const { dialog } = useUnsavedChangesGuard(isDirty)
-  const officers = useMemo(
-    () => roster.data?.officers ?? [],
-    [roster.data?.officers],
-  )
   useEffect(() => {
     if (!selectedOfficerId && officers[0]) {
       setSelectedOfficerId(officers[0].id)
@@ -231,9 +236,9 @@ export function OfficerPermissionsPage() {
             void form.handleSubmit()
           }}
         >
-          <form.Field name="permissions">
-            {(field) => {
-              const enabled = new Set(field.state.value)
+          <form.Subscribe selector={(state) => state.values.permissions}>
+            {(permissions) => {
+              const enabled = new Set(permissions)
               return (
                 <div className="grid gap-5">
                   {PERMISSION_GROUPS.map((group, groupIndex) => (
@@ -262,7 +267,7 @@ export function OfficerPermissionsPage() {
                                 !enabled.has('applications.review')
                               }
                               onChange={(checked) => {
-                                const next = new Set(field.state.value)
+                                const next = new Set(permissions)
                                 if (checked) {
                                   next.add(code)
                                 } else {
@@ -276,7 +281,8 @@ export function OfficerPermissionsPage() {
                                     next.delete(action),
                                   )
                                 }
-                                field.handleChange(
+                                form.setFieldValue(
+                                  'permissions',
                                   OFFICER_PERMISSION_CODES.filter((item) =>
                                     next.has(item),
                                   ),
@@ -291,7 +297,7 @@ export function OfficerPermissionsPage() {
                 </div>
               )
             }}
-          </form.Field>
+          </form.Subscribe>
 
           <FormError message={formErrorMessage(save.error)} />
           <div className="flex justify-end border-t border-border pt-4">
