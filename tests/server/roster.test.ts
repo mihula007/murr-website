@@ -182,7 +182,10 @@ describe('roster/page', () => {
   it('rejects guests, applicants, readers, and incomplete accounts', async () => {
     await rejects(listRosterPage(deps, GUEST, {}), 'not_authenticated')
     const incomplete = await actorOf(db, (await createAuthUser()).id)
-    await rejects(listRosterPage(deps, incomplete, {}), 'registration_incomplete')
+    await rejects(
+      listRosterPage(deps, incomplete, {}),
+      'registration_incomplete',
+    )
     for (const role of ['applicant', 'reader'] as const) {
       await rejects(
         listRosterPage(deps, (await roleActor(role)).actor, {}),
@@ -224,7 +227,7 @@ describe('roster/page', () => {
     expect(pageSizes).toEqual([...Array<number>(10).fill(24), 11])
     expect(all).toHaveLength(251)
     expect(all.map((item) => item.gameNickname)).toEqual([
-      ...all.map((item) => item.gameNickname).toSorted(),
+      ...[...all.map((item) => item.gameNickname)].sort(),
     ])
     expect(all[0]?.gameNickname).toBe('a00')
     expect(new Set(all.map((item) => item.id)).size).toBe(251)
@@ -258,8 +261,14 @@ describe('roster/page', () => {
 
   it('rejects invalid cursors, classes, and search strings longer than 100 characters', async () => {
     const { actor } = await roleActor('member')
-    await rejects(listRosterPage(deps, actor, { cursor: 'broken' }), 'validation_failed')
-    await rejects(listRosterPage(deps, actor, { classId: 0 }), 'validation_failed')
+    await rejects(
+      listRosterPage(deps, actor, { cursor: 'broken' }),
+      'validation_failed',
+    )
+    await rejects(
+      listRosterPage(deps, actor, { classId: 0 }),
+      'validation_failed',
+    )
     await rejects(
       listRosterPage(deps, actor, { search: 'x'.repeat(101) }),
       'validation_failed',

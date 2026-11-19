@@ -26,11 +26,17 @@ import { Select } from '@/components/ui/select'
 import { Badge, tileClass } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
-import { LoadMore, pagingOf } from '@/components/virtual-list'
+import {
+  pagingOf,
+  ScrollableVirtualList,
+  useGridColumns,
+  VirtualList,
+} from '@/components/virtual-list'
 import { useSetRole } from '@/features/admin/api'
 import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
 import { cn } from '@/lib/utils'
+import { rosterBackgroundForClass } from './backgrounds'
 import { useRestoreReader, useRosterPages, useRosterStats } from './api'
 import { formatCharacterStat } from './character-stats'
 import { ReadersPanel } from './readers-panel'
@@ -131,7 +137,7 @@ function CharacterStatsSummary({ member }: { member: RosterMember }) {
       {CHARACTER_STAT_FIELDS.map((field) => (
         <div
           key={field}
-          className="grid min-w-0 justify-items-center rounded-md border border-border/70 bg-surface-inset/70 px-1 py-1 text-center"
+          className="grid min-w-0 justify-items-center rounded-md border border-border/70 bg-background/60 px-1 py-1 text-center backdrop-blur-[2px]"
         >
           <dt className="text-2xs leading-tight text-muted-foreground">
             {CHARACTER_STAT_LABELS[field]}
@@ -156,11 +162,25 @@ function MemberCard({
     <div
       className={cn(
         tileClass,
-        'flex h-full flex-col gap-4',
+        'relative isolate flex h-full min-h-[132px] flex-col gap-4 overflow-hidden border border-border-accent/80 shadow-sm',
         isCurrentUser && 'bg-item-highlight!',
+        isCurrentUser && 'ring-2 ring-highlight',
       )}
     >
-      <div className="flex min-w-0 items-start gap-3.5">
+      {rosterBackgroundForClass(member.classId) ? (
+        <img
+          aria-hidden="true"
+          alt=""
+          loading="lazy"
+          src={rosterBackgroundForClass(member.classId)}
+          className="absolute inset-0 -z-10 size-full object-cover object-center"
+        />
+      ) : null}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 bg-linear-90/srgb from-background/95 via-background/78 to-background/42"
+      />
+      <div className="relative flex min-w-0 items-start gap-3.5">
         <Avatar
           size="sm"
           name={member.gameNickname}
@@ -237,6 +257,8 @@ function MembersList({
   onBlock: (member: RosterMember) => void
   onChangeRole: (member: RosterMember, role: MasterRole) => void
 }) {
+  const columns = { base: 1, sm: 2, lg: 3 }
+  const activeColumns = useGridColumns(columns)
   const roster = useRosterPages({
     ...(classId === null ? {} : { classId }),
     search,
@@ -260,38 +282,55 @@ function MembersList({
     }
     return <EmptyState title="Никого нет" description={description} />
   }
-  return (
-    <>
-      <ul
-        aria-label="Участники"
-        className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3"
-      >
-        {members.map((member) => (
-          <li key={member.id} className="min-w-0">
-            <MemberCard
-              member={member}
-              isCurrentUser={member.id === userId}
-              onBlock={
-                !canManageRoles &&
-                canAssignReader &&
-                member.role === 'member' &&
-                member.id !== userId
-                  ? () => onBlock(member)
-                  : undefined
-              }
-              onChangeRole={
-                canManageRoles &&
-                (member.role === 'member' || member.role === 'officer') &&
-                member.id !== userId
-                  ? (role) => onChangeRole(member, role)
-                  : undefined
-              }
-            />
-          </li>
-        ))}
-      </ul>
-      <LoadMore paging={pagingOf(roster)} />
-    </>
+  const renderMember = (member: RosterMember) => (
+    <MemberCard
+      member={member}
+      isCurrentUser={member.id === userId}
+      onBlock={
+        !canManageRoles &&
+        canAssignReader &&
+        member.role === 'member' &&
+        member.id !== userId
+          ? () => onBlock(member)
+          : undefined
+      }
+      onChangeRole={
+        canManageRoles &&
+        (member.role === 'member' || member.role === 'officer') &&
+        member.id !== userId
+          ? (role) => onChangeRole(member, role)
+          : undefined
+      }
+    />
+  )
+  const paging = pagingOf(roster)
+  return activeColumns === 1 ? (
+    <VirtualList
+      key={`${classId ?? 'all'}:${search}`}
+      items={members}
+      getKey={(member) => member.id}
+      renderItem={renderMember}
+      label="Участники"
+      estimateSize={150}
+      columns={1}
+      gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+      paging={paging}
+      gap="md"
+    />
+  ) : (
+    <ScrollableVirtualList
+      key={`${classId ?? 'all'}:${search}`}
+      items={members}
+      getKey={(member) => member.id}
+      renderItem={renderMember}
+      label="Участники"
+      estimateSize={150}
+      viewportRows={4}
+      columns={columns}
+      gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+      paging={paging}
+      gap="md"
+    />
   )
 }
 
@@ -320,7 +359,10 @@ export function RosterPage({
     void navigate({ to: '/roster', search, replace: true })
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => setDebouncedSearch(search.trim()), 250)
+    const timeout = window.setTimeout(
+      () => setDebouncedSearch(search.trim()),
+      250,
+    )
     return () => window.clearTimeout(timeout)
   }, [search])
 

@@ -85,6 +85,15 @@ export function useGridColumns(columns: {
   return sm ? columns.sm : columns.base
 }
 
+/** Элементы одной виртуальной строки CSS-сетки. */
+export function itemsInVirtualRow<T>(
+  items: readonly T[],
+  rowIndex: number,
+  columns: number,
+) {
+  return items.slice(rowIndex * columns, (rowIndex + 1) * columns)
+}
+
 /**
  * Виртуализатор по окну для списка из `count` строк: отступ списка от
  * начала документа пересчитывается при каждой отрисовке и изменении
@@ -421,6 +430,9 @@ type ScrollableVirtualListProps<T> = {
   paging: Paging
   /** Высота области в примерных строках. */
   viewportRows: number
+  /** Число карточек в CSS-сетке на малом, среднем и большом экране. */
+  columns?: { base: number; sm: number; lg: number }
+  gridClassName?: string
   gap?: keyof typeof GAP
 }
 
@@ -433,20 +445,24 @@ export function ScrollableVirtualList<T>({
   estimateSize,
   paging,
   viewportRows,
+  columns: columnCounts = { base: 1, sm: 1, lg: 1 },
+  gridClassName,
   gap = 'sm',
 }: ScrollableVirtualListProps<T>) {
+  const columns = useGridColumns(columnCounts)
+  const rowCount = Math.ceil(items.length / columns)
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null)
   // Проект не использует React Compiler; функции виртуализатора меняются
   // при каждой отрисовке, и это ожидаемо (правило о мемоизации компилятором).
   // oxlint-disable-next-line react/incompatible-library
   const virtualizer = useVirtualizer({
-    count: items.length,
+    count: rowCount,
     getScrollElement: () => scrollElement,
     estimateSize: () => estimateSize,
     gap: GAP[gap],
     overscan: 4,
     getItemKey: (index) => {
-      const item = items[index]
+      const item = items[index * columns]
       return item ? getKey(item) : String(index)
     },
     initialRect: {
@@ -459,7 +475,7 @@ export function ScrollableVirtualList<T>({
   const last = virtualItems.at(-1)
   const before = first?.start ?? 0
   const after = last ? Math.max(0, virtualizer.getTotalSize() - last.end) : 0
-  const reachedEnd = last !== undefined && last.index >= items.length - 1
+  const reachedEnd = last !== undefined && last.index >= rowCount - 1
   const { hasMore, loadingMore, loadError, onLoadMore } = paging
 
   useEffect(() => {
@@ -491,21 +507,21 @@ export function ScrollableVirtualList<T>({
         className={cn(
           'm-0 grid list-none px-0 pt-(--virtual-before) pb-(--virtual-after)',
           gapClass[gap],
+          gridClassName,
         )}
       >
-        {virtualItems.map((row) => {
-          const item = items[row.index]
-          return item === undefined ? null : (
+        {virtualItems.flatMap((row) =>
+          itemsInVirtualRow(items, row.index, columns).map((item, position) => (
             <li
               key={getKey(item)}
-              data-index={row.index}
-              ref={virtualizer.measureElement}
+              data-index={position === 0 ? row.index : undefined}
+              ref={position === 0 ? virtualizer.measureElement : undefined}
               className="min-w-0"
             >
               {renderItem(item)}
             </li>
-          )
-        })}
+          )),
+        )}
       </ul>
       <LoadMore paging={paging} />
     </section>

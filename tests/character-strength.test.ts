@@ -86,6 +86,12 @@ beforeEach(() => {
   callApi.mockReset()
   sessionUserId.current = null
   callApi.mockImplementation((route) => {
+    if (route === 'roster/page') {
+      return Promise.resolve({
+        items: structuredClone(members),
+        nextCursor: null,
+      })
+    }
     if (route === 'roster/list') {
       return Promise.resolve({
         items: structuredClone(members),
@@ -163,13 +169,15 @@ describe('показатели состава и главная', () => {
     }))
     callApi.mockImplementation((route) =>
       Promise.resolve(
-        route === 'roster/list'
-          ? { items: withPrivateSource, truncated: false }
-          : route === 'roster/stats'
-            ? { total: withPrivateSource.length, classes: [] }
-            : route === 'roster/count'
-              ? { count: withPrivateSource.length }
-              : { unreadCount: 0, sections: {} },
+        route === 'roster/page'
+          ? { items: withPrivateSource, nextCursor: null }
+          : route === 'roster/list'
+            ? { items: withPrivateSource, truncated: false }
+            : route === 'roster/stats'
+              ? { total: withPrivateSource.length, classes: [] }
+              : route === 'roster/count'
+                ? { count: withPrivateSource.length }
+                : { unreadCount: 0, sections: {} },
       ),
     )
     await renderApp({ role: 'member', path: '/roster' })

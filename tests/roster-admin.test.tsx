@@ -4,6 +4,7 @@ import type { AccountListItem } from '@contracts/accounts'
 import type { RosterMember } from '@contracts/roster'
 import { createQueryClient } from '@/app/query-client'
 import { membersLabel } from '@/features/home/plural'
+import { rosterBackgroundForClass } from '@/features/roster/backgrounds'
 import { AppError } from '@/lib/errors'
 import { renderApp } from './support/render-app'
 
@@ -76,7 +77,10 @@ const MEMBERS = [
   member('m3', 'Гамма', 7, 'admin'),
 ]
 
-function rosterPageResponse(members: RosterMember[], nextCursor: string | null = null) {
+function rosterPageResponse(
+  members: RosterMember[],
+  nextCursor: string | null = null,
+) {
   return (body: unknown) => {
     const request = body as { classId?: number; search?: string }
     const needle = request.search?.toLowerCase() ?? ''
@@ -174,6 +178,16 @@ const cards = () =>
   )
 
 describe('roster page', () => {
+  it('uses one permanent illustration for each of the 17 classes', () => {
+    const backgrounds = Array.from({ length: 17 }, (_, index) =>
+      rosterBackgroundForClass(index + 1),
+    )
+    expect(backgrounds.every((background) => Boolean(background))).toBe(true)
+    expect(new Set(backgrounds).size).toBe(17)
+    expect(rosterBackgroundForClass(1)).toBe(rosterBackgroundForClass(1))
+    expect(rosterBackgroundForClass(18)).toBeUndefined()
+  })
+
   it('highlights only the current member card', async () => {
     sessionUserId.current = 'm2'
     await renderApp({ role: 'member', path: '/roster' })
@@ -269,7 +283,9 @@ describe('roster page', () => {
   it('shows the server-filtered empty state', async () => {
     routes['roster/page'] = rosterPageResponse([])
     await renderApp({ role: 'member', path: '/roster' })
-    expect(await screen.findByText('В составе пока нет участников.')).toBeVisible()
+    expect(
+      await screen.findByText('В составе пока нет участников.'),
+    ).toBeVisible()
   })
 
   it('lets an officer restore a reader (ACL-06, ADM-09)', async () => {
