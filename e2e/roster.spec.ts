@@ -100,9 +100,10 @@ test('неограниченный состав ищет по серверу и 
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.reload()
-  await page.getByLabel('Поиск', { exact: true }).fill(prefix)
-  await page.getByRole('combobox', { name: 'Класс' }).click()
-  await page.getByRole('option', { name: 'Оборотень' }).click()
+  await expect(page.getByLabel('Поиск', { exact: true })).toHaveValue(prefix)
+  await expect(page.getByRole('combobox', { name: 'Класс' })).toContainText(
+    'Оборотень',
+  )
   await expect(
     page.getByRole('region', { name: 'Прокручиваемый список: Участники' }),
   ).toHaveCount(0)

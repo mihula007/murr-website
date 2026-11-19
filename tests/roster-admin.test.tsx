@@ -253,7 +253,7 @@ describe('roster page', () => {
       (body as { cursor?: string | null; search?: string }).cursor
         ? { items: [MEMBERS[2]!], nextCursor: null }
         : { items: firstPage, nextCursor: 'cursor-2' }
-    await renderApp({ role: 'member', path: '/roster' })
+    const { router } = await renderApp({ role: 'member', path: '/roster' })
     expect(await screen.findByRole('heading', { name: 'Альфа' })).toBeVisible()
     fireEvent.change(screen.getByLabelText('Поиск'), {
       target: { value: 'гам' },
@@ -264,6 +264,9 @@ describe('roster page', () => {
         expect.objectContaining({ search: 'гам', cursor: null }),
       ),
     )
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({ search: 'гам' }),
+    )
     routes['roster/page'] = (body) =>
       (body as { cursor?: string | null }).cursor
         ? { items: [MEMBERS[2]!], nextCursor: null }
@@ -271,12 +274,24 @@ describe('roster page', () => {
     fireEvent.change(screen.getByLabelText('Поиск'), {
       target: { value: '' },
     })
-    const loadMore = await screen.findByRole('button', { name: 'Показать ещё' })
-    fireEvent.click(loadMore)
     expect(await screen.findByRole('heading', { name: 'Гамма' })).toBeVisible()
     expect(callApi).toHaveBeenCalledWith(
       'roster/page',
       expect.objectContaining({ cursor: 'cursor-2' }),
+    )
+  })
+
+  it('restores the search from the roster address', async () => {
+    await renderApp({
+      role: 'member',
+      path: '/roster?search=%D0%91%D0%B5%D1%82%D0%B0',
+    })
+    expect(await screen.findByLabelText('Поиск')).toHaveValue('Бета')
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith(
+        'roster/page',
+        expect.objectContaining({ search: 'Бета' }),
+      ),
     )
   })
 

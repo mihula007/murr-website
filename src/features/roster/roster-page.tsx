@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { MoreHorizontal, UserRoundX } from 'lucide-react'
 import { z } from 'zod'
@@ -64,9 +64,48 @@ function masterRoleChoices(
  */
 export const rosterSearchSchema = z.object({
   classId: z.number().int().positive().optional().catch(undefined),
+  search: z.string().trim().max(100).catch(''),
   view: z.enum(['members', 'readers']).catch('members'),
 })
 export type RosterSearch = z.output<typeof rosterSearchSchema>
+
+function useDebouncedSearch(value: string, delay: number) {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebounced(value), delay)
+    return () => window.clearTimeout(timeout)
+  }, [delay, value])
+  return debounced
+}
+
+function RosterSearchInput({
+  search,
+  onCommit,
+}: {
+  search: string
+  onCommit: (value: string) => void
+}) {
+  const [text, setText] = useState(search)
+  const debounced = useDebouncedSearch(text, 250)
+
+  useEffect(() => {
+    const normalized = debounced.trim()
+    if (normalized !== search) {
+      onCommit(normalized)
+    }
+  }, [debounced, onCommit, search])
+
+  return (
+    <Input
+      id="roster-search"
+      type="search"
+      placeholder="Ник или класс"
+      maxLength={100}
+      value={text}
+      onChange={(event) => setText(event.target.value)}
+    />
+  )
+}
 
 /**
  * Общая численность и распределение по классам (ROS-05). Как в прототипе,
@@ -337,6 +376,7 @@ function MembersList({
 /** Состав клана для внутренних ролей (ROS-01–09, ACL-09). */
 export function RosterPage({
   classId,
+  search: searchParam = '',
   view = 'members',
 }: Partial<RosterSearch>) {
   const { role, hasOfficerPermission } = useAccess()
@@ -350,21 +390,22 @@ export function RosterPage({
     member: RosterMember
     role: MasterRole
   } | null>(null)
-  const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
   const canManageRoles = role === 'master'
   const canRestore = hasOfficerPermission('roster.reader_roles')
   const showReaders = canRestore && view === 'readers'
-  const go = (search: RosterSearch) =>
-    void navigate({ to: '/roster', search, replace: true })
+  const go = (nextSearch: RosterSearch) =>
+    void navigate({ to: '/roster', search: nextSearch, replace: true })
 
-  useEffect(() => {
-    const timeout = window.setTimeout(
-      () => setDebouncedSearch(search.trim()),
-      250,
-    )
-    return () => window.clearTimeout(timeout)
-  }, [search])
+  const commitSearch = useCallback(
+    (value: string) => {
+      void navigate({
+        to: '/roster',
+        search: { classId, search: value, view },
+        replace: true,
+      })
+    },
+    [classId, navigate, view],
+  )
 
   let filters
   if (stats.isPending) {
@@ -382,12 +423,10 @@ export function RosterPage({
             >
               Поиск
             </label>
-            <Input
-              id="roster-search"
-              type="search"
-              placeholder="Ник или класс"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
+            <RosterSearchInput
+              key={searchParam}
+              search={searchParam}
+              onCommit={commitSearch}
             />
           </div>
           <div className="grid gap-2">
@@ -404,6 +443,7 @@ export function RosterPage({
                 go({
                   view: 'members',
                   classId: value === ALL ? undefined : Number(value),
+                  search: searchParam,
                 })
               }
               options={[
@@ -431,7 +471,11 @@ export function RosterPage({
         <Tabs
           value={showReaders ? 'readers' : 'members'}
           onValueChange={(value) =>
-            go({ view: value === 'readers' ? 'readers' : 'members', classId })
+            go({
+              view: value === 'readers' ? 'readers' : 'members',
+              classId,
+              search: searchParam,
+            })
           }
         >
           <TabsList aria-label="Состав" className="mb-4">
@@ -452,7 +496,7 @@ export function RosterPage({
           {filters}
           <MembersList
             classId={classId ?? null}
-            search={debouncedSearch}
+            search={searchParam}
             canAssignReader={canRestore && !canManageRoles}
             canManageRoles={canManageRoles}
             userId={userId}
