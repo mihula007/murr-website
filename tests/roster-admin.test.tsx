@@ -313,7 +313,7 @@ describe('roster page', () => {
     )
   })
 
-  it('lets a master choose any role for a plain member after confirmation (ROS-12)', async () => {
+  it('lets a master choose a different role for a plain member after confirmation (ROS-12)', async () => {
     routes['accounts/set-role'] = () => ({
       userId: 'm2',
       role: 'applicant',
@@ -328,7 +328,10 @@ describe('roster page', () => {
     expect(buttons[0]!.closest('li')).toHaveTextContent('Бета')
 
     fireEvent.keyDown(buttons[0]!, { key: 'Enter' })
-    for (const role of ['Член клана', 'Офицер', 'Чтец', 'Кандидат']) {
+    expect(
+      screen.queryByRole('menuitem', { name: 'Назначить роль «Член клана»' }),
+    ).toBeNull()
+    for (const role of ['Офицер', 'Чтец', 'Кандидат']) {
       expect(
         await screen.findByRole('menuitem', {
           name: `Назначить роль «${role}»`,
@@ -367,7 +370,42 @@ describe('roster page', () => {
     )
   })
 
-  it('lets a master choose all four roles for readers and restores through the existing action', async () => {
+  it('lets a master demote officers but not assign an equal or higher role', async () => {
+    routes['accounts/set-role'] = () => ({
+      userId: 'm1',
+      role: 'member',
+      joinedOn: '2026-11-11',
+    })
+    await renderApp({ role: 'master', path: '/roster' })
+    await screen.findByRole('heading', { name: 'Альфа' })
+    const trigger = screen.getByRole('button', {
+      name: 'Действия с участником «Альфа»',
+    })
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    expect(
+      screen.queryByRole('menuitem', { name: 'Назначить роль «Офицер»' }),
+    ).toBeNull()
+    for (const role of ['Член клана', 'Чтец', 'Кандидат']) {
+      expect(
+        await screen.findByRole('menuitem', {
+          name: `Назначить роль «${role}»`,
+        }),
+      ).toBeVisible()
+    }
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: 'Назначить роль «Член клана»' }),
+    )
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Сменить роль' }))
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('accounts/set-role', {
+        userId: 'm1',
+        role: 'member',
+      }),
+    )
+  })
+
+  it('lets a master choose a different role for readers and restores members through the existing action', async () => {
     routes['accounts/restore-reader'] = () => ({
       userId: 'r1',
       role: 'member',
@@ -380,7 +418,10 @@ describe('roster page', () => {
       name: 'Действия с чтецом «Чтец1»',
     })
     fireEvent.keyDown(trigger, { key: 'Enter' })
-    for (const role of ['Член клана', 'Офицер', 'Чтец', 'Кандидат']) {
+    expect(
+      screen.queryByRole('menuitem', { name: 'Назначить роль «Чтец»' }),
+    ).toBeNull()
+    for (const role of ['Член клана', 'Офицер', 'Кандидат']) {
       expect(
         await screen.findByRole('menuitem', {
           name: `Назначить роль «${role}»`,

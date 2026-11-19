@@ -495,8 +495,8 @@ async function applyRole(
 }
 
 /**
- * Смена роли и блокировка (перевод в чтеца) администратором; офицер может
- * переводить только обычного члена в чтеца (ROS-07).
+ * Администратор управляет ролями; офицер переводит члена в чтеца, мастер
+ * меняет роли членам и чтецам и понижает офицеров (ROS-07, ROS-12).
  * Основного и последнего администратора понизить нельзя (ACL-07, ADM-06);
  * роль кандидата с активной заявкой меняется только решением по заявке.
  * Та же роль — без изменений и без аудита.
@@ -522,10 +522,14 @@ export async function setRole(
     }
     const previousRole = target.access_role as AccessRole
     if (manager.profile.access_role === 'master') {
-      if (
-        !['member', 'reader'].includes(previousRole) ||
-        !['applicant', 'member', 'reader', 'officer'].includes(role)
-      ) {
+      const masterRoleChoices: Partial<
+        Record<AccessRole, readonly AccessRole[]>
+      > = {
+        member: ['officer', 'reader', 'applicant'],
+        officer: ['member', 'reader', 'applicant'],
+        reader: ['member', 'officer', 'applicant'],
+      }
+      if (!masterRoleChoices[previousRole]?.includes(role)) {
         throw new ApiError('forbidden')
       }
     } else if (

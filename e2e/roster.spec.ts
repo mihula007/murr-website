@@ -81,7 +81,7 @@ test('officer assigns a member the reader role from the roster', async ({
   await memberPage.context().close()
 })
 
-test('E2E-15: admin assigns a master who changes only member and reader roles', async ({
+test('E2E-15: admin assigns a master who changes member, officer, and reader roles', async ({
   page,
   browser,
 }) => {
@@ -151,6 +151,20 @@ test('E2E-15: admin assigns a master who changes only member and reader roles', 
   await expect(memberChange).toBeHidden()
   await expect(memberCard).toContainText('Офицер')
 
+  await memberCard
+    .getByRole('button', { name: /^Действия с участником/ })
+    .click()
+  await expect(
+    masterPage.getByRole('menuitem', { name: 'Назначить роль «Офицер»' }),
+  ).toHaveCount(0)
+  await masterPage
+    .getByRole('menuitem', { name: 'Назначить роль «Член клана»' })
+    .click()
+  const officerDemotion = masterPage.getByRole('alertdialog')
+  await officerDemotion.getByRole('button', { name: 'Сменить роль' }).click()
+  await expect(officerDemotion).toBeHidden()
+  await expect(memberCard).not.toContainText('Офицер')
+
   await masterPage.getByRole('tab', { name: 'Чтецы' }).click()
   const readerRow = masterPage
     .getByRole('list', { name: 'Чтецы' })
@@ -172,7 +186,15 @@ test('E2E-15: admin assigns a master who changes only member and reader roles', 
   await expect(readerRow).toHaveCount(0)
 
   const masterToken = await accessToken(master.email)
-  for (const target of [officer, otherMaster, otherAdmin, candidate]) {
+  expect(
+    (
+      await callApi('accounts/set-role', masterToken, {
+        userId: officer.id,
+        role: 'member',
+      })
+    ).status,
+  ).toBe(200)
+  for (const target of [master, otherMaster, otherAdmin, candidate]) {
     expect(
       (
         await callApi('accounts/set-role', masterToken, {

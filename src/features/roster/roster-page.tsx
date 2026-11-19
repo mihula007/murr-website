@@ -36,8 +36,21 @@ import { formatCharacterStat } from './character-stats'
 import { ReadersPanel } from './readers-panel'
 
 const ALL = 'all'
-const MASTER_ROLES = ['member', 'officer', 'reader', 'applicant'] as const
-type MasterRole = (typeof MASTER_ROLES)[number]
+const MASTER_ROLE_CHOICES = {
+  member: ['officer', 'reader', 'applicant'],
+  officer: ['member', 'reader', 'applicant'],
+  reader: ['member', 'officer', 'applicant'],
+} as const
+type MasterRole =
+  (typeof MASTER_ROLE_CHOICES)[keyof typeof MASTER_ROLE_CHOICES][number]
+
+function masterRoleChoices(
+  currentRole: RosterMember['role'],
+): readonly MasterRole[] {
+  return currentRole in MASTER_ROLE_CHOICES
+    ? MASTER_ROLE_CHOICES[currentRole as keyof typeof MASTER_ROLE_CHOICES]
+    : []
+}
 
 /**
  * Параметры адреса состава: фильтр класса и вкладка. Чтецы — отдельная
@@ -179,7 +192,7 @@ function MemberCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {onChangeRole
-                ? MASTER_ROLES.map((role) => (
+                ? masterRoleChoices(member.role).map((role) => (
                     <DropdownMenuItem
                       key={role}
                       onSelect={() => onChangeRole(role)}
@@ -267,7 +280,7 @@ function MembersList({
               }
               onChangeRole={
                 canManageRoles &&
-                member.role === 'member' &&
+                (member.role === 'member' || member.role === 'officer') &&
                 member.id !== userId
                   ? (role) => onChangeRole(member, role)
                   : undefined

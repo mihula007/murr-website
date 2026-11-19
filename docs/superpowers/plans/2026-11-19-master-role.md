@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add the internal role «Мастер», give it officer permissions, and let it assign four approved roles to ordinary members and readers from «Состав клана».
+**Goal:** Add the internal role «Мастер», give it officer permissions, and let it assign only different approved roles to ordinary members and readers, plus demote officers to member or lower roles from «Состав клана».
 
 **Architecture:** Extend the existing `profiles.access_role` constraint and shared role contracts with `master`. Add `master` to the same officer permission groups across client navigation and server operations, while keeping admin-only account management restricted. Reuse `accounts/set-role` for the master’s narrower roster actions, with server-side target and destination checks.
 
@@ -24,7 +24,7 @@
 ## Review Focus
 
 - A master receives every officer capability but never sees or calls admin-only account management or the action journal.
-- A master can change only a `member` or `reader` target, and only to `member`, `officer`, `reader`, or `applicant`; officer, master, and admin targets and master/admin destinations are forbidden by the server.
+- A master can change a `member`, `officer`, or `reader` target to an allowed role different from the current one. Officers can only be demoted to `member`, `reader`, or `applicant`; masters/admins cannot be changed, and `master`/`admin` cannot be assigned.
 - A target with an active application remains unchanged and returns `application_pending`, including a requested role of `applicant`.
 - Reader restoration, date-of-entry rules, notification, audit, and idempotent same-role behavior remain consistent with the existing operation.
 - Role changes update current access, roster totals, role labels, notification access, and desktop/mobile roster actions without changing historical snapshots.
@@ -103,11 +103,11 @@
 **Interfaces:**
 
 - Server role groups treat `master` as internal and officer-equivalent; administrator-only account listing, profile editing, deletion, and audit listing remain admin-only.
-- `accounts/set-role`: admins retain existing full role management. Officers retain only member-to-reader. Masters may change only member or reader targets, and only to `member`, `officer`, `reader`, or `applicant`. All actors remain subject to the active-application guard, pending deletion guard, audit, notification, and date rules.
+- `accounts/set-role`: admins retain existing full role management. Officers retain only member-to-reader. Masters may change members and readers to a different allowed role, and may demote officers to `member`, `reader`, or `applicant`. Masters/admins cannot be changed or assigned. All actors remain subject to the active-application guard, pending deletion guard, audit, notification, and date rules.
 - Reader listing and restoration include master, matching officer rights.
 - Discussion role badges and roster count/role ordering support `master`.
 
-- [x] **Step 1: Add failing server tests.** In `accounts.test.ts`, add `lets masters change only member and reader roles`, `rejects master role changes to officer, master, and admin targets`, `rejects master and admin role destinations`, and `keeps active applications and deletion-pending accounts protected`. Update each officer-only service test in the listed suites to exercise both `officer` and `master` for its existing authorized operation; keep admin-only negative cases unchanged.
+- [x] **Step 1: Add failing server tests.** In `accounts.test.ts`, cover allowed member, officer, and reader role changes; reject master/admin targets and destinations; protect active applications and deletion-pending accounts. Update each officer-only service test in the listed suites to exercise both `officer` and `master` for its existing authorized operation; keep admin-only negative cases unchanged.
 - [x] **Step 2: Run focused server tests and confirm they fail.** Run `npm run test:server -- tests/server/accounts.test.ts tests/server/account.test.ts tests/server/applications.test.ts tests/server/activity.test.ts tests/server/broadcasts.test.ts tests/server/discussions.test.ts tests/server/events.test.ts tests/server/groups.test.ts tests/server/market.test.ts tests/server/notifications.test.ts tests/server/publications.test.ts tests/server/roster.test.ts tests/server/votes.test.ts`.
 - [x] **Step 3: Add master to officer permission checks.** Update explicit officer/admin role lists and role equality checks; leave admin-only checks unchanged.
 - [x] **Step 4: Apply the master-specific `accounts/set-role` policy.** Retain the officer member-to-reader rule and admin full-management behavior; reject unauthorized targets or destination roles with `forbidden` and retain `application_pending` for an active application.
@@ -125,12 +125,12 @@
 
 **Interfaces:**
 
-- A master sees a role-selection action for ordinary members and the same action for reader cards on the «Чтецы» tab. Officers retain the current reader-only action; admins retain their existing behavior. Reader-to-member uses the existing restore operation so its date and `reader_restored` audit semantics remain unchanged; the other new transitions use `accounts/set-role`.
+- A master sees role-selection actions for ordinary members, officers, and reader cards on the «Чтецы» tab. Each menu omits the target’s current role; officer choices are demotions only. Officers retain the current reader-only action; admins retain their existing behavior. Reader-to-member uses the existing restore operation so its date and `reader_restored` audit semantics remain unchanged; the other transitions use `accounts/set-role`.
 - The confirmation names the target nickname and chosen role. Cancel leaves data unchanged; mutation errors keep the current card and display the existing error message.
 - After success, invalidate role, roster, reader, count, notification, and audit queries using existing query keys.
 - Seed `seed-master@example.test` with role `master` and include master among officer-equivalent users for local checks.
 
-- [x] **Step 1: Add failing component tests.** Cover menu visibility, all four role choices for member and reader targets, confirmation/cancel, successful updates, errors, and unchanged officer/admin behavior.
+- [x] **Step 1: Add failing component tests.** Cover menu visibility, role choices for member, officer, and reader targets (excluding the current role), confirmation/cancel, successful updates, errors, and unchanged officer/admin behavior.
 - [x] **Step 2: Run the focused component test and confirm it fails.** Run `npx vitest run tests/roster-admin.test.tsx`.
 - [x] **Step 3: Implement the role picker and confirmation in roster cards.** Reuse existing role mutation and error handling; do not expose closed account fields or horizontal scrolling on mobile.
 - [x] **Step 4: Add the master seed account.** Keep the seeded test password unchanged and local-only.

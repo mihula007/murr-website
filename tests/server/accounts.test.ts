@@ -222,6 +222,9 @@ describe('accounts/set-role', () => {
       ['member', 'officer'],
       ['member', 'reader'],
       ['member', 'applicant'],
+      ['officer', 'member'],
+      ['officer', 'reader'],
+      ['officer', 'applicant'],
       ['reader', 'member'],
       ['reader', 'officer'],
       ['reader', 'applicant'],
@@ -236,9 +239,9 @@ describe('accounts/set-role', () => {
     }
   })
 
-  it('rejects master role changes to officer, master, and admin targets', async () => {
+  it('rejects master role changes to master and admin targets', async () => {
     const { actor } = await roleActor('master')
-    for (const role of ['officer', 'master', 'admin'] as const) {
+    for (const role of ['master', 'admin'] as const) {
       const target = await createProfiledUser(db, role)
       await rejects(
         setRole(deps, actor, { userId: target.id, role: 'reader' }),
