@@ -32,6 +32,48 @@ async function openFiltersWhenNarrow(page: Page) {
   }
 }
 
+test('ADM-10: журнал действий прокручивается внутри списка', async ({
+  page,
+}) => {
+  const admin = await createMember('admin')
+  const prefix = `Прокрутка журнала ${Date.now()}`
+  await sql(
+    (db) => db`
+      insert into app.audit_log (
+        category, action, summary, actor_id, actor_role, actor_nickname, actor_email
+      )
+      select
+        'profiles', 'profile_updated', ${prefix} || ' #' || i::text,
+        ${admin.id}::uuid, 'admin', ${admin.nickname}, ${admin.email}
+      from generate_series(1, 20) as i
+    `,
+  )
+
+  try {
+    await signInUi(page, admin.email)
+    await expectSignedIn(page)
+    await page.goto('./#/admin?tab=audit')
+
+    const log = page.getByRole('region', {
+      name: 'Прокручиваемый список: Журнал действий',
+    })
+    await expect(log).toHaveAttribute('data-viewport-rows', '15')
+    await expect(page.getByText(`${prefix} #20`)).toBeVisible()
+    await log.evaluate((element) => {
+      element.scrollTop = element.scrollHeight
+    })
+    await expect
+      .poll(() => log.evaluate((element) => element.scrollTop))
+      .toBeGreaterThan(0)
+    await expect(page.getByText(`${prefix} #1`)).toBeVisible()
+  } finally {
+    await sql(
+      (db) =>
+        db`delete from app.audit_log where summary like ${`${prefix} #%`}`,
+    )
+  }
+})
+
 test('E2E-14: фильтры класса и роли сохраняются на компьютере и телефоне', async ({
   page,
 }) => {

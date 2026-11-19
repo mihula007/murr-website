@@ -10,7 +10,7 @@ import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/surfaces'
-import { pagingOf, VirtualList } from '@/components/virtual-list'
+import { pagingOf, ScrollableVirtualList } from '@/components/virtual-list'
 import { formatDateTimeMsk } from '@/lib/format-date'
 import { SearchInput } from './accounts-panel'
 import { useAuditLog } from './api'
@@ -121,11 +121,12 @@ export function AuditPanel({
     )
   } else {
     content = (
-      <VirtualList
+      <ScrollableVirtualList
         label="Журнал действий"
         items={log.data}
         getKey={(entry) => String(entry.id)}
         estimateSize={110}
+        viewportRows={15}
         paging={pagingOf(log)}
         renderItem={(entry) => <AuditRow entry={entry} />}
       />

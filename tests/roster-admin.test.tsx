@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountListItem } from '@contracts/accounts'
 import type { RosterMember } from '@contracts/roster'
 import { createQueryClient } from '@/app/query-client'
@@ -94,6 +94,32 @@ const STATS = {
     { classId: 8, className: 'Воин', count: 0 },
   ],
 }
+
+let originalClientHeight: PropertyDescriptor | undefined
+let originalClientWidth: PropertyDescriptor | undefined
+
+afterEach(() => {
+  if (originalClientHeight) {
+    Object.defineProperty(
+      HTMLElement.prototype,
+      'clientHeight',
+      originalClientHeight,
+    )
+    originalClientHeight = undefined
+  } else {
+    Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight')
+  }
+  if (originalClientWidth) {
+    Object.defineProperty(
+      HTMLElement.prototype,
+      'clientWidth',
+      originalClientWidth,
+    )
+    originalClientWidth = undefined
+  } else {
+    Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth')
+  }
+})
 
 const READERS = {
   items: [member('r1', 'Чтец1', 8, 'reader')],
@@ -619,6 +645,24 @@ describe('admin accounts', () => {
   })
 
   it('shows the audit log with category filter (ADM-10, ADM-12)', async () => {
+    // jsdom has no element dimensions; provide a viewport for the virtual list.
+    originalClientHeight = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'clientHeight',
+    )
+    originalClientWidth = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'clientWidth',
+    )
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+      configurable: true,
+      get: () => 900,
+    })
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      get: () => 400,
+    })
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
     routes['audit/list'] = () => ({
       nextCursor: null,
       items: [
@@ -640,9 +684,13 @@ describe('admin accounts', () => {
       ],
     })
     await renderApp({ role: 'admin', path: '/admin?tab=audit' })
+    const auditList = await screen.findByRole('region', {
+      name: 'Прокручиваемый список: Журнал действий',
+    })
     expect(
       await screen.findByText('Сохранение черновика рассылки'),
     ).toBeVisible()
+    expect(auditList).toHaveAttribute('data-viewport-rows', '15')
     expect(
       screen.getByText(/Исполнитель: Зам \(Офицер\) · z@example\.test/),
     ).toBeVisible()
