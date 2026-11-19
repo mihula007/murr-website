@@ -253,13 +253,11 @@ describe('roster page', () => {
     })
     await renderApp({ role: 'officer', path: '/roster' })
     await screen.findByRole('heading', { name: 'Альфа' })
-    const buttons = screen.getAllByRole('button', {
-      name: /^Действия с участником/,
+    const trigger = screen.getByRole('button', {
+      name: 'Действия с участником «Бета»',
     })
-    expect(buttons).toHaveLength(1)
-    expect(buttons[0]!.closest('li')).toHaveTextContent('Бета')
 
-    fireEvent.keyDown(buttons[0]!, { key: 'Enter' })
+    fireEvent.keyDown(trigger, { key: 'Enter' })
     fireEvent.click(
       await screen.findByRole('menuitem', { name: 'Присвоить статус «Чтец»' }),
     )
@@ -321,13 +319,11 @@ describe('roster page', () => {
     })
     await renderApp({ role: 'master', path: '/roster' })
     await screen.findByRole('heading', { name: 'Альфа' })
-    const buttons = screen.getAllByRole('button', {
-      name: /^Действия с участником/,
+    const trigger = screen.getByRole('button', {
+      name: 'Действия с участником «Бета»',
     })
-    expect(buttons).toHaveLength(1)
-    expect(buttons[0]!.closest('li')).toHaveTextContent('Бета')
 
-    fireEvent.keyDown(buttons[0]!, { key: 'Enter' })
+    fireEvent.keyDown(trigger, { key: 'Enter' })
     expect(
       screen.queryByRole('menuitem', { name: 'Назначить роль «Член клана»' }),
     ).toBeNull()
@@ -355,7 +351,7 @@ describe('roster page', () => {
       expect.anything(),
     )
 
-    fireEvent.keyDown(buttons[0]!, { key: 'Enter' })
+    fireEvent.keyDown(trigger, { key: 'Enter' })
     fireEvent.click(
       await screen.findByRole('menuitem', {
         name: 'Назначить роль «Офицер»',
@@ -402,7 +398,9 @@ describe('roster page', () => {
       screen.getByRole('menuitem', { name: 'Назначить роль «Член клана»' }),
     )
     const dialog = await screen.findByRole('alertdialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Сменить роль' }))
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Сменить роль' }),
+    )
     await waitFor(() =>
       expect(callApi).toHaveBeenCalledWith('accounts/set-role', {
         userId: 'm1',

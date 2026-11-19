@@ -253,7 +253,10 @@ describe('accounts/set-role', () => {
     const { actor } = await roleActor('master')
     const member = await createProfiledUser(db, 'member')
     for (const role of ['applicant', 'master', 'admin'] as const) {
-      await rejects(setRole(deps, actor, { userId: member.id, role }), 'forbidden')
+      await rejects(
+        setRole(deps, actor, { userId: member.id, role }),
+        'forbidden',
+      )
     }
     expect(await profile(member.id)).toMatchObject({ access_role: 'member' })
     expect(await audit()).toHaveLength(0)
