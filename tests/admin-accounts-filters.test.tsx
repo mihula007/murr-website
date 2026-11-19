@@ -95,6 +95,12 @@ async function choose(label: string, option: string) {
 }
 
 describe('фильтры аккаунтов', () => {
+  it('keeps account columns stable while scrolling', async () => {
+    await renderApp({ role: 'admin', path: '/admin' })
+
+    expect(await screen.findByRole('table')).toHaveClass('table-fixed')
+  })
+
   it('combines class and role, keeps them in the URL and sorts by registration', async () => {
     const { router } = await renderApp({ role: 'admin', path: '/admin' })
     await screen.findByRole('table')
