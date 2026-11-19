@@ -11,6 +11,7 @@ import {
   callApi,
   createMember,
   expectSignedIn,
+  seedMembers,
   signInUi,
   sql,
 } from './supabase'
@@ -40,6 +41,77 @@ async function signedInPage(browser: Browser, email: string) {
   await expectSignedIn(page)
   return page
 }
+
+test('неограниченный состав ищет по серверу и прокручивается по устройству', async ({
+  page,
+}) => {
+  const prefix = `R${Date.now().toString(36).slice(-3)}`
+  const created = await seedMembers(26, prefix)
+  const lastNickname = created
+    .map((row) => row.nickname)
+    .sort()
+    .at(-1)!
+  const member = await createMember('member')
+  const requests: Array<Record<string, unknown>> = []
+  page.on('request', (request) => {
+    if (request.url().endsWith('/functions/v1/api/roster/page')) {
+      requests.push(request.postDataJSON() as Record<string, unknown>)
+    }
+  })
+
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await signInUi(page, member.email)
+  await expectSignedIn(page)
+  await page.goto('./#/roster')
+  await page.getByLabel('Поиск', { exact: true }).fill(prefix)
+  const classFilter = page.getByRole('combobox', { name: 'Класс' })
+  await classFilter.click()
+  await page.getByRole('option', { name: 'Оборотень' }).click()
+
+  const desktopList = page.getByRole('region', {
+    name: 'Прокручиваемый список: Участники',
+  })
+  await expect(desktopList).toBeVisible()
+  await expect(desktopList).toHaveAttribute('data-viewport-rows', '4')
+  await expect
+    .poll(() =>
+      requests.some(
+        (request) =>
+          request.search === prefix &&
+          request.classId === 1 &&
+          request.cursor === null,
+      ),
+    )
+    .toBe(true)
+  const desktopCards = desktopList.getByRole('list', { name: 'Участники' })
+  const artwork = desktopCards.locator('img[aria-hidden="true"]')
+  await expect(artwork.first()).toHaveAttribute('src', /werebeast-v1/)
+  const artworkPaths = await artwork.evaluateAll((images) =>
+    images.map((image) => image.getAttribute('src')),
+  )
+  expect(new Set(artworkPaths).size).toBeLessThanOrEqual(1)
+  await desktopList.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  await expect(
+    desktopCards.getByRole('heading', { name: lastNickname }),
+  ).toBeVisible()
+  expect(await hasHorizontalScroll(page)).toBe(false)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload()
+  await page.getByLabel('Поиск', { exact: true }).fill(prefix)
+  await page.getByRole('combobox', { name: 'Класс' }).click()
+  await page.getByRole('option', { name: 'Оборотень' }).click()
+  await expect(
+    page.getByRole('region', { name: 'Прокручиваемый список: Участники' }),
+  ).toHaveCount(0)
+  await scrollUntilVisible(
+    page,
+    page.getByRole('heading', { name: lastNickname }),
+  )
+  expect(await hasHorizontalScroll(page)).toBe(false)
+})
 
 test('officer assigns a member the reader role from the roster', async ({
   page,
