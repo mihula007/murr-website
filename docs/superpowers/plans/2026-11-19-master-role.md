@@ -74,7 +74,7 @@
 
 - [ ] **Step 1: Add failing client tests.** Assert master sees every officer navigation section except «Администрирование», has officer-level route access, sees the «Мастер» label and bell, receives the applications count but not the accounts count, and the admin role selector includes master.
 - [ ] **Step 2: Run the focused tests and confirm they fail.** Run `npx vitest run tests/access.test.tsx tests/navigation.test.ts tests/notifications.test.tsx tests/admin-accounts-filters.test.tsx`.
-- [ ] **Step 3: Extend shared and client role types and access lists.** Preserve `ADMIN_ROLES` as admin-only and add master only to officer-equivalent sets.
+- [ ] **Step 3: Extend shared and client role types and access lists.** Preserve `ADMIN_ROLES` as admin-only, add master only to officer-equivalent sets, and add master to the administrator’s role selector.
 - [ ] **Step 4: Run the focused tests and confirm they pass.** Repeat the command from Step 2.
 
 ### Task 3: Enforce officer-equivalent rights and narrow role assignment on the server
@@ -118,7 +118,6 @@
 
 - Modify: `src/features/roster/roster-page.tsx`
 - Modify: `src/features/roster/api.ts` and `src/features/admin/api.ts` only as required for existing cache invalidation
-- Modify: `src/features/discussions/discussion-thread.tsx`
 - Modify: `scripts/seed-dev.ts`
 - Modify: `tests/roster-admin.test.tsx`
 - Modify: `e2e/roster.spec.ts`
@@ -133,7 +132,7 @@
 - [ ] **Step 1: Add failing component tests.** Cover menu visibility, all four role choices for member and reader targets, confirmation/cancel, successful updates, errors, and unchanged officer/admin behavior.
 - [ ] **Step 2: Run the focused component test and confirm it fails.** Run `npx vitest run tests/roster-admin.test.tsx`.
 - [ ] **Step 3: Implement the role picker and confirmation in roster cards.** Reuse existing role mutation and error handling; do not expose closed account fields or horizontal scrolling on mobile.
-- [ ] **Step 4: Add the master seed account and update the admin account role selector.** Keep the seeded test password unchanged and local-only.
+- [ ] **Step 4: Add the master seed account.** Keep the seeded test password unchanged and local-only.
 - [ ] **Step 5: Run the focused component test and confirm it passes.** Run `npx vitest run tests/roster-admin.test.tsx`.
 - [ ] **Step 6: Add E2E-15.** In `e2e/roster.spec.ts`, assign master as admin, verify officer-equivalent access but no admin section, change a member and reader role, verify protected targets and active applications are rejected, and verify audit/notification. CI runs this scenario; do not run e2e locally.
 
