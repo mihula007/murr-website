@@ -104,10 +104,10 @@ test('OFP: администратор настраивает права офиц
     )
     expect(remainingPermissions[0]?.count).toBe(0)
   } finally {
-    await sql(
-      (db) =>
-        db`delete from auth.users where id in ${db([admin.id, officer.id])}`,
-    )
+    await sql(async (db) => {
+      await db`delete from app.profiles where id in ${db([admin.id, officer.id])}`
+      await db`delete from auth.users where id in ${db([admin.id, officer.id])}`
+    })
     await page.context().clearCookies()
   }
 })

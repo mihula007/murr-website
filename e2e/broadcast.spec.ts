@@ -160,23 +160,23 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
     url: () => string
     request: () => { postData: () => string | null }
   }) => response.url().includes('/functions/v1/api/broadcasts/subscriptions')
-  const firstResponse = page.waitForResponse((response) => {
-    if (!isSubscriptionsPage(response)) {
-      return false
-    }
-    const body = JSON.parse(response.request().postData() ?? '{}') as {
-      cursor?: string | null
-      search?: string
-    }
-    return (
-      (body.cursor === null || body.cursor === undefined) &&
-      body.search === prefix
-    )
-  })
+  const firstResponse = page.waitForResponse(isSubscriptionsPage)
   await page.goto(
     `./#/broadcast?tab=subscriptions&q=${encodeURIComponent(prefix)}`,
   )
-  const first = (await (await firstResponse).json()) as {
+  await expect(page.getByRole('tab', { name: 'Подписки' })).toHaveAttribute(
+    'data-state',
+    'active',
+  )
+  const initialResponse = await firstResponse
+  const initialRequest = JSON.parse(
+    initialResponse.request().postData() ?? '{}',
+  ) as { cursor?: string | null; search?: string }
+  expect(
+    initialRequest.cursor === null || initialRequest.cursor === undefined,
+  ).toBe(true)
+  expect(initialRequest.search).toBe(prefix)
+  const first = (await initialResponse.json()) as {
     items: { id: string; gameNickname: string }[]
     nextCursor: string | null
   }
