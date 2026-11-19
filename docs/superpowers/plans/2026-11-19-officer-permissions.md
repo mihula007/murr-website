@@ -74,9 +74,9 @@
 - Modify: `supabase/functions/_shared/broadcasts/service.ts`
 - Modify: `supabase/functions/_shared/votes/service.ts`
 - Modify: `supabase/functions/_shared/activity/service.ts`
-- Modify: `supabase/functions/_shared/roster/service.ts`
+- Modify: `supabase/functions/_shared/accounts/service.ts`
 - Modify: `supabase/functions/_shared/publications/service.ts`
-- Modify: `tests/server/applications.test.ts`, `tests/server/broadcasts.test.ts`, `tests/server/votes.test.ts`, `tests/server/activity.test.ts`, `tests/server/roster.test.ts`, `tests/server/publications.test.ts`
+- Modify: `tests/server/applications.test.ts`, `tests/server/broadcasts.test.ts`, `tests/server/votes.test.ts`, `tests/server/activity.test.ts`, `tests/server/accounts.test.ts`, `tests/server/publications.test.ts`
 
 **Interfaces:**
 
