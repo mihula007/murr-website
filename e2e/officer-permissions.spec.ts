@@ -35,16 +35,16 @@ test('OFP: администратор настраивает права офиц
     await expect(permission).not.toBeChecked()
   }
   await page
-    .getByRole('switch', { name: 'Создавать и отправлять рассылки' })
-    .check()
+    .getByText('Создавать и отправлять рассылки', { exact: true })
+    .click()
   await page
-    .getByRole('switch', {
-      name: 'Просматривать полный состав участников и группы ивента',
+    .getByText('Просматривать полный состав участников и группы ивента', {
+      exact: true,
     })
-    .check()
+    .click()
   await page
-    .getByRole('switch', { name: 'Просматривать, кто как проголосовал' })
-    .check()
+    .getByText('Просматривать, кто как проголосовал', { exact: true })
+    .click()
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click()
   await expect(page.getByText('Права сохранены')).toBeVisible()
   await page.reload()
