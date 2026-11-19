@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { hasHorizontalScroll, skipSplash } from './helpers'
+import { hasHorizontalScroll, scrollUntilVisible, skipSplash } from './helpers'
 import {
   accessToken,
   callApi,
@@ -63,12 +63,14 @@ test('E2E-12: участник находит себя в основных сп�
     const currentCard = roster.getByRole('listitem').filter({
       hasText: current.nickname,
     })
+    await scrollUntilVisible(page, currentCard)
     const otherCard = roster.getByRole('listitem').filter({
       hasText: other.nickname,
     })
     await expect(currentCard.locator(':scope > div')).toHaveClass(
       /bg-item-highlight/,
     )
+    await scrollUntilVisible(page, otherCard)
     await expect(otherCard.locator(':scope > div')).not.toHaveClass(
       /bg-item-highlight/,
     )

@@ -17,6 +17,32 @@ export async function skipSplash(page: Page) {
 export async function scrollUntilVisible(page: Page, target: Locator) {
   // Прокрутка до цели или до конца страницы: локальная БД копит записи
   // от прогона к прогону, фиксированного числа экранов не хватает.
+  const rosterScroller = page.getByRole('region', {
+    name: 'Прокручиваемый список: Участники',
+  })
+  if ((await rosterScroller.count()) > 0) {
+    let stalled = 0
+    for (let step = 0; step < 1000 && stalled < 20; step += 1) {
+      if ((await target.count()) > 0) {
+        await target.first().scrollIntoViewIfNeeded()
+        await expect(target.first()).toBeVisible()
+        return
+      }
+      const moved = await rosterScroller.evaluate((element) => {
+        const before = element.scrollTop
+        element.scrollBy(0, element.clientHeight * 0.75)
+        return element.scrollTop !== before
+      })
+      const loading = await page
+        .getByText('Загружаем ещё…', { exact: true })
+        .isVisible()
+        .catch(() => false)
+      stalled = moved || loading ? 0 : stalled + 1
+      await page.waitForTimeout(150)
+    }
+    throw new Error('Элемент не найден в прокручиваемом списке состава')
+  }
+
   let stalled = 0
   for (let step = 0; step < 1000 && stalled < 20; step += 1) {
     if ((await target.count()) > 0) {
@@ -26,7 +52,7 @@ export async function scrollUntilVisible(page: Page, target: Locator) {
     }
     const moved = await page.evaluate(() => {
       const before = window.scrollY
-      window.scrollBy(0, window.innerHeight)
+      window.scrollBy(0, window.innerHeight * 0.75)
       return window.scrollY !== before
     })
     // В конце страницы ждём догрузку следующей страницы списка.

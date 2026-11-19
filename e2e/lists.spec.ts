@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test'
-import { MEMBER_LIST_LIMIT } from '../supabase/functions/_shared/contracts/paging'
 import { hasHorizontalScroll, scrollUntilVisible, skipSplash } from './helpers'
 import { createMember, expectSignedIn, seedMembers, signInUi } from './supabase'
 
@@ -13,13 +12,8 @@ test.beforeEach(async ({ page }) => {
   await skipSplash(page)
 })
 
-/**
- * Состав — участники клана целиком одним ответом (Q-48); аккаунты — большой
- * список: догрузка по курсору при прокрутке и отрисовка только видимых строк.
- */
-test('состав приходит целиком, аккаунты догружаются страницами', async ({
-  page,
-}) => {
+/** Состав и аккаунты догружаются курсорными страницами без лимита записей. */
+test('состав и аккаунты догружаются страницами', async ({ page }) => {
   const seeded = await seedMembers(60, 'zl')
   const last = seeded
     .map((row) => row.nickname)
@@ -29,13 +23,16 @@ test('состав приходит целиком, аккаунты догру�
   await signInUi(page, admin.email)
   await expectSignedIn(page)
 
-  // Главная тоже читает состав (краткий состав, этап 10): запросы считаются
-  // с чистой загрузки страницы состава.
+  // Считаем запросы только с чистой загрузки страницы состава.
   await page.goto('./#/roster')
-  let rosterRequests = 0
+  let rosterPageRequests = 0
+  let rosterListRequests = 0
   page.on('request', (request) => {
+    if (request.url().endsWith('/functions/v1/api/roster/page')) {
+      rosterPageRequests++
+    }
     if (request.url().endsWith('/functions/v1/api/roster/list')) {
-      rosterRequests++
+      rosterListRequests++
     }
   })
   await page.reload()
@@ -48,19 +45,10 @@ test('состав приходит целиком, аккаунты догру�
       .textContent(),
   )
   expect(total).toBeGreaterThan(60)
-  // Весь состав — в одном ответе и в DOM, но не больше страховочного порога
-  // (локальная БД копит участников от прогона к прогону).
-  await expect(roster.getByRole('listitem')).toHaveCount(
-    Math.min(total, MEMBER_LIST_LIMIT),
-  )
-  if (total > MEMBER_LIST_LIMIT) {
-    await expect(
-      page.getByText(`Показаны первые ${MEMBER_LIST_LIMIT} участников`),
-    ).toBeVisible()
-  } else {
-    await scrollUntilVisible(page, page.getByRole('heading', { name: last }))
-  }
-  expect(rosterRequests).toBe(1)
+  await scrollUntilVisible(page, page.getByRole('heading', { name: last }))
+  await expect(page.getByRole('heading', { name: last })).toBeVisible()
+  expect(rosterPageRequests).toBeGreaterThan(1)
+  expect(rosterListRequests).toBe(0)
   expect(await hasHorizontalScroll(page)).toBe(false)
 
   await page.goto('./#/admin')

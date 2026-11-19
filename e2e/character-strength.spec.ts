@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { hasHorizontalScroll, skipSplash } from './helpers'
+import { hasHorizontalScroll, scrollUntilVisible, skipSplash } from './helpers'
 import {
   accessToken,
   auditActions,
@@ -131,6 +131,7 @@ test('характеристики доступны админу и внутре
     .getByRole('list', { name: 'Участники' })
     .getByRole('listitem')
     .filter({ hasText: first.nickname })
+  await scrollUntilVisible(page, firstCard)
   const identity = firstCard
     .getByRole('heading', { name: first.nickname })
     .locator('..')
