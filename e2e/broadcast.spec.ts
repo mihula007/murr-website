@@ -168,7 +168,10 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
       cursor?: string | null
       search?: string
     }
-    return body.cursor === null && body.search === prefix
+    return (
+      (body.cursor === null || body.cursor === undefined) &&
+      body.search === prefix
+    )
   })
   await page.goto(
     `./#/broadcast?tab=subscriptions&q=${encodeURIComponent(prefix)}`,

@@ -106,7 +106,7 @@ test('OFP: администратор настраивает права офиц
   } finally {
     await sql(
       (db) =>
-        db`delete from auth.users where id in (${db([admin.id, officer.id])})`,
+        db`delete from auth.users where id in ${db([admin.id, officer.id])}`,
     )
     await page.context().clearCookies()
   }
