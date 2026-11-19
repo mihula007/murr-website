@@ -126,12 +126,17 @@ function CharacterStatsSummary({ member }: { member: RosterMember }) {
   return (
     <dl
       aria-label={`Характеристика ${member.gameNickname}`}
-      className="m-0 flex flex-wrap gap-x-2.5 gap-y-0.5 text-xs text-muted-foreground"
+      className="m-0 grid grid-cols-5 gap-1.5"
     >
       {CHARACTER_STAT_FIELDS.map((field) => (
-        <div key={field} className="inline-flex gap-1">
-          <dt>{CHARACTER_STAT_LABELS[field]}</dt>
-          <dd className="m-0 font-semibold text-foreground">
+        <div
+          key={field}
+          className="grid min-w-0 justify-items-center rounded-md border border-border/70 bg-surface-inset/70 px-1 py-1 text-center"
+        >
+          <dt className="text-2xs leading-tight text-muted-foreground">
+            {CHARACTER_STAT_LABELS[field]}
+          </dt>
+          <dd className="m-0 text-xs font-semibold text-foreground tabular-nums">
             {formatCharacterStat(field, member[field])}
           </dd>
         </div>
@@ -167,15 +172,14 @@ function MemberCard({
             <h3 className="text-xl leading-tight font-bold break-words">
               {member.gameNickname}
             </h3>
+            <span className="text-sm text-muted-foreground">
+              {member.className}
+            </span>
             {member.role !== 'member' ? (
               <Badge>{ROLE_LABELS[member.role]}</Badge>
             ) : null}
           </div>
           <CharacterStatsSummary member={member} />
-          <span className="inline-flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
-            <ClassIcon classId={member.classId} className={member.className} />
-            {member.className}
-          </span>
         </div>
         {onBlock || onChangeRole ? (
           <DropdownMenu>

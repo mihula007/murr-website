@@ -156,7 +156,7 @@ describe('форматирование и порядок характерист�
 })
 
 describe('показатели состава и главная', () => {
-  it('shows five values beneath each member nickname and never shows the source', async () => {
+  it('shows the class beside the nickname and five labeled stat cells without a class icon', async () => {
     const withPrivateSource = members.map((member) => ({
       ...member,
       characterStatsSource: 'секретный источник',
@@ -177,7 +177,15 @@ describe('показатели состава и главная', () => {
     const alpha = within(roster)
       .getAllByRole('listitem')
       .find((item) => item.textContent?.includes('Альфа'))!
-    expect(within(alpha).getByText('ПА')).toBeVisible()
+    const identity = within(alpha).getByRole('heading', {
+      name: 'Альфа',
+    }).parentElement
+    expect(identity).toHaveTextContent('Оборотень')
+    expect(identity?.querySelector('[aria-hidden="true"]')).toBeNull()
+    const stats = within(alpha).getByLabelText('Характеристика Альфа')
+    expect(stats).toHaveClass(/grid-cols-5/)
+    expect(stats.children).toHaveLength(5)
+    expect(within(stats).getByText('ПА')).toBeVisible()
     expect(within(alpha).getByText('12')).toBeVisible()
     expect(within(alpha).getByText('12,5к')).toBeVisible()
     expect(screen.queryByText('секретный источник')).toBeNull()

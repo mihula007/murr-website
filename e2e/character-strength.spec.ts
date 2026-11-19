@@ -131,8 +131,15 @@ test('характеристики доступны админу и внутре
     .getByRole('list', { name: 'Участники' })
     .getByRole('listitem')
     .filter({ hasText: first.nickname })
+  const identity = firstCard
+    .getByRole('heading', { name: first.nickname })
+    .locator('..')
+  await expect(identity).toContainText(String(listedMember?.className))
   await expect(firstCard.getByText('ПА')).toBeVisible()
   await expect(firstCard.getByText('125 500')).toBeVisible()
+  await expect(
+    firstCard.locator('dl[aria-label^="Характеристика"] > div'),
+  ).toHaveCount(5)
   await expect(firstCard.getByText('Прототип HTML')).toHaveCount(0)
   if ((page.viewportSize()?.width ?? 1280) < 900) {
     expect(await hasHorizontalScroll(page)).toBe(false)
