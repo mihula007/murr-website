@@ -441,6 +441,71 @@ describe('accounts/set-role', () => {
   })
 })
 
+describe('officer permissions', () => {
+  it('requires the reader role permission for both role transitions', async () => {
+    const officerUser = await createProfiledUser(db, 'officer', {
+      officerPermissions: [],
+    })
+    const officer = await actorOf(db, officerUser.id)
+    const member = await createProfiledUser(db, 'member')
+    const reader = await createProfiledUser(db, 'reader')
+
+    await rejects(
+      setRole(deps, officer, { userId: member.id, role: 'reader' }),
+      'forbidden',
+    )
+    await rejects(
+      restoreReader(deps, officer, { userId: reader.id }),
+      'forbidden',
+    )
+  })
+
+  it('clears all officer permissions with audit when the officer leaves the role', async () => {
+    const officer = await createProfiledUser(db, 'officer', {
+      officerPermissions: ['events.manage', 'votes.view_ballots'],
+    })
+    const { user: admin, actor } = await roleActor('admin')
+
+    await setRole(deps, actor, { userId: officer.id, role: 'member' })
+
+    const permissions = await db
+      .selectFrom('app.officer_permissions')
+      .selectAll()
+      .where('officer_id', '=', officer.id)
+      .execute()
+    expect(permissions).toEqual([])
+    expect(
+      (await audit()).filter(
+        (entry) => entry.category === 'officer_permissions',
+      ),
+    ).toMatchObject([
+      {
+        action: 'officer_permission_disabled',
+        category: 'officer_permissions',
+        actor_id: admin.id,
+        target_user_id: officer.id,
+        details: { permission_code: 'events.manage', enabled: false },
+      },
+      {
+        action: 'officer_permission_disabled',
+        category: 'officer_permissions',
+        actor_id: admin.id,
+        target_user_id: officer.id,
+        details: { permission_code: 'votes.view_ballots', enabled: false },
+      },
+    ])
+
+    await setRole(deps, actor, { userId: officer.id, role: 'officer' })
+    expect(
+      await db
+        .selectFrom('app.officer_permissions')
+        .selectAll()
+        .where('officer_id', '=', officer.id)
+        .execute(),
+    ).toEqual([])
+  })
+})
+
 describe('accounts/restore-reader', () => {
   it('lets officers and admins restore a reader as a member from today (ACL-06)', async () => {
     for (const role of ['officer', 'master', 'admin'] as const) {

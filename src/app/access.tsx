@@ -6,6 +6,10 @@ import {
 } from 'react'
 import { useSession } from '@/features/auth/session'
 import { useMe } from '@/features/account/use-me'
+import {
+  OFFICER_PERMISSION_CODES,
+  type OfficerPermissionCode,
+} from '@contracts/officer-permissions'
 
 export type AccessRole =
   'guest' | 'applicant' | 'reader' | 'member' | 'officer' | 'master' | 'admin'
@@ -56,6 +60,8 @@ export type AccessStatus =
 type AccessContextValue = {
   role: AccessRole
   status: AccessStatus
+  officerPermissions: readonly OfficerPermissionCode[]
+  hasOfficerPermission: (permission: OfficerPermissionCode) => boolean
   nickname?: string
   retry?: () => void
 }
@@ -63,11 +69,15 @@ type AccessContextValue = {
 const AccessContext = createContext<AccessContextValue>({
   role: 'guest',
   status: 'guest',
+  officerPermissions: [],
+  hasOfficerPermission: () => false,
 })
 
 type AccessProviderProps = PropsWithChildren<{
   /** Фиксированная роль для тестов и историй. */
   role?: AccessRole
+  /** Фиксированные права для тестов и историй. */
+  officerPermissions?: readonly OfficerPermissionCode[]
 }>
 
 function SessionAccess({ children }: PropsWithChildren) {
@@ -75,24 +85,57 @@ function SessionAccess({ children }: PropsWithChildren) {
   const me = useMe()
   const value = useMemo<AccessContextValue>(() => {
     if (session.status === 'loading') {
-      return { role: 'guest', status: 'loading' }
+      return {
+        role: 'guest',
+        status: 'loading',
+        officerPermissions: [],
+        hasOfficerPermission: () => false,
+      }
     }
     if (session.status !== 'signedIn') {
-      return { role: 'guest', status: 'guest' }
+      return {
+        role: 'guest',
+        status: 'guest',
+        officerPermissions: [],
+        hasOfficerPermission: () => false,
+      }
     }
     if (me.isPending) {
-      return { role: 'guest', status: 'loading' }
+      return {
+        role: 'guest',
+        status: 'loading',
+        officerPermissions: [],
+        hasOfficerPermission: () => false,
+      }
     }
     if (me.isError || !me.data) {
-      return { role: 'guest', status: 'error', retry: () => void me.refetch() }
+      return {
+        role: 'guest',
+        status: 'error',
+        officerPermissions: [],
+        hasOfficerPermission: () => false,
+        retry: () => void me.refetch(),
+      }
     }
-    if (me.data.state === 'incomplete') {
-      return { role: 'guest', status: 'incomplete' }
+    const data = me.data
+    if (data.state === 'incomplete') {
+      return {
+        role: 'guest',
+        status: 'incomplete',
+        officerPermissions: [],
+        hasOfficerPermission: () => false,
+      }
     }
     return {
-      role: me.data.profile.role,
+      role: data.profile.role,
       status: 'ready',
-      nickname: me.data.profile.gameNickname,
+      officerPermissions: data.officerPermissions ?? [],
+      hasOfficerPermission: (permission) =>
+        data.profile.role === 'master' ||
+        data.profile.role === 'admin' ||
+        (data.profile.role === 'officer' &&
+          data.officerPermissions?.includes(permission) === true),
+      nickname: data.profile.gameNickname,
     }
   }, [session.status, me])
   return <AccessContext value={value}>{children}</AccessContext>
@@ -103,11 +146,25 @@ function SessionAccess({ children }: PropsWithChildren) {
  * Auth metadata. Это клиентская проверка для меню и маршрутов; права данных
  * проверяют сервисы Edge Functions.
  */
-export function AccessProvider({ role, children }: AccessProviderProps) {
+export function AccessProvider({
+  role,
+  officerPermissions,
+  children,
+}: AccessProviderProps) {
   if (role) {
+    const permissions =
+      officerPermissions ?? (role === 'officer' ? OFFICER_PERMISSION_CODES : [])
     return (
       <AccessContext
-        value={{ role, status: role === 'guest' ? 'guest' : 'ready' }}
+        value={{
+          role,
+          status: role === 'guest' ? 'guest' : 'ready',
+          officerPermissions: permissions,
+          hasOfficerPermission: (permission) =>
+            role === 'master' ||
+            role === 'admin' ||
+            (role === 'officer' && permissions.includes(permission)),
+        }}
       >
         {children}
       </AccessContext>

@@ -162,6 +162,80 @@ describe('access matrix', () => {
   })
 })
 
+describe('officer permissions', () => {
+  it('requires management rights for vote changes while retaining member voting access', async () => {
+    const { actor: admin } = await roleActor('admin')
+    const vote = await createGeneral(admin)
+    const officerUser = await createProfiledUser(db, 'officer', {
+      officerPermissions: [],
+    })
+    const officer = await actorOf(db, officerUser.id)
+
+    await expect(
+      listVotes(deps, officer, { tab: 'active' }),
+    ).resolves.toMatchObject({
+      items: [{ id: vote.id }],
+    })
+    await rejects(createVote(deps, officer, general()), 'forbidden')
+    await rejects(
+      updateVote(deps, officer, {
+        id: vote.id,
+        title: 'Изменение',
+        context: '',
+      }),
+      'forbidden',
+    )
+    await rejects(closeVote(deps, officer, { id: vote.id }), 'forbidden')
+    await rejects(deleteVote(deps, officer, { id: vote.id }), 'forbidden')
+  })
+
+  it('requires review and final decision rights to close an application vote', async () => {
+    const { applicationId } = await createApplicant()
+    const { actor: admin } = await roleActor('admin')
+    const { vote } = await submitApplicationToVote(deps, admin, {
+      id: applicationId,
+    })
+    const officerUser = await createProfiledUser(db, 'officer', {
+      officerPermissions: ['votes.complete_delete', 'applications.review'],
+    })
+    const officer = await actorOf(db, officerUser.id)
+
+    await rejects(
+      closeVote(deps, officer, { id: vote!.id, decision: 'reject' }),
+      'forbidden',
+    )
+  })
+
+  it('returns individual ballots only with the ballot visibility permission', async () => {
+    const { actor: admin } = await roleActor('admin')
+    const { user: member, actor: memberActor } = await roleActor('member')
+    const vote = await createGeneral(admin)
+    await castBallot(deps, memberActor, {
+      voteId: vote.id,
+      optionId: vote.options[0]!.id,
+    })
+    const hiddenUser = await createProfiledUser(db, 'officer', {
+      officerPermissions: [],
+    })
+    const visibleUser = await createProfiledUser(db, 'officer', {
+      officerPermissions: ['votes.view_ballots'],
+    })
+
+    const hidden = await getVote(deps, await actorOf(db, hiddenUser.id), {
+      id: vote.id,
+    })
+    const visible = await getVote(deps, await actorOf(db, visibleUser.id), {
+      id: vote.id,
+    })
+
+    expect(hidden.totalBallots).toBe(1)
+    expect(hidden).not.toHaveProperty('ballots')
+    expect(visible.ballots).toEqual([
+      { gameNickname: member.nickname, optionId: vote.options[0]!.id },
+    ])
+  })
+})
+
 describe('creation rules (VOT-02, VOT-03)', () => {
   it('accepts 2 and 10 options and rejects 1 and 11', async () => {
     const { actor } = await roleActor('officer')

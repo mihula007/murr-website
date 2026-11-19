@@ -12,6 +12,7 @@ import {
   type EventFields,
   type EventTemplate,
 } from '@contracts/events'
+import { useAccess } from '@/app/access'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 import { focusFirstInvalid } from '@/components/form/focus-first-invalid'
 import { FormError } from '@/components/form/form-error'
@@ -80,6 +81,8 @@ type TemplateLibraryProps = {
  * тип, день недели, время и автор; применение и удаление с подтверждением.
  */
 function TemplateLibrary({ onApply }: TemplateLibraryProps) {
+  const { hasOfficerPermission } = useAccess()
+  const canCreateEvents = hasOfficerPermission('events.manage')
   const queryClient = useQueryClient()
   const templates = useEventTemplates()
   const remove = useDeleteTemplate()
@@ -142,26 +145,30 @@ function TemplateLibrary({ onApply }: TemplateLibraryProps) {
               Автор: {template.createdBy?.gameNickname ?? 'Пользователь удалён'}
             </p>
             <div className="grid grid-cols-2 gap-2 max-xs:grid-cols-1">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={applying !== null}
-                onClick={() => void apply(template)}
-              >
-                {applying === template.id
-                  ? 'Заполняем…'
-                  : 'Заполнить ближайшую дату'}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="text-destructive"
-                onClick={() => setDeleting(template)}
-              >
-                Удалить
-              </Button>
+              {canCreateEvents ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={applying !== null}
+                  onClick={() => void apply(template)}
+                >
+                  {applying === template.id
+                    ? 'Заполняем…'
+                    : 'Заполнить ближайшую дату'}
+                </Button>
+              ) : null}
+              {hasOfficerPermission('events.templates') ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={() => setDeleting(template)}
+                >
+                  Удалить
+                </Button>
+              ) : null}
             </div>
           </li>
         ))}
@@ -214,6 +221,8 @@ type EventFormProps = {
  * описание. «Сохранить как шаблон» не создаёт событие (EVT-11).
  */
 function EventForm({ event, initial }: EventFormProps) {
+  const { hasOfficerPermission } = useAccess()
+  const canManageTemplates = hasOfficerPermission('events.templates')
   const navigate = useNavigate()
   const create = useCreateEvent()
   const update = useUpdateEvent()
@@ -459,14 +468,16 @@ function EventForm({ event, initial }: EventFormProps) {
                 ? 'Создаём…'
                 : 'Создать событие'}
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={saveTemplate.isPending}
-            onClick={() => void saveAsTemplate()}
-          >
-            {saveTemplate.isPending ? 'Сохраняем…' : 'Сохранить как шаблон'}
-          </Button>
+          {canManageTemplates ? (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={saveTemplate.isPending}
+              onClick={() => void saveAsTemplate()}
+            >
+              {saveTemplate.isPending ? 'Сохраняем…' : 'Сохранить как шаблон'}
+            </Button>
+          ) : null}
           {event ? (
             <Link
               to="/events/$id"
@@ -493,6 +504,8 @@ function EventForm({ event, initial }: EventFormProps) {
 
 /** Создание события и библиотека шаблонов (EVT-03, EVT-11–13). */
 export function CreateEventPage() {
+  const { hasOfficerPermission } = useAccess()
+  const canCreateEvents = hasOfficerPermission('events.manage')
   // Применённый шаблон пересоздаёт форму с его значениями.
   const [fill, setFill] = useState<{ key: number; fields: EventFields } | null>(
     null,
@@ -505,7 +518,9 @@ export function CreateEventPage() {
         description="Заполните основные сведения о событии."
       />
       <div className="grid gap-4">
-        <EventForm key={fill?.key ?? 0} initial={fill?.fields} />
+        {canCreateEvents ? (
+          <EventForm key={fill?.key ?? 0} initial={fill?.fields} />
+        ) : null}
         <TemplateLibrary
           onApply={(fields) =>
             setFill((current) => ({ key: (current?.key ?? 0) + 1, fields }))

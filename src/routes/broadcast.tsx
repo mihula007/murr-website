@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react'
 import { createRoute } from '@tanstack/react-router'
-import { sectionRoles } from '@/app/navigation'
+import {
+  sectionPermissionMode,
+  sectionPermissions,
+  sectionRoles,
+} from '@/app/navigation'
 import { RouteGate } from '@/components/route-gate'
 import {
   BroadcastPage,
@@ -13,7 +17,11 @@ const roles = sectionRoles('broadcast')
 function BroadcastRoute(): ReactNode {
   const search = broadcastRoute.useSearch()
   return (
-    <RouteGate roles={roles}>
+    <RouteGate
+      roles={roles}
+      permissions={sectionPermissions('broadcast')}
+      permissionMode={sectionPermissionMode('broadcast') ?? 'all'}
+    >
       <BroadcastPage {...search} />
     </RouteGate>
   )

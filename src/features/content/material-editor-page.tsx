@@ -4,6 +4,7 @@ import { useForm, useStore } from '@tanstack/react-form'
 import { Eye, PenLine } from 'lucide-react'
 import { z } from 'zod'
 import { MATERIAL_LIMITS, type MaterialStatus } from '@contracts/materials'
+import { useAccess } from '@/app/access'
 import {
   EMPTY_DOCUMENT,
   hasMeaningfulContent,
@@ -530,6 +531,7 @@ function ExistingMaterialEditor({
   section: MaterialSection
   id: string
 }) {
+  const { hasOfficerPermission } = useAccess()
   const material = useMaterial(section, id)
   if (material.isPending) {
     return <LoadingState label="Загружаем материал…" />
@@ -537,7 +539,11 @@ function ExistingMaterialEditor({
   if (material.isError) {
     return <ErrorState onRetry={() => void material.refetch()} />
   }
-  if (!material.data.canManage) {
+  if (
+    !material.data.canManage ||
+    (section.kind === 'publications' &&
+      !hasOfficerPermission('publications.manage_own'))
+  ) {
     return (
       <EmptyState
         title="Нет прав на правку"

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { OfficerPermissionCode } from './officer-permissions.ts'
 
 /** Ограничения полей (ACC, Q-11, Q-27). Общие для клиента и сервера. */
 export const LIMITS = {
@@ -164,4 +165,6 @@ export type MeResponse =
       application: ApplicationView | null
       /** Кандидат без активной заявки может подать новую (APP-10, Q-06). */
       canResubmit?: boolean
+      /** Выданные индивидуальные права офицера (OFP-02). */
+      officerPermissions: OfficerPermissionCode[]
     }

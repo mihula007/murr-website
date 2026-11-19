@@ -12,6 +12,7 @@ import { accountRoute, resubmitRoute } from '@/routes/account'
 import { activityRoute, ratingRoute } from '@/routes/activity'
 import { applicationRoute, applicationsRoute } from '@/routes/applications'
 import { adminRoute } from '@/routes/admin'
+import { permissionsRoute } from '@/routes/permissions'
 import { broadcastRoute } from '@/routes/broadcast'
 import { authRoutes } from '@/routes/auth'
 import {
@@ -58,6 +59,7 @@ export const routeTree = rootRoute.addChildren([
   applicationRoute,
   rosterRoute,
   adminRoute,
+  permissionsRoute,
   broadcastRoute,
   votesRoute,
   createVoteRoute,

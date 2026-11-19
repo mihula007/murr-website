@@ -4,6 +4,10 @@ import { applicationRepository } from '../applications/repository.ts'
 import { applyApplicationDecision } from '../applications/service.ts'
 import { auditPerson, writeAudit } from '../audit/service.ts'
 import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
+import {
+  hasOfficerPermission,
+  requireOfficerPermission,
+} from '../officer-permissions/service.ts'
 import { MEMBER_LIST_LIMIT, SMALL_LIST_LIMIT } from '../contracts/paging.ts'
 import {
   castBallotSchema,
@@ -28,12 +32,6 @@ import { voteRepository, type VoteRow } from './repository.ts'
 
 /** Читают и голосуют члены, офицеры и администраторы (ACL-04). */
 const VOTERS = INTERNAL_ROLES
-/** Создают и управляют офицеры и администраторы независимо от автора. */
-export const VOTE_MANAGERS = ['officer', 'master', 'admin'] as const
-
-const isManager = (actor: ProfiledActor) =>
-  (VOTE_MANAGERS as readonly string[]).includes(actor.profile.access_role)
-
 /** Курсор истории: `[closed_at, id]`. */
 const closedCursor = z
   .tuple([z.string().min(1).max(64), z.guid()])
@@ -127,6 +125,7 @@ export async function listVotes(
  * администратору — ещё голоса с никами и связанная заявка (VOT-07, Q-16).
  */
 export async function loadVoteDetails(
+  deps: AppDeps,
   db: Executor,
   viewer: ProfiledActor,
   id: string,
@@ -137,14 +136,19 @@ export async function loadVoteDetails(
   }
   const [summary] = await summarize(db, [row], viewer.userId)
   const details: VoteDetails = { ...summary! }
-  if (isManager(viewer)) {
+  if (await hasOfficerPermission(deps, viewer, 'votes.view_ballots')) {
     const ballots = await voteRepository.ballots(db, id, MEMBER_LIST_LIMIT + 1)
     details.ballots = ballots.slice(0, MEMBER_LIST_LIMIT).map((ballot) => ({
       gameNickname: ballot.game_nickname,
       optionId: ballot.option_id,
     }))
     details.ballotsTruncated = ballots.length > MEMBER_LIST_LIMIT
-    if (row.application_id) {
+    if (
+      row.application_id &&
+      (viewer.profile.access_role === 'master' ||
+        viewer.profile.access_role === 'admin' ||
+        (await hasOfficerPermission(deps, viewer, 'applications.review')))
+    ) {
       details.applicationId = row.application_id
     }
   }
@@ -158,7 +162,7 @@ export async function getVote(
 ): Promise<VoteDetails> {
   const viewer = requireRole(actor, VOTERS)
   const { id } = parseBody(voteIdSchema, body)
-  return loadVoteDetails(deps.db, viewer, id)
+  return loadVoteDetails(deps, deps.db, viewer, id)
 }
 
 function voteTarget(id: string) {
@@ -171,7 +175,7 @@ export async function createVote(
   actor: Actor,
   body: unknown,
 ): Promise<VoteDetails> {
-  const manager = requireRole(actor, VOTE_MANAGERS)
+  const manager = await requireOfficerPermission(deps, actor, 'votes.manage')
   const input = parseBody(createVoteSchema, body)
   const id = await withTransaction(deps.db, async (tx) => {
     const voteId = await voteRepository.create(
@@ -195,7 +199,7 @@ export async function createVote(
     })
     return voteId
   })
-  return loadVoteDetails(deps.db, manager, id)
+  return loadVoteDetails(deps, deps.db, manager, id)
 }
 
 /** Активное голосование под блокировкой; иначе not_found / state_conflict. */
@@ -219,7 +223,7 @@ export async function updateVote(
   actor: Actor,
   body: unknown,
 ): Promise<VoteDetails> {
-  const manager = requireRole(actor, VOTE_MANAGERS)
+  const manager = await requireOfficerPermission(deps, actor, 'votes.manage')
   const input = parseBody(updateVoteSchema, body)
   await withTransaction(deps.db, async (tx) => {
     const vote = await lockActive(tx, input.id, 'update')
@@ -240,7 +244,7 @@ export async function updateVote(
       details: { vote_id: vote.id, vote_kind: vote.kind, title: input.title },
     })
   })
-  return loadVoteDetails(deps.db, manager, input.id)
+  return loadVoteDetails(deps, deps.db, manager, input.id)
 }
 
 /**
@@ -267,7 +271,7 @@ export async function castBallot(
       at: deps.now().toISOString(),
     })
   })
-  return loadVoteDetails(deps.db, voter, input.voteId)
+  return loadVoteDetails(deps, deps.db, voter, input.voteId)
 }
 
 /**
@@ -278,10 +282,22 @@ export async function closeVote(
   actor: Actor,
   body: unknown,
 ): Promise<VoteDetails> {
-  const manager = requireRole(actor, VOTE_MANAGERS)
+  const manager = await requireOfficerPermission(
+    deps,
+    actor,
+    'votes.complete_delete',
+  )
   const { id, decision } = parseBody(closeVoteSchema, body)
   await withTransaction(deps.db, async (tx) => {
     const vote = await lockActive(tx, id, 'update')
+    if (vote.application_id) {
+      await requireOfficerPermission(deps, manager, 'applications.review')
+      await requireOfficerPermission(
+        deps,
+        manager,
+        'applications.decide_after_vote',
+      )
+    }
     const at = deps.now().toISOString()
     if (vote.application_id) {
       if (!decision) {
@@ -316,7 +332,7 @@ export async function closeVote(
       },
     })
   })
-  return loadVoteDetails(deps.db, manager, id)
+  return loadVoteDetails(deps, deps.db, manager, id)
 }
 
 /**
@@ -328,7 +344,11 @@ export async function deleteVote(
   actor: Actor,
   body: unknown,
 ): Promise<{ deleted: true }> {
-  const manager = requireRole(actor, VOTE_MANAGERS)
+  const manager = await requireOfficerPermission(
+    deps,
+    actor,
+    'votes.complete_delete',
+  )
   const { id } = parseBody(voteIdSchema, body)
   await withTransaction(deps.db, async (tx) => {
     const vote = await lockActive(tx, id, 'update')

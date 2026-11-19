@@ -4,6 +4,10 @@ import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { expect, test, type Page } from '@playwright/test'
 import postgres from 'postgres'
+import {
+  OFFICER_PERMISSION_CODES,
+  type OfficerPermissionCode,
+} from '../supabase/functions/_shared/contracts/officer-permissions.ts'
 
 type Status = {
   API_URL: string
@@ -132,7 +136,10 @@ export async function seedMembers(count: number, prefix: string) {
 }
 
 /** Подтверждённый пользователь с профилем роли — фикстура в обход регистрации. */
-export async function createMember(role: string) {
+export async function createMember(
+  role: string,
+  options: { officerPermissions?: readonly OfficerPermissionCode[] } = {},
+) {
   const { API_URL, SERVICE_ROLE_KEY } = localStack()
   const admin = createClient(API_URL, SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -152,6 +159,21 @@ export async function createMember(role: string) {
       (id, display_name, game_nickname, class_id, access_role, city)
       values (${data.user.id}, 'Тест', ${nickname}, 1, ${role}, 'Москва')`,
   )
+  if (role === 'officer') {
+    const permissions = options.officerPermissions ?? OFFICER_PERMISSION_CODES
+    if (permissions.length > 0) {
+      await sql(
+        (db) => db`insert into app.officer_permissions
+        (officer_id, permission_code)
+        values ${db(
+          permissions.map((permission_code) => ({
+            officer_id: data.user.id,
+            permission_code,
+          })) as never,
+        )}`,
+      )
+    }
+  }
   return { id: data.user.id, email, nickname }
 }
 

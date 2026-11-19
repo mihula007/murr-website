@@ -435,3 +435,14 @@ describe('activity/month-top (ACT-12, ACT-13)', () => {
     expect(top).toEqual({ month: '2026-11', eventCount: 0, items: [] })
   })
 })
+
+describe('officer permissions', () => {
+  it('requires the activity review permission for activity summaries', async () => {
+    const officerUser = await createProfiledUser(db, 'officer', {
+      officerPermissions: [],
+    })
+    const officer = await actorOf(db, officerUser.id)
+
+    await rejects(activitySummary(deps, officer, {}), 'forbidden')
+  })
+})

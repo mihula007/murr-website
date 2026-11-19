@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { Check, ChevronRight, Crown, MoreHorizontal } from 'lucide-react'
 import type { VoteDetails, VoteOptionResult } from '@contracts/votes'
-import { hasRole, MANAGER_ROLES, useAccess } from '@/app/access'
+import { useAccess } from '@/app/access'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -187,10 +187,17 @@ function Management({
   vote: VoteCardData
   onDeleted?: (() => void) | undefined
 }) {
+  const { hasOfficerPermission } = useAccess()
   const [pending, setPending] = useState<Pending>(null)
   const close = useCloseVote()
   const remove = useDeleteVote()
   const linked = vote.kind === 'application'
+  const canManage = hasOfficerPermission('votes.manage')
+  const canComplete = hasOfficerPermission('votes.complete_delete')
+  const canDecideApplication =
+    linked &&
+    hasOfficerPermission('applications.review') &&
+    hasOfficerPermission('applications.decide_after_vote')
 
   return (
     <>
@@ -208,10 +215,12 @@ function Management({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => setPending('edit')}>
-            Изменить
-          </DropdownMenuItem>
-          {linked ? (
+          {canManage ? (
+            <DropdownMenuItem onSelect={() => setPending('edit')}>
+              Изменить
+            </DropdownMenuItem>
+          ) : null}
+          {canComplete && linked && canDecideApplication ? (
             <>
               <DropdownMenuItem onSelect={() => setPending('accept')}>
                 Принять в клан
@@ -220,17 +229,19 @@ function Management({
                 Отказать
               </DropdownMenuItem>
             </>
-          ) : (
+          ) : canComplete && !linked ? (
             <DropdownMenuItem onSelect={() => setPending('close')}>
               Завершить
             </DropdownMenuItem>
-          )}
-          <DropdownMenuItem
-            className="text-destructive data-highlighted:text-destructive"
-            onSelect={() => setPending('delete')}
-          >
-            Удалить
-          </DropdownMenuItem>
+          ) : null}
+          {canComplete ? (
+            <DropdownMenuItem
+              className="text-destructive data-highlighted:text-destructive"
+              onSelect={() => setPending('delete')}
+            >
+              Удалить
+            </DropdownMenuItem>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
       <EditVoteDialog
@@ -317,8 +328,10 @@ export function VoteCard({
   onDeleted,
   className,
 }: VoteCardProps) {
-  const { role } = useAccess()
-  const isManager = hasRole(role, MANAGER_ROLES)
+  const { hasOfficerPermission } = useAccess()
+  const canManage = hasOfficerPermission('votes.manage')
+  const canComplete = hasOfficerPermission('votes.complete_delete')
+  const canSendBroadcast = hasOfficerPermission('broadcasts.send')
   const isActive = vote.closedAt === null
 
   const Title = page ? 'h1' : 'h2'
@@ -392,10 +405,14 @@ export function VoteCard({
           title={vote.title}
           messageCount={vote.messageCount}
         />
-        {isActive && isManager ? (
+        {isActive && (canManage || canComplete || canSendBroadcast) ? (
           <>
-            <PrepareBroadcastLink source="vote" id={vote.id} />
-            <Management vote={vote} onDeleted={onDeleted} />
+            {canSendBroadcast ? (
+              <PrepareBroadcastLink source="vote" id={vote.id} />
+            ) : null}
+            {canManage || canComplete ? (
+              <Management vote={vote} onDeleted={onDeleted} />
+            ) : null}
           </>
         ) : null}
       </div>

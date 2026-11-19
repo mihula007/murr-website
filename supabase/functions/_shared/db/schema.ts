@@ -27,6 +27,7 @@ export type DB = {
     Generated['application_equipment_links']
   >
   'app.audit_log': KyselyTable<Generated['audit_log']>
+  'app.officer_permissions': KyselyTable<Generated['officer_permissions']>
   'app.user_notifications': KyselyTable<Generated['user_notifications']>
   'app.votes': KyselyTable<Generated['votes']>
   'app.vote_options': KyselyTable<Generated['vote_options']>

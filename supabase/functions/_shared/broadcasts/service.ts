@@ -1,6 +1,14 @@
 import type { AppDeps } from '../app.ts'
 import { auditPerson, writeAudit } from '../audit/service.ts'
-import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
+import {
+  requireProfile,
+  type Actor,
+  type ProfiledActor,
+} from '../auth/actor.ts'
+import {
+  hasOfficerPermission,
+  requireOfficerPermission,
+} from '../officer-permissions/service.ts'
 import type { AccessRole } from '../contracts/account.ts'
 import {
   BROADCAST_LIMITS,
@@ -46,16 +54,13 @@ import { requireVk } from '../vk/service.ts'
 import { voteRepository } from '../votes/repository.ts'
 import { broadcastRepository } from './repository.ts'
 
-/** Готовят рассылки офицеры и администраторы (BRC, Q-70). */
-export const BROADCAST_MANAGERS = ['officer', 'master', 'admin'] as const
-
 /** Read-only page of current members and messenger link states (BRC-15). */
 export async function listBroadcastSubscriptions(
   deps: AppDeps,
   actor: Actor,
   body: unknown,
 ): Promise<BroadcastSubscriptionsResponse> {
-  requireRole(actor, BROADCAST_MANAGERS)
+  await requireOfficerPermission(deps, actor, 'broadcasts.subscriptions')
   const input = parseBody(broadcastSubscriptionsSchema, body ?? {})
   const rows = await broadcastRepository.subscriptions(deps.db, {
     search: input.search,
@@ -97,7 +102,7 @@ export async function prefillBroadcast(
   actor: Actor,
   body: unknown,
 ): Promise<PrefillResponse> {
-  requireRole(actor, BROADCAST_MANAGERS)
+  await requireOfficerPermission(deps, actor, 'broadcasts.send')
   const input = parseBody(prefillSchema, body)
 
   if (input.source === 'event') {
@@ -177,7 +182,7 @@ export async function listDrafts(
   deps: AppDeps,
   actor: Actor,
 ): Promise<BroadcastDraftsResponse> {
-  const user = requireRole(actor, BROADCAST_MANAGERS)
+  const user = await requireOfficerPermission(deps, actor, 'broadcasts.send')
   const rows = await broadcastRepository.drafts(
     deps.db,
     BROADCAST_LIMITS.drafts,
@@ -203,7 +208,7 @@ export async function saveDraft(
   actor: Actor,
   body: unknown,
 ): Promise<BroadcastDraftsResponse> {
-  const user = requireRole(actor, BROADCAST_MANAGERS)
+  const user = await requireOfficerPermission(deps, actor, 'broadcasts.send')
   const input = parseBody(saveDraftSchema, body)
   await withTransaction(deps.db, async (tx) => {
     await broadcastRepository.lockDrafts(tx)
@@ -237,7 +242,7 @@ export async function deleteDraft(
   actor: Actor,
   body: unknown,
 ): Promise<BroadcastDraftsResponse> {
-  const user = requireRole(actor, BROADCAST_MANAGERS)
+  const user = await requireOfficerPermission(deps, actor, 'broadcasts.send')
   const { id } = parseBody(broadcastIdSchema, body)
   await withTransaction(deps.db, async (tx) => {
     await broadcastRepository.lockDrafts(tx)
@@ -265,7 +270,16 @@ export async function listBroadcastTemplates(
   deps: AppDeps,
   actor: Actor,
 ): Promise<BroadcastTemplatesResponse> {
-  const user = requireRole(actor, BROADCAST_MANAGERS)
+  const canSend = await hasOfficerPermission(deps, actor, 'broadcasts.send')
+  const canManageTemplates = await hasOfficerPermission(
+    deps,
+    actor,
+    'broadcasts.templates',
+  )
+  if (!canSend && !canManageTemplates) {
+    throw new ApiError('forbidden')
+  }
+  const user = requireProfile(actor)
   const rows = await broadcastRepository.templates(
     deps.db,
     BROADCAST_LIMITS.templates,
@@ -291,7 +305,11 @@ export async function saveBroadcastTemplate(
   actor: Actor,
   body: unknown,
 ): Promise<BroadcastTemplatesResponse> {
-  const user = requireRole(actor, BROADCAST_MANAGERS)
+  const user = await requireOfficerPermission(
+    deps,
+    actor,
+    'broadcasts.templates',
+  )
   const input = parseBody(saveBroadcastTemplateSchema, body)
   await withTransaction(deps.db, async (tx) => {
     await broadcastRepository.lockTemplates(tx)
@@ -328,7 +346,11 @@ export async function deleteBroadcastTemplate(
   actor: Actor,
   body: unknown,
 ): Promise<BroadcastTemplatesResponse> {
-  const user = requireRole(actor, BROADCAST_MANAGERS)
+  const user = await requireOfficerPermission(
+    deps,
+    actor,
+    'broadcasts.templates',
+  )
   const { id } = parseBody(broadcastIdSchema, body)
   await withTransaction(deps.db, async (tx) => {
     await broadcastRepository.lockTemplates(tx)
@@ -454,7 +476,7 @@ export async function broadcastRecipients(
   actor: Actor,
   body: unknown = {},
 ): Promise<BroadcastRecipientsResponse> {
-  requireRole(actor, BROADCAST_MANAGERS)
+  await requireOfficerPermission(deps, actor, 'broadcasts.send')
   const input = parseBody(recipientsSchema, body ?? {})
   if (input.groupId && input.eventId) {
     throw new ApiError('validation_failed', { groupId: 'invalid' })
@@ -547,7 +569,7 @@ export async function sendAnnouncement(
   actor: Actor,
   body: unknown,
 ): Promise<SendAnnouncementResponse> {
-  const user = requireRole(actor, BROADCAST_MANAGERS)
+  const user = await requireOfficerPermission(deps, actor, 'broadcasts.send')
   const input = parseBody(sendAnnouncementSchema, body)
   for (const channel of input.channels) {
     CHANNELS[channel].require(deps)

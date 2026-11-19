@@ -610,3 +610,21 @@ describe('publications: attachments (PUB-13, PUB-14, PUB-16, Q-11)', () => {
     expect(await fileExists(fresh)).toBe(true)
   })
 })
+
+describe('officer permissions', () => {
+  it('requires publication management permission before accepting changes', async () => {
+    const officerUser = await createProfiledUser(db, 'officer', {
+      officerPermissions: [],
+    })
+    const officer = await actorOf(db, officerUser.id)
+    const id = '00000000-0000-4000-8000-000000000000'
+
+    await rejects(
+      createPublicationUpload(deps, officer, { contentType: 'image/png' }),
+      'forbidden',
+    )
+    await rejects(savePublication(deps, officer, material()), 'forbidden')
+    await rejects(unpublishPublication(deps, officer, { id }), 'forbidden')
+    await rejects(deletePublication(deps, officer, { id }), 'forbidden')
+  })
+})

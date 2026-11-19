@@ -1,5 +1,10 @@
 import { createRoute } from '@tanstack/react-router'
-import { NAV_SECTIONS, type NavSectionConfig } from '@/app/navigation'
+import {
+  NAV_SECTIONS,
+  sectionPermissionMode,
+  sectionPermissions,
+  type NavSectionConfig,
+} from '@/app/navigation'
 import { RouteGate } from '@/components/route-gate'
 import { SectionPlaceholder } from '@/features/sections/section-placeholder'
 import { rootRoute } from './root'
@@ -11,7 +16,11 @@ function createSectionRoute<const TSection extends NavSectionConfig>(
     getParentRoute: () => rootRoute,
     path: section.path,
     component: () => (
-      <RouteGate roles={section.roles}>
+      <RouteGate
+        roles={section.roles}
+        permissions={sectionPermissions(section.id)}
+        permissionMode={sectionPermissionMode(section.id) ?? 'all'}
+      >
         <SectionPlaceholder section={section} />
       </RouteGate>
     ),
@@ -30,6 +39,7 @@ const IMPLEMENTED: readonly string[] = [
   'publications',
   'market',
   'broadcast',
+  'permissions',
 ]
 
 export const sectionRoutes = NAV_SECTIONS.filter(

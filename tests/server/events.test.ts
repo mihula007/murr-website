@@ -725,3 +725,70 @@ describe('templates (EVT-11–13, Q-46)', () => {
     })
   })
 })
+
+describe('officer visibility permissions', () => {
+  it('limits an officer without full roster permission to their assigned group', async () => {
+    const { actor: admin } = await roleActor('admin')
+    const event = await createEvent(deps, admin, fields())
+    await createGroup(deps, admin, { eventId: event.id, name: 'Первая' })
+    await createGroup(deps, admin, { eventId: event.id, name: 'Вторая' })
+    const groups = await db
+      .selectFrom('app.event_groups')
+      .select(['id', 'name'])
+      .where('event_id', '=', event.id)
+      .orderBy('name')
+      .execute()
+    const { user: member, actor: memberActor } = await roleActor('member')
+    const officerUser = await createProfiledUser(db, 'officer', {
+      officerPermissions: [],
+    })
+    const officer = await actorOf(db, officerUser.id)
+    await moveMember(deps, admin, {
+      eventId: event.id,
+      groupId: groups[0]!.id,
+      userId: member.id,
+    })
+    await moveMember(deps, admin, {
+      eventId: event.id,
+      groupId: groups[1]!.id,
+      userId: officerUser.id,
+    })
+
+    const memberView = await getEvent(deps, memberActor, { id: event.id })
+    const officerView = await getEvent(deps, officer, { id: event.id })
+
+    expect(memberView.groups).toHaveLength(1)
+    expect(officerView.groups).toHaveLength(1)
+    expect(officerView.groups[0]?.id).toBe(groups[1]!.id)
+    expect(
+      officerView.groups[0]?.members.map((person) => person.userId),
+    ).toEqual([officerUser.id])
+    expect(officerView.participants.map((person) => person.id)).toEqual([
+      officerUser.id,
+    ])
+  })
+
+  it('requires separate permissions to manage, delete, close, and template events', async () => {
+    const { actor: admin } = await roleActor('admin')
+    const event = await createEvent(deps, admin, fields())
+    const officerUser = await createProfiledUser(db, 'officer', {
+      officerPermissions: [],
+    })
+    const officer = await actorOf(db, officerUser.id)
+
+    await expect(
+      listEvents(deps, officer, { tab: 'active' }),
+    ).resolves.toMatchObject({
+      items: [{ id: event.id }],
+    })
+    await rejects(createEvent(deps, officer, fields()), 'forbidden')
+    await rejects(
+      updateEvent(deps, officer, { id: event.id, ...fields() }),
+      'forbidden',
+    )
+    await rejects(deleteEvent(deps, officer, { id: event.id }), 'forbidden')
+    await rejects(closeEvent(deps, officer, { id: event.id }), 'forbidden')
+    await rejects(listTemplates(deps, officer), 'forbidden')
+    await rejects(saveTemplate(deps, officer, fields()), 'forbidden')
+  })
+})

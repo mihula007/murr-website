@@ -124,6 +124,10 @@ import {
 } from './roster/service.ts'
 import { createStorageGateway, type StorageGateway } from './storage/gateway.ts'
 import {
+  listOfficerPermissions,
+  saveOfficerPermissions,
+} from './officer-permissions/service.ts'
+import {
   createTelegramGateway,
   type TelegramGateway,
 } from './telegram/gateway.ts'
@@ -370,6 +374,10 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       setPassword(deps, actor, body),
     'accounts/delete': ({ actor, body }) => deleteAccount(deps, actor, body),
     'accounts/deletions': ({ actor }) => pendingDeletions(deps, actor),
+    'officer-permissions/list': ({ actor }) =>
+      listOfficerPermissions(deps, actor),
+    'officer-permissions/save': ({ actor, body }) =>
+      saveOfficerPermissions(deps, actor, body),
     'audit/list': ({ actor, body }) => listAudit(deps, actor, body),
     'broadcasts/prefill': ({ actor, body }) =>
       prefillBroadcast(deps, actor, body),

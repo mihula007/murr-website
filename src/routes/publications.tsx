@@ -35,7 +35,7 @@ function DetailRoute(): ReactNode {
 function EditRoute(): ReactNode {
   const { id } = editPublicationRoute.useParams()
   return (
-    <RouteGate roles={MANAGER_ROLES}>
+    <RouteGate roles={MANAGER_ROLES} permissions={['publications.manage_own']}>
       <MaterialEditorPage key={id} section={publicationsSection} id={id} />
     </RouteGate>
   )
@@ -53,7 +53,7 @@ export const createPublicationRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/publications/new',
   component: () => (
-    <RouteGate roles={MANAGER_ROLES}>
+    <RouteGate roles={MANAGER_ROLES} permissions={['publications.manage_own']}>
       <MaterialEditorPage section={publicationsSection} />
     </RouteGate>
   ),

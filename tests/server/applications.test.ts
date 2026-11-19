@@ -6,6 +6,7 @@ import {
   getApplication,
   listApplications,
   resubmitApplication,
+  submitApplicationToVote,
 } from '../../supabase/functions/_shared/applications/service.ts'
 import {
   GUEST,
@@ -161,6 +162,31 @@ describe('access matrix', () => {
         'forbidden',
       )
     }
+  })
+
+  it('requires separate officer permissions to view and decide applications', async () => {
+    const { applicationId } = await createApplicant()
+    const officerUser = await createProfiledUser(db, 'officer', {
+      officerPermissions: [],
+    })
+    const officer = await actorOf(db, officerUser.id)
+
+    await rejects(listApplications(deps, officer, { tab: 'new' }), 'forbidden')
+    await rejects(
+      getApplication(deps, officer, { id: applicationId }),
+      'forbidden',
+    )
+    await rejects(
+      submitApplicationToVote(deps, officer, { id: applicationId }),
+      'forbidden',
+    )
+    await rejects(
+      decideApplication(deps, officer, {
+        id: applicationId,
+        decision: 'reject',
+      }),
+      'forbidden',
+    )
   })
 })
 

@@ -28,6 +28,7 @@ import type { ProfileRow } from '../db/schema.ts'
 import { ApiError } from '../http/errors.ts'
 import { moscowDate } from '../membership.ts'
 import { parseBody } from '../http/validation.ts'
+import { getOfficerPermissions } from '../officer-permissions/service.ts'
 import {
   AVATAR_BUCKET,
   avatarUrl,
@@ -91,12 +92,15 @@ export async function buildMe(
   if (!profile) {
     return { state: 'incomplete', email: user.email }
   }
-  const [className, url, application] = await Promise.all([
+  const [className, url, application, officerPermissions] = await Promise.all([
     profileRepository.className(deps.db, profile.class_id),
     avatarUrl(deps.storage, profile.avatar_path),
     APPLICATION_VISIBLE_TO.includes(profile.access_role)
       ? applicationRepository.latestForApplicant(deps.db, profile.id)
       : Promise.resolve(undefined),
+    profile.access_role === 'officer'
+      ? getOfficerPermissions(deps, profile.id)
+      : Promise.resolve([]),
   ])
   return {
     state: 'ready',
@@ -122,6 +126,7 @@ export async function buildMe(
           submittedAt: application.submitted_at,
         }
       : null,
+    officerPermissions,
     canResubmit:
       profile.access_role === 'applicant' &&
       !(

@@ -1,6 +1,10 @@
 import type { AppDeps } from '../app.ts'
 import { auditPerson, writeAudit } from '../audit/service.ts'
 import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
+import {
+  hasOfficerPermission,
+  requireOfficerPermission,
+} from '../officer-permissions/service.ts'
 import type { MaterialAuthor, MaterialCard } from '../contracts/materials.ts'
 import { parseTimestamp } from '../contracts/moscow-time.ts'
 import { SMALL_LIST_LIMIT } from '../contracts/paging.ts'
@@ -48,9 +52,8 @@ import {
   type PublicationRow,
 } from './repository.ts'
 
-/** Читают внутренние роли (PUB, ACL); создают офицеры и администраторы (Q-02). */
+/** Читают внутренние роли (PUB, ACL). */
 const READERS = INTERNAL_ROLES
-export const PUBLICATION_EDITORS = ['officer', 'master', 'admin'] as const
 
 const ATTACHMENT_PATH_CONSTRAINT = 'publication_attachments_path_key'
 
@@ -143,7 +146,10 @@ export async function listPublications(
   const viewer = requireRole(actor, READERS)
   const input = parseBody(listPublicationsSchema, body)
   const role = viewer.profile.access_role
-  const canCreate = (PUBLICATION_EDITORS as readonly string[]).includes(role)
+  const canCreate =
+    role === 'officer'
+      ? await hasOfficerPermission(deps, viewer, 'publications.manage_own')
+      : role === 'master' || role === 'admin'
   const drafts = input.tab === 'drafts'
   if (drafts && !canCreate) {
     throw new ApiError('forbidden')
@@ -238,7 +244,11 @@ export async function createPublicationUpload(
   actor: Actor,
   body: unknown,
 ): Promise<PublicationUploadResponse> {
-  const editor = requireRole(actor, PUBLICATION_EDITORS)
+  const editor = await requireOfficerPermission(
+    deps,
+    actor,
+    'publications.manage_own',
+  )
   const { contentType } = parseBody(publicationUploadSchema, body)
   const upload = await deps.storage.createUploadUrl(
     PUBLICATION_BUCKET,
@@ -262,7 +272,11 @@ export async function discardPublicationUploads(
   actor: Actor,
   body: unknown,
 ): Promise<{ removed: number }> {
-  const editor = requireRole(actor, PUBLICATION_EDITORS)
+  const editor = await requireOfficerPermission(
+    deps,
+    actor,
+    'publications.manage_own',
+  )
   const { paths } = parseBody(discardUploadsSchema, body)
   const removable = await unreferenced(deps, editor.userId, paths)
   await removeFiles(deps.storage, removable)
@@ -281,7 +295,11 @@ export async function savePublication(
   actor: Actor,
   body: unknown,
 ): Promise<PublicationDetails> {
-  const editor = requireRole(actor, PUBLICATION_EDITORS)
+  const editor = await requireOfficerPermission(
+    deps,
+    actor,
+    'publications.manage_own',
+  )
   const input = parseBody(savePublicationSchema, body)
   if (!hasMeaningfulContent(input.content) && input.attachments.length === 0) {
     throw new ApiError('validation_failed', { content: 'empty' })
@@ -431,7 +449,11 @@ export async function unpublishPublication(
   actor: Actor,
   body: unknown,
 ): Promise<PublicationDetails> {
-  const editor = requireRole(actor, PUBLICATION_EDITORS)
+  const editor = await requireOfficerPermission(
+    deps,
+    actor,
+    'publications.manage_own',
+  )
   const { id } = parseBody(materialIdSchema, body)
   await withTransaction(deps.db, async (tx) => {
     const row = await repo.lock(tx, id)
@@ -463,7 +485,11 @@ export async function deletePublication(
   actor: Actor,
   body: unknown,
 ): Promise<{ deleted: true }> {
-  const editor = requireRole(actor, PUBLICATION_EDITORS)
+  const editor = await requireOfficerPermission(
+    deps,
+    actor,
+    'publications.manage_own',
+  )
   const { id } = parseBody(materialIdSchema, body)
   const paths = await withTransaction(deps.db, async (tx) => {
     const row = await repo.lock(tx, id)

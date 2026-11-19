@@ -1,6 +1,10 @@
 import type { AppDeps } from '../app.ts'
 import { auditPerson, writeAudit } from '../audit/service.ts'
-import { requireRole, type Actor } from '../auth/actor.ts'
+import type { Actor } from '../auth/actor.ts'
+import {
+  hasOfficerPermission,
+  requireOfficerPermission,
+} from '../officer-permissions/service.ts'
 import {
   applyGroupTemplateSchema,
   createGroupSchema,
@@ -16,7 +20,7 @@ import {
   type GroupTemplatesResponse,
 } from '../contracts/groups.ts'
 import { withTransaction, type Executor } from '../db/client.ts'
-import { EVENT_MANAGERS, eventGroups, lockOpen } from '../events/service.ts'
+import { eventGroups, lockOpen } from '../events/service.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
@@ -91,7 +95,7 @@ export async function createGroup(
   actor: Actor,
   body: unknown,
 ): Promise<EventGroupsResponse> {
-  requireRole(actor, EVENT_MANAGERS)
+  await requireOfficerPermission(deps, actor, 'groups.manage')
   const input = parseBody(createGroupSchema, body)
   return withTransaction(deps.db, async (tx) => {
     await lockOpen(tx, input.eventId, 'update')
@@ -115,7 +119,7 @@ export async function renameGroup(
   actor: Actor,
   body: unknown,
 ): Promise<EventGroupsResponse> {
-  requireRole(actor, EVENT_MANAGERS)
+  await requireOfficerPermission(deps, actor, 'groups.manage')
   const input = parseBody(renameGroupSchema, body)
   return withTransaction(deps.db, async (tx) => {
     const { group } = await lockGroup(tx, input.groupId)
@@ -130,7 +134,7 @@ export async function deleteGroup(
   actor: Actor,
   body: unknown,
 ): Promise<EventGroupsResponse> {
-  requireRole(actor, EVENT_MANAGERS)
+  await requireOfficerPermission(deps, actor, 'groups.manage')
   const { groupId } = parseBody(groupIdSchema, body)
   return withTransaction(deps.db, async (tx) => {
     const { group } = await lockGroup(tx, groupId)
@@ -150,7 +154,7 @@ export async function moveMember(
   actor: Actor,
   body: unknown,
 ): Promise<EventGroupsResponse> {
-  const manager = requireRole(actor, EVENT_MANAGERS)
+  const manager = await requireOfficerPermission(deps, actor, 'groups.manage')
   const input = parseBody(moveMemberSchema, body)
   return withTransaction(deps.db, async (tx) => {
     const event = await lockOpen(tx, input.eventId, 'update')
@@ -215,7 +219,7 @@ export async function setGroupLeader(
   actor: Actor,
   body: unknown,
 ): Promise<EventGroupsResponse> {
-  const manager = requireRole(actor, EVENT_MANAGERS)
+  const manager = await requireOfficerPermission(deps, actor, 'groups.manage')
   const input = parseBody(setLeaderSchema, body)
   return withTransaction(deps.db, async (tx) => {
     const { group, event } = await lockGroup(tx, input.groupId)
@@ -288,7 +292,19 @@ export async function listGroupTemplates(
   deps: AppDeps,
   actor: Actor,
 ): Promise<GroupTemplatesResponse> {
-  requireRole(actor, EVENT_MANAGERS)
+  const canManageGroups = await hasOfficerPermission(
+    deps,
+    actor,
+    'groups.manage',
+  )
+  const canManageTemplates = await hasOfficerPermission(
+    deps,
+    actor,
+    'groups.templates',
+  )
+  if (!canManageGroups && !canManageTemplates) {
+    throw new ApiError('forbidden')
+  }
   return { items: await loadTemplates(deps.db) }
 }
 
@@ -302,7 +318,11 @@ export async function saveGroupTemplate(
   actor: Actor,
   body: unknown,
 ): Promise<GroupTemplatesResponse> {
-  const manager = requireRole(actor, EVENT_MANAGERS)
+  const manager = await requireOfficerPermission(
+    deps,
+    actor,
+    'groups.templates',
+  )
   const input = parseBody(saveGroupTemplateSchema, body)
   const userIds = input.groups.flatMap((group) =>
     group.members.map((member) => member.userId),
@@ -339,7 +359,11 @@ export async function deleteGroupTemplate(
   actor: Actor,
   body: unknown,
 ): Promise<GroupTemplatesResponse> {
-  const manager = requireRole(actor, EVENT_MANAGERS)
+  const manager = await requireOfficerPermission(
+    deps,
+    actor,
+    'groups.templates',
+  )
   const { id } = parseBody(groupTemplateIdSchema, body)
   await withTransaction(deps.db, async (tx) => {
     const deleted = await groupRepository.deleteTemplate(tx, id)
@@ -368,7 +392,7 @@ export async function applyGroupTemplate(
   actor: Actor,
   body: unknown,
 ): Promise<EventGroupsResponse> {
-  const manager = requireRole(actor, EVENT_MANAGERS)
+  const manager = await requireOfficerPermission(deps, actor, 'groups.manage')
   const input = parseBody(applyGroupTemplateSchema, body)
   return withTransaction(deps.db, async (tx) => {
     const event = await lockOpen(tx, input.eventId, 'update')

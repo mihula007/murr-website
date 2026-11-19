@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { AppDeps } from '../app.ts'
 import { requireRole, type Actor } from '../auth/actor.ts'
+import { requireOfficerPermission } from '../officer-permissions/service.ts'
 import {
   activityEventSchema,
   activityEventsSchema,
@@ -34,8 +35,6 @@ import { INTERNAL_ROLES, moscowDate } from '../membership.ts'
 import { activityRepository, type Period } from './repository.ts'
 
 /** Учёт активности и Excel — офицер и администратор (01-roles, Q-25). */
-const ACCOUNTANTS = ['officer', 'master', 'admin'] as const
-
 const isReaderRole = (role: string) =>
   !(INTERNAL_ROLES as readonly string[]).includes(role)
 
@@ -95,7 +94,7 @@ export async function activitySummary(
   actor: Actor,
   body: unknown,
 ): Promise<ActivitySummaryResponse> {
-  requireRole(actor, ACCOUNTANTS)
+  await requireOfficerPermission(deps, actor, 'activity.view_export')
   const input = parseBody(activitySummarySchema, body ?? {})
   const period = periodOf(input)
   const [rows, eventCount] = await Promise.all([
@@ -175,7 +174,7 @@ export async function activityHistory(
   actor: Actor,
   body: unknown,
 ): Promise<ActivityHistoryResponse> {
-  requireRole(actor, ACCOUNTANTS)
+  await requireOfficerPermission(deps, actor, 'activity.view_export')
   const input = parseBody(activityHistorySchema, body ?? {})
   const rows = await activityRepository.history(deps.db, {
     period: periodOf(input),
@@ -200,7 +199,7 @@ export async function activityEvents(
   actor: Actor,
   body: unknown,
 ): Promise<ActivityEventsResponse> {
-  requireRole(actor, ACCOUNTANTS)
+  await requireOfficerPermission(deps, actor, 'activity.view_export')
   const input = parseBody(activityEventsSchema, body ?? {})
   const rows = await activityRepository.events(deps.db, {
     period: periodOf(input),
@@ -218,7 +217,7 @@ export async function activityEvent(
   actor: Actor,
   body: unknown,
 ): Promise<ActivityEventResponse> {
-  requireRole(actor, ACCOUNTANTS)
+  await requireOfficerPermission(deps, actor, 'activity.view_export')
   const input = parseBody(activityEventSchema, body)
   const event = await activityRepository.findClosedEvent(deps.db, input.eventId)
   if (!event) {
@@ -258,7 +257,7 @@ export async function activityMember(
   actor: Actor,
   body: unknown,
 ): Promise<ActivityMemberResponse> {
-  requireRole(actor, ACCOUNTANTS)
+  await requireOfficerPermission(deps, actor, 'activity.view_export')
   const input = parseBody(activityMemberSchema, body)
   const period = periodOf(input)
   const [stats, rows] = await Promise.all([

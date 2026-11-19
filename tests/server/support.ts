@@ -27,6 +27,7 @@ import {
   type Db,
 } from '../../supabase/functions/_shared/db/client.ts'
 import type { AccessRole } from '../../supabase/functions/_shared/db/schema.ts'
+import { OFFICER_PERMISSION_CODES } from '../../supabase/functions/_shared/contracts/officer-permissions.ts'
 
 export function env(name: string) {
   const value = process.env[`LOCAL_${name}`]
@@ -72,7 +73,11 @@ export async function createAuthUser(options: { confirmed?: boolean } = {}) {
 let nicknameCounter = 0
 
 /** Пользователь с профилем нужной роли (вставка в обход сервиса — фикстура). */
-export async function createProfiledUser(db: Db, role: AccessRole) {
+export async function createProfiledUser(
+  db: Db,
+  role: AccessRole,
+  options: { officerPermissions?: readonly string[] } = {},
+) {
   const user = await createAuthUser()
   nicknameCounter += 1
   const nickname = `u${nicknameCounter}${randomUUID().slice(0, 4)}`
@@ -87,6 +92,20 @@ export async function createProfiledUser(db: Db, role: AccessRole) {
       is_primary_admin: false,
     })
     .execute()
+  if (role === 'officer') {
+    const permissions = options.officerPermissions ?? OFFICER_PERMISSION_CODES
+    if (permissions.length > 0) {
+      await db
+        .insertInto('app.officer_permissions')
+        .values(
+          permissions.map((permission_code) => ({
+            officer_id: user.id,
+            permission_code,
+          })),
+        )
+        .execute()
+    }
+  }
   return { ...user, nickname }
 }
 

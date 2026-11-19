@@ -4,6 +4,7 @@ import { buildMe } from '../account/service.ts'
 import type { AppDeps } from '../app.ts'
 import { auditPerson, writeAudit } from '../audit/service.ts'
 import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
+import { requireOfficerPermission } from '../officer-permissions/service.ts'
 import { userRepository } from '../auth/repository.ts'
 import type {
   AccessRole,
@@ -43,7 +44,6 @@ const decidedCursor = z
   .transform(([decidedAt, id]) => ({ decidedAt, id }))
 
 /** Рассматривают заявки офицеры и администраторы (APP-03, ACL). */
-const REVIEWERS = ['officer', 'master', 'admin'] as const
 
 const NEW_STATUS = 'pending_officer_review'
 /** Ждёт окончательного решения администратора после голосования (APP-07). */
@@ -136,7 +136,7 @@ export async function listApplications(
   actor: Actor,
   body: unknown,
 ): Promise<ApplicationListResponse> {
-  requireRole(actor, REVIEWERS)
+  await requireOfficerPermission(deps, actor, 'applications.review')
   const { tab, cursor, limit } = parseBody(listApplicationsSchema, body)
   const isSmall = tab !== 'decided'
   const pageLimit = isSmall ? SMALL_LIST_LIMIT : limit
@@ -244,7 +244,11 @@ export async function getApplication(
   actor: Actor,
   body: unknown,
 ): Promise<ApplicationDetails> {
-  const reviewer = requireRole(actor, REVIEWERS)
+  const reviewer = await requireOfficerPermission(
+    deps,
+    actor,
+    'applications.review',
+  )
   const { id } = parseBody(applicationIdSchema, body)
   return loadDetails(
     deps,
@@ -264,7 +268,12 @@ export async function submitApplicationToVote(
   actor: Actor,
   body: unknown,
 ): Promise<ApplicationDetails> {
-  const reviewer = requireRole(actor, REVIEWERS)
+  const reviewer = await requireOfficerPermission(
+    deps,
+    actor,
+    'applications.review',
+  )
+  await requireOfficerPermission(deps, reviewer, 'applications.submit_vote')
   const { id } = parseBody(applicationIdSchema, body)
   await withTransaction(deps.db, async (tx) => {
     const applicantId = await applicationRepository.transition(
@@ -335,7 +344,12 @@ export async function decideApplication(
   actor: Actor,
   body: unknown,
 ): Promise<ApplicationDetails> {
-  const reviewer = requireRole(actor, REVIEWERS)
+  const reviewer = await requireOfficerPermission(
+    deps,
+    actor,
+    'applications.review',
+  )
+  await requireOfficerPermission(deps, reviewer, 'applications.decide_direct')
   const input = parseBody(decideApplicationSchema, body)
   return decide(deps, reviewer, input, NEW_STATUS, DIRECT_DECISIONS)
 }

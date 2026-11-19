@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AccessProvider, type AccessRole } from '@/app/access'
 import { createAppRouter } from '@/app/router'
 import { writeLastActivity } from '@/app/splash/splash-timing'
+import type { OfficerPermissionCode } from '@contracts/officer-permissions'
 
 /**
  * Рендерит всё приложение с ролью `role` на адресе `path`. Свежая метка
@@ -13,7 +14,13 @@ export async function renderApp({
   role = 'guest',
   path = '/',
   splash = false,
-}: { role?: AccessRole; path?: string; splash?: boolean } = {}) {
+  officerPermissions,
+}: {
+  role?: AccessRole
+  path?: string
+  splash?: boolean
+  officerPermissions?: readonly OfficerPermissionCode[]
+} = {}) {
   localStorage.clear()
   if (!splash) {
     writeLastActivity(Date.now())
@@ -23,7 +30,10 @@ export async function renderApp({
   )
   const result = render(
     <QueryClientProvider client={new QueryClient()}>
-      <AccessProvider role={role}>
+      <AccessProvider
+        role={role}
+        {...(officerPermissions ? { officerPermissions } : {})}
+      >
         <RouterProvider router={router} />
       </AccessProvider>
     </QueryClientProvider>,

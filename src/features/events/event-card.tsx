@@ -15,7 +15,7 @@ import {
   type EventAnswer,
   type EventSummary,
 } from '@contracts/events'
-import { hasRole, MANAGER_ROLES, useAccess } from '@/app/access'
+import { useAccess } from '@/app/access'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 import { DiscussionDialog } from '@/features/discussions/discussion-dialog'
 import { Button } from '@/components/ui/button'
@@ -317,12 +317,13 @@ export function EventActions({
   className?: string
 }) {
   const navigate = useNavigate()
-  const { role } = useAccess()
+  const { hasOfficerPermission } = useAccess()
   const [pending, setPending] = useState<Pending>(null)
   const remove = useDeleteEvent()
-  const canPrepare = event.closedAt === null && hasRole(role, MANAGER_ROLES)
+  const canPrepare =
+    event.closedAt === null && hasOfficerPermission('broadcasts.send')
 
-  if (!event.canManage && !canPrepare) {
+  if (!event.canManage && !event.canDelete && !canPrepare) {
     return null
   }
 
@@ -355,7 +356,7 @@ export function EventActions({
               </Link>
             </DropdownMenuItem>
           ) : null}
-          {event.canManage ? (
+          {event.canDelete ? (
             <DropdownMenuItem
               className="text-destructive data-highlighted:text-destructive"
               onSelect={() => setPending('delete')}

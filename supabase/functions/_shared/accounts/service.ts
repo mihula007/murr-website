@@ -10,6 +10,12 @@ import { applicationRepository } from '../applications/repository.ts'
 import { catalogRepository } from '../catalog/repository.ts'
 import { auditPerson, writeAudit } from '../audit/service.ts'
 import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
+import { requireOfficerPermission } from '../officer-permissions/service.ts'
+import {
+  OFFICER_PERMISSION_LABELS,
+  type OfficerPermissionCode,
+} from '../contracts/officer-permissions.ts'
+import { officerPermissionsRepository } from '../officer-permissions/repository.ts'
 import { userRepository } from '../auth/repository.ts'
 import type { AccessRole, ApplicationStatus } from '../contracts/account.ts'
 import {
@@ -507,6 +513,7 @@ export async function setRole(
   body: unknown,
 ): Promise<RoleChangeResult> {
   const manager = requireRole(actor, ['officer', 'master', 'admin'])
+  await requireOfficerPermission(deps, manager, 'roster.reader_roles')
   const { userId, role } = parseBody(setRoleSchema, body)
 
   return withTransaction(deps.db, async (tx) => {
@@ -552,6 +559,33 @@ export async function setRole(
     if (await applicationRepository.hasActive(tx, userId)) {
       throw new ApiError('application_pending')
     }
+    if (previousRole === 'officer' && role !== 'officer') {
+      const permissions = await officerPermissionsRepository.listForOfficer(
+        tx,
+        target.id,
+      )
+      for (const row of permissions) {
+        const code = row.permission_code as OfficerPermissionCode
+        await officerPermissionsRepository.delete(tx, target.id, code)
+        await writeAudit(tx, {
+          category: 'officer_permissions',
+          action: 'officer_permission_disabled',
+          summary: `Сброшено право «${OFFICER_PERMISSION_LABELS[code]}» после смены роли для ${target.game_nickname}`,
+          actor: auditPerson(manager),
+          target: {
+            kind: 'officer',
+            id: target.id,
+            user: {
+              id: target.id,
+              role: 'officer',
+              nickname: target.game_nickname,
+              email: null,
+            },
+          },
+          details: { permission_code: code, enabled: false },
+        })
+      }
+    }
     return applyRole(
       tx,
       deps,
@@ -574,6 +608,7 @@ export async function restoreReader(
   body: unknown,
 ): Promise<RoleChangeResult> {
   const keeper = requireRole(actor, READER_KEEPERS)
+  await requireOfficerPermission(deps, keeper, 'roster.reader_roles')
   const { userId } = parseBody(restoreReaderSchema, body)
 
   return withTransaction(deps.db, async (tx) => {

@@ -5,6 +5,7 @@ import {
   hasRole,
   type AccessRole,
 } from './access'
+import type { OfficerPermissionCode } from '@contracts/officer-permissions'
 
 export type NavCategoryId = 'clan' | 'community' | 'management'
 
@@ -14,6 +15,8 @@ export type NavSection = {
   label: string
   category: NavCategoryId
   roles: readonly AccessRole[]
+  permissions?: readonly OfficerPermissionCode[]
+  permissionMode?: 'all' | 'any'
 }
 
 export type NavSectionConfig = (typeof NAV_SECTIONS)[number]
@@ -81,6 +84,7 @@ export const NAV_SECTIONS = [
     label: 'Заявки',
     category: 'management',
     roles: MANAGER_ROLES,
+    permissions: ['applications.review'],
   },
   {
     id: 'activity',
@@ -88,6 +92,7 @@ export const NAV_SECTIONS = [
     label: 'Учёт активности',
     category: 'management',
     roles: MANAGER_ROLES,
+    permissions: ['activity.view_export'],
   },
   {
     id: 'broadcast',
@@ -95,6 +100,19 @@ export const NAV_SECTIONS = [
     label: 'Рассылка',
     category: 'management',
     roles: MANAGER_ROLES,
+    permissions: [
+      'broadcasts.send',
+      'broadcasts.templates',
+      'broadcasts.subscriptions',
+    ],
+    permissionMode: 'any',
+  },
+  {
+    id: 'permissions',
+    path: '/permissions',
+    label: 'Мастерка',
+    category: 'management',
+    roles: ['master', 'admin'],
   },
   {
     id: 'admin',
@@ -105,35 +123,79 @@ export const NAV_SECTIONS = [
   },
 ] as const satisfies readonly NavSection[]
 
-export function visibleNavigation(role: AccessRole): NavCategory[] {
+export function visibleNavigation(
+  role: AccessRole,
+  permissions: readonly OfficerPermissionCode[] = [],
+): NavCategory[] {
   return NAV_CATEGORIES.map((category) => ({
     ...category,
     sections: NAV_SECTIONS.filter(
       (section) =>
-        section.category === category.id && hasRole(role, section.roles),
+        section.category === category.id &&
+        hasRole(role, section.roles) &&
+        hasSectionPermission(role, permissions, section),
     ),
   })).filter((category) => category.sections.length > 0)
 }
 
 /** Роли раздела из той же таблицы — для `RouteGate` реализованных разделов. */
 export function sectionRoles(id: NavSectionId): readonly AccessRole[] {
-  const section = NAV_SECTIONS.find((item) => item.id === id)
+  const section = (NAV_SECTIONS as readonly NavSection[]).find(
+    (item) => item.id === id,
+  )
   if (!section) {
     throw new Error(`Нет раздела ${id} в навигации`)
   }
   return section.roles
 }
 
-export function findSectionByPath(path: string): NavSectionConfig | undefined {
-  return NAV_SECTIONS.find(
+export function sectionPermissions(
+  id: NavSectionId,
+): readonly OfficerPermissionCode[] {
+  return (
+    (NAV_SECTIONS as readonly NavSection[]).find((item) => item.id === id)
+      ?.permissions ?? []
+  )
+}
+
+export function sectionPermissionMode(
+  id: NavSectionId,
+): 'all' | 'any' | undefined {
+  return (NAV_SECTIONS as readonly NavSection[]).find((item) => item.id === id)
+    ?.permissionMode
+}
+
+function hasSectionPermission(
+  role: AccessRole,
+  permissions: readonly OfficerPermissionCode[],
+  section: NavSection,
+) {
+  const required = section.permissions ?? []
+  if (required.length === 0 || role === 'master' || role === 'admin') {
+    return true
+  }
+  return section.permissionMode === 'any'
+    ? required.some((permission) => permissions.includes(permission))
+    : required.every((permission) => permissions.includes(permission))
+}
+
+export function findSectionByPath(path: string): NavSection | undefined {
+  return (NAV_SECTIONS as readonly NavSection[]).find(
     (section) => path === section.path || path.startsWith(`${section.path}/`),
   )
 }
 
 /** Пути вне таблицы разделов (главная, кабинет) не ограничиваются. */
-export function canAccessPath(role: AccessRole, path: string) {
+export function canAccessPath(
+  role: AccessRole,
+  path: string,
+  permissions: readonly OfficerPermissionCode[] = [],
+) {
   const section = findSectionByPath(path)
-  return section ? hasRole(role, section.roles) : true
+  return section
+    ? hasRole(role, section.roles) &&
+        hasSectionPermission(role, permissions, section)
+    : true
 }
 
 /** Сумма счётчиков новизны разделов категории (или всех категорий). */

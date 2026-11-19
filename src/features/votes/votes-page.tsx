@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react'
 import { z } from 'zod'
 import { VOTE_TABS } from '@contracts/votes'
 import { SMALL_LIST_LIMIT } from '@contracts/paging'
-import { hasRole, MANAGER_ROLES, useAccess } from '@/app/access'
+import { useAccess } from '@/app/access'
 import { EmptyState } from '@/components/states/empty-state'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
@@ -40,7 +40,7 @@ const EMPTY = {
 // по умолчанию — те же, что у схемы.
 export function VotesPage({ tab = 'active' }: Partial<VotesSearch>) {
   const navigate = useNavigate()
-  const { role } = useAccess()
+  const { hasOfficerPermission } = useAccess()
   // Счётчик актуальных нужен на обеих вкладках: список малый и кэшируется.
   const active = useActiveVotes()
   const history = useVoteHistory(tab === 'history')
@@ -100,7 +100,7 @@ export function VotesPage({ tab = 'active' }: Partial<VotesSearch>) {
           title="Голосование"
           description="Решения клана: голосуйте и меняйте решение, пока голосование открыто."
         />
-        {hasRole(role, MANAGER_ROLES) ? (
+        {hasOfficerPermission('votes.manage') ? (
           <Link
             to="/votes/new"
             className={buttonVariants({ className: 'mb-4 no-underline' })}

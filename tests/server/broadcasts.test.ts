@@ -119,6 +119,33 @@ describe('broadcasts: access (BRC, ACL)', () => {
   })
 })
 
+describe('officer permissions', () => {
+  it('checks the three independent broadcast privileges', async () => {
+    const officerUser = await createProfiledUser(db, 'officer', {
+      officerPermissions: [],
+    })
+    const officer = await actorOf(db, officerUser.id)
+
+    await rejects(listDrafts(deps, officer), 'forbidden')
+    await rejects(listBroadcastTemplates(deps, officer), 'forbidden')
+    await rejects(
+      listBroadcastSubscriptions(deps, officer, { limit: 20 }),
+      'forbidden',
+    )
+  })
+
+  it('lets a sender apply shared templates without managing them', async () => {
+    const officerUser = await createProfiledUser(db, 'officer', {
+      officerPermissions: ['broadcasts.send'],
+    })
+    const officer = await actorOf(db, officerUser.id)
+
+    await expect(listBroadcastTemplates(deps, officer)).resolves.toMatchObject({
+      items: [],
+    })
+  })
+})
+
 describe('broadcasts/subscriptions (BRC-15, Q-112)', () => {
   it('returns only nick, role and messenger link states to managers', async () => {
     const manager = await roleActor('officer')

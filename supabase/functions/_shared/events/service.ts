@@ -4,6 +4,10 @@ import type { AppDeps } from '../app.ts'
 import { auditPerson, writeAudit, type AuditPerson } from '../audit/service.ts'
 import { requireRole, type Actor, type ProfiledActor } from '../auth/actor.ts'
 import {
+  hasOfficerPermission,
+  requireOfficerPermission,
+} from '../officer-permissions/service.ts'
+import {
   closeEventSchema,
   createEventSchema,
   EVENT_LIMITS,
@@ -48,9 +52,6 @@ import { syncEventMessages } from '../messenger/sync.ts'
 
 /** Читают и отвечают члены, офицеры и администраторы (ACL, EVT-04). */
 const ATTENDEES = INTERNAL_ROLES
-/** Создают события и шаблоны офицеры и администраторы. */
-export const EVENT_MANAGERS = ['officer', 'master', 'admin'] as const
-
 /** Курсор прошедших: `[closed_at, id]`. */
 const closedCursor = z
   .tuple([z.string().min(1).max(64), z.guid()])
@@ -101,10 +102,14 @@ async function summarize(
   viewer: ProfiledActor,
 ): Promise<EventSummary[]> {
   const ids = rows.map((row) => row.id)
-  const [counts, answers] = await Promise.all([
-    eventRepository.answerCounts(db, ids),
-    eventRepository.answersOf(db, ids, viewer.userId),
-  ])
+  const [counts, answers, canManageEvents, canDeleteEvents] = await Promise.all(
+    [
+      eventRepository.answerCounts(db, ids),
+      eventRepository.answersOf(db, ids, viewer.userId),
+      hasOfficerPermission(deps, viewer, 'events.manage'),
+      hasOfficerPermission(deps, viewer, 'events.delete_own'),
+    ],
+  )
   const now = deps.now()
   const summaries = rows.map((row) => {
     const eventCounts = emptyCounts()
@@ -133,7 +138,14 @@ async function summarize(
       counts: eventCounts,
       myAnswer: answers.get(row.id) ?? null,
       canAnswer: answerState(row, now) === 'open',
-      canManage: row.closed_at === null && canManageEvent(viewer, row),
+      canManage:
+        row.closed_at === null &&
+        canManageEvents &&
+        canManageEvent(viewer, row),
+      canDelete:
+        row.closed_at === null &&
+        canDeleteEvents &&
+        canManageEvent(viewer, row),
     }
   })
   return withMessageCounts(db, 'event', summaries)
@@ -264,14 +276,23 @@ async function loadEventDetails(
     loadPeople(deps, id, closed),
     eventGroups(deps.db, id),
   ])
-  const role = viewer.profile.access_role
-  const canViewFullRoster = (EVENT_MANAGERS as readonly string[]).includes(role)
+  const canViewFullRoster = await hasOfficerPermission(
+    deps,
+    viewer,
+    'events.view_full_roster',
+  )
   const ownGroup = canViewFullRoster
     ? null
     : (groups.find((group) =>
         group.members.some((member) => member.userId === viewer.userId),
       ) ?? null)
   const visibleGroups = canViewFullRoster ? groups : ownGroup ? [ownGroup] : []
+  const canManageGroups = await hasOfficerPermission(
+    deps,
+    viewer,
+    'groups.manage',
+  )
+  const canClose = await hasOfficerPermission(deps, viewer, 'events.close')
   const visibleMemberIds = new Set(
     visibleGroups.flatMap((group) =>
       group.members.map((member) => member.userId),
@@ -286,9 +307,8 @@ async function loadEventDetails(
       ? people.participantsTruncated
       : false,
     groups: visibleGroups,
-    canManageGroups:
-      !closed && (EVENT_MANAGERS as readonly string[]).includes(role),
-    canClose: !closed && canManageEvent(viewer, row),
+    canManageGroups: !closed && canManageGroups,
+    canClose: !closed && canClose && canManageEvent(viewer, row),
   }
 }
 
@@ -324,7 +344,7 @@ export async function createEvent(
   actor: Actor,
   body: unknown,
 ): Promise<EventDetails> {
-  const manager = requireRole(actor, EVENT_MANAGERS)
+  const manager = await requireOfficerPermission(deps, actor, 'events.manage')
   const input = parseBody(createEventSchema, body)
   const values = {
     title: input.title,
@@ -380,7 +400,7 @@ export async function updateEvent(
   actor: Actor,
   body: unknown,
 ): Promise<EventDetails> {
-  const manager = requireRole(actor, EVENT_MANAGERS)
+  const manager = await requireOfficerPermission(deps, actor, 'events.manage')
   const input = parseBody(updateEventSchema, body)
   const values = {
     title: input.title,
@@ -412,7 +432,11 @@ export async function deleteEvent(
   actor: Actor,
   body: unknown,
 ): Promise<{ deleted: true }> {
-  const manager = requireRole(actor, EVENT_MANAGERS)
+  const manager = await requireOfficerPermission(
+    deps,
+    actor,
+    'events.delete_own',
+  )
   const { id } = parseBody(eventIdSchema, body)
   await withTransaction(deps.db, async (tx) => {
     const event = await lockManaged(tx, manager, id)
@@ -492,7 +516,7 @@ export async function closeEvent(
   actor: Actor,
   body: unknown,
 ): Promise<EventDetails> {
-  const manager = requireRole(actor, EVENT_MANAGERS)
+  const manager = await requireOfficerPermission(deps, actor, 'events.close')
   const { id } = parseBody(closeEventSchema, body)
   await withTransaction(deps.db, async (tx) => {
     const event = await lockManaged(tx, manager, id)
@@ -537,18 +561,20 @@ function sameSecret(given: string, expected: string) {
  * с верным `x-cron-secret` (Q-42). Без секрета у функции расписание не
  * принимается.
  */
-function weeklyCaller(
+async function weeklyCaller(
   deps: AppDeps,
   actor: Actor,
   cronSecret: string | null,
-): AuditPerson | null {
+): Promise<AuditPerson | null> {
   if (cronSecret !== null) {
     if (!deps.cronSecret || !sameSecret(cronSecret, deps.cronSecret)) {
       throw new ApiError('forbidden')
     }
     return null
   }
-  return auditPerson(requireRole(actor, EVENT_MANAGERS))
+  return auditPerson(
+    await requireOfficerPermission(deps, actor, 'events.manage'),
+  )
 }
 
 /**
@@ -560,7 +586,7 @@ export async function ensureWeeklyEvents(
   actor: Actor,
   cronSecret: string | null,
 ): Promise<EnsureWeeklyResponse> {
-  const caller = weeklyCaller(deps, actor, cronSecret)
+  const caller = await weeklyCaller(deps, actor, cronSecret)
   const now = deps.now()
   return withTransaction(deps.db, async (tx) => {
     const result: EnsureWeeklyResponse = { created: [], existing: [] }
@@ -601,7 +627,19 @@ export async function listTemplates(
   deps: AppDeps,
   actor: Actor,
 ): Promise<EventTemplatesResponse> {
-  requireRole(actor, EVENT_MANAGERS)
+  const canCreateEvents = await hasOfficerPermission(
+    deps,
+    actor,
+    'events.manage',
+  )
+  const canManageTemplates = await hasOfficerPermission(
+    deps,
+    actor,
+    'events.templates',
+  )
+  if (!canCreateEvents && !canManageTemplates) {
+    throw new ApiError('forbidden')
+  }
   const rows = await eventRepository.templates(deps.db, EVENT_LIMITS.templates)
   return {
     items: rows.map((row) => ({
@@ -628,7 +666,11 @@ export async function saveTemplate(
   actor: Actor,
   body: unknown,
 ): Promise<EventTemplatesResponse> {
-  const manager = requireRole(actor, EVENT_MANAGERS)
+  const manager = await requireOfficerPermission(
+    deps,
+    actor,
+    'events.templates',
+  )
   const input = parseBody(saveTemplateSchema, body)
   await withTransaction(deps.db, async (tx) => {
     await eventRepository.lockTemplates(tx)
@@ -661,7 +703,11 @@ export async function deleteTemplate(
   actor: Actor,
   body: unknown,
 ): Promise<EventTemplatesResponse> {
-  const manager = requireRole(actor, EVENT_MANAGERS)
+  const manager = await requireOfficerPermission(
+    deps,
+    actor,
+    'events.templates',
+  )
   const { id } = parseBody(templateIdSchema, body)
   await withTransaction(deps.db, async (tx) => {
     const deleted = await eventRepository.deleteTemplate(tx, id)
@@ -686,7 +732,7 @@ export async function templateNextDate(
   actor: Actor,
   body: unknown,
 ): Promise<TemplateNextResponse> {
-  requireRole(actor, EVENT_MANAGERS)
+  await requireOfficerPermission(deps, actor, 'events.manage')
   const { id } = parseBody(templateIdSchema, body)
   const template = await eventRepository.findTemplate(deps.db, id)
   if (!template) {

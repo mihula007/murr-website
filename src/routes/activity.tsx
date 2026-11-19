@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { createRoute } from '@tanstack/react-router'
-import { sectionRoles } from '@/app/navigation'
+import { sectionPermissions, sectionRoles } from '@/app/navigation'
 import { RouteGate } from '@/components/route-gate'
 import {
   ActivityPage,
@@ -12,7 +12,10 @@ import { rootRoute } from './root'
 function ActivityRoute(): ReactNode {
   const search = activityRoute.useSearch()
   return (
-    <RouteGate roles={sectionRoles('activity')}>
+    <RouteGate
+      roles={sectionRoles('activity')}
+      permissions={sectionPermissions('activity')}
+    >
       <ActivityPage {...search} />
     </RouteGate>
   )

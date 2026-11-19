@@ -18,6 +18,7 @@ import type { Executor } from '../db/client.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { notificationRepository, sectionViewRepository } from './repository.ts'
+import { hasOfficerPermission } from '../officer-permissions/service.ts'
 
 export type { NotificationKind }
 
@@ -141,6 +142,15 @@ export async function notificationSummary(
   const viewer = requireRole(actor, NOTIFICATION_VIEWERS)
   const role = viewer.profile.access_role as AccessRole
   const sections = newsSectionsFor(role)
+  if (
+    role === 'officer' &&
+    !(await hasOfficerPermission(deps, viewer, 'applications.review'))
+  ) {
+    const index = sections.indexOf('applications')
+    if (index !== -1) {
+      sections.splice(index, 1)
+    }
+  }
   const seen = await sectionViewRepository.ensure(
     deps.db,
     viewer.userId,
@@ -173,6 +183,13 @@ export async function markSectionSeen(
   requireRole(actor, NOTIFICATION_VIEWERS)
   const { section } = parseBody(sectionSeenSchema, body)
   const viewer = requireRole(actor, NEWS_SECTION_ROLES[section])
+  if (
+    section === 'applications' &&
+    viewer.profile.access_role === 'officer' &&
+    !(await hasOfficerPermission(deps, viewer, 'applications.review'))
+  ) {
+    throw new ApiError('forbidden')
+  }
   await sectionViewRepository.markSeen(
     deps.db,
     viewer.userId,

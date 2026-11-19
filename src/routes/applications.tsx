@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { createRoute } from '@tanstack/react-router'
-import { sectionRoles } from '@/app/navigation'
+import { sectionPermissions, sectionRoles } from '@/app/navigation'
 import { RouteGate } from '@/components/route-gate'
 import { ApplicationPage } from '@/features/applications/application-page'
 import {
@@ -14,7 +14,7 @@ const roles = sectionRoles('applications')
 function ApplicationsRoute(): ReactNode {
   const search = applicationsRoute.useSearch()
   return (
-    <RouteGate roles={roles}>
+    <RouteGate roles={roles} permissions={sectionPermissions('applications')}>
       <ApplicationsPage {...search} />
     </RouteGate>
   )
@@ -23,7 +23,7 @@ function ApplicationsRoute(): ReactNode {
 function ApplicationRoute(): ReactNode {
   const { id } = applicationRoute.useParams()
   return (
-    <RouteGate roles={roles}>
+    <RouteGate roles={roles} permissions={sectionPermissions('applications')}>
       <ApplicationPage key={id} id={id} />
     </RouteGate>
   )

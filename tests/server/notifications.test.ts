@@ -50,8 +50,11 @@ afterAll(() => db.destroy())
 const rejects = (promise: Promise<unknown>, code: string) =>
   expect(promise).rejects.toMatchObject({ code })
 
-async function roleActor(role: AccessRole) {
-  const user = await createProfiledUser(db, role)
+async function roleActor(
+  role: AccessRole,
+  options: { officerPermissions?: readonly string[] } = {},
+) {
+  const user = await createProfiledUser(db, role, options)
   return { user, actor: await actorOf(db, user.id) }
 }
 
@@ -295,6 +298,22 @@ describe('notifications: section counters (NTF-09–12, Q-67)', () => {
     const sections = (await notificationSummary(deps, admin.actor)).sections
     expect(sections.applications).toBe(1)
     expect(sections.accounts).toBe(1)
+  })
+
+  it('hides application counts and rejects opening its counter without review permission', async () => {
+    const officer = await roleActor('officer', { officerPermissions: [] })
+    const applicant = await createProfiledUser(db, 'applicant')
+    await applicationRepository.create(db, applicant.id, [
+      'https://example.com/gear.png',
+    ])
+
+    expect(
+      (await notificationSummary(deps, officer.actor)).sections,
+    ).not.toHaveProperty('applications')
+    await rejects(
+      markSectionSeen(deps, officer.actor, { section: 'applications' }),
+      'forbidden',
+    )
   })
 
   it('resets only the opened section of the viewer (NTF-11)', async () => {

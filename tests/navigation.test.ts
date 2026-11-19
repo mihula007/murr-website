@@ -14,12 +14,7 @@ const MEMBER_SECTIONS = [
   'market',
   'rating',
 ]
-const OFFICER_SECTIONS = [
-  ...MEMBER_SECTIONS,
-  'applications',
-  'activity',
-  'broadcast',
-]
+const OFFICER_SECTIONS = [...MEMBER_SECTIONS]
 
 const expected: Record<AccessRole, string[]> = {
   guest: [],
@@ -27,12 +22,25 @@ const expected: Record<AccessRole, string[]> = {
   reader: [],
   member: MEMBER_SECTIONS,
   officer: OFFICER_SECTIONS,
-  master: OFFICER_SECTIONS,
-  admin: [...OFFICER_SECTIONS, 'admin'],
+  master: [
+    ...OFFICER_SECTIONS,
+    'applications',
+    'activity',
+    'broadcast',
+    'permissions',
+  ],
+  admin: [
+    ...OFFICER_SECTIONS,
+    'applications',
+    'activity',
+    'broadcast',
+    'permissions',
+    'admin',
+  ],
 }
 
 function visibleIds(role: AccessRole) {
-  return visibleNavigation(role).flatMap((category) =>
+  return visibleNavigation(role, []).flatMap((category) =>
     category.sections.map((section) => section.id),
   )
 }
@@ -56,7 +64,11 @@ describe('visibleNavigation', () => {
       'Клан',
       'Сообщество',
     ])
-    const officer = visibleNavigation('officer')
+    const officer = visibleNavigation('officer', [
+      'applications.review',
+      'activity.view_export',
+      'broadcasts.send',
+    ])
     expect(officer.map((c) => c.label)).toEqual([
       'Клан',
       'Сообщество',
@@ -68,8 +80,11 @@ describe('visibleNavigation', () => {
       'Рассылка',
     ])
     expect(
-      visibleNavigation('admin')[2]?.sections.map((s) => s.label),
+      visibleNavigation('admin', [])[2]?.sections.map((s) => s.label),
     ).toContain('Администрирование')
+    expect(
+      visibleNavigation('master', [])[2]?.sections.map((s) => s.label),
+    ).toContain('Мастерка')
   })
 })
 
@@ -79,9 +94,12 @@ describe('canAccessPath', () => {
     expect(canAccessPath('reader', '/events')).toBe(false)
     expect(canAccessPath('member', '/votes')).toBe(true)
     expect(canAccessPath('member', '/admin')).toBe(false)
-    expect(canAccessPath('officer', '/applications')).toBe(true)
+    expect(canAccessPath('officer', '/applications', [])).toBe(false)
+    expect(
+      canAccessPath('officer', '/applications', ['applications.review']),
+    ).toBe(true)
     expect(canAccessPath('officer', '/admin')).toBe(false)
-    expect(canAccessPath('master', '/applications')).toBe(true)
+    expect(canAccessPath('master', '/applications', [])).toBe(true)
     expect(canAccessPath('master', '/admin')).toBe(false)
     expect(canAccessPath('admin', '/admin')).toBe(true)
   })

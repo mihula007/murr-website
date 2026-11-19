@@ -70,6 +70,28 @@ async function setup() {
   return { officer, event, a, b, c }
 }
 
+describe('officer permissions', () => {
+  it('requires the matching event and group permissions for every management operation', async () => {
+    const { actor: admin } = await roleActor('admin')
+    const event = await createEvent(deps, admin, fields)
+    const officerUser = await createProfiledUser(db, 'officer', {
+      officerPermissions: [],
+    })
+    const officer = await actorOf(db, officerUser.id)
+
+    await rejects(createGroup(deps, officer, {}), 'forbidden')
+    await rejects(renameGroup(deps, officer, {}), 'forbidden')
+    await rejects(deleteGroup(deps, officer, {}), 'forbidden')
+    await rejects(moveMember(deps, officer, {}), 'forbidden')
+    await rejects(setGroupLeader(deps, officer, {}), 'forbidden')
+    await rejects(listGroupTemplates(deps, officer), 'forbidden')
+    await rejects(saveGroupTemplate(deps, officer, {}), 'forbidden')
+    await rejects(deleteGroupTemplate(deps, officer, {}), 'forbidden')
+    await rejects(applyGroupTemplate(deps, officer, {}), 'forbidden')
+    expect((await getEvent(deps, officer, { id: event.id })).id).toBe(event.id)
+  })
+})
+
 /** Группы события как `{ имя: [userId, …] }` с лидером в конце имени. */
 function layout(
   groups: { name: string; members: { userId: string; isLeader: boolean }[] }[],

@@ -347,6 +347,25 @@ await insert(
   }),
 )
 
+// Для ручной проверки: первый офицер — с несколькими правами, остальные —
+// без дополнительных прав по умолчанию.
+const sampleOfficer = byRole('officer')[0]
+if (sampleOfficer) {
+  await insert(
+    'officer_permissions',
+    [
+      'applications.review',
+      'applications.decide_direct',
+      'broadcasts.send',
+      'events.manage',
+      'groups.manage',
+    ].map((permission_code) => ({
+      officer_id: sampleOfficer.id,
+      permission_code,
+    })),
+  )
+}
+
 // Привязка Telegram у каждого второго участника клана: окно подтверждения
 // анонса показывает получателей (TGM-14, Q-109). Чаты выдуманные — локальная
 // функция отправляет в поддельный бот.

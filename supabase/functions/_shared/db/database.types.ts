@@ -1026,6 +1026,30 @@ export type Database = {
           },
         ]
       }
+      officer_permissions: {
+        Row: {
+          officer_id: string
+          permission_code: string
+        }
+        ComputedFields: never
+        Insert: {
+          officer_id: string
+          permission_code: string
+        }
+        Update: {
+          officer_id?: string
+          permission_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'officer_permissions_officer_id_fkey'
+            columns: ['officer_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       profiles: {
         Row: {
           about: string | null

@@ -9,8 +9,8 @@ import { DesktopNav } from './desktop-nav'
 import { MobileNav } from './mobile-nav'
 
 export function Header() {
-  const { role } = useAccess()
-  const categories = visibleNavigation(role)
+  const { role, officerPermissions } = useAccess()
+  const categories = visibleNavigation(role, officerPermissions)
   const notifications = useHeaderNotifications()
   return (
     <header className="sticky top-0 z-30 border-b border-border-strong bg-surface-header/93 backdrop-blur-[14px]">

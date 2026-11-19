@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { AccessProvider, useAccess } from '@/app/access'
 import { RouteGate } from '@/components/route-gate'
 import { SessionProvider } from '@/features/auth/session'
+import { renderWithRouter } from './support/render-with-router'
 
 const sessionMock = vi.hoisted(() => ({
   value: { status: 'signedOut' } as unknown,
@@ -20,6 +21,11 @@ function Probe() {
       {nickname ? `:${nickname}` : ''}
     </p>
   )
+}
+
+function PermissionProbe() {
+  const { hasOfficerPermission } = useAccess()
+  return <p>{String(hasOfficerPermission('applications.review'))}</p>
 }
 
 describe('AccessProvider from the session', () => {
@@ -54,6 +60,23 @@ describe('AccessProvider from the session', () => {
       data: { state: 'ready', profile: { role: 'master' } },
     })
     expect(screen.getByText('master:ready')).toBeInTheDocument()
+  })
+
+  it('reads officer permissions from the account profile', async () => {
+    await renderAccess(
+      signedIn,
+      {
+        isPending: false,
+        isError: false,
+        data: {
+          state: 'ready',
+          profile: { role: 'officer' },
+          officerPermissions: ['applications.review'],
+        },
+      },
+      <PermissionProbe />,
+    )
+    expect(screen.getByText('true')).toBeInTheDocument()
   })
 
   it('provides the current nickname from the profile', async () => {
@@ -95,6 +118,33 @@ describe('AccessProvider from the session', () => {
     )
     expect(screen.getByText('Проверяем доступ…')).toBeInTheDocument()
     expect(screen.queryByText('Закрытое')).not.toBeInTheDocument()
+  })
+
+  it('blocks an officer route when its permission is absent', async () => {
+    await renderWithRouter(
+      <AccessProvider {...{ role: 'officer' as const }} officerPermissions={[]}>
+        <RouteGate roles={['officer']} permissions={['applications.review']}>
+          <p>Закрытое</p>
+        </RouteGate>
+      </AccessProvider>,
+      { path: '/protected' },
+    )
+    expect(screen.getByText(/Нет доступа/)).toBeInTheDocument()
+    expect(screen.queryByText('Закрытое')).not.toBeInTheDocument()
+  })
+
+  it('allows an officer route when its permission is present', async () => {
+    render(
+      <AccessProvider
+        {...{ role: 'officer' as const }}
+        officerPermissions={['applications.review']}
+      >
+        <RouteGate roles={['officer']} permissions={['applications.review']}>
+          <p>Доступно</p>
+        </RouteGate>
+      </AccessProvider>,
+    )
+    expect(screen.getByText('Доступно')).toBeInTheDocument()
   })
 
   it('offers a retry when the profile fails to load', async () => {

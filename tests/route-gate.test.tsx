@@ -1,7 +1,8 @@
 import { screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ACCESS_ROLES } from '@/app/access'
-import { NAV_SECTIONS } from '@/app/navigation'
+import { canAccessPath, NAV_SECTIONS } from '@/app/navigation'
+import type { NavSection } from '@/app/navigation'
 import { renderApp } from './support/render-app'
 
 describe('контроль доступа к маршрутам', () => {
@@ -49,14 +50,32 @@ describe('контроль доступа к маршрутам', () => {
     'роль %s получает доступ ровно к разделам из таблицы',
     async (role) => {
       for (const section of NAV_SECTIONS) {
-        const view = await renderApp({ role, path: section.path })
-        const allowed = section.roles.includes(role)
+        const permissions =
+          role === 'officer' ? ((section as NavSection).permissions ?? []) : []
+        const view = await renderApp({
+          role,
+          path: section.path,
+          officerPermissions: permissions,
+        })
+        const allowed = canAccessPath(role, section.path, permissions)
+        if (section.id === 'permissions') {
+          view.unmount()
+          continue
+        }
         const heading = await screen.findByRole('heading', { level: 1 })
         expect(heading).toHaveTextContent(
           allowed ? section.label : 'Нет доступа',
         )
         view.unmount()
       }
+    },
+  )
+
+  it.each(['master', 'admin'] as const)(
+    '%s может открыть «Мастерку»',
+    async (role) => {
+      await renderApp({ role, path: '/permissions' })
+      expect(await screen.findByText('Загружаем офицеров…')).toBeVisible()
     },
   )
 

@@ -22,6 +22,7 @@ import {
 } from './materials-api'
 import { RichText } from './rich-text'
 import type { MaterialSection } from './section'
+import { useAccess } from '@/app/access'
 
 export function BackToFeed({ section }: { section: MaterialSection }) {
   return (
@@ -102,6 +103,7 @@ export function MaterialPage({
   section: MaterialSection
   id: string
 }) {
+  const { hasOfficerPermission } = useAccess()
   const navigate = useNavigate()
   const material = useMaterial(section, id)
   const unpublish = useUnpublishMaterial(section)
@@ -148,7 +150,9 @@ export function MaterialPage({
           />
         </div>
       ) : null}
-      {data.canManage ? (
+      {data.canManage &&
+      (section.kind !== 'publications' ||
+        hasOfficerPermission('publications.manage_own')) ? (
         <div className="flex flex-wrap gap-2 max-xs:grid max-xs:grid-cols-1">
           <Link
             to={`${section.path}/$id/edit`}

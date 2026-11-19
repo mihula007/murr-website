@@ -40,7 +40,7 @@ export const createVoteRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/votes/new',
   component: () => (
-    <RouteGate roles={MANAGER_ROLES}>
+    <RouteGate roles={MANAGER_ROLES} permissions={['votes.manage']}>
       <CreateVotePage />
     </RouteGate>
   ),

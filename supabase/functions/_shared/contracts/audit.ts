@@ -11,6 +11,7 @@ export const AUDIT_CATEGORIES = [
   'publications',
   'market',
   'broadcast',
+  'officer_permissions',
 ] as const
 export type AuditCategory = (typeof AUDIT_CATEGORIES)[number]
 
@@ -23,6 +24,7 @@ export const AUDIT_CATEGORY_LABELS: Record<AuditCategory, string> = {
   publications: 'Публикации',
   market: 'Рынок',
   broadcast: 'Рассылка',
+  officer_permissions: 'Права офицеров',
 }
 
 /** Журнал — большой список (Q-68): курсор по убыванию, фильтры на сервере. */

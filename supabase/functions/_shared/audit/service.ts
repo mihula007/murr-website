@@ -56,6 +56,8 @@ const DETAIL_KEYS = new Set([
   'vk_sent',
   'vk_failed',
   'group_id',
+  'permission_code',
+  'enabled',
 ])
 
 type DetailValue = string | number | boolean | null | string[]

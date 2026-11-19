@@ -34,7 +34,7 @@ function EventRoute(): ReactNode {
 function EditEventRoute(): ReactNode {
   const { id } = editEventRoute.useParams()
   return (
-    <RouteGate roles={MANAGER_ROLES}>
+    <RouteGate roles={MANAGER_ROLES} permissions={['events.manage']}>
       <EditEventPage key={id} id={id} />
     </RouteGate>
   )
@@ -52,7 +52,11 @@ export const createEventRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/events/new',
   component: () => (
-    <RouteGate roles={MANAGER_ROLES}>
+    <RouteGate
+      roles={MANAGER_ROLES}
+      permissions={['events.manage', 'events.templates']}
+      permissionMode="any"
+    >
       <CreateEventPage />
     </RouteGate>
   ),

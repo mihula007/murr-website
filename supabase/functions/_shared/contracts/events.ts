@@ -166,6 +166,8 @@ export type EventSummary = {
   canAnswer: boolean
   /** Текущий пользователь может править и удалять (ACL-04, Q-47). */
   canManage: boolean
+  /** Незакрытое событие можно удалить с отдельным правом (OFP). */
+  canDelete?: boolean
   /** Сообщений в обсуждении (DSC-01); необязательно для совместимости. */
   messageCount?: number
 }

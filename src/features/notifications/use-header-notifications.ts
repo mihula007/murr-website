@@ -32,7 +32,7 @@ export function useHeaderNotifications() {
   const { section: active } = useActiveSection()
 
   const sections = enabled ? summary.data?.sections : undefined
-  const activeNews = active ? NAV_SECTION[active.id] : undefined
+  const activeNews = active ? NAV_SECTION[active.id as NavSectionId] : undefined
   const activeCount = activeNews ? (sections?.[activeNews] ?? 0) : 0
   const { mutate } = markSeen
   useEffect(() => {

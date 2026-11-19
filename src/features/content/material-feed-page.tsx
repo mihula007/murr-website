@@ -52,7 +52,7 @@ export function MaterialFeedPage({
   search: Partial<MaterialSearch>
 }) {
   const navigate = useNavigate()
-  const { role } = useAccess()
+  const { role, hasOfficerPermission } = useAccess()
   const tab = search.tab ?? 'published'
   const page = search.page ?? 1
   const category = section.categories.includes(search.category ?? '')
@@ -65,7 +65,10 @@ export function MaterialFeedPage({
     drafts ? { tab } : { tab, page, category, search: query },
   )
   const [draftQuery, setDraftQuery] = useState(query ?? '')
-  const canCreate = hasRole(role, section.creators)
+  const canCreate =
+    section.kind === 'publications'
+      ? hasOfficerPermission('publications.manage_own')
+      : hasRole(role, section.creators)
 
   const go = (next: Partial<MaterialSearch>) =>
     void navigate({

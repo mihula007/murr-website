@@ -24,6 +24,7 @@ import {
   useGroupTemplates,
 } from '../groups-api'
 import { GroupTemplateBuilder } from './group-template-builder'
+import { useAccess } from '@/app/access'
 
 type GroupTemplatesDialogProps = {
   open: boolean
@@ -59,6 +60,9 @@ export function GroupTemplatesDialog({
   onOpenChange,
   event,
 }: GroupTemplatesDialogProps) {
+  const { hasOfficerPermission } = useAccess()
+  const canManageTemplates = hasOfficerPermission('groups.templates')
+  const canManageGroups = hasOfficerPermission('groups.manage')
   const templates = useGroupTemplates(open)
   const apply = useApplyGroupTemplate()
   const remove = useDeleteGroupTemplate()
@@ -120,7 +124,7 @@ export function GroupTemplatesDialog({
               автор: {template.createdBy?.gameNickname ?? 'Пользователь удалён'}
             </p>
             <div className="grid grid-cols-2 gap-2 max-xs:grid-cols-1">
-              {event ? (
+              {event && canManageGroups ? (
                 <Button
                   type="button"
                   variant="secondary"
@@ -131,15 +135,17 @@ export function GroupTemplatesDialog({
                   Применить
                 </Button>
               ) : null}
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="text-destructive"
-                onClick={() => setDeleting(template)}
-              >
-                Удалить
-              </Button>
+              {canManageTemplates ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={() => setDeleting(template)}
+                >
+                  Удалить
+                </Button>
+              ) : null}
             </div>
           </li>
         ))}
@@ -158,14 +164,16 @@ export function GroupTemplatesDialog({
             группы; включаются только ответившие «Приду».
           </DialogDescription>
           <div className="grid grid-cols-2 gap-2 max-xs:grid-cols-1">
-            <Button
-              type="button"
-              disabled={full}
-              onClick={() => setBuilding({ name: '', groups: [] })}
-            >
-              Новый шаблон
-            </Button>
-            {event ? (
+            {canManageTemplates ? (
+              <Button
+                type="button"
+                disabled={full}
+                onClick={() => setBuilding({ name: '', groups: [] })}
+              >
+                Новый шаблон
+              </Button>
+            ) : null}
+            {event && canManageTemplates ? (
               <Button
                 type="button"
                 variant="secondary"

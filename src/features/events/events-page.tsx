@@ -8,7 +8,7 @@ import {
   RECURRING_PRESETS,
 } from '@contracts/events'
 import { SMALL_LIST_LIMIT } from '@contracts/paging'
-import { hasRole, INTERNAL_ROLES, MANAGER_ROLES, useAccess } from '@/app/access'
+import { hasRole, INTERNAL_ROLES, useAccess } from '@/app/access'
 import { EmptyState } from '@/components/states/empty-state'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
@@ -54,6 +54,7 @@ const sectionTitleClass = 'm-0 font-sans text-base font-bold text-foreground'
  * кнопка — запасной путь: создаёт только недостающие выпуски (Q-42).
  */
 function WeeklyEvents() {
+  const { hasOfficerPermission } = useAccess()
   const ensure = useEnsureWeeklyEvents()
   const [templates, setTemplates] = useState(false)
 
@@ -96,23 +97,29 @@ function WeeklyEvents() {
         })}
       </ul>
       <div className="flex flex-wrap gap-2 max-xs:grid">
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={ensure.isPending}
-          onClick={() => void run()}
-        >
-          <CalendarPlus size={18} aria-hidden="true" />
-          {ensure.isPending ? 'Создаём…' : 'Создать постоянные события недели'}
-        </Button>
+        {hasOfficerPermission('events.manage') ? (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={ensure.isPending}
+            onClick={() => void run()}
+          >
+            <CalendarPlus size={18} aria-hidden="true" />
+            {ensure.isPending
+              ? 'Создаём…'
+              : 'Создать постоянные события недели'}
+          </Button>
+        ) : null}
         {/* Библиотека групп открывается и из расписания (GRP-12). */}
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => setTemplates(true)}
-        >
-          Шаблоны групп
-        </Button>
+        {hasOfficerPermission('groups.templates') ? (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setTemplates(true)}
+          >
+            Шаблоны групп
+          </Button>
+        ) : null}
       </div>
       <GroupTemplatesDialog open={templates} onOpenChange={setTemplates} />
     </Panel>
@@ -124,8 +131,8 @@ function WeeklyEvents() {
 // по умолчанию — те же, что у схемы.
 export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
   const navigate = useNavigate()
-  const { role } = useAccess()
-  const isManager = hasRole(role, MANAGER_ROLES)
+  const { role, hasOfficerPermission } = useAccess()
+  const canManageEvents = hasOfficerPermission('events.manage')
   const notifications = useNotificationSummary(hasRole(role, INTERNAL_ROLES))
   // Счётчики нужны на обеих вкладках: список актуальных малый и кэшируется.
   const active = useActiveEvents()
@@ -186,7 +193,7 @@ export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
           title="События"
           description="Расписание клана: отвечайте «Приду», «Не приду» или «50/50» до начала события. Время — московское."
         />
-        {isManager ? (
+        {canManageEvents ? (
           <Link
             to="/events/new"
             className={cn(buttonVariants(), 'mb-4 no-underline max-xs:w-full')}
@@ -195,7 +202,7 @@ export function EventsPage({ tab = 'active' }: Partial<EventsSearch>) {
           </Link>
         ) : null}
       </div>
-      {isManager ? <WeeklyEvents /> : null}
+      {canManageEvents ? <WeeklyEvents /> : null}
       <Tabs
         value={tab}
         onValueChange={(value) =>

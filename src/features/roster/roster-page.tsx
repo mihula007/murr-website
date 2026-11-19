@@ -303,7 +303,7 @@ export function RosterPage({
   classId,
   view = 'members',
 }: Partial<RosterSearch>) {
-  const { role } = useAccess()
+  const { role, hasOfficerPermission } = useAccess()
   const userId = useSession().session?.user.id
   const navigate = useNavigate()
   const stats = useRosterStats()
@@ -316,7 +316,7 @@ export function RosterPage({
   } | null>(null)
   const [search, setSearch] = useState('')
   const canManageRoles = role === 'master'
-  const canRestore = role === 'officer' || role === 'master' || role === 'admin'
+  const canRestore = hasOfficerPermission('roster.reader_roles')
   const showReaders = canRestore && view === 'readers'
   const go = (search: RosterSearch) =>
     void navigate({ to: '/roster', search, replace: true })

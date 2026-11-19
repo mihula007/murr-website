@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useForm, useStore } from '@tanstack/react-form'
 import { Send, X } from 'lucide-react'
 import { z } from 'zod'
-import { hasRole, MANAGER_ROLES, useAccess } from '@/app/access'
+import { useAccess } from '@/app/access'
 import {
   BROADCAST_CHANNEL_LABELS,
   BROADCAST_CHANNELS,
@@ -210,9 +210,13 @@ function ChannelBadges({ channels }: { channels: BroadcastChannel[] }) {
 function Templates({
   current,
   onApply,
+  canSend,
+  canManageTemplates,
 }: {
   current: () => FormValues
   onApply: (values: Pick<FormValues, 'subject' | 'body' | 'channels'>) => void
+  canSend: boolean
+  canManageTemplates: boolean
 }) {
   const templates = useBroadcastTemplates()
   const save = useSaveBroadcastTemplate()
@@ -272,21 +276,23 @@ function Templates({
                   </span>
                 ) : null}
               </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() =>
-                  onApply({
-                    subject: template.subject ?? '',
-                    body: template.body,
-                    channels: template.channels,
-                  })
-                }
-              >
-                Применить
-              </Button>
-              {template.canDelete ? (
+              {canSend ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() =>
+                    onApply({
+                      subject: template.subject ?? '',
+                      body: template.body,
+                      channels: template.channels,
+                    })
+                  }
+                >
+                  Применить
+                </Button>
+              ) : null}
+              {canManageTemplates && template.canDelete ? (
                 <Button
                   type="button"
                   size="sm"
@@ -303,37 +309,41 @@ function Templates({
           ))}
         </ul>
       )}
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 max-[520px]:grid-cols-1">
-        <FormField
-          id="template-name"
-          label="Название шаблона"
-          error={
-            nameError ??
-            (serverNameError ? fieldMessage(serverNameError) : null)
-          }
-          className="min-w-0"
-        >
-          <Input
+      {canManageTemplates ? (
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 max-[520px]:grid-cols-1">
+          <FormField
             id="template-name"
-            value={name}
-            maxLength={BROADCAST_LIMITS.templateName}
-            onChange={(event) => setName(event.target.value)}
-            aria-invalid={nameError || serverNameError ? true : undefined}
-          />
-        </FormField>
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={save.isPending}
-          onClick={() => void saveTemplate()}
-        >
-          Сохранить как шаблон
-        </Button>
-      </div>
-      <p className="m-0 text-xs text-muted-foreground">
-        В шаблон попадают тема, текст и каналы. Не больше{' '}
-        {BROADCAST_LIMITS.templates} шаблонов на всех.
-      </p>
+            label="Название шаблона"
+            error={
+              nameError ??
+              (serverNameError ? fieldMessage(serverNameError) : null)
+            }
+            className="min-w-0"
+          >
+            <Input
+              id="template-name"
+              value={name}
+              maxLength={BROADCAST_LIMITS.templateName}
+              onChange={(event) => setName(event.target.value)}
+              aria-invalid={nameError || serverNameError ? true : undefined}
+            />
+          </FormField>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={save.isPending}
+            onClick={() => void saveTemplate()}
+          >
+            Сохранить как шаблон
+          </Button>
+        </div>
+      ) : null}
+      {canManageTemplates ? (
+        <p className="m-0 text-xs text-muted-foreground">
+          В шаблон попадают тема, текст и каналы. Не больше{' '}
+          {BROADCAST_LIMITS.templates} шаблонов на всех.
+        </p>
+      ) : null}
       <FormError
         message={
           save.error?.fields.limit
@@ -463,11 +473,15 @@ function BroadcastForm({
   source,
   recipients,
   onSaved,
+  canSend,
+  canManageTemplates,
 }: {
   initial: FormValues
   source: { kind: BroadcastSource; id: string } | null
   recipients: BroadcastRecipient[] | null
   onSaved: () => void
+  canSend: boolean
+  canManageTemplates: boolean
 }) {
   const save = useSaveDraft()
   const send = useSendAnnouncement()
@@ -710,36 +724,38 @@ function BroadcastForm({
                 : null
             }
           />
-          <div className="flex flex-wrap items-center gap-3">
-            <form.Subscribe selector={(state) => state.isSubmitting}>
-              {(submitting) => (
-                <Button
-                  type="submit"
-                  disabled={submitting}
-                  onClick={() => {
-                    intent.current = 'save'
-                  }}
-                >
-                  {submitting && intent.current === 'save'
-                    ? 'Сохраняем…'
-                    : 'Сохранить черновик'}
-                </Button>
-              )}
-            </form.Subscribe>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={chosen.length === 0 || checking}
-              aria-describedby="broadcast-send-hint"
-              onClick={() => {
-                intent.current = 'send'
-                void form.handleSubmit()
-              }}
-            >
-              <Send size={16} aria-hidden="true" />
-              {checking ? 'Проверяем…' : 'Отправить анонс'}
-            </Button>
-          </div>
+          {canSend ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <form.Subscribe selector={(state) => state.isSubmitting}>
+                {(submitting) => (
+                  <Button
+                    type="submit"
+                    disabled={submitting}
+                    onClick={() => {
+                      intent.current = 'save'
+                    }}
+                  >
+                    {submitting && intent.current === 'save'
+                      ? 'Сохраняем…'
+                      : 'Сохранить черновик'}
+                  </Button>
+                )}
+              </form.Subscribe>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={chosen.length === 0 || checking}
+                aria-describedby="broadcast-send-hint"
+                onClick={() => {
+                  intent.current = 'send'
+                  void form.handleSubmit()
+                }}
+              >
+                <Send size={16} aria-hidden="true" />
+                {checking ? 'Проверяем…' : 'Отправить анонс'}
+              </Button>
+            </div>
+          ) : null}
           <FormError message={sendError} />
           <p
             id="broadcast-send-hint"
@@ -797,6 +813,8 @@ function BroadcastForm({
         />
       </form>
       <Templates
+        canSend={canSend}
+        canManageTemplates={canManageTemplates}
         current={() => form.state.values}
         onApply={(values) => {
           form.setFieldValue('subject', values.subject)
@@ -812,11 +830,13 @@ function BroadcastForm({
 /** «Рассылка»: черновики, шаблоны и отправка анонса в Telegram и MAX (BRC, TGM, MAX). */
 export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
   const navigate = useNavigate()
-  const { role } = useAccess()
+  const { hasOfficerPermission } = useAccess()
   const { source, id } = searchParams
   const tab = searchParams.tab ?? 'prepare'
   const search = searchParams.q ?? ''
-  const canViewSubscriptions = hasRole(role, MANAGER_ROLES)
+  const canSend = hasOfficerPermission('broadcasts.send')
+  const canManageTemplates = hasOfficerPermission('broadcasts.templates')
+  const canViewSubscriptions = hasOfficerPermission('broadcasts.subscriptions')
   const target = source && id ? { source, id } : null
   const prefill = usePrefill(tab === 'prepare' ? target : null)
   // Черновик сохранён — форма чистая: переход без вопроса о потере данных.
@@ -870,6 +890,8 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
         source={target ? { kind: target.source, id: target.id } : null}
         recipients={data?.recipients ?? null}
         onSaved={target ? clearSource : () => undefined}
+        canSend={canSend}
+        canManageTemplates={canManageTemplates}
       />
     )
   }
@@ -893,25 +915,31 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
         }
       >
         <TabsList aria-label="Рассылка">
-          <TabsTrigger value="prepare">Подготовка</TabsTrigger>
+          {canSend || canManageTemplates ? (
+            <TabsTrigger value="prepare">Подготовка</TabsTrigger>
+          ) : null}
           {canViewSubscriptions ? (
             <TabsTrigger value="subscriptions">Подписки</TabsTrigger>
           ) : null}
         </TabsList>
-        <TabsContent value="prepare">
-          <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-5 max-[900px]:grid-cols-1">
-            <Card className="grid gap-4">
-              {target ? (
-                <p className="m-0 text-sm text-muted-foreground">
-                  Заполнено из контекста: {SOURCE_LABELS[target.source]}. Текст
-                  можно изменить.
-                </p>
+        {canSend || canManageTemplates ? (
+          <TabsContent value="prepare">
+            <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-5 max-[900px]:grid-cols-1">
+              {canSend || canManageTemplates ? (
+                <Card className="grid gap-4">
+                  {target ? (
+                    <p className="m-0 text-sm text-muted-foreground">
+                      Заполнено из контекста: {SOURCE_LABELS[target.source]}.
+                      Текст можно изменить.
+                    </p>
+                  ) : null}
+                  {form}
+                </Card>
               ) : null}
-              {form}
-            </Card>
-            <Drafts />
-          </div>
-        </TabsContent>
+              {canSend ? <Drafts /> : null}
+            </div>
+          </TabsContent>
+        ) : null}
         {canViewSubscriptions ? (
           <TabsContent value="subscriptions">
             <Card>
