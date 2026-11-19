@@ -120,6 +120,7 @@
 
 - The API addition is a new operation, so deployed older clients can continue using `roster/list` while the member tab uses `roster/page`.
 - The fixed background is selected by `classId`, never by member ID, nickname, role, or list position.
+- After manual review, align the scene to the right edge for archer, paladin, bard, mystic, guard, and blood-spirit cards so the main figure remains in view at card proportions.
 - Existing data, permissions, role changes, audit entries, notifications, homepage and event/group/rating list consumers stay on existing paths.
 - Search and class filter are included in query keys and server requests; new filter values begin at a fresh cursor.
 - E2E is added but not run locally; `npm run test:server` is run before step 4, and `npm run review:prepare` will reset local data before the manual review.

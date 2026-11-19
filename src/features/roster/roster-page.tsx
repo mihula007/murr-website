@@ -36,7 +36,10 @@ import { useSetRole } from '@/features/admin/api'
 import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
 import { cn } from '@/lib/utils'
-import { rosterBackgroundForClass } from './backgrounds'
+import {
+  rosterBackgroundForClass,
+  rosterBackgroundPositionForClass,
+} from './backgrounds'
 import { useRestoreReader, useRosterPages, useRosterStats } from './api'
 import { formatCharacterStat } from './character-stats'
 import { ReadersPanel } from './readers-panel'
@@ -212,7 +215,12 @@ function MemberCard({
           alt=""
           loading="lazy"
           src={rosterBackgroundForClass(member.classId)}
-          className="absolute inset-0 -z-10 size-full object-cover object-center"
+          className={cn(
+            'absolute inset-0 -z-10 size-full object-cover',
+            rosterBackgroundPositionForClass(member.classId) === 'right'
+              ? 'object-right'
+              : 'object-center',
+          )}
         />
       ) : null}
       <div

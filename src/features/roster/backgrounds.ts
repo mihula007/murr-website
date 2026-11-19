@@ -37,6 +37,13 @@ const backgrounds: Record<number, string> = {
   17: reaper,
 }
 
+/** Keep the main figure visible when a wide class scene is cropped to a card. */
+const rightAlignedBackgrounds = new Set([5, 6, 12, 13, 14, 15])
+
 export function rosterBackgroundForClass(classId: number) {
   return backgrounds[classId]
+}
+
+export function rosterBackgroundPositionForClass(classId: number) {
+  return rightAlignedBackgrounds.has(classId) ? 'right' : 'center'
 }
