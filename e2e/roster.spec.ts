@@ -1,4 +1,4 @@
-import { expect, test, type Browser } from '@playwright/test'
+import { expect, test, type Browser, type Page } from '@playwright/test'
 import {
   expectInternalMenu,
   hasHorizontalScroll,
@@ -24,6 +24,13 @@ test.beforeEach(async ({ page }) => {
   test.setTimeout(120_000)
   await skipSplash(page)
 })
+
+async function openFiltersWhenNarrow(page: Page) {
+  const button = page.getByRole('button', { name: 'Фильтры' })
+  if (await button.isVisible()) {
+    await button.click()
+  }
+}
 
 async function signedInPage(browser: Browser, email: string) {
   const context = await browser.newContext()
@@ -113,6 +120,7 @@ test('E2E-15: admin assigns a master who changes member, officer, and reader rol
   await signInUi(page, admin.email)
   await expectSignedIn(page)
   await page.goto('./#/admin')
+  await openFiltersWhenNarrow(page)
   await page
     .getByLabel('Поиск по нику, имени, email и классу')
     .fill(master.nickname)
