@@ -72,11 +72,13 @@
 
 - Modify: `supabase/functions/_shared/applications/service.ts`
 - Modify: `supabase/functions/_shared/broadcasts/service.ts`
+- Modify: `supabase/functions/_shared/events/service.ts`
+- Modify: `supabase/functions/_shared/groups/service.ts`
 - Modify: `supabase/functions/_shared/votes/service.ts`
 - Modify: `supabase/functions/_shared/activity/service.ts`
 - Modify: `supabase/functions/_shared/accounts/service.ts`
 - Modify: `supabase/functions/_shared/publications/service.ts`
-- Modify: `tests/server/applications.test.ts`, `tests/server/broadcasts.test.ts`, `tests/server/votes.test.ts`, `tests/server/activity.test.ts`, `tests/server/accounts.test.ts`, `tests/server/publications.test.ts`
+- Modify: `tests/server/applications.test.ts`, `tests/server/broadcasts.test.ts`, `tests/server/events.test.ts`, `tests/server/groups.test.ts`, `tests/server/votes.test.ts`, `tests/server/activity.test.ts`, `tests/server/accounts.test.ts`, `tests/server/publications.test.ts`
 
 **Interfaces:**
 
@@ -85,6 +87,8 @@
 - Создание/изменение голосований требуют `votes.manage`; завершение и удаление — `votes.complete_delete`; обычное участие членов в голосованиях остаётся доступно.
 - Для офицера история, сводки и экспорт активности требуют `activity.view_export`; обычные членские сводки, уже доступные всем членам, остаются доступны.
 - Изменение ролей чтеца требует `roster.reader_roles`; другие смены ролей не расширяются.
+- Создание/изменение ивента требует `events.manage`; его удаление — `events.delete_own` плюс текущая проверка авторства; закрытие — `events.close` плюс текущая проверка авторства. Создание/удаление шаблонов ивента требует `events.templates`; список шаблонов доступен с `events.manage` или `events.templates`.
+- Создание/изменение групп и применение шаблона требует `groups.manage`; создание/удаление шаблонов групп — `groups.templates`; список шаблонов доступен при любом из этих прав.
 - Управление публикациями офицером ограничено собственными материалами и требует `publications.manage_own`; членский просмотр остаётся доступен. Рынок не получает нового гранта, чужими объявлениями по-прежнему управляет только Администратор.
 - Тестовый помощник `createProfiledUser` явно выдаёт полный набор тестовому офицеру, где старые тесты проверяют поведение уполномоченного офицера; отдельные новые тесты оставляют права выключенными.
 
