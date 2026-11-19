@@ -58,14 +58,14 @@ test('ADM-10: журнал действий прокручивается вну�
       name: 'Прокручиваемый список: Журнал действий',
     })
     await expect(log).toHaveAttribute('data-viewport-rows', '15')
-    await expect(page.getByText(`${prefix} #50`)).toBeVisible()
+    await expect(page.getByText(`${prefix} #50`, { exact: true })).toBeVisible()
     await log.evaluate((element) => {
       element.scrollTop = element.scrollHeight
     })
     await expect
       .poll(() => log.evaluate((element) => element.scrollTop))
       .toBeGreaterThan(0)
-    await expect(page.getByText(`${prefix} #1`)).toBeVisible()
+    await expect(page.getByText(`${prefix} #1`, { exact: true })).toBeVisible()
   } finally {
     await sql(
       (db) =>
