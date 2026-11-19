@@ -166,10 +166,7 @@ export async function createMember(
         (db) => db`insert into app.officer_permissions
         (officer_id, permission_code)
         values ${db(
-          permissions.map((permission_code) => ({
-            officer_id: data.user.id,
-            permission_code,
-          })) as never,
+          permissions.map((permission_code) => [data.user.id, permission_code]),
         )}`,
       )
     }
