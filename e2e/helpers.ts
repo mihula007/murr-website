@@ -31,6 +31,15 @@ export async function scrollUntilVisible(page: Page, target: Locator) {
       .waitFor({ state: 'visible', timeout: 15_000 })
       .catch(() => undefined)
   }
+  if (isMemberRoster && (await target.count()) === 0) {
+    if ((await rosterScroller.count()) > 0) {
+      await rosterScroller.evaluate((element) => {
+        element.scrollTop = 0
+      })
+    } else {
+      await page.evaluate(() => window.scrollTo(0, 0))
+    }
+  }
   if ((await rosterScroller.count()) > 0) {
     let stalled = 0
     for (let step = 0; step < 1000 && stalled < 20; step += 1) {
