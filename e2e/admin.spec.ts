@@ -45,7 +45,7 @@ test('ADM-10: журнал действий прокручивается вну�
       select
         'profiles', 'profile_updated', ${prefix} || ' #' || i::text,
         ${admin.id}::uuid, 'admin', ${admin.nickname}, ${admin.email}
-      from generate_series(1, 20) as i
+      from generate_series(1, 50) as i
     `,
   )
 
@@ -58,7 +58,7 @@ test('ADM-10: журнал действий прокручивается вну�
       name: 'Прокручиваемый список: Журнал действий',
     })
     await expect(log).toHaveAttribute('data-viewport-rows', '15')
-    await expect(page.getByText(`${prefix} #20`)).toBeVisible()
+    await expect(page.getByText(`${prefix} #50`)).toBeVisible()
     await log.evaluate((element) => {
       element.scrollTop = element.scrollHeight
     })
