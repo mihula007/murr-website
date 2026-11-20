@@ -206,7 +206,7 @@ function MemberCard({
         tileClass,
         'relative isolate flex h-full min-h-[132px] flex-col gap-4 overflow-hidden border border-border-accent/80 shadow-sm',
         isCurrentUser && 'bg-item-highlight!',
-        isCurrentUser && 'border-l-4 border-l-highlight!',
+        isCurrentUser && 'border-2! border-highlight!',
         isCurrentUser && 'ring-2 ring-highlight',
       )}
     >
@@ -380,7 +380,7 @@ function MembersList({
       estimateSize={150}
       viewportRows={4}
       columns={columns}
-      gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+      gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 px-3"
       paging={paging}
       gap="md"
     />
