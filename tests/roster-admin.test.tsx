@@ -200,6 +200,10 @@ describe('roster page', () => {
       .getByRole('heading', { name: 'Альфа' })
       .closest('li')!
     expect(betaCard.firstElementChild).toHaveClass(/bg-item-highlight!?/)
+    expect(betaCard.firstElementChild).toHaveClass(/border-l-4/)
+    expect(
+      within(betaCard).getAllByRole('separator', { hidden: true }),
+    ).toHaveLength(2)
     expect(alphaCard.firstElementChild).not.toHaveClass(/bg-item-highlight!?/)
     sessionUserId.current = null
   })

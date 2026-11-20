@@ -206,6 +206,7 @@ function MemberCard({
         tileClass,
         'relative isolate flex h-full min-h-[132px] flex-col gap-4 overflow-hidden border border-border-accent/80 shadow-sm',
         isCurrentUser && 'bg-item-highlight!',
+        isCurrentUser && 'border-l-4 border-l-highlight!',
         isCurrentUser && 'ring-2 ring-highlight',
       )}
     >
@@ -245,6 +246,11 @@ function MemberCard({
             {member.role !== 'member' ? (
               <Badge>{ROLE_LABELS[member.role]}</Badge>
             ) : null}
+          </div>
+          <div aria-hidden="true" className="flex items-center gap-2 py-1.5">
+            <hr className="h-px flex-1 border-0 bg-highlight/60" />
+            <span className="size-1.5 rotate-45 border border-highlight bg-background/85" />
+            <hr className="h-px flex-1 border-0 bg-highlight/60" />
           </div>
           <CharacterStatsSummary member={member} />
         </div>
