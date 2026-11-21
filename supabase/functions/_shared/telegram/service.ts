@@ -318,7 +318,7 @@ async function pressButton(
       action.eventId,
       action.answer,
     )
-    await editMessage(deps, telegram, link.userId, target, html, keyboard)
+    await editMessage(deps, telegram, link.userId, active, html, keyboard)
     // Сообщение этого события в MAX — фоново (MAX-08).
     await runInBackground(deps, () =>
       syncEventMessages(deps, link.userId, action.eventId, 'telegram'),
@@ -337,7 +337,7 @@ async function pressButton(
     answers.get(action.eventId) ?? null,
     true,
   )
-  await editMessage(deps, telegram, link.userId, target, html, keyboard)
+  await editMessage(deps, telegram, link.userId, active, html, keyboard)
   return undefined
 }
 

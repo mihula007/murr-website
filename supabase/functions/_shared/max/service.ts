@@ -272,17 +272,24 @@ async function onCallback(
       : refuse(MAX_CALLBACK_TEXTS.stale)
     notice = outcome.notice
     if (outcome.refused) {
-      await max.gateway.removeKeyboard(messageId)
+      await max.gateway.removeKeyboard(messageId, outcome.media)
     }
   } finally {
     await max.gateway.answerCallback(callback.callback_id, notice)
   }
 }
 
-/** Итог нажатия: текст уведомления; отказ снимает кнопки (Q-110). */
-type PressOutcome = { notice: string; refused: boolean }
+/**
+ * Итог нажатия: текст уведомления; отказ снимает кнопки (Q-110), картинка
+ * активного сообщения (`media`) при этом остаётся (MAX-13).
+ */
+type PressOutcome = { notice: string; refused: boolean; media?: string | null }
 
-const refuse = (notice: string): PressOutcome => ({ notice, refused: true })
+const refuse = (notice: string, media: string | null = null): PressOutcome => ({
+  notice,
+  refused: true,
+  media,
+})
 
 async function pressButton(
   deps: AppDeps,
@@ -312,27 +319,27 @@ async function pressButton(
   try {
     viewer = requireRole(await loadActor(deps.db, link.userId), INTERNAL_ROLES)
   } catch {
-    return refuse(MAX_CALLBACK_TEXTS.forbidden)
+    return refuse(MAX_CALLBACK_TEXTS.forbidden, active.media)
   }
   if (event.closed_at) {
-    return refuse(MAX_CALLBACK_TEXTS.closed)
+    return refuse(MAX_CALLBACK_TEXTS.closed, active.media)
   }
   if (parseTimestamp(event.starts_at) <= deps.now()) {
-    return refuse(MAX_CALLBACK_TEXTS.started)
+    return refuse(MAX_CALLBACK_TEXTS.started, active.media)
   }
 
   if (action.kind === 'answer') {
     try {
       await saveAnswer(deps, viewer, action.eventId, action.answer)
     } catch (error) {
-      return refuse(refusalText(error))
+      return refuse(refusalText(error), active.media)
     }
     const { html, keyboard } = maxEventMessage(
       active,
       action.eventId,
       action.answer,
     )
-    await editMaxMessage(deps, max, link.userId, messageId, html, keyboard)
+    await editMaxMessage(deps, max, link.userId, active, html, keyboard)
     // Сообщение этого события в Telegram — фоново (MAX-08).
     await runInBackground(deps, () =>
       syncEventMessages(deps, link.userId, action.eventId, 'max'),
@@ -354,7 +361,7 @@ async function pressButton(
     answers.get(action.eventId) ?? null,
     true,
   )
-  await editMaxMessage(deps, max, link.userId, messageId, html, keyboard)
+  await editMaxMessage(deps, max, link.userId, active, html, keyboard)
   return { notice: MAX_CALLBACK_TEXTS.chooseAgain, refused: false }
 }
 

@@ -41,6 +41,7 @@ import { decodeCursor, splitPage } from '../http/cursor.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { nicknameCursor, nicknameKey } from '../roster/cursor.ts'
+import { eventImageUrl } from '../messenger/event-image.ts'
 import { deliverAnnouncement } from '../telegram/announcements.ts'
 import { telegramRepository } from '../telegram/repository.ts'
 import { requireTelegram } from '../telegram/service.ts'
@@ -123,6 +124,9 @@ export async function prefillBroadcast(
         event.description,
       ].join('\n'),
       recipients: null,
+      ...(event.recurring_preset
+        ? { bodyLimit: BROADCAST_LIMITS.imageBody }
+        : {}),
     }
   }
 
@@ -396,6 +400,7 @@ const CHANNELS: Record<
       eventId: string | null,
       groupId: string | null,
       excludedUserIds: string[],
+      preset: string | null,
     ) => Promise<ChannelDelivery>
   }
 > = {
@@ -410,15 +415,18 @@ const CHANNELS: Record<
         eventId,
         excludedUserIds,
       ),
-    deliver: (deps, text, eventId, groupId, excludedUserIds) =>
-      deliverAnnouncement(
+    deliver: (deps, text, eventId, groupId, excludedUserIds, preset) => {
+      const telegram = requireTelegram(deps)
+      return deliverAnnouncement(
         deps,
-        requireTelegram(deps),
+        telegram,
         text,
         eventId,
         groupId,
         excludedUserIds,
-      ),
+        eventImageUrl(telegram.siteUrl, preset),
+      )
+    },
   },
   vk: {
     name: 'ВКонтакте',
@@ -426,15 +434,18 @@ const CHANNELS: Record<
     require: requireVk,
     count: (deps, groupId, eventId, excludedUserIds = []) =>
       vkRepository.recipientCount(deps.db, groupId, eventId, excludedUserIds),
-    deliver: (deps, text, eventId, groupId, excludedUserIds) =>
-      deliverVkAnnouncement(
+    deliver: (deps, text, eventId, groupId, excludedUserIds, preset) => {
+      const vk = requireVk(deps)
+      return deliverVkAnnouncement(
         deps,
-        requireVk(deps),
+        vk,
         text,
         eventId,
         groupId,
         excludedUserIds,
-      ),
+        eventImageUrl(vk.siteUrl, preset),
+      )
+    },
   },
   max: {
     name: 'MAX',
@@ -442,15 +453,18 @@ const CHANNELS: Record<
     require: requireMax,
     count: (deps, groupId, eventId, excludedUserIds = []) =>
       maxRepository.recipientCount(deps.db, groupId, eventId, excludedUserIds),
-    deliver: (deps, text, eventId, groupId, excludedUserIds) =>
-      deliverMaxAnnouncement(
+    deliver: (deps, text, eventId, groupId, excludedUserIds, preset) => {
+      const max = requireMax(deps)
+      return deliverMaxAnnouncement(
         deps,
-        requireMax(deps),
+        max,
         text,
         eventId,
         groupId,
         excludedUserIds,
-      ),
+        eventImageUrl(max.siteUrl, preset),
+      )
+    },
   },
 }
 
@@ -602,6 +616,11 @@ export async function sendAnnouncement(
   if (event && parseTimestamp(event.starts_at) <= deps.now()) {
     throw new ApiError('state_conflict', { reason: 'started' })
   }
+  // Анонс постоянного события — с картинкой: текст короче (TGM-28, Q-114).
+  const preset = event?.recurring_preset ?? null
+  if (preset && input.body.length > BROADCAST_LIMITS.imageBody) {
+    throw new ApiError('validation_failed', { body: 'too_long' })
+  }
   const groupId = group?.id ?? null
   const eventId = event?.id ?? null
   const counts = await Promise.all(
@@ -637,6 +656,7 @@ export async function sendAnnouncement(
             eventId,
             groupId,
             input.excludedUserIds,
+            preset,
           )
         : EMPTY_DELIVERY,
     ),

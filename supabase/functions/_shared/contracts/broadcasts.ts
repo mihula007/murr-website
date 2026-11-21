@@ -23,6 +23,11 @@ export const BROADCAST_LIMITS = {
   subject: 120,
   /** Лимит сообщения Telegram 4096 минус тема и строка ответа (Q-91). */
   body: 3800,
+  /**
+   * Анонс постоянного события с картинкой: подпись Telegram — 1024 символа,
+   * минус тема и строка ответа (TGM-28, Q-114).
+   */
+  imageBody: 880,
   templateName: 60,
   /** Черновики — малый список (Q-69): хранится не больше 50 последних. */
   drafts: 50,
@@ -224,6 +229,11 @@ export type PrefillResponse = {
   body: string
   /** Только для группы: состав в порядке группы, без адресов (BRC-04). */
   recipients: BroadcastRecipient[] | null
+  /**
+   * Постоянное событие: анонс с картинкой, текст не длиннее этого числа
+   * (TGM-28, Q-114); нет поля — обычный лимит.
+   */
+  bodyLimit?: number
 }
 
 export type BroadcastAuthor = { gameNickname: string } | null

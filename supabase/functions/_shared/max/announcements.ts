@@ -32,6 +32,8 @@ export async function deliverMaxAnnouncement(
   /** Анонс группы — только её участникам (Q-104). */
   groupId: string | null = null,
   excludedUserIds: string[] = [],
+  /** Картинка постоянного события (MAX-13); null — без картинки. */
+  imageUrl: string | null = null,
 ): Promise<DeliveryResult> {
   const fetchedRecipients = await maxRepository.recipients(
     deps.db,
@@ -50,6 +52,11 @@ export async function deliverMaxAnnouncement(
     : null
   let sent = 0
   let failed = 0
+  // Картинка загружается один раз; не загрузилась — анонс без неё (MAX-13).
+  const image =
+    imageUrl && recipients.length > 0
+      ? await max.gateway.uploadImage(imageUrl)
+      : null
 
   const deliver = async (recipient: (typeof recipients)[number]) => {
     // Ответившие на событие анонс не получают (Q-109): кнопки без ответа.
@@ -57,11 +64,21 @@ export async function deliverMaxAnnouncement(
       eventId === null
         ? { html: announcementHtml(announcement), keyboard: undefined }
         : maxEventMessage(announcement, eventId, null)
-    const result = await max.gateway.sendHtml(
+    let result = await max.gateway.sendHtml(
       recipient.maxUserId,
       message.html,
       message.keyboard,
+      image ?? undefined,
     )
+    let media = image
+    if (image && result.status === 'failed') {
+      result = await max.gateway.sendHtml(
+        recipient.maxUserId,
+        message.html,
+        message.keyboard,
+      )
+      media = null
+    }
     if (result.status === 'blocked') {
       await maxRepository.markBlocked(
         deps.db,
@@ -86,6 +103,7 @@ export async function deliverMaxAnnouncement(
         announcementId,
         chatId: recipient.chatId,
         messageId: result.messageId,
+        media,
       }),
     )
     if (previous) {
@@ -94,6 +112,7 @@ export async function deliverMaxAnnouncement(
         previous.messageId,
         announcementHtml(previous),
         null,
+        previous.media,
       )
     }
   }
@@ -129,7 +148,7 @@ export async function syncMaxEventMessage(
     eventId,
     answers.get(eventId) ?? null,
   )
-  await editMaxMessage(deps, max, userId, message.messageId, html, keyboard)
+  await editMaxMessage(deps, max, userId, message, html, keyboard)
 }
 
 /** Перерисовка сообщения; остановленный бот отмечается (MAX-03). */
@@ -137,11 +156,16 @@ export async function editMaxMessage(
   deps: AppDeps,
   max: MaxDeps,
   userId: string,
-  messageId: string,
+  target: { messageId: string; media: string | null },
   html: string,
   keyboard: MaxKeyboard | null,
 ) {
-  const result = await max.gateway.editHtml(messageId, html, keyboard)
+  const result = await max.gateway.editHtml(
+    target.messageId,
+    html,
+    keyboard,
+    target.media,
+  )
   if (result === 'blocked') {
     await maxRepository.markBlocked(deps.db, userId, deps.now().toISOString())
   }

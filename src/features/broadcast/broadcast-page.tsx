@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useForm, useStore } from '@tanstack/react-form'
 import { Send, X } from 'lucide-react'
@@ -75,23 +75,21 @@ const SOURCE_LABELS: Record<BroadcastSource, string> = {
 const checkboxClass =
   'flex cursor-pointer items-center gap-2 text-sm text-foreground [&>input]:size-4 [&>input]:accent-primary'
 
-const draftSchema = z.object({
-  subject: z.string().max(BROADCAST_LIMITS.subject, 'too_long'),
-  body: z
-    .string()
-    .trim()
-    .min(1, 'required')
-    .max(BROADCAST_LIMITS.body, 'too_long'),
-  channels: z.array(z.enum(BROADCAST_CHANNELS)).min(1, 'required'),
-  excludedRecipients: z
-    .array(
-      z.object({
-        id: z.guid(),
-        channels: z.array(z.enum(SENDABLE_CHANNELS)).min(1),
-      }),
-    )
-    .max(MEMBER_LIST_LIMIT),
-})
+/** Схема формы; `bodyLimit` меньше у анонса с картинкой (TGM-28). */
+const draftSchema = (bodyLimit: number) =>
+  z.object({
+    subject: z.string().max(BROADCAST_LIMITS.subject, 'too_long'),
+    body: z.string().trim().min(1, 'required').max(bodyLimit, 'too_long'),
+    channels: z.array(z.enum(BROADCAST_CHANNELS)).min(1, 'required'),
+    excludedRecipients: z
+      .array(
+        z.object({
+          id: z.guid(),
+          channels: z.array(z.enum(SENDABLE_CHANNELS)).min(1),
+        }),
+      )
+      .max(MEMBER_LIST_LIMIT),
+  })
 
 type FormValues = {
   subject: string
@@ -472,6 +470,7 @@ function BroadcastForm({
   initial,
   source,
   recipients,
+  bodyLimit,
   onSaved,
   canSend,
   canManageTemplates,
@@ -479,6 +478,8 @@ function BroadcastForm({
   initial: FormValues
   source: { kind: BroadcastSource; id: string } | null
   recipients: BroadcastRecipient[] | null
+  /** Лимит текста: у постоянного события меньше — анонс с картинкой. */
+  bodyLimit: number
   onSaved: () => void
   canSend: boolean
   canManageTemplates: boolean
@@ -495,9 +496,10 @@ function BroadcastForm({
   const [checking, setChecking] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
   const [confirmCounts, setConfirmCounts] = useState<ChannelCounts | null>(null)
+  const schema = useMemo(() => draftSchema(bodyLimit), [bodyLimit])
   const form = useForm({
     defaultValues: { ...EMPTY, ...initial },
-    validators: { onChange: draftSchema },
+    validators: { onChange: schema },
     onSubmitInvalid: focusFirstInvalid,
     onSubmit: async ({ value }) => {
       if (intent.current === 'send') {
@@ -623,6 +625,11 @@ function BroadcastForm({
                       id="broadcast-body"
                       label="Текст рассылки"
                       error={error}
+                      hint={
+                        bodyLimit < BROADCAST_LIMITS.body
+                          ? `Анонс придёт в мессенджеры с картинкой события, поэтому текст — не длиннее ${bodyLimit} символов. Сейчас: ${field.state.value.trim().length}.`
+                          : undefined
+                      }
                       className="col-span-full"
                     >
                       <Textarea
@@ -635,7 +642,14 @@ function BroadcastForm({
                         onBlur={field.handleBlur}
                         aria-invalid={error ? true : undefined}
                         aria-describedby={
-                          error ? 'broadcast-body-error' : undefined
+                          [
+                            bodyLimit < BROADCAST_LIMITS.body
+                              ? 'broadcast-body-hint'
+                              : '',
+                            error ? 'broadcast-body-error' : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ') || undefined
                         }
                       />
                     </FormField>
@@ -889,6 +903,7 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
         }
         source={target ? { kind: target.source, id: target.id } : null}
         recipients={data?.recipients ?? null}
+        bodyLimit={data?.bodyLimit ?? BROADCAST_LIMITS.body}
         onSaved={target ? clearSource : () => undefined}
         canSend={canSend}
         canManageTemplates={canManageTemplates}

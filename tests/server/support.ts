@@ -192,6 +192,9 @@ export type TelegramCall = {
   text?: string
   keyboard?: InlineKeyboard | null
   callbackId?: string
+  /** Картинка отправки или правка подписи — только если есть (TGM-27). */
+  photo?: string
+  caption?: true
 }
 
 /**
@@ -201,18 +204,32 @@ export type TelegramCall = {
 export function fakeTelegram() {
   const calls: TelegramCall[] = []
   const blocked = new Set<number>()
+  /** Картинки, которые «не отправляются» (TGM-27). */
+  const failingPhotos = new Set<string>()
   let nextMessageId = 100
   const gateway: TelegramGateway = {
-    async sendHtml(chatId, text, keyboard) {
+    async sendHtml(chatId, text, keyboard, photo) {
       calls.push({
         method: 'sendHtml',
         chatId,
         text,
         keyboard: keyboard ?? null,
+        ...(photo ? { photo } : {}),
       })
-      return blocked.has(chatId)
-        ? { status: 'blocked' }
-        : { status: 'ok', messageId: nextMessageId++ }
+      if (blocked.has(chatId)) {
+        return { status: 'blocked' }
+      }
+      if (photo && failingPhotos.has(photo)) {
+        return { status: 'failed' }
+      }
+      const messageId = nextMessageId++
+      return photo
+        ? {
+            status: 'ok',
+            messageId,
+            photoId: `file-${photo.split('/').at(-1)}`,
+          }
+        : { status: 'ok', messageId }
     },
     async sendText(chatId, text) {
       calls.push({ method: 'sendText', chatId, text })
@@ -220,8 +237,15 @@ export function fakeTelegram() {
         ? { status: 'blocked' }
         : { status: 'ok', messageId: nextMessageId++ }
     },
-    async editHtml(chatId, messageId, text, keyboard) {
-      calls.push({ method: 'editHtml', chatId, messageId, text, keyboard })
+    async editHtml(chatId, messageId, text, keyboard, caption) {
+      calls.push({
+        method: 'editHtml',
+        chatId,
+        messageId,
+        text,
+        keyboard,
+        ...(caption ? { caption: true as const } : {}),
+      })
       return blocked.has(chatId) ? 'blocked' : 'ok'
     },
     async editKeyboard(chatId, messageId, keyboard) {
@@ -242,7 +266,7 @@ export function fakeTelegram() {
     webhookSecret: TELEGRAM_TEST_SECRET,
     siteUrl: 'https://murr.test/',
   }
-  return { telegram, calls, blocked }
+  return { telegram, calls, blocked, failingPhotos }
 }
 
 export const TELEGRAM_TEST_SECRET = 'test-webhook-secret-0123456789abcdef'
@@ -257,12 +281,19 @@ export function webhookHeaders(secret: string | null = TELEGRAM_TEST_SECRET) {
 /** Вызов фальшивого шлюза MAX: метод и параметры. */
 export type MaxCall = {
   method:
-    'sendHtml' | 'sendText' | 'editHtml' | 'removeKeyboard' | 'answerCallback'
+    | 'uploadImage'
+    | 'sendHtml'
+    | 'sendText'
+    | 'editHtml'
+    | 'removeKeyboard'
+    | 'answerCallback'
   userId?: number
   messageId?: string
   text?: string
   keyboard?: MaxKeyboard | null
   callbackId?: string
+  /** Адрес загружаемой или токен отправленной картинки (MAX-13). */
+  image?: string
 }
 
 /**
@@ -285,13 +316,20 @@ export function fakeMax() {
   }
   const editResult = (messageId: string) =>
     blocked.has(owners.get(messageId) ?? -1) ? 'blocked' : 'ok'
+  /** Картинка не загружается — `uploadImage` вернёт null. */
+  const upload = { fails: false }
   const gateway: MaxGateway = {
-    async sendHtml(userId, text, keyboard) {
+    async uploadImage(url) {
+      calls.push({ method: 'uploadImage', image: url })
+      return upload.fails ? null : `token-${url.split('/').at(-1)}`
+    },
+    async sendHtml(userId, text, keyboard, image) {
       calls.push({
         method: 'sendHtml',
         userId,
         text,
         keyboard: keyboard ?? null,
+        ...(image ? { image } : {}),
       })
       return send(userId)
     },
@@ -299,12 +337,22 @@ export function fakeMax() {
       calls.push({ method: 'sendText', userId, text })
       return send(userId)
     },
-    async editHtml(messageId, text, keyboard) {
-      calls.push({ method: 'editHtml', messageId, text, keyboard })
+    async editHtml(messageId, text, keyboard, image) {
+      calls.push({
+        method: 'editHtml',
+        messageId,
+        text,
+        keyboard,
+        ...(image ? { image } : {}),
+      })
       return editResult(messageId)
     },
-    async removeKeyboard(messageId) {
-      calls.push({ method: 'removeKeyboard', messageId })
+    async removeKeyboard(messageId, image) {
+      calls.push({
+        method: 'removeKeyboard',
+        messageId,
+        ...(image ? { image } : {}),
+      })
       return editResult(messageId)
     },
     async answerCallback(callbackId, text) {
@@ -321,7 +369,7 @@ export function fakeMax() {
     webhookSecret: MAX_TEST_SECRET,
     siteUrl: 'https://murr.test/',
   }
-  return { max, calls, blocked }
+  return { max, calls, blocked, upload }
 }
 
 export const MAX_TEST_SECRET = 'test-max-secret-0123456789abcdef'
@@ -333,12 +381,14 @@ export function maxWebhookHeaders(secret: string | null = MAX_TEST_SECRET) {
 
 /** Вызов фальшивого шлюза ВКонтакте: метод и параметры. */
 export type VkCall = {
-  method: 'send' | 'edit' | 'answerEvent'
+  method: 'uploadPhoto' | 'send' | 'edit' | 'answerEvent'
   peerId?: number
   messageId?: number
   text?: string
   keyboard?: VkKeyboard | null
   eventId?: string
+  /** Адрес загружаемой картинки или вложение `photo…` (VK-10). */
+  attachment?: string
 }
 
 export const VK_TEST_GROUP_ID = 777
@@ -354,15 +404,34 @@ export function fakeVk() {
   const blocked = new Set<number>()
   const expired = new Set<number>()
   let next = 1
+  /** Картинка не загружается — `uploadPhoto` вернёт null. */
+  const upload = { fails: false }
   const gateway: VkGateway = {
-    async send(peerId, text, keyboard) {
-      calls.push({ method: 'send', peerId, text, keyboard: keyboard ?? null })
+    async uploadPhoto(url) {
+      calls.push({ method: 'uploadPhoto', attachment: url })
+      return upload.fails ? null : `photo-${VK_TEST_GROUP_ID}_1_key`
+    },
+    async send(peerId, text, keyboard, attachment) {
+      calls.push({
+        method: 'send',
+        peerId,
+        text,
+        keyboard: keyboard ?? null,
+        ...(attachment ? { attachment } : {}),
+      })
       return blocked.has(peerId)
         ? { status: 'blocked' }
         : { status: 'ok', messageId: next++ }
     },
-    async edit(peerId, messageId, text, keyboard) {
-      calls.push({ method: 'edit', peerId, messageId, text, keyboard })
+    async edit(peerId, messageId, text, keyboard, attachment) {
+      calls.push({
+        method: 'edit',
+        peerId,
+        messageId,
+        text,
+        keyboard,
+        ...(attachment ? { attachment } : {}),
+      })
       if (blocked.has(peerId)) {
         return 'blocked'
       }
@@ -390,5 +459,5 @@ export function fakeVk() {
     callbackSecret: VK_TEST_SECRET,
     siteUrl: 'https://murr.test/',
   }
-  return { vk, calls, blocked, expired }
+  return { vk, calls, blocked, expired, upload }
 }

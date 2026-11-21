@@ -288,6 +288,7 @@ async function onPress(deps: AppDeps, vk: VkDeps, event: VkMessageEvent) {
           target.messageId,
           outcome.text ?? '',
           null,
+          outcome.media,
         )
       }
     }
@@ -296,8 +297,16 @@ async function onPress(deps: AppDeps, vk: VkDeps, event: VkMessageEvent) {
   }
 }
 
-/** Уведомление показывается при каждом нажатии (Q-110). */
-type PressOutcome = { notice: string; refused: boolean; text?: string }
+/**
+ * Уведомление показывается при каждом нажатии (Q-110); `media` — картинка
+ * активного сообщения, остаётся при снятии кнопок (VK-10).
+ */
+type PressOutcome = {
+  notice: string
+  refused: boolean
+  text?: string
+  media?: string | null
+}
 
 async function pressButton(
   deps: AppDeps,
@@ -306,10 +315,12 @@ async function pressButton(
   target: { chatId: number; messageId: number },
   action: CallbackAction,
 ): Promise<PressOutcome> {
+  // Картинка активного сообщения: снятие кнопок её сохраняет (VK-10).
+  let activeMedia: string | null = null
   const refuse = (notice: string, text?: string): PressOutcome => ({
     notice,
     refused: text !== undefined,
-    ...(text !== undefined ? { text } : {}),
+    ...(text !== undefined ? { text, media: activeMedia } : {}),
   })
   const link = await vkRepository.linkByVk(deps.db, vkUserId)
   if (!link) {
@@ -331,6 +342,7 @@ async function pressButton(
   ) {
     return refuse(VK_CALLBACK_TEXTS.stale)
   }
+  activeMedia = active.media
   // Снять кнопки во ВКонтакте можно только правкой с текстом: текст анонса.
   const plain = vkEventMessage(active, action.eventId, null).text
   let viewer: ProfiledActor
@@ -357,7 +369,7 @@ async function pressButton(
       action.eventId,
       action.answer,
     )
-    await editVkMessage(deps, vk, link.userId, target, body, keyboard)
+    await editVkMessage(deps, vk, link.userId, active, body, keyboard)
     await runInBackground(deps, () =>
       syncEventMessages(deps, link.userId, action.eventId, 'vk'),
     )
@@ -380,7 +392,7 @@ async function pressButton(
     answers.get(action.eventId) ?? null,
     true,
   )
-  await editVkMessage(deps, vk, link.userId, target, body, keyboard)
+  await editVkMessage(deps, vk, link.userId, active, body, keyboard)
   return { notice: VK_CALLBACK_TEXTS.chooseAgain, refused: false }
 }
 

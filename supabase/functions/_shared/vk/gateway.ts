@@ -25,18 +25,29 @@ export type VkProfile = {
 }
 
 export type VkGateway = {
-  /** Сообщение простым текстом, с кнопками или без. */
+  /**
+   * Загрузка картинки с адреса сайта в сообщество (VK-10): вложение
+   * `photo<owner>_<id>_<key>` для отправки многим; null — не удалось
+   * (например, у ключа сообщества нет доступа «Фотографии»).
+   */
+  uploadPhoto(url: string): Promise<string | null>
+  /** Сообщение простым текстом, с кнопками или без; `attachment` — картинка. */
   send(
     peerId: number,
     text: string,
     keyboard?: VkKeyboard,
+    attachment?: string,
   ): Promise<VkSendResult>
-  /** Новый текст; `keyboard: null` убирает кнопки. */
+  /**
+   * Новый текст; `keyboard: null` убирает кнопки. Без `attachment` правка
+   * убирает вложение, поэтому картинка сообщения передаётся снова.
+   */
   edit(
     peerId: number,
     messageId: number,
     text: string,
     keyboard: VkKeyboard | null,
+    attachment?: string | null,
   ): Promise<VkEditResult>
   /** Ответ на нажатие; текст — всплывающее уведомление. */
   answerEvent(
@@ -130,13 +141,77 @@ export function createVkGateway(options: VkGatewayOptions): VkGateway {
   }
 
   return {
-    async send(peerId, text, keyboard) {
+    async uploadPhoto(url) {
+      try {
+        const server = await call('photos.getMessagesUploadServer', {})
+        const uploadUrl = (server.response as { upload_url?: unknown })
+          ?.upload_url
+        if (typeof uploadUrl !== 'string') {
+          return null
+        }
+        const file = await doFetch(url, {
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+        if (!file.ok) {
+          console.error(`VK картинка: сайт ответил ${file.status}`)
+          return null
+        }
+        const form = new FormData()
+        form.append('photo', await file.blob(), 'image.jpg')
+        const response = await doFetch(uploadUrl, {
+          method: 'POST',
+          body: form,
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+        const uploaded = (await response.json()) as {
+          server?: unknown
+          photo?: unknown
+          hash?: unknown
+        }
+        if (
+          typeof uploaded.photo !== 'string' ||
+          !uploaded.photo ||
+          uploaded.photo === '[]' ||
+          typeof uploaded.hash !== 'string'
+        ) {
+          console.error('VK картинка: сервер загрузки не принял файл')
+          return null
+        }
+        const saved = await call('photos.saveMessagesPhoto', {
+          server: String(uploaded.server),
+          photo: uploaded.photo,
+          hash: uploaded.hash,
+        })
+        const photo = Array.isArray(saved.response)
+          ? (saved.response[0] as
+              | { owner_id?: unknown; id?: unknown; access_key?: unknown }
+              | undefined)
+          : undefined
+        if (
+          typeof photo?.owner_id !== 'number' ||
+          typeof photo.id !== 'number'
+        ) {
+          return null
+        }
+        const key =
+          typeof photo.access_key === 'string' && photo.access_key
+            ? `_${photo.access_key}`
+            : ''
+        return `photo${photo.owner_id}_${photo.id}${key}`
+      } catch (error) {
+        const name = error instanceof Error ? error.name : 'unknown'
+        console.error(`VK картинка: сбой загрузки (${name})`)
+        return null
+      }
+    },
+    async send(peerId, text, keyboard, attachment) {
       const result = await call('messages.send', {
         peer_ids: peerId,
         random_id: randomId(),
         message: text,
         dont_parse_links: 1,
         ...(keyboard ? { keyboard: keyboardJson(keyboard) } : {}),
+        ...(attachment ? { attachment } : {}),
       })
       const code = result.error?.error_code
       if (code !== undefined) {
@@ -162,13 +237,14 @@ export function createVkGateway(options: VkGatewayOptions): VkGateway {
         ? { status: 'ok', messageId: item.conversation_message_id }
         : { status: 'failed' }
     },
-    async edit(peerId, messageId, text, keyboard) {
+    async edit(peerId, messageId, text, keyboard, attachment) {
       const result = await call('messages.edit', {
         peer_id: peerId,
         cmid: messageId,
         message: text,
         dont_parse_links: 1,
         keyboard: keyboard ? keyboardJson(keyboard) : EMPTY_KEYBOARD,
+        ...(attachment ? { attachment } : {}),
       })
       const code = result.error?.error_code
       if (code === undefined) {

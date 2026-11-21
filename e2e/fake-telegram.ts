@@ -89,14 +89,24 @@ const server = createServer((request, response) => {
   request.on('end', () => {
     const method = match[1]!
     const params = (raw ? JSON.parse(raw) : {}) as Record<string, unknown>
-    const messageId = method === 'sendMessage' ? nextMessageId++ : null
+    const messageId =
+      method === 'sendMessage' || method === 'sendPhoto'
+        ? nextMessageId++
+        : null
     calls.push({ method, params, messageId })
     reply(200, {
       ok: true,
       result:
         messageId === null
           ? true
-          : { message_id: messageId, chat: { id: params.chat_id } },
+          : {
+              message_id: messageId,
+              chat: { id: params.chat_id },
+              // Картинка анонса постоянного события (TGM-27).
+              ...(method === 'sendPhoto'
+                ? { photo: [{ file_id: `e2e-photo-${messageId}` }] }
+                : {}),
+            },
     })
   })
 })

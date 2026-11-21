@@ -915,6 +915,7 @@ export type Database = {
           announcement_id: string
           chat_id: number
           event_id: string
+          media: string | null
           message_id: string
           sent_at: string
           user_id: string
@@ -924,6 +925,7 @@ export type Database = {
           announcement_id: string
           chat_id: number
           event_id: string
+          media?: string | null
           message_id: string
           sent_at?: string
           user_id: string
@@ -932,6 +934,7 @@ export type Database = {
           announcement_id?: string
           chat_id?: number
           event_id?: string
+          media?: string | null
           message_id?: string
           sent_at?: string
           user_id?: string
@@ -1292,6 +1295,7 @@ export type Database = {
           announcement_id: string
           chat_id: number
           event_id: string
+          media: string | null
           message_id: number
           sent_at: string
           user_id: string
@@ -1301,6 +1305,7 @@ export type Database = {
           announcement_id: string
           chat_id: number
           event_id: string
+          media?: string | null
           message_id: number
           sent_at?: string
           user_id: string
@@ -1309,6 +1314,7 @@ export type Database = {
           announcement_id?: string
           chat_id?: number
           event_id?: string
+          media?: string | null
           message_id?: number
           sent_at?: string
           user_id?: string
@@ -1547,6 +1553,7 @@ export type Database = {
           announcement_id: string
           chat_id: number
           event_id: string
+          media: string | null
           message_id: number
           sent_at: string
           user_id: string
@@ -1556,6 +1563,7 @@ export type Database = {
           announcement_id: string
           chat_id: number
           event_id: string
+          media?: string | null
           message_id: number
           sent_at?: string
           user_id: string
@@ -1564,6 +1572,7 @@ export type Database = {
           announcement_id?: string
           chat_id?: number
           event_id?: string
+          media?: string | null
           message_id?: number
           sent_at?: string
           user_id?: string

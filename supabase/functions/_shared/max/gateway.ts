@@ -17,22 +17,38 @@ export type MaxSendResult =
 export type MaxEditResult = 'ok' | 'blocked' | 'failed'
 
 export type MaxGateway = {
-  /** Сообщение в HTML (`format: html`), с кнопками или без. */
+  /**
+   * Загрузка картинки с адреса сайта (MAX-13): токен для отправки многими
+   * сообщениями; null — не удалось.
+   */
+  uploadImage(url: string): Promise<string | null>
+  /**
+   * Сообщение в HTML (`format: html`), с кнопками или без; `image` — токен
+   * загруженной картинки над текстом.
+   */
   sendHtml(
     userId: number,
     html: string,
     keyboard?: MaxKeyboard,
+    image?: string,
   ): Promise<MaxSendResult>
   /** Простой текст: ответы бота (TGM-09). */
   sendText(userId: number, text: string): Promise<MaxSendResult>
-  /** Новый текст; `keyboard: null` убирает кнопки. */
+  /**
+   * Новый текст; `keyboard: null` убирает кнопки. Вложения заменяются
+   * целиком, поэтому картинка сообщения (`image`) передаётся снова.
+   */
   editHtml(
     messageId: string,
     html: string,
     keyboard: MaxKeyboard | null,
+    image?: string | null,
   ): Promise<MaxEditResult>
-  /** Только снять кнопки, текст не меняется. */
-  removeKeyboard(messageId: string): Promise<MaxEditResult>
+  /** Только снять кнопки, текст и картинка (`image`) остаются. */
+  removeKeyboard(
+    messageId: string,
+    image?: string | null,
+  ): Promise<MaxEditResult>
   /** Ответ на нажатие; текст — одноразовое уведомление. */
   answerCallback(callbackId: string, notification: string): Promise<void>
 }
@@ -58,6 +74,8 @@ type ApiResult = {
 export const MAX_API_BASE = 'https://platform-api.max.ru'
 /** 429 приходит без `retry_after`: одна пауза и один повтор. */
 const RETRY_PAUSE_MS = 1_000
+/** Картинка ещё обрабатывается (`attachment.not.ready`): паузы перед повтором. */
+const NOT_READY_PAUSES_MS = [500, 1_000, 2_000]
 
 export function createMaxGateway(options: MaxGatewayOptions): MaxGateway {
   const base = options.apiBase || MAX_API_BASE
@@ -115,12 +133,24 @@ export function createMaxGateway(options: MaxGatewayOptions): MaxGateway {
     userId: number,
     body: Record<string, unknown>,
   ): Promise<MaxSendResult> {
-    const result = await request(
+    let result = await request(
       'POST',
       '/messages',
       { user_id: userId, disable_link_preview: 'true' },
       body,
     )
+    for (const pause of NOT_READY_PAUSES_MS) {
+      if (result.body.code !== 'attachment.not.ready') {
+        break
+      }
+      await sleep(pause)
+      result = await request(
+        'POST',
+        '/messages',
+        { user_id: userId, disable_link_preview: 'true' },
+        body,
+      )
+    }
     if (result.httpStatus === 200) {
       const mid = (
         result.body.message as { body?: { mid?: unknown } } | undefined
@@ -151,26 +181,71 @@ export function createMaxGateway(options: MaxGatewayOptions): MaxGateway {
   }
 
   return {
-    sendHtml(userId, html, keyboard) {
+    async uploadImage(url) {
+      try {
+        const file = await doFetch(url, {
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+        if (!file.ok) {
+          console.error(`MAX картинка: сайт ответил ${file.status}`)
+          return null
+        }
+        const image = await file.blob()
+        const slot = await request('POST', '/uploads', { type: 'image' }, {})
+        const uploadUrl = (slot.body as { url?: unknown }).url
+        if (slot.httpStatus !== 200 || typeof uploadUrl !== 'string') {
+          return null
+        }
+        const form = new FormData()
+        form.append('data', image, 'image.jpg')
+        const response = await doFetch(uploadUrl, {
+          method: 'POST',
+          body: form,
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+        const uploaded = (await response.json()) as {
+          token?: unknown
+          photos?: Record<string, { token?: unknown }>
+        }
+        const token =
+          uploaded.token ??
+          Object.values(uploaded.photos ?? {}).find(
+            (photo) => typeof photo.token === 'string',
+          )?.token
+        if (typeof token !== 'string' || !token) {
+          console.error(`MAX картинка: нет токена (${response.status})`)
+          return null
+        }
+        return token
+      } catch (error) {
+        const name = error instanceof Error ? error.name : 'unknown'
+        console.error(`MAX картинка: сбой загрузки (${name})`)
+        return null
+      }
+    },
+    sendHtml(userId, html, keyboard, image) {
+      const attachments = messageAttachments(keyboard ?? null, image ?? null)
       return send(userId, {
         text: html,
         format: 'html',
-        ...(keyboard ? { attachments: [keyboardAttachment(keyboard)] } : {}),
+        ...(attachments.length > 0 ? { attachments } : {}),
       })
     },
     sendText(userId, text) {
       return send(userId, { text })
     },
-    editHtml(messageId, html, keyboard) {
+    editHtml(messageId, html, keyboard, image) {
       return edit(messageId, {
         text: html,
         format: 'html',
         // Пустой список убирает вложения, в том числе кнопки.
-        attachments: keyboard ? [keyboardAttachment(keyboard)] : [],
+        attachments: messageAttachments(keyboard, image ?? null),
       })
     },
-    removeKeyboard(messageId) {
-      return edit(messageId, { attachments: [] })
+    removeKeyboard(messageId, image) {
+      return edit(messageId, {
+        attachments: messageAttachments(null, image ?? null),
+      })
     },
     async answerCallback(callbackId, notification) {
       await request(
@@ -184,8 +259,17 @@ export function createMaxGateway(options: MaxGatewayOptions): MaxGateway {
   }
 }
 
-function keyboardAttachment(keyboard: MaxKeyboard) {
-  return { type: 'inline_keyboard', payload: { buttons: keyboard } }
+/** Картинка (если есть) и кнопки (если есть) — вложения сообщения. */
+function messageAttachments(
+  keyboard: MaxKeyboard | null,
+  image: string | null,
+) {
+  return [
+    ...(image ? [{ type: 'image', payload: { token: image } }] : []),
+    ...(keyboard
+      ? [{ type: 'inline_keyboard', payload: { buttons: keyboard } }]
+      : []),
+  ]
 }
 
 /** Часть методов отвечает 200 с `success: false` вместо кода ошибки. */

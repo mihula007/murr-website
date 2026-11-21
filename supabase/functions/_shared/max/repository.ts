@@ -244,6 +244,8 @@ export const maxRepository = {
       announcementId: string
       chatId: number
       messageId: string
+      /** Картинка сообщения (TGM-27); null — без картинки. */
+      media: string | null
     },
   ) {
     const previousRow = await activeMessageQuery(tx)
@@ -255,6 +257,7 @@ export const maxRepository = {
       announcement_id: values.announcementId,
       chat_id: values.chatId,
       message_id: values.messageId,
+      media: values.media,
       sent_at: sql<string>`now()`,
     }
     await tx
@@ -339,6 +342,7 @@ function activeMessageQuery(db: Executor) {
       'm.announcement_id',
       'm.chat_id',
       'm.message_id',
+      'm.media',
       't.subject',
       't.body',
     ])
@@ -350,6 +354,8 @@ export type MaxActiveMessage = {
   messageId: string
   subject: string | null
   body: string
+  /** Картинка сообщения (TGM-27); null — без картинки. */
+  media: string | null
 }
 
 const toActiveMessage = (row: {
@@ -358,10 +364,12 @@ const toActiveMessage = (row: {
   message_id: string
   subject: string | null
   body: string
+  media: string | null
 }): MaxActiveMessage => ({
   announcementId: row.announcement_id,
   chatId: Number(row.chat_id),
   messageId: row.message_id,
   subject: row.subject,
   body: row.body,
+  media: row.media,
 })

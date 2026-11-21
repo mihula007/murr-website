@@ -33,6 +33,8 @@ export async function deliverAnnouncement(
   /** Анонс группы — только её участникам (Q-104). */
   groupId: string | null = null,
   excludedUserIds: string[] = [],
+  /** Картинка постоянного события (TGM-27); null — без картинки. */
+  imageUrl: string | null = null,
 ): Promise<DeliveryResult> {
   const fetchedRecipients = await telegramRepository.recipients(
     deps.db,
@@ -51,6 +53,9 @@ export async function deliverAnnouncement(
     : null
   let sent = 0
   let failed = 0
+  // Адрес картинки, после первой успешной отправки — её `file_id`: Telegram
+  // не скачивает картинку заново для каждого получателя.
+  let photo = imageUrl
 
   const deliver = async (recipient: (typeof recipients)[number]) => {
     // Ответившие на событие анонс не получают (Q-109): кнопки без ответа.
@@ -58,11 +63,27 @@ export async function deliverAnnouncement(
       eventId === null
         ? { html: announcementHtml(announcement), keyboard: undefined }
         : eventMessage(announcement, eventId, null)
-    const result = await telegram.gateway.sendHtml(
+    const sentPhoto = photo
+    let result = await telegram.gateway.sendHtml(
       recipient.chatId,
       message.html,
       message.keyboard,
+      sentPhoto ?? undefined,
     )
+    let media: string | null = null
+    if (sentPhoto && result.status === 'failed') {
+      // Картинку отправить не удалось — тот же анонс без неё (TGM-27).
+      result = await telegram.gateway.sendHtml(
+        recipient.chatId,
+        message.html,
+        message.keyboard,
+      )
+    } else if (sentPhoto && result.status === 'ok') {
+      media = result.photoId ?? sentPhoto
+      if (result.photoId) {
+        photo = result.photoId
+      }
+    }
     if (result.status === 'blocked') {
       await telegramRepository.markBlocked(
         deps.db,
@@ -87,6 +108,7 @@ export async function deliverAnnouncement(
         announcementId,
         chatId: recipient.chatId,
         messageId: result.messageId,
+        media,
       }),
     )
     if (previous) {
@@ -96,11 +118,18 @@ export async function deliverAnnouncement(
         previous.messageId,
         plainEventMessage(previous),
         null,
+        previous.media !== null,
       )
     }
   }
 
-  for (let start = 0; start < recipients.length; start += SEND_BATCH) {
+  // С картинкой первый получатель — отдельно, чтобы остальные получили
+  // её по `file_id`.
+  const first = photo && recipients.length > 0 ? 1 : 0
+  if (first) {
+    await deliver(recipients[0]!)
+  }
+  for (let start = first; start < recipients.length; start += SEND_BATCH) {
     const begun = Date.now()
     await Promise.all(recipients.slice(start, start + SEND_BATCH).map(deliver))
     const rest = BATCH_INTERVAL_MS - (Date.now() - begun)
@@ -146,7 +175,7 @@ export async function editMessage(
   deps: AppDeps,
   telegram: TelegramDeps,
   userId: string,
-  target: { chatId: number; messageId: number },
+  target: { chatId: number; messageId: number; media: string | null },
   html: string,
   keyboard: InlineKeyboard | null,
 ) {
@@ -155,6 +184,7 @@ export async function editMessage(
     target.messageId,
     html,
     keyboard,
+    target.media !== null,
   )
   if (result === 'blocked') {
     await telegramRepository.markBlocked(

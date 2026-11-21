@@ -43,6 +43,46 @@ async function saveAndExpectDraft(page: Page, text: RegExp) {
   expect(await hasHorizontalScroll(page)).toBe(false)
 }
 
+test('анонс постоянного события: картинка и лимит текста 880 (TGM-28)', async ({
+  page,
+}) => {
+  const officer = await createMember('officer')
+  const token = await accessToken(officer.email)
+  expect((await callApi('events/ensure-weekly', token)).status).toBe(200)
+  const [weekly] = await sql(
+    (db) => db<{ id: string }[]>`
+      select id from app.events
+      where recurring_preset = 'tv_sun_20' and closed_at is null
+      order by starts_at desc limit 1`,
+  )
+  const eventId = weekly!.id
+
+  await signInUi(page, officer.email)
+  await expectSignedIn(page)
+  await page.goto(`./#/broadcast?source=event&id=${eventId}`)
+  const body = page.getByLabel('Текст рассылки')
+  await expect(body).toHaveValue(/ТВ/)
+  await expect(
+    page.getByText(/с картинкой события, поэтому текст — не длиннее 880/),
+  ).toBeVisible()
+
+  await body.fill('x'.repeat(881))
+  await page.getByRole('button', { name: 'Сохранить черновик' }).click()
+  await expect(page.getByText('Слишком длинное значение')).toBeVisible()
+  await expect(
+    page.getByText('Сохранено как черновик, не отправлено'),
+  ).toHaveCount(0)
+
+  // Сервер тоже не отправляет длинный текст.
+  const send = await callApi('broadcasts/send', token, {
+    body: 'x'.repeat(881),
+    eventId,
+    channels: ['telegram'],
+  })
+  expect(send.status).toBe(422)
+  expect(await hasHorizontalScroll(page)).toBe(false)
+})
+
 test('E2E-07: подготовка рассылки из события, голосования и группы', async ({
   page,
 }) => {

@@ -7,8 +7,9 @@ export type InlineKeyboard = {
   inline_keyboard: { text: string; callback_data: string }[][]
 }
 
+/** `photoId` — `file_id` отправленной картинки для повторных отправок. */
 export type SendResult =
-  | { status: 'ok'; messageId: number }
+  | { status: 'ok'; messageId: number; photoId?: string }
   | { status: 'blocked' }
   | { status: 'failed' }
 
@@ -19,20 +20,28 @@ export type SendResult =
 export type EditResult = 'ok' | 'not_modified' | 'gone' | 'blocked' | 'failed'
 
 export type TelegramGateway = {
-  /** Сообщение в HTML (`parse_mode: HTML`), с кнопками или без. */
+  /**
+   * Сообщение в HTML (`parse_mode: HTML`), с кнопками или без; `photo` —
+   * адрес или `file_id` картинки: текст становится подписью (TGM-27).
+   */
   sendHtml(
     chatId: number,
     html: string,
     keyboard?: InlineKeyboard,
+    photo?: string,
   ): Promise<SendResult>
   /** Простой текст без разметки: ответы бота (TGM-09). */
   sendText(chatId: number, text: string): Promise<SendResult>
-  /** Новый текст; `keyboard: null` убирает кнопки. */
+  /**
+   * Новый текст; `keyboard: null` убирает кнопки. `caption` — сообщение с
+   * картинкой: меняется подпись, картинка остаётся (TGM-27).
+   */
   editHtml(
     chatId: number,
     messageId: number,
     html: string,
     keyboard: InlineKeyboard | null,
+    caption?: boolean,
   ): Promise<EditResult>
   /** Только кнопки; `null` убирает их. */
   editKeyboard(
@@ -125,13 +134,21 @@ export function createTelegramGateway(
     return 'failed'
   }
 
-  async function send(params: Record<string, unknown>): Promise<SendResult> {
-    const body = await request('sendMessage', params)
+  async function send(
+    params: Record<string, unknown>,
+    method = 'sendMessage',
+  ): Promise<SendResult> {
+    const body = await request(method, params)
     if (body.ok) {
-      const messageId = (body.result as { message_id?: unknown } | undefined)
-        ?.message_id
+      const result = body.result as
+        { message_id?: unknown; photo?: { file_id?: unknown }[] } | undefined
+      const messageId = result?.message_id
       if (typeof messageId === 'number') {
-        return { status: 'ok', messageId }
+        // Самый крупный размер — последний.
+        const photoId = result?.photo?.at(-1)?.file_id
+        return typeof photoId === 'string'
+          ? { status: 'ok', messageId, photoId }
+          : { status: 'ok', messageId }
       }
       return { status: 'failed' }
     }
@@ -141,7 +158,19 @@ export function createTelegramGateway(
   }
 
   return {
-    sendHtml(chatId, html, keyboard) {
+    sendHtml(chatId, html, keyboard, photo) {
+      if (photo) {
+        return send(
+          {
+            chat_id: chatId,
+            photo,
+            caption: html,
+            parse_mode: 'HTML',
+            ...(keyboard ? { reply_markup: keyboard } : {}),
+          },
+          'sendPhoto',
+        )
+      }
       return send({
         chat_id: chatId,
         text: html,
@@ -157,7 +186,16 @@ export function createTelegramGateway(
         link_preview_options: { is_disabled: true },
       })
     },
-    editHtml(chatId, messageId, html, keyboard) {
+    editHtml(chatId, messageId, html, keyboard, caption = false) {
+      if (caption) {
+        return edit('editMessageCaption', {
+          chat_id: chatId,
+          message_id: messageId,
+          caption: html,
+          parse_mode: 'HTML',
+          reply_markup: keyboard ?? EMPTY_KEYBOARD,
+        })
+      }
       return edit('editMessageText', {
         chat_id: chatId,
         message_id: messageId,

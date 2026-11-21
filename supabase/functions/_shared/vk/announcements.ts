@@ -32,6 +32,8 @@ export async function deliverVkAnnouncement(
   /** Анонс группы — только её участникам (Q-104). */
   groupId: string | null = null,
   excludedUserIds: string[] = [],
+  /** Картинка постоянного события (VK-10); null — без картинки. */
+  imageUrl: string | null = null,
 ): Promise<DeliveryResult> {
   const fetchedRecipients = await vkRepository.recipients(
     deps.db,
@@ -50,6 +52,11 @@ export async function deliverVkAnnouncement(
     : null
   let sent = 0
   let failed = 0
+  // Картинка загружается один раз; не загрузилась — анонс без неё (VK-10).
+  const attachment =
+    imageUrl && recipients.length > 0
+      ? await vk.gateway.uploadPhoto(imageUrl)
+      : null
 
   const deliver = async (recipient: (typeof recipients)[number]) => {
     // Ответившие на событие анонс не получают (Q-109): кнопки без ответа.
@@ -57,11 +64,21 @@ export async function deliverVkAnnouncement(
       eventId === null
         ? { text: announcementPlain(announcement), keyboard: undefined }
         : vkEventMessage(announcement, eventId, null)
-    const result = await vk.gateway.send(
+    let result = await vk.gateway.send(
       recipient.chatId,
       message.text,
       message.keyboard,
+      attachment ?? undefined,
     )
+    let media = attachment
+    if (attachment && result.status === 'failed') {
+      result = await vk.gateway.send(
+        recipient.chatId,
+        message.text,
+        message.keyboard,
+      )
+      media = null
+    }
     if (result.status === 'blocked') {
       await vkRepository.markBlocked(
         deps.db,
@@ -86,6 +103,7 @@ export async function deliverVkAnnouncement(
         announcementId,
         chatId: recipient.chatId,
         messageId: result.messageId,
+        media,
       }),
     )
     if (previous) {
@@ -95,6 +113,7 @@ export async function deliverVkAnnouncement(
         previous.messageId,
         announcementPlain(previous),
         null,
+        previous.media,
       )
     }
   }
@@ -138,7 +157,7 @@ export async function editVkMessage(
   deps: AppDeps,
   vk: VkDeps,
   userId: string,
-  target: { chatId: number; messageId: number },
+  target: { chatId: number; messageId: number; media: string | null },
   text: string,
   keyboard: VkKeyboard | null,
 ) {
@@ -147,6 +166,7 @@ export async function editVkMessage(
     target.messageId,
     text,
     keyboard,
+    target.media,
   )
   if (result === 'blocked') {
     await vkRepository.markBlocked(deps.db, userId, deps.now().toISOString())
