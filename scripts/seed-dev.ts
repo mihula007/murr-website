@@ -533,22 +533,23 @@ byRole('applicant').forEach((user, index) => {
   if (index % 4 === 0) {
     addApplication(user, 'officer_rejected', submitted - 20 * DAY)
   }
+  const voteCompleted = index >= 24 && index < 30
   const statusName =
     index < 14
       ? 'pending_officer_review'
       : index < 24
         ? 'pending_vote'
-        : index < 30
-          ? 'vote_completed'
+        : voteCompleted
+          ? pick(['admin_approved', 'admin_rejected'])
           : 'admin_rejected'
   const app = addApplication(user, statusName, submitted)
-  if (statusName === 'pending_vote' || statusName === 'vote_completed') {
+  if (statusName === 'pending_vote' || voteCompleted) {
     addVote({
       kind: 'application',
       title: `Заявка: ${user.nickname}`,
       context: '',
       createdAt: submitted + HOUR,
-      closedAt: statusName === 'vote_completed' ? submitted + 3 * DAY : null,
+      closedAt: voteCompleted ? submitted + 3 * DAY : null,
       applicationId: app.id,
       labels: APPLICATION_VOTE_OPTIONS,
     })

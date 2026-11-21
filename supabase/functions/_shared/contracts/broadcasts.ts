@@ -200,6 +200,7 @@ export type PrefillRequest = z.input<typeof prefillSchema>
 /** Поиск и курсор для вкладки «Подписки» (BRC-15, Q-112). */
 export const broadcastSubscriptionsSchema = z.object({
   ...pageRequestShape,
+  unlinkedOnly: z.boolean().default(false),
   search: z
     .string()
     .trim()

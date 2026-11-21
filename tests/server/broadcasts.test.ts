@@ -188,6 +188,45 @@ describe('broadcasts/subscriptions (BRC-15, Q-112)', () => {
     expect(target).not.toHaveProperty('displayName')
   })
 
+  it('filters profiles without any messenger link only when requested', async () => {
+    const manager = await roleActor('officer')
+    const unlinked = await createProfiledUser(db, 'member')
+    const blocked = await createProfiledUser(db, 'member')
+    for (const [user, nickname] of [
+      [unlinked, 'FltNo1'],
+      [blocked, 'FltBlk1'],
+    ] as const) {
+      await db
+        .updateTable('app.profiles')
+        .set({ game_nickname: nickname })
+        .where('id', '=', user.id)
+        .execute()
+    }
+    await db
+      .insertInto('app.max_links')
+      .values({
+        user_id: blocked.id,
+        max_user_id: 81003,
+        chat_id: 81003,
+        display_name: 'Blocked account',
+        blocked_at: new Date().toISOString(),
+      })
+      .execute()
+
+    const all = await listBroadcastSubscriptions(deps, manager.actor, {
+      search: 'Flt',
+    })
+    const filtered = await listBroadcastSubscriptions(deps, manager.actor, {
+      search: 'Flt',
+      unlinkedOnly: true,
+    })
+
+    expect(all.items.map((item) => item.id)).toEqual(
+      expect.arrayContaining([unlinked.id, blocked.id]),
+    )
+    expect(filtered.items.map((item) => item.id)).toEqual([unlinked.id])
+  })
+
   it('rejects non-managers and searches nicknames on the server', async () => {
     const member = await createProfiledUser(db, 'member')
     const reader = await createProfiledUser(db, 'reader')
@@ -217,29 +256,50 @@ describe('broadcasts/subscriptions (BRC-15, Q-112)', () => {
   it('continues after 50 nicknames without duplicates', async () => {
     const admin = await roleActor('admin')
     const ids: string[] = []
-    for (let index = 0; index < 51; index += 1) {
+    let linkedId: string | null = null
+    for (let index = 0; index < 52; index += 1) {
       const user = await createProfiledUser(db, 'member')
-      ids.push(user.id)
+      if (index === 0) {
+        linkedId = user.id
+      } else {
+        ids.push(user.id)
+      }
       await db
         .updateTable('app.profiles')
-        .set({ game_nickname: `Page-${String(index).padStart(2, '0')}` })
+        .set({ game_nickname: `XxP-${String(index).padStart(2, '0')}` })
         .where('id', '=', user.id)
         .execute()
     }
+    await db
+      .insertInto('app.telegram_links')
+      .values({
+        user_id: linkedId!,
+        telegram_user_id: 81004,
+        chat_id: 81004,
+        display_name: 'Linked account',
+      })
+      .execute()
     const first = await listBroadcastSubscriptions(deps, admin.actor, {
       limit: 50,
+      search: 'XxP-',
+      unlinkedOnly: true,
     })
     const second = await listBroadcastSubscriptions(deps, admin.actor, {
       cursor: first.nextCursor,
       limit: 50,
+      search: 'XxP-',
+      unlinkedOnly: true,
     })
     expect(first.items).toHaveLength(50)
     expect(first.nextCursor).toBeTruthy()
-    expect(second.items).toHaveLength(2)
+    expect(second.items).toHaveLength(1)
     expect(second.nextCursor).toBeNull()
     expect(
       new Set([...first.items, ...second.items].map((item) => item.id)).size,
-    ).toBe(52)
+    ).toBe(51)
+    expect(
+      [...first.items, ...second.items].map((item) => item.id),
+    ).not.toContain(linkedId)
   })
 })
 

@@ -30,6 +30,7 @@ export type TemplateValues = {
 
 export type SubscriptionPageOptions = {
   search: string | null
+  unlinkedOnly: boolean
   after: NicknameKey | null
   limit: number
 }
@@ -74,6 +75,12 @@ export const broadcastRepository = {
         'ilike',
         containsPattern(options.search),
       )
+    }
+    if (options.unlinkedOnly) {
+      query = query
+        .where('t.user_id', 'is', null)
+        .where('v.user_id', 'is', null)
+        .where('m.user_id', 'is', null)
     }
     if (options.after) {
       const { gameNickname, id } = options.after

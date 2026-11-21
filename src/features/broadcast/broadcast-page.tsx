@@ -63,6 +63,7 @@ export const broadcastSearchSchema = z.object({
   id: z.guid().optional().catch(undefined),
   tab: z.enum(['prepare', 'subscriptions']).catch('prepare'),
   q: z.string().max(100).catch(''),
+  unlinkedOnly: z.boolean().catch(false),
 })
 export type BroadcastSearch = z.output<typeof broadcastSearchSchema>
 
@@ -848,6 +849,7 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
   const { source, id } = searchParams
   const tab = searchParams.tab ?? 'prepare'
   const search = searchParams.q ?? ''
+  const unlinkedOnly = searchParams.unlinkedOnly ?? false
   const canSend = hasOfficerPermission('broadcasts.send')
   const canManageTemplates = hasOfficerPermission('broadcasts.templates')
   const canViewSubscriptions = hasOfficerPermission('broadcasts.subscriptions')
@@ -860,6 +862,15 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
     void navigate({
       to: '/broadcast',
       search: (previous) => ({ ...previous, q: q || undefined }),
+      replace: true,
+    })
+  const changeUnlinkedOnly = (value: boolean) =>
+    void navigate({
+      to: '/broadcast',
+      search: (previous) => ({
+        ...previous,
+        unlinkedOnly: value || undefined,
+      }),
       replace: true,
     })
 
@@ -961,7 +972,9 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
               <SubscriptionsPanel
                 key={search}
                 search={search}
+                unlinkedOnly={unlinkedOnly}
                 onSearchChange={changeSearch}
+                onUnlinkedOnlyChange={changeUnlinkedOnly}
               />
             </Card>
           </TabsContent>

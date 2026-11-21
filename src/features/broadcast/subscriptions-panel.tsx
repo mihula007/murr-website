@@ -112,14 +112,18 @@ function SubscriptionRow({ member }: { member: BroadcastSubscription }) {
 /** Read-only messenger link overview for officers and administrators (BRC-15). */
 export function SubscriptionsPanel({
   search,
+  unlinkedOnly,
   onSearchChange,
+  onUnlinkedOnlyChange,
 }: {
   search: string
+  unlinkedOnly: boolean
   onSearchChange: (search: string) => void
+  onUnlinkedOnlyChange: (unlinkedOnly: boolean) => void
 }) {
   const [text, setText] = useState(search)
   const debounced = useDebounced(text, 350)
-  const subscriptions = useBroadcastSubscriptions(search)
+  const subscriptions = useBroadcastSubscriptions(search, unlinkedOnly)
 
   useEffect(() => {
     const value = debounced.trim()
@@ -134,7 +138,12 @@ export function SubscriptionsPanel({
   } else if (subscriptions.isError) {
     content = <ErrorState onRetry={() => void subscriptions.refetch()} />
   } else if (subscriptions.data.length === 0) {
-    content = search ? (
+    content = unlinkedOnly ? (
+      <EmptyState
+        title="Людей без привязки не нашли"
+        description="Измените поиск или снимите флажок."
+      />
+    ) : search ? (
       <EmptyState title="Участников не нашли" description="Проверьте ник." />
     ) : (
       <EmptyState
@@ -188,6 +197,15 @@ export function SubscriptionsPanel({
           placeholder="Введите ник"
         />
       </FormField>
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
+        <input
+          type="checkbox"
+          className="size-4 flex-none accent-primary"
+          checked={unlinkedOnly}
+          onChange={(event) => onUnlinkedOnlyChange(event.target.checked)}
+        />
+        Показать без подписки
+      </label>
       {content}
     </section>
   )

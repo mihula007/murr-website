@@ -65,6 +65,7 @@ export async function listBroadcastSubscriptions(
   const input = parseBody(broadcastSubscriptionsSchema, body ?? {})
   const rows = await broadcastRepository.subscriptions(deps.db, {
     search: input.search,
+    unlinkedOnly: input.unlinkedOnly,
     after: input.cursor ? decodeCursor(nicknameCursor, input.cursor) : null,
     limit: input.limit + 1,
   })

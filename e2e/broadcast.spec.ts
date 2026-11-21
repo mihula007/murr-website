@@ -270,6 +270,73 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
   await expect(page.getByText(lastNickname as string)).toBeVisible()
 })
 
+test('BRC-17: subscription list filters profiles without any messenger link', async ({
+  page,
+}) => {
+  const [officer, unlinked, linked] = await Promise.all([
+    createMember('officer'),
+    createMember('member'),
+    createMember('member'),
+  ])
+  const prefix = randomBytes(2).toString('hex')
+  const telegramId = randomInt(1_000_000, 2_000_000_000)
+  await sql(async (db) => {
+    await db`
+      update app.profiles set game_nickname = ${prefix} || '1'
+      where id = ${unlinked.id}`
+    await db`
+      update app.profiles set game_nickname = ${prefix} || '2'
+      where id = ${linked.id}`
+    await db`
+      insert into app.telegram_links
+        (user_id, telegram_user_id, chat_id, display_name)
+      values (${linked.id}, ${telegramId}, ${telegramId}, ${linked.nickname})`
+  })
+
+  await signInUi(page, officer.email)
+  await expectSignedIn(page)
+  await page.goto(`./#/broadcast?tab=subscriptions&q=${prefix}`)
+  await expect(page.getByText(`${prefix}1`)).toBeVisible()
+  await expect(page.getByText(`${prefix}2`)).toBeVisible()
+
+  const filteredResponse = page.waitForResponse((response) => {
+    if (
+      !response.url().includes('/functions/v1/api/broadcasts/subscriptions')
+    ) {
+      return false
+    }
+    const request = JSON.parse(response.request().postData() ?? '{}') as {
+      search?: string
+      unlinkedOnly?: boolean
+    }
+    return request.search === prefix && request.unlinkedOnly === true
+  })
+  await page.getByRole('checkbox', { name: 'Показать без подписки' }).check()
+  await filteredResponse
+  await expect(page.getByText(`${prefix}1`)).toBeVisible()
+  await expect(page.getByText(`${prefix}2`)).toHaveCount(0)
+
+  const reloadResponse = page.waitForResponse((response) => {
+    if (
+      !response.url().includes('/functions/v1/api/broadcasts/subscriptions')
+    ) {
+      return false
+    }
+    const request = JSON.parse(response.request().postData() ?? '{}') as {
+      search?: string
+      unlinkedOnly?: boolean
+    }
+    return request.search === prefix && request.unlinkedOnly === true
+  })
+  await page.reload()
+  await reloadResponse
+  await expect(
+    page.getByRole('checkbox', { name: 'Показать без подписки' }),
+  ).toBeChecked()
+  await expect(page.getByText(`${prefix}1`)).toBeVisible()
+  await expect(page.getByText(`${prefix}2`)).toHaveCount(0)
+})
+
 test('BRC-15: subscription tab shows messenger links to managers only', async ({
   page,
 }) => {

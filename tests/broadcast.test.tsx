@@ -188,6 +188,39 @@ describe('broadcast page (BRC, E2E-07)', () => {
     expect(await screen.findByText('Участников не нашли')).toBeVisible()
   })
 
+  it('filters subscription search to people without links', async () => {
+    const requests: unknown[] = []
+    routes['broadcasts/subscriptions'] = (body) => {
+      requests.push(body)
+      return { items: [], nextCursor: null }
+    }
+    const { router } = await renderApp({
+      role: 'admin',
+      path: '/broadcast?tab=subscriptions&q=TestNick',
+    })
+    const filter = await screen.findByRole('checkbox', {
+      name: 'Показать без подписки',
+    })
+    expect(filter).not.toBeChecked()
+
+    fireEvent.click(filter)
+
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({
+        q: 'TestNick',
+        unlinkedOnly: true,
+      }),
+    )
+    await waitFor(() =>
+      expect(requests).toContainEqual({
+        cursor: null,
+        search: 'TestNick',
+        unlinkedOnly: true,
+      }),
+    )
+    expect(await screen.findByText('Людей без привязки не нашли')).toBeVisible()
+  })
+
   it('saves a draft; all three channels are chosen (Q-99, Q-102)', async () => {
     await renderApp({ role: 'officer', path: '/broadcast' })
     const telegram = await screen.findByRole('checkbox', { name: 'Telegram' })
