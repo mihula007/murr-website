@@ -80,6 +80,14 @@
   --splash-muted: #a5a79a;
   --splash-accent: #b8c77a;
   --splash-glow: #6fbd4c66;
+  /* Медали призовых мест в рейтинге силы: золото, серебро, бронза. */
+  --medal-gold-from: #f8e2a0;
+  --medal-gold-to: #b8873a;
+  --medal-silver-from: #eef0f3;
+  --medal-silver-to: #8a9099;
+  --medal-bronze-from: #efb582;
+  --medal-bronze-to: #8f532a;
+  --medal-foreground: #17130b;
   --splash-eye: #5dff2326;
   --splash-shade: #00000073;
   --splash-shade-soft: #00000014;
@@ -153,6 +161,13 @@
   --color-notice-border: var(--notice-border);
   --color-notice-foreground: var(--notice-foreground);
   --color-live: var(--live);
+  --color-medal-gold-from: var(--medal-gold-from);
+  --color-medal-gold-to: var(--medal-gold-to);
+  --color-medal-silver-from: var(--medal-silver-from);
+  --color-medal-silver-to: var(--medal-silver-to);
+  --color-medal-bronze-from: var(--medal-bronze-from);
+  --color-medal-bronze-to: var(--medal-bronze-to);
+  --color-medal-foreground: var(--medal-foreground);
   --color-live-border: var(--live-border);
   --color-live-surface: var(--live-surface);
   --color-live-glow: var(--live-glow);

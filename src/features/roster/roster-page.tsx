@@ -174,17 +174,17 @@ function CharacterStatsSummary({ member }: { member: RosterMember }) {
   return (
     <dl
       aria-label={`Характеристика ${member.gameNickname}`}
-      className="m-0 grid grid-cols-5 gap-1.5"
+      className="col-span-full m-0 grid grid-cols-5 gap-1"
     >
       {CHARACTER_STAT_FIELDS.map((field) => (
         <div
           key={field}
-          className="grid min-w-0 justify-items-center rounded-md border border-border/70 bg-background/60 px-1 py-1 text-center backdrop-blur-[2px]"
+          className="grid min-w-0 justify-items-center rounded-md border border-border/70 bg-background/60 px-0.5 py-1.5 text-center backdrop-blur-[2px]"
         >
           <dt className="text-2xs leading-tight text-muted-foreground">
             {CHARACTER_STAT_LABELS[field]}
           </dt>
-          <dd className="m-0 text-xs font-semibold text-foreground tabular-nums">
+          <dd className="m-0 text-sm font-semibold whitespace-nowrap text-foreground tabular-nums">
             {formatCharacterStat(field, member[field])}
           </dd>
         </div>
@@ -228,7 +228,7 @@ function MemberCard({
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10 bg-linear-90/srgb from-background/95 via-background/78 to-background/42"
       />
-      <div className="relative flex min-w-0 items-start gap-3.5">
+      <div className="relative grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3.5 gap-y-2">
         <Avatar
           size="sm"
           name={member.gameNickname}
@@ -252,7 +252,6 @@ function MemberCard({
             <span className="size-1.5 rotate-45 border border-highlight bg-background/85" />
             <hr className="h-px flex-1 border-0 bg-highlight/60" />
           </div>
-          <CharacterStatsSummary member={member} />
         </div>
         {onBlock || onChangeRole ? (
           <DropdownMenu>
@@ -288,6 +287,7 @@ function MemberCard({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
+        <CharacterStatsSummary member={member} />
       </div>
     </div>
   )

@@ -32,16 +32,22 @@ const column = activityColumns<RosterMember>()
 const columns: ActivityColumns<RosterMember> = [
   column.accessor('gameNickname', {
     header: 'Ник',
-    cell: (info) => <strong className="break-words">{info.getValue()}</strong>,
+    cell: (info) => (
+      <strong className="break-words max-[900px]:min-w-0 max-[900px]:truncate">
+        {info.getValue()}
+      </strong>
+    ),
   }),
   column.accessor('className', {
     header: 'Класс',
     cell: (info) => {
       const member = info.row.original
       return (
-        <span className="inline-flex min-w-0 items-center gap-1.5">
+        <span className="inline-flex min-w-0 items-center gap-1.5 max-[900px]:h-[26px] max-[900px]:flex-wrap max-[900px]:justify-end max-[900px]:overflow-hidden">
           <ClassIcon classId={member.classId} className={member.className} />
-          {member.className}
+          <span className="whitespace-nowrap max-[900px]:leading-[26px]">
+            {member.className}
+          </span>
         </span>
       )
     },
@@ -58,8 +64,16 @@ const columns: ActivityColumns<RosterMember> = [
   ),
 ]
 
+/**
+ * На узком экране строка — карточка с переносом: в первой строке номер, ник
+ * и класс справа; `::after` во всю ширину переносит пять показателей на
+ * вторую строку, по пятой части каждый. Класс занимает остаток первой
+ * строки: если название не помещается рядом с иконкой, оно уходит в
+ * скрытую вторую строку ячейки — остаётся иконка; затем сокращается ник
+ * (HOM-20).
+ */
 const tableClass =
-  'w-full table-fixed border-collapse text-left text-sm [&_td]:border-b [&_td]:border-border [&_td]:px-2 [&_td]:py-2.5 [&_td]:align-middle [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:border-b [&_th]:border-border [&_th]:bg-surface-to [&_th]:px-2 [&_th]:py-2.5 [&_th]:font-semibold [&_th]:text-muted-foreground [&_th:first-child]:w-10 max-[900px]:block max-[900px]:[&_thead]:hidden max-[900px]:[&_tbody]:grid max-[900px]:[&_tbody]:gap-2.5 max-[900px]:[&_tr]:grid max-[900px]:[&_tr]:grid-cols-[auto_minmax(0,1fr)] max-[900px]:[&_tr]:gap-x-3 max-[900px]:[&_tr]:rounded-xl max-[900px]:[&_tr]:border max-[900px]:[&_tr]:border-border max-[900px]:[&_tr]:p-3 max-[900px]:[&_td]:grid max-[900px]:[&_td]:gap-0.5 max-[900px]:[&_td]:border-0 max-[900px]:[&_td]:p-0 max-[900px]:[&_td:first-child]:col-span-1 max-[900px]:[&_td:nth-child(2)]:col-span-1 max-[900px]:[&_td:nth-child(3)]:col-span-full'
+  'w-full table-fixed border-collapse text-left text-sm [&_td]:border-b [&_td]:border-border [&_td]:px-2 [&_td]:py-2.5 [&_td]:align-middle [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:border-b [&_th]:border-border [&_th]:bg-surface-to [&_th]:px-2 [&_th]:py-2.5 [&_th]:font-semibold [&_th]:text-muted-foreground [&_th:first-child]:w-10 max-[900px]:block max-[900px]:[&_thead]:hidden max-[900px]:[&_tbody]:grid max-[900px]:[&_tbody]:gap-2.5 max-[900px]:[&_tr]:flex max-[900px]:[&_tr]:flex-wrap max-[900px]:[&_tr]:after:order-1 max-[900px]:[&_tr]:after:basis-full max-[900px]:[&_tr]:items-center max-[900px]:[&_tr]:gap-x-0 max-[900px]:[&_tr]:gap-y-1 max-[900px]:[&_tr]:rounded-xl max-[900px]:[&_tr]:border max-[900px]:[&_tr]:border-border max-[900px]:[&_tr]:p-3 max-[900px]:[&_td]:block max-[900px]:[&_td]:min-w-0 max-[900px]:[&_td]:border-0 max-[900px]:[&_td]:p-0 max-[900px]:[&_td:first-child]:flex-none max-[900px]:[&_td:nth-child(2)]:pl-3 max-[900px]:[&_td:nth-child(2)]:max-w-[calc(100%-5rem)] max-[900px]:[&_td:nth-child(2)]:truncate max-[900px]:[&_td:nth-child(2)]:text-base max-[900px]:[&_td:nth-child(3)]:min-w-[34px] max-[900px]:[&_td:nth-child(3)]:grow max-[900px]:[&_td:nth-child(3)]:basis-0 max-[900px]:[&_td:nth-child(3)]:pl-2 max-[900px]:[&_td:nth-child(3)>div]:items-center max-[900px]:[&_td:nth-child(3)>div]:justify-end max-[900px]:[&_td:nth-child(n+4)]:order-2 max-[900px]:[&_td:nth-child(n+4)]:basis-1/5 max-[900px]:[&_td:nth-child(n+4)]:mt-2 max-[900px]:[&_td:nth-child(n+4)]:border-t max-[900px]:[&_td:nth-child(n+4)]:px-0.5 max-[900px]:[&_td:nth-child(n+4)]:pt-2.5 max-[900px]:[&_td:nth-child(n+4)>div]:flex-col max-[900px]:[&_td:nth-child(n+4)>div]:items-center max-[900px]:[&_td:nth-child(n+4)>div]:gap-0.5 max-[900px]:[&_td:nth-child(n+4)>div]:font-semibold max-[900px]:[&_td:nth-child(n+4)>div]:whitespace-nowrap max-[900px]:[&_td:nth-child(n+4)>div]:tabular-nums'
 
 /**
  * На компьютере — 15 строк с прокруткой внутри, но не выше окна, и без
@@ -73,12 +87,36 @@ const scrollClass =
 /** Сколько карточек видно на узком экране до «Показать всех» (HOM-17). */
 const NARROW_VISIBLE = 15
 
-function MobileLabel({ text, first }: { text: string; first: boolean }) {
+/** Подпись показателя в карточке; ник и класс понятны без подписи. */
+function MobileLabel({ text }: { text: string }) {
+  return (
+    <span className="hidden text-xs font-normal text-muted-foreground max-[900px]:inline">
+      {text}
+    </span>
+  )
+}
+
+/** Медали призовых мест на телефоне: золото, серебро, бронза (HOM-20). */
+const medalText = [
+  'bg-linear-135 from-medal-gold-from to-medal-gold-to',
+  'bg-linear-135 from-medal-silver-from to-medal-silver-to',
+  'bg-linear-135 from-medal-bronze-from to-medal-bronze-to',
+]
+const stripBase =
+  'max-[900px]:relative max-[900px]:before:absolute max-[900px]:before:inset-y-3 max-[900px]:before:left-0 max-[900px]:before:w-1 max-[900px]:before:rounded-r-full max-[900px]:before:bg-linear-to-b'
+const medalStrip = [
+  `${stripBase} max-[900px]:before:from-medal-gold-from max-[900px]:before:to-medal-gold-to`,
+  `${stripBase} max-[900px]:before:from-medal-silver-from max-[900px]:before:to-medal-silver-to`,
+  `${stripBase} max-[900px]:before:from-medal-bronze-from max-[900px]:before:to-medal-bronze-to`,
+]
+
+/** Номер места в карточке на телефоне: «#1», у первых трёх — цвет медали. */
+function MobileRank({ index }: { index: number }) {
   return (
     <span
-      className={`hidden text-xs text-muted-foreground max-[900px]:inline${first ? ' max-[900px]:hidden' : ''}`}
+      className={`hidden text-base font-extrabold tabular-nums max-[900px]:inline ${index < 3 ? `${medalText[index]} bg-clip-text text-transparent` : 'text-muted-foreground'}`}
     >
-      {text}
+      #{index + 1}
     </span>
   )
 }
@@ -254,20 +292,21 @@ export function CharacterStrengthRating() {
                   return (
                     <tr
                       key={row.id}
-                      className={`${rowIndex % 2 === 0 ? 'bg-surface-inset' : 'bg-surface-from'} hover:bg-surface-to ${row.original.id === currentUserId ? 'bg-item-highlight!' : ''}`}
+                      className={`${rowIndex % 2 === 0 ? 'bg-surface-inset' : 'bg-surface-from'} hover:bg-surface-to ${row.original.id === currentUserId ? 'bg-item-highlight!' : ''} ${medalStrip[rowIndex] ?? ''}`}
                     >
                       <td
                         aria-label={`Место ${rank}`}
-                        className={`text-center text-xs ${rowIndex < 3 ? 'font-extrabold text-highlight' : 'font-semibold text-muted-foreground'}`}
+                        className={`text-center text-xs max-[900px]:text-left max-[900px]:text-sm ${rowIndex < 3 ? 'font-extrabold text-highlight' : 'font-semibold text-muted-foreground'}`}
                       >
-                        {rank}
+                        <span className="max-[900px]:hidden">{rank}</span>
+                        <MobileRank index={rowIndex} />
                       </td>
                       {row.getAllCells().map((cell, index) => {
                         const label = String(cell.column.columnDef.header)
                         return (
                           <td key={cell.id}>
                             <div className="flex min-w-0 items-baseline gap-1">
-                              <MobileLabel text={label} first={index === 0} />
+                              {index >= 2 ? <MobileLabel text={label} /> : null}
                               <ratingTable.FlexRender cell={cell} />
                             </div>
                           </td>

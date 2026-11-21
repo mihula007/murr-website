@@ -331,11 +331,21 @@ await insert(
       class_id: u.classId,
       about: chance(0.6) ? text(int(1, 3)) : null,
       access_role: u.role,
-      pa: hasCharacterStats ? 65_000 + index * 1_250 : null,
-      pz: hasCharacterStats ? 22_000 + index * 875 : null,
-      bu: hasCharacterStats ? 4_500 + index * 125 : null,
-      hp: hasCharacterStats ? 35_000 + index * 2_100 : null,
-      bd: hasCharacterStats ? 8_000 + index * 250 : null,
+      // Реалистичные значения; верхние границы — максимум в клане (11.2026),
+      // у первого — все максимумы сразу, чтобы проверить вёрстку худшего случая.
+      pa: hasCharacterStats ? (index === 0 ? 700 : int(200, 700)) : null,
+      pz: hasCharacterStats ? (index === 0 ? 700 : int(150, 700)) : null,
+      bu: hasCharacterStats ? (index === 0 ? 120 : int(0, 120)) : null,
+      hp: hasCharacterStats
+        ? index === 0
+          ? 130_500
+          : int(50_000, 130_500)
+        : null,
+      bd: hasCharacterStats
+        ? index === 0
+          ? 12_400
+          : int(7_000, 12_400)
+        : null,
       character_stats_source: hasCharacterStats ? 'Тестовые данные' : null,
       is_primary_admin: u.primary,
       joined_on: ['member', 'officer', 'master', 'admin'].includes(u.role)

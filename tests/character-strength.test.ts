@@ -211,12 +211,17 @@ describe('показатели состава и главная', () => {
       within(table).getByRole('columnheader', { name: 'Номер позиции' }),
     ).toBeVisible()
     const rows = Array.from(table.querySelectorAll('tbody tr'))
-    expect(rows.map((row) => row.querySelector('td')?.textContent)).toEqual([
-      '01',
-      '02',
-      '03',
-      '04',
-    ])
+    expect(
+      rows.map(
+        (row) => row.querySelector('td > span:first-child')?.textContent,
+      ),
+    ).toEqual(['01', '02', '03', '04'])
+    expect(
+      rows.map((row) => row.querySelector('td > span:last-child')?.textContent),
+    ).toEqual(['#1', '#2', '#3', '#4'])
+    expect(rows[0]).toHaveClass('max-[900px]:before:from-medal-gold-from')
+    expect(rows[2]).toHaveClass('max-[900px]:before:from-medal-bronze-from')
+    expect(rows[3]?.className).not.toContain('before:')
     expect(rows[0]).toHaveClass('bg-surface-inset')
     expect(rows[1]).toHaveClass('bg-surface-from')
     expect(rows[0]?.querySelector('td')).toHaveClass('text-highlight')
@@ -247,7 +252,7 @@ describe('показатели состава и главная', () => {
     expect(order().join(' ')).not.toContain('Альфа')
     expect(
       Array.from(table.querySelectorAll('tbody tr')).map(
-        (row) => row.querySelector('td')?.textContent,
+        (row) => row.querySelector('td > span:first-child')?.textContent,
       ),
     ).toEqual(['01', '02'])
     expect(
