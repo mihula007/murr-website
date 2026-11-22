@@ -489,9 +489,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
     const recipientScroller = screen.getByLabelText(
       'Прокручиваемый список: Получатели объявления',
     )
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Показать ещё' }),
-    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Показать ещё' }))
     await waitFor(() =>
       expect(requests).toContainEqual(
         expect.objectContaining({ cursor: 'cursor-1' }),
