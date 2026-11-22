@@ -60,14 +60,28 @@ export type DB = {
   'app.telegram_event_messages': KyselyTable<
     Generated['telegram_event_messages']
   >
+  'app.telegram_vote_announcements': KyselyTable<
+    Generated['telegram_vote_announcements']
+  >
+  'app.telegram_vote_messages': KyselyTable<
+    Generated['telegram_vote_messages']
+  >
   'app.max_links': KyselyTable<Generated['max_links']>
   'app.max_link_codes': KyselyTable<Generated['max_link_codes']>
   'app.max_announcements': KyselyTable<Generated['max_announcements']>
   'app.max_event_messages': KyselyTable<Generated['max_event_messages']>
+  'app.max_vote_announcements': KyselyTable<
+    Generated['max_vote_announcements']
+  >
+  'app.max_vote_messages': KyselyTable<Generated['max_vote_messages']>
   'app.vk_links': KyselyTable<Generated['vk_links']>
   'app.vk_link_codes': KyselyTable<Generated['vk_link_codes']>
   'app.vk_announcements': KyselyTable<Generated['vk_announcements']>
   'app.vk_event_messages': KyselyTable<Generated['vk_event_messages']>
+  'app.vk_vote_announcements': KyselyTable<
+    Generated['vk_vote_announcements']
+  >
+  'app.vk_vote_messages': KyselyTable<Generated['vk_vote_messages']>
   'auth.users': AuthUsersTable
 }
 

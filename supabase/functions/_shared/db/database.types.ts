@@ -1029,6 +1029,92 @@ export type Database = {
           },
         ]
       }
+      max_vote_announcements: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          subject: string | null
+          vote_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          subject?: string | null
+          vote_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          subject?: string | null
+          vote_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'max_vote_announcements_vote_id_fkey'
+            columns: ['vote_id']
+            isOneToOne: true
+            referencedRelation: 'votes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      max_vote_messages: {
+        Row: {
+          announcement_id: string
+          chat_id: number
+          media: string | null
+          message_id: string
+          sent_at: string
+          user_id: string
+          vote_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          announcement_id: string
+          chat_id: number
+          media?: string | null
+          message_id: string
+          sent_at?: string
+          user_id: string
+          vote_id: string
+        }
+        Update: {
+          announcement_id?: string
+          chat_id?: number
+          media?: string | null
+          message_id?: string
+          sent_at?: string
+          user_id?: string
+          vote_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'max_vote_messages_announcement_id_vote_id_fkey'
+            columns: ['announcement_id', 'vote_id']
+            isOneToOne: false
+            referencedRelation: 'max_vote_announcements'
+            referencedColumns: ['id', 'vote_id']
+          },
+          {
+            foreignKeyName: 'max_vote_messages_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'max_vote_messages_vote_id_fkey'
+            columns: ['vote_id']
+            isOneToOne: false
+            referencedRelation: 'votes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       officer_permissions: {
         Row: {
           officer_id: string
@@ -1409,6 +1495,92 @@ export type Database = {
           },
         ]
       }
+      telegram_vote_announcements: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          subject: string | null
+          vote_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          subject?: string | null
+          vote_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          subject?: string | null
+          vote_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'telegram_vote_announcements_vote_id_fkey'
+            columns: ['vote_id']
+            isOneToOne: true
+            referencedRelation: 'votes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      telegram_vote_messages: {
+        Row: {
+          announcement_id: string
+          chat_id: number
+          media: string | null
+          message_id: number
+          sent_at: string
+          user_id: string
+          vote_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          announcement_id: string
+          chat_id: number
+          media?: string | null
+          message_id: number
+          sent_at?: string
+          user_id: string
+          vote_id: string
+        }
+        Update: {
+          announcement_id?: string
+          chat_id?: number
+          media?: string | null
+          message_id?: number
+          sent_at?: string
+          user_id?: string
+          vote_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'telegram_vote_messages_announcement_id_vote_id_fkey'
+            columns: ['announcement_id', 'vote_id']
+            isOneToOne: false
+            referencedRelation: 'telegram_vote_announcements'
+            referencedColumns: ['id', 'vote_id']
+          },
+          {
+            foreignKeyName: 'telegram_vote_messages_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'telegram_vote_messages_vote_id_fkey'
+            columns: ['vote_id']
+            isOneToOne: false
+            referencedRelation: 'votes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       user_deletions: {
         Row: {
           cleanup_paths: string[]
@@ -1663,6 +1835,92 @@ export type Database = {
             columns: ['user_id']
             isOneToOne: true
             referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      vk_vote_announcements: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          subject: string | null
+          vote_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          subject?: string | null
+          vote_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          subject?: string | null
+          vote_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'vk_vote_announcements_vote_id_fkey'
+            columns: ['vote_id']
+            isOneToOne: true
+            referencedRelation: 'votes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      vk_vote_messages: {
+        Row: {
+          announcement_id: string
+          chat_id: number
+          media: string | null
+          message_id: number
+          sent_at: string
+          user_id: string
+          vote_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          announcement_id: string
+          chat_id: number
+          media?: string | null
+          message_id: number
+          sent_at?: string
+          user_id: string
+          vote_id: string
+        }
+        Update: {
+          announcement_id?: string
+          chat_id?: number
+          media?: string | null
+          message_id?: number
+          sent_at?: string
+          user_id?: string
+          vote_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'vk_vote_messages_announcement_id_vote_id_fkey'
+            columns: ['announcement_id', 'vote_id']
+            isOneToOne: false
+            referencedRelation: 'vk_vote_announcements'
+            referencedColumns: ['id', 'vote_id']
+          },
+          {
+            foreignKeyName: 'vk_vote_messages_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'vk_vote_messages_vote_id_fkey'
+            columns: ['vote_id']
+            isOneToOne: false
+            referencedRelation: 'votes'
             referencedColumns: ['id']
           },
         ]

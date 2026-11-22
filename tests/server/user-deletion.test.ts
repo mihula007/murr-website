@@ -424,6 +424,53 @@ async function populate() {
     })
     .execute()
 
+  // Активные сообщения голосования в трёх мессенджерах.
+  const telegramVoteAnnouncement = await db
+    .insertInto('app.telegram_vote_announcements')
+    .values({ vote_id: foreignVote.id, body: 'Голосуйте' })
+    .returning('id')
+    .executeTakeFirstOrThrow()
+  await db
+    .insertInto('app.telegram_vote_messages')
+    .values({
+      vote_id: foreignVote.id,
+      user_id: id,
+      announcement_id: telegramVoteAnnouncement.id,
+      chat_id: 777_001,
+      message_id: 2,
+    })
+    .execute()
+  const maxVoteAnnouncement = await db
+    .insertInto('app.max_vote_announcements')
+    .values({ vote_id: foreignVote.id, body: 'Голосуйте' })
+    .returning('id')
+    .executeTakeFirstOrThrow()
+  await db
+    .insertInto('app.max_vote_messages')
+    .values({
+      vote_id: foreignVote.id,
+      user_id: id,
+      announcement_id: maxVoteAnnouncement.id,
+      chat_id: 888_001,
+      message_id: 'mid.vote',
+    })
+    .execute()
+  const vkVoteAnnouncement = await db
+    .insertInto('app.vk_vote_announcements')
+    .values({ vote_id: foreignVote.id, body: 'Голосуйте' })
+    .returning('id')
+    .executeTakeFirstOrThrow()
+  await db
+    .insertInto('app.vk_vote_messages')
+    .values({
+      vote_id: foreignVote.id,
+      user_id: id,
+      announcement_id: vkVoteAnnouncement.id,
+      chat_id: 999_001,
+      message_id: 2,
+    })
+    .execute()
+
   return {
     admin,
     victim,
@@ -516,12 +563,15 @@ describe('user deletion: data rules (ADM-08, table of stage 11)', () => {
       ['app.telegram_links', 'user_id'],
       ['app.telegram_link_codes', 'user_id'],
       ['app.telegram_event_messages', 'user_id'],
+      ['app.telegram_vote_messages', 'user_id'],
       ['app.max_links', 'user_id'],
       ['app.max_link_codes', 'user_id'],
       ['app.max_event_messages', 'user_id'],
+      ['app.max_vote_messages', 'user_id'],
       ['app.vk_links', 'user_id'],
       ['app.vk_link_codes', 'user_id'],
       ['app.vk_event_messages', 'user_id'],
+      ['app.vk_vote_messages', 'user_id'],
     ] as const) {
       expect({ table, rows: await count(table, column, id) }).toEqual({
         table,
