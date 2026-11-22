@@ -9,6 +9,7 @@ import {
   ensureWeeklyEvents,
   respondToEvent,
 } from '../../supabase/functions/_shared/events/service.ts'
+import * as eventImages from '../../supabase/functions/_shared/messenger/event-image.ts'
 import { eventImageUrl } from '../../supabase/functions/_shared/messenger/event-image.ts'
 import {
   actorOf,
@@ -110,6 +111,24 @@ describe('eventImageUrl', () => {
     expect(eventImageUrl('https://pwmurr.ru/', null)).toBeNull()
     expect(eventImageUrl('https://pwmurr.ru/', 'toString')).toBeNull()
     expect(eventImageUrl(null, 'tv_sun_20')).toBeNull()
+  })
+})
+
+describe('broadcastImageUrl', () => {
+  it('maps vote and group sources to static site images', () => {
+    expect(eventImages).toHaveProperty('broadcastImageUrl')
+    const broadcastImageUrl = Reflect.get(
+      eventImages,
+      'broadcastImageUrl',
+    ) as (siteUrl: string | null, source: 'vote' | 'group') => string | null
+
+    expect(broadcastImageUrl('https://pwmurr.ru', 'vote')).toBe(
+      'https://pwmurr.ru/messenger/vote.jpg',
+    )
+    expect(broadcastImageUrl('https://pwmurr.ru/', 'group')).toBe(
+      'https://pwmurr.ru/messenger/group-list.jpg',
+    )
+    expect(broadcastImageUrl(null, 'vote')).toBeNull()
   })
 })
 

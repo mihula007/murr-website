@@ -12,6 +12,21 @@ export const EVENT_IMAGE_FILES: Record<RecurringPreset, string> = {
   tv_sun_22: 'tv22.jpg',
 }
 
+export type BroadcastImageSource = 'vote' | 'group'
+
+const BROADCAST_IMAGE_FILES: Record<BroadcastImageSource, string> = {
+  vote: 'vote.jpg',
+  group: 'group-list.jpg',
+}
+
+function staticImageUrl(siteUrl: string | null, file: string): string | null {
+  if (!siteUrl) {
+    return null
+  }
+  const base = siteUrl.endsWith('/') ? siteUrl : `${siteUrl}/`
+  return new URL(`messenger/${file}`, base).toString()
+}
+
 /**
  * Адрес картинки события на сайте; null — у события нет картинки (не
  * постоянное) или адрес сайта не задан.
@@ -24,9 +39,16 @@ export function eventImageUrl(
     preset && Object.hasOwn(EVENT_IMAGE_FILES, preset)
       ? EVENT_IMAGE_FILES[preset as RecurringPreset]
       : null
-  if (!siteUrl || !file) {
+  if (!file) {
     return null
   }
-  const base = siteUrl.endsWith('/') ? siteUrl : `${siteUrl}/`
-  return new URL(`messenger/${file}`, base).toString()
+  return staticImageUrl(siteUrl, file)
+}
+
+/** Картинка для отдельной рассылки из голосования или группы (BRC-18). */
+export function broadcastImageUrl(
+  siteUrl: string | null,
+  source: BroadcastImageSource,
+): string | null {
+  return staticImageUrl(siteUrl, BROADCAST_IMAGE_FILES[source])
 }
