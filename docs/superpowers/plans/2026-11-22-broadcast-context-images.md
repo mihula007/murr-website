@@ -44,19 +44,19 @@
 - Добавляет в существующий файл `broadcastImageUrl(siteUrl: string | null, source: 'vote' | 'group'): string | null`.
 - URL — `<SITE_URL>/messenger/vote.jpg` для `vote`, `<SITE_URL>/messenger/group-list.jpg` для `group`; при пустом `siteUrl` — `null`.
 
-- [ ] **Шаг 1: Написать падающий тест URL-сопоставления.** Проверить оба файла, ведущий слэш в `siteUrl` и `null`.
-- [ ] **Шаг 2: Запустить только новый тест и убедиться, что он падает из-за отсутствующей функции.**
+- [x] **Шаг 1: Написать падающий тест URL-сопоставления.** Проверить оба файла, ведущий слэш в `siteUrl` и `null`.
+- [x] **Шаг 2: Запустить только новый тест и убедиться, что он падает из-за отсутствующей функции.**
 
 Run: `npm run test:server -- tests/server/messenger-event-images.test.ts -t broadcastImageUrl`
 Expected: FAIL, `broadcastImageUrl` отсутствует.
 
-- [ ] **Шаг 3: Добавить функцию сопоставления и две предоставленные картинки.** Копировать исходники из `C:\Users\info\Desktop\голосование.jpg` и `C:\Users\info\Desktop\список групп.jpg` в указанные публичные пути.
-- [ ] **Шаг 4: Запустить тест сопоставления.**
+- [x] **Шаг 3: Добавить функцию сопоставления и две предоставленные картинки.** Копировать исходники из `C:\Users\info\Desktop\голосование.jpg` и `C:\Users\info\Desktop\список групп.jpg` в указанные публичные пути.
+- [x] **Шаг 4: Запустить тест сопоставления.**
 
 Run: `npm run test:server -- tests/server/messenger-event-images.test.ts -t broadcastImageUrl`
 Expected: PASS для обоих URL и отсутствующего `siteUrl`.
 
-- [ ] **Шаг 5: Сохранить задачу Conventional Commit.**
+- [x] **Шаг 5: Сохранить задачу Conventional Commit.**
 
 ```bash
 git add public/messenger/vote.jpg public/messenger/group-list.jpg supabase/functions/_shared/messenger/event-image.ts tests/server/messenger-event-images.test.ts
@@ -83,25 +83,22 @@ git commit -m "feat(broadcast): add vote and group images"
 - `sendAnnouncement` проверяет, что голосование существует и открыто; картинка голосования или группы определяется только сервером. Текущий `groupId` остаётся единственным источником получателей группы.
 - `deliverAnnouncement`, `deliverMaxAnnouncement`, `deliverVkAnnouncement` получают уже проверенный `imageUrl`; доставка MAX/ВКонтакте использует текущую схему однократной загрузки на канал.
 
-- [ ] **Шаг 1: Добавить интеграционные тесты для рассылок из активного голосования и группы во все три канала, общей формы без картинки, сбоя загрузки MAX/ВКонтакте и неизменного состава получателей группы.** Проверить правильный URL каждой картинки.
-- [ ] **Шаг 2: Запустить новый тест и увидеть, что сейчас у этих сообщений нет картинки.**
+- [x] **Шаг 1: Добавить интеграционные тесты для рассылок из активного голосования и группы во все три канала, общей формы без картинки, сбоя загрузки MAX/ВКонтакте и неизменного состава получателей группы.** Проверить правильный URL каждой картинки.
+- [x] **Шаг 2: Запустить новый тест и увидеть, что сейчас у этих сообщений нет картинки.**
 
 Run: `npm run test:server -- tests/server/messenger-event-images.test.ts -t "vote and group broadcasts"`
 Expected: FAIL, картинки для новых источников ещё не передаются.
 
-- [ ] **Шаг 3: Добавить `voteId`, серверную проверку активного голосования и передачу проверенного URL всем трём каналам.** Добавить проверку, что закрытый/неизвестный `voteId` и конфликтующие источники завершаются до любой отправки.
-- [ ] **Шаг 4: Добавить компонентную проверку, что форма, открытая из голосования, передаёт его ID в `broadcasts/send`; обычная форма его не передаёт.**
-- [ ] **Шаг 5: Запустить тесты серверного отправления и формы рассылки.**
+- [x] **Шаг 3: Добавить `voteId`, серверную проверку активного голосования и передачу проверенного URL всем трём каналам.** Добавить проверку, что закрытый/неизвестный `voteId` и конфликтующие источники завершаются до любой отправки.
+- [x] **Шаг 4: Добавить компонентную проверку, что форма, открытая из голосования, передаёт его ID в `broadcasts/send`; обычная форма его не передаёт.**
+- [x] **Шаг 5: Запустить тесты серверного отправления и формы рассылки.**
 
 Run: `npm run test:server -- tests/server/messenger-event-images.test.ts` и `npm test -- tests/broadcast.test.tsx`
 Expected: PASS; существующие картинки событий и обычная рассылка сохраняют прежнее поведение.
 
-- [ ] **Шаг 6: Сохранить задачу Conventional Commit.**
+- [x] **Шаг 6: Сохранить задачу одним общим коммитом реализации и проверок.**
 
-```bash
-git add supabase/functions/_shared/contracts/broadcasts.ts supabase/functions/_shared/broadcasts/service.ts src/features/broadcast/broadcast-page.tsx supabase/functions/_shared/telegram/announcements.ts supabase/functions/_shared/max/announcements.ts supabase/functions/_shared/vk/announcements.ts tests/server/messenger-event-images.test.ts tests/broadcast.test.tsx
-git commit -m "feat(broadcast): send source images across messengers"
-```
+Сохранено вместе с обработкой длинного текста и e2e в коммите `1c71348`.
 
 ### Задача 3: Длинный текст Telegram, сквозная проверка и статус
 
@@ -131,12 +128,9 @@ Expected: PASS.
 
 - [x] **Шаг 5: Добавить e2e-проверку, что подтверждённая отправка из активного голосования передаёт `voteId`, а подготовка из группы сохраняет её `groupId`. E2e только написать; локально не запускать, его прогонит CI после принятия и выкладки.**
 - [x] **Шаг 6: Отметить BRC-18, TGM-29, MAX-14 и VK-11 как реализованные, повторно проверить подготовленные изменения и сканер секретов.**
-- [ ] **Шаг 7: Сохранить оставшееся Conventional Commit.**
+- [x] **Шаг 7: Сохранить оставшееся Conventional Commit (`1c71348 feat(broadcast): attach images to source announcements`).**
 
-```bash
-git add supabase/functions/_shared/telegram/announcements.ts tests/server/messenger-event-images.test.ts e2e/broadcast.spec.ts docs/requirements/14-broadcast.md docs/requirements/19-telegram.md docs/requirements/20-max.md docs/requirements/21-vk.md
-git commit -m "feat(broadcast): preserve long Telegram image announcements"
-```
+Общая реализация сохранена коммитом `1c71348` после прохождения проверок.
 
 ## Самопроверка плана
 
