@@ -293,3 +293,5 @@ export async function editVkMessage(
   }
   return result
 }
+
+export { syncVkVoteMessage as syncVoteMessage }

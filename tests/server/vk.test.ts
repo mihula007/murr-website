@@ -17,10 +17,8 @@ import {
   voteAnswerData,
   voteChangeData,
 } from '../../supabase/functions/_shared/messenger/callback-data.ts'
-import {
-  deliverVkAnnouncement,
-  syncVkVoteMessage,
-} from '../../supabase/functions/_shared/vk/announcements.ts'
+import { deliverVkAnnouncement } from '../../supabase/functions/_shared/vk/announcements.ts'
+import { syncVoteMessages } from '../../supabase/functions/_shared/messenger/sync.ts'
 import {
   VK_BOT_TEXTS,
   VK_CALLBACK_TEXTS,
@@ -664,8 +662,12 @@ describe('vk: vote buttons (VK-12, VOT-17)', () => {
       voteId: vote.id,
       optionId: vote.options[1]!.id,
     })
-    await syncVkVoteMessage(deps, member.user.id, vote.id)
-    expect(fake.calls.at(-1)).toMatchObject({
+    await syncVoteMessages(deps, member.user.id, vote.id)
+    expect(
+      fake.calls.find(
+        (call) => call.method === 'edit' && call.messageId === current,
+      ),
+    ).toMatchObject({
       method: 'edit',
       messageId: current,
       text: expect.stringContaining('Ваш голос: Против'),
