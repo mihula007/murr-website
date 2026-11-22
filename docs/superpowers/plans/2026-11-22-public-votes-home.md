@@ -61,5 +61,5 @@
 ## Completion
 
 - [x] Обновить статусы требований и module decisions.
-- [ ] Проверить `git diff --check`, статус и `npm run security:check`.
-- [ ] Сохранить реализацию отдельным Conventional Commit в `main`; не отправлять до шага 6.
+- [x] Проверить `git diff --check`, статус и `npm run security:check`.
+- [x] Сохранить реализацию отдельным Conventional Commit в `main`; не отправлять до шага 6.
