@@ -500,7 +500,7 @@ export function ScrollableVirtualList<T>({
           '--virtual-height': `calc(${viewportRows} * ${estimateSize}px + ${viewportRows - 1} * ${GAP[gap]}px)`,
         } as CSSProperties
       }
-      className="max-h-(--virtual-height) overflow-y-auto overscroll-contain rounded-lg"
+      className="max-h-(--virtual-height) [overflow-anchor:none] overflow-y-auto overscroll-contain rounded-lg"
     >
       <ul
         aria-label={label}
