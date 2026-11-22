@@ -486,11 +486,9 @@ describe('broadcast page (BRC, E2E-07)', () => {
 
     await renderApp({ role: 'admin', path: '/broadcast' })
     expect(await screen.findByText('Первый')).toBeVisible()
-    const recipientScroller = screen.getByLabelText(
-      'Прокручиваемый список: Получатели объявления',
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Показать ещё' }),
     )
-    recipientScroller.scrollTop = 4_000
-    fireEvent.scroll(recipientScroller)
     await waitFor(() =>
       expect(requests).toContainEqual(
         expect.objectContaining({ cursor: 'cursor-1' }),
