@@ -4,12 +4,14 @@ import {
   answerData,
   changeData,
   parseCallbackData,
+  voteAnswerData,
 } from '../supabase/functions/_shared/messenger/callback-data.ts'
 import {
   announcementHtml,
   escapeHtml,
   eventMessage,
   plainEventMessage,
+  voteMessage,
 } from '../supabase/functions/_shared/telegram/render.ts'
 import { BROADCAST_LIMITS } from '@contracts/broadcasts'
 import { CALLBACK_TEXTS } from '../supabase/functions/_shared/telegram/messages.ts'
@@ -121,5 +123,34 @@ describe('telegram rendering (TGM-15, TGM-19, Q-78, Q-90)', () => {
     for (const text of Object.values(CALLBACK_TEXTS)) {
       expect(text.length).toBeLessThanOrEqual(200)
     }
+  })
+})
+
+describe('telegram vote rendering (TGM-30, VOT-17)', () => {
+  it('keeps full choices in the message and maps actions to Telegram buttons', () => {
+    const longLabel = 'Большинство участников выберет этот путь'
+    const options = [
+      { id: EVENT_ID, label: 'За' },
+      { id: 'cdb37e1c-b9e5-4ba7-90b9-ef77e487a544', label: longLabel },
+      { id: '1dbb9942-c07c-4f85-a56b-1f1fb397153c', label: 'Против' },
+    ]
+    const rendered = voteMessage(
+      { subject: 'Маршрут', body: 'Ответьте кнопкой или на сайте.' },
+      options,
+      null,
+    )
+
+    expect(rendered.html).toContain(`3. Против`)
+    expect(rendered.html).toContain(`2. ${longLabel}`)
+    expect(rendered.keyboard.inline_keyboard).toEqual([
+      [
+        { text: 'За', callback_data: voteAnswerData(options[0]!.id) },
+        {
+          text: '2. Большинство участников выбер…',
+          callback_data: voteAnswerData(options[1]!.id),
+        },
+      ],
+      [{ text: 'Против', callback_data: voteAnswerData(options[2]!.id) }],
+    ])
   })
 })

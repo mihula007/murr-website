@@ -18,16 +18,18 @@ import { ApiError } from '../http/errors.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
 import { eventRepository } from '../events/repository.ts'
 import { saveAnswer } from '../events/service.ts'
+import { voteRepository } from '../votes/repository.ts'
+import { saveBallot } from '../votes/service.ts'
 import { editMessage } from './announcements.ts'
 import { randomCode, sameSecret, sha256Hex } from '../messenger/link-code.ts'
-import { syncEventMessages } from '../messenger/sync.ts'
+import { syncEventMessages, syncVoteMessages } from '../messenger/sync.ts'
 import { runInBackground } from '../background.ts'
 import {
   parseCallbackData,
   type CallbackAction,
 } from '../messenger/callback-data.ts'
 import { BOT_TEXTS, CALLBACK_TEXTS } from './messages.ts'
-import { eventMessage } from './render.ts'
+import { eventMessage, voteMessage } from './render.ts'
 import { TELEGRAM_USER_CONSTRAINT, telegramRepository } from './repository.ts'
 import {
   displayNameOf,
@@ -277,6 +279,9 @@ async function pressButton(
   if (!link) {
     return CALLBACK_TEXTS.notLinked
   }
+  if (action.kind === 'vote-answer' || action.kind === 'vote-change') {
+    return pressVoteButton(deps, telegram, link.userId, target, action)
+  }
   const event = await eventRepository.find(deps.db, action.eventId)
   if (!event) {
     return CALLBACK_TEXTS.deleted
@@ -341,6 +346,81 @@ async function pressButton(
   return undefined
 }
 
+async function pressVoteButton(
+  deps: AppDeps,
+  telegram: TelegramDeps,
+  userId: string,
+  target: { chatId: number; messageId: number },
+  action: Extract<CallbackAction, { kind: 'vote-answer' | 'vote-change' }>,
+): Promise<string | undefined> {
+  const active = await telegramRepository.activeVoteMessageByTarget(
+    deps.db,
+    target.chatId,
+    target.messageId,
+  )
+  if (!active || active.userId !== userId) {
+    return CALLBACK_TEXTS.voteStale
+  }
+  let viewer: ProfiledActor
+  try {
+    viewer = requireRole(await loadActor(deps.db, userId), INTERNAL_ROLES)
+  } catch {
+    return CALLBACK_TEXTS.forbidden
+  }
+  const vote = await voteRepository.find(deps.db, active.voteId)
+  if (!vote) {
+    return CALLBACK_TEXTS.voteDeleted
+  }
+  if (vote.closed_at !== null) {
+    return CALLBACK_TEXTS.voteClosed
+  }
+
+  if (action.kind === 'vote-answer') {
+    let details
+    try {
+      details = await saveBallot(deps, viewer, {
+        voteId: active.voteId,
+        optionId: action.optionId,
+      })
+    } catch (error) {
+      return voteRefusalText(error)
+    }
+    const rendered = voteMessage(active, details.options, details.myOptionId)
+    await editMessage(
+      deps,
+      telegram,
+      userId,
+      active,
+      rendered.html,
+      rendered.keyboard,
+    )
+    await runInBackground(deps, () =>
+      syncVoteMessages(deps, userId, active.voteId, 'telegram'),
+    )
+    return undefined
+  }
+
+  const [options, choices] = await Promise.all([
+    voteRepository.totals(deps.db, [active.voteId]),
+    voteRepository.choicesOf(deps.db, [active.voteId], userId),
+  ])
+  const rendered = voteMessage(
+    active,
+    options.map((option) => ({ id: option.id, label: option.label })),
+    choices.get(active.voteId) ?? null,
+    true,
+  )
+  await editMessage(
+    deps,
+    telegram,
+    userId,
+    active,
+    rendered.html,
+    rendered.keyboard,
+  )
+  return undefined
+}
+
 /** Отказ `saveAnswer` при гонке с закрытием, началом или удалением события. */
 function refusalText(error: unknown) {
   if (!(error instanceof ApiError)) {
@@ -358,4 +438,20 @@ function refusalText(error: unknown) {
       : CALLBACK_TEXTS.started
   }
   throw error
+}
+
+function voteRefusalText(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    throw error
+  }
+  if (error.code === 'not_found') {
+    return CALLBACK_TEXTS.voteStale
+  }
+  if (error.code === 'forbidden') {
+    return CALLBACK_TEXTS.forbidden
+  }
+  if (error.code === 'state_conflict') {
+    return CALLBACK_TEXTS.voteClosed
+  }
+  return CALLBACK_TEXTS.failed
 }

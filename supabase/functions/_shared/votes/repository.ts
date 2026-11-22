@@ -183,6 +183,17 @@ export const voteRepository = {
     return new Map(rows.map((row) => [row.vote_id, row.option_id]))
   },
 
+  /** Выборы всех уже проголосовавших — один запрос на рассылку голосования. */
+  async choicesForVote(db: Executor, voteId: string) {
+    const rows = await db
+      .selectFrom('app.vote_ballots')
+      .select(['voter_id', 'option_id'])
+      .where('vote_id', '=', voteId)
+      .where('voter_id', 'is not', null)
+      .execute()
+    return new Map(rows.map((row) => [row.voter_id!, row.option_id]))
+  },
+
   /** Голоса с никами для офицера и администратора; удалённые — в конце. */
   ballots(db: Executor, voteId: string, limit: number) {
     return db

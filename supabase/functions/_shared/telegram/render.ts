@@ -10,6 +10,10 @@ import {
   type AnnouncementText,
 } from '../messenger/announcement.ts'
 import { answerData, changeData } from '../messenger/callback-data.ts'
+import {
+  renderVoteMessage,
+  type VoteMessageOption,
+} from '../messenger/vote-message.ts'
 import type { InlineKeyboard } from './gateway.ts'
 
 export {
@@ -56,5 +60,33 @@ export function changeKeyboard(eventId: string): InlineKeyboard {
     inline_keyboard: [
       [{ text: CHANGE_LABEL, callback_data: changeData(eventId) }],
     ],
+  }
+}
+
+/** Сообщение голосования: варианты сеткой по два, чтобы не терять читаемость. */
+export function voteMessage(
+  announcement: AnnouncementText,
+  options: readonly VoteMessageOption[],
+  selectedOptionId: string | null,
+  choosing = false,
+) {
+  const message = renderVoteMessage(
+    announcement,
+    options,
+    selectedOptionId,
+    choosing,
+    32,
+  )
+  const buttons = message.actions.map(({ label, data }) => ({
+    text: label,
+    callback_data: data,
+  }))
+  const rows: InlineKeyboard['inline_keyboard'] = []
+  for (let index = 0; index < buttons.length; index += 2) {
+    rows.push(buttons.slice(index, index + 2))
+  }
+  return {
+    html: announcementHtml({ subject: null, body: message.text }),
+    keyboard: { inline_keyboard: rows },
   }
 }
