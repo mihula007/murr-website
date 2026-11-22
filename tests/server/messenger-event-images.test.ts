@@ -9,8 +9,16 @@ import {
   ensureWeeklyEvents,
   respondToEvent,
 } from '../../supabase/functions/_shared/events/service.ts'
+import {
+  createGroup,
+  moveMember,
+} from '../../supabase/functions/_shared/groups/service.ts'
 import * as eventImages from '../../supabase/functions/_shared/messenger/event-image.ts'
 import { eventImageUrl } from '../../supabase/functions/_shared/messenger/event-image.ts'
+import {
+  closeVote,
+  createVote,
+} from '../../supabase/functions/_shared/votes/service.ts'
 import {
   actorOf,
   createProfiledUser,
@@ -44,6 +52,8 @@ beforeEach(async () => {
 afterAll(() => db.destroy())
 
 const TV20 = 'https://murr.test/messenger/tv20.jpg'
+const VOTE_IMAGE = 'https://murr.test/messenger/vote.jpg'
+const GROUP_IMAGE = 'https://murr.test/messenger/group-list.jpg'
 const CHANNELS = ['telegram', 'max', 'vk'] as const
 let counter = 50_000
 
@@ -97,6 +107,22 @@ async function weeklyTv20() {
   return row.id
 }
 
+const eventFields = {
+  title: 'Рейд',
+  type: 'pve',
+  date: '2099-11-14',
+  time: '20:00',
+  description: 'Собираемся у портала',
+}
+
+async function activeVote(actor: Awaited<ReturnType<typeof officer>>) {
+  return createVote(deps, actor, {
+    title: 'Выбор подземелья',
+    context: 'Выбираем место для похода',
+    options: ['Башня', 'Пещера'],
+  })
+}
+
 describe('eventImageUrl', () => {
   it('maps the four presets to site files and others to null', () => {
     expect(eventImageUrl('https://pwmurr.ru', 'mtv_sat_20')).toBe(
@@ -117,10 +143,10 @@ describe('eventImageUrl', () => {
 describe('broadcastImageUrl', () => {
   it('maps vote and group sources to static site images', () => {
     expect(eventImages).toHaveProperty('broadcastImageUrl')
-    const broadcastImageUrl = Reflect.get(
-      eventImages,
-      'broadcastImageUrl',
-    ) as (siteUrl: string | null, source: 'vote' | 'group') => string | null
+    const broadcastImageUrl = Reflect.get(eventImages, 'broadcastImageUrl') as (
+      siteUrl: string | null,
+      source: 'vote' | 'group',
+    ) => string | null
 
     expect(broadcastImageUrl('https://pwmurr.ru', 'vote')).toBe(
       'https://pwmurr.ru/messenger/vote.jpg',
@@ -272,6 +298,185 @@ describe('weekly event announcement with an image', () => {
     )
     expect(max.calls.some((c) => c.method === 'uploadImage')).toBe(false)
     expect(vk.calls.some((c) => c.method === 'uploadPhoto')).toBe(false)
+  })
+})
+
+describe('source-specific broadcast images', () => {
+  it('sends the vote and group images through all selected messengers', async () => {
+    const sender = await officer()
+    const vote = await activeVote(sender)
+    await member()
+    await member()
+
+    const voteResult = await sendAnnouncement(deps, sender, {
+      subject: 'Голосование',
+      body: 'Выбираем место.',
+      voteId: vote.id,
+      channels: [...CHANNELS],
+    })
+    expect(voteResult).toMatchObject({ recipients: 6, sent: 6, failed: 0 })
+    expect(
+      telegram.calls
+        .filter((call) => call.method === 'sendHtml')
+        .map((call) => call.photo),
+    ).toEqual([VOTE_IMAGE, 'file-vote.jpg'])
+    expect(
+      max.calls
+        .filter((call) => call.method === 'uploadImage')
+        .map((call) => call.image),
+    ).toEqual([VOTE_IMAGE])
+    expect(
+      max.calls
+        .filter((call) => call.method === 'sendHtml')
+        .map((call) => call.image),
+    ).toEqual(['token-vote.jpg', 'token-vote.jpg'])
+    expect(
+      vk.calls
+        .filter((call) => call.method === 'uploadPhoto')
+        .map((call) => call.attachment),
+    ).toEqual([VOTE_IMAGE])
+    expect(vk.calls.filter((call) => call.method === 'send')).toHaveLength(2)
+
+    telegram.calls.length = 0
+    max.calls.length = 0
+    vk.calls.length = 0
+    const senderMember = await member()
+    await member()
+    const event = await createEvent(deps, sender, eventFields)
+    const { groups } = await createGroup(deps, sender, {
+      eventId: event.id,
+      name: 'Пати 1',
+    })
+    const groupId = groups[0]!.id
+    await moveMember(deps, sender, {
+      eventId: event.id,
+      userId: senderMember.user.id,
+      groupId,
+    })
+
+    const groupResult = await sendAnnouncement(deps, sender, {
+      subject: 'Список пати',
+      body: 'Состав группы.',
+      groupId,
+      channels: [...CHANNELS],
+    })
+    expect(groupResult).toMatchObject({ recipients: 3, sent: 3, failed: 0 })
+    expect(
+      telegram.calls
+        .filter((call) => call.method === 'sendHtml')
+        .map((call) => call.photo),
+    ).toEqual([GROUP_IMAGE])
+    expect(
+      max.calls
+        .filter((call) => call.method === 'uploadImage')
+        .map((call) => call.image),
+    ).toEqual([GROUP_IMAGE])
+    expect(
+      max.calls
+        .filter((call) => call.method === 'sendHtml')
+        .map((call) => call.image),
+    ).toEqual(['token-group-list.jpg'])
+    expect(
+      vk.calls
+        .filter((call) => call.method === 'uploadPhoto')
+        .map((call) => call.attachment),
+    ).toEqual([GROUP_IMAGE])
+    expect(vk.calls.filter((call) => call.method === 'send')).toHaveLength(1)
+  })
+
+  it('rejects a closed vote before sending any message', async () => {
+    const sender = await officer()
+    const vote = await activeVote(sender)
+    await closeVote(deps, sender, { id: vote.id })
+
+    await expect(
+      sendAnnouncement(deps, sender, {
+        body: 'Голосование закрыто.',
+        voteId: vote.id,
+        channels: [...CHANNELS],
+      }),
+    ).rejects.toMatchObject({
+      code: 'state_conflict',
+      fields: { reason: 'closed' },
+    })
+    expect(telegram.calls).toHaveLength(0)
+    expect(max.calls).toHaveLength(0)
+    expect(vk.calls).toHaveLength(0)
+  })
+
+  it('rejects conflicting vote and event sources before sending', async () => {
+    const sender = await officer()
+    const vote = await activeVote(sender)
+    const event = await createEvent(deps, sender, eventFields)
+
+    await expect(
+      sendAnnouncement(deps, sender, {
+        body: 'Несовместимые источники.',
+        voteId: vote.id,
+        eventId: event.id,
+        channels: [...CHANNELS],
+      }),
+    ).rejects.toMatchObject({
+      code: 'validation_failed',
+      fields: { voteId: 'invalid' },
+    })
+    expect(telegram.calls).toHaveLength(0)
+    expect(max.calls).toHaveLength(0)
+    expect(vk.calls).toHaveLength(0)
+  })
+
+  it('sends full text if image upload fails in any messenger', async () => {
+    const sender = await officer()
+    const vote = await activeVote(sender)
+    await member()
+    telegram.failingPhotos.add(VOTE_IMAGE)
+    max.upload.fails = true
+    vk.upload.fails = true
+
+    const result = await sendAnnouncement(deps, sender, {
+      body: 'Полный текст голосования.',
+      voteId: vote.id,
+      channels: [...CHANNELS],
+    })
+    expect(result).toMatchObject({ recipients: 3, sent: 3, failed: 0 })
+    expect(
+      telegram.calls
+        .filter((call) => call.method === 'sendHtml')
+        .map((call) => call.photo),
+    ).toEqual([VOTE_IMAGE, undefined])
+    expect(
+      max.calls.find((call) => call.method === 'sendHtml')?.image,
+    ).toBeUndefined()
+    expect(
+      vk.calls.find((call) => call.method === 'send')?.attachment,
+    ).toBeUndefined()
+  })
+
+  it('sends a long Telegram announcement as a photo and full text', async () => {
+    const sender = await officer()
+    const vote = await activeVote(sender)
+    await member()
+    const body = 'x'.repeat(1_100)
+
+    await sendAnnouncement(deps, sender, {
+      subject: 'Голосование',
+      body,
+      voteId: vote.id,
+      channels: ['telegram'],
+    })
+
+    expect(
+      telegram.calls
+        .filter(
+          (call) => call.method === 'sendPhoto' || call.method === 'sendHtml',
+        )
+        .map((call) => call.method),
+    ).toEqual(['sendPhoto', 'sendHtml'])
+    expect(
+      telegram.calls.find((call) => call.method === 'sendHtml'),
+    ).toMatchObject({
+      text: `<b>Голосование</b>\n\n${body}`,
+    })
   })
 })
 

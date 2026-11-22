@@ -186,7 +186,12 @@ export const registration = (overrides: Record<string, unknown> = {}) => ({
 /** Вызов фальшивого шлюза Telegram: метод и параметры. */
 export type TelegramCall = {
   method:
-    'sendHtml' | 'sendText' | 'editHtml' | 'editKeyboard' | 'answerCallback'
+    | 'sendHtml'
+    | 'sendPhoto'
+    | 'sendText'
+    | 'editHtml'
+    | 'editKeyboard'
+    | 'answerCallback'
   chatId?: number
   messageId?: number
   text?: string
@@ -208,6 +213,20 @@ export function fakeTelegram() {
   const failingPhotos = new Set<string>()
   let nextMessageId = 100
   const gateway: TelegramGateway = {
+    async sendPhoto(chatId, photo) {
+      calls.push({ method: 'sendPhoto', chatId, photo })
+      if (blocked.has(chatId)) {
+        return { status: 'blocked' }
+      }
+      if (failingPhotos.has(photo)) {
+        return { status: 'failed' }
+      }
+      return {
+        status: 'ok',
+        messageId: nextMessageId++,
+        photoId: `file-${photo.split('/').at(-1)}`,
+      }
+    },
     async sendHtml(chatId, text, keyboard, photo) {
       calls.push({
         method: 'sendHtml',

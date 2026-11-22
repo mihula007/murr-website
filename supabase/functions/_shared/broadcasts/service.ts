@@ -41,7 +41,11 @@ import { decodeCursor, splitPage } from '../http/cursor.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { nicknameCursor, nicknameKey } from '../roster/cursor.ts'
-import { eventImageUrl } from '../messenger/event-image.ts'
+import {
+  broadcastImageUrl,
+  eventImageUrl,
+  type BroadcastImageSource,
+} from '../messenger/event-image.ts'
 import { deliverAnnouncement } from '../telegram/announcements.ts'
 import { telegramRepository } from '../telegram/repository.ts'
 import { requireTelegram } from '../telegram/service.ts'
@@ -402,6 +406,7 @@ const CHANNELS: Record<
       groupId: string | null,
       excludedUserIds: string[],
       preset: string | null,
+      sourceImage: BroadcastImageSource | null,
     ) => Promise<ChannelDelivery>
   }
 > = {
@@ -416,7 +421,15 @@ const CHANNELS: Record<
         eventId,
         excludedUserIds,
       ),
-    deliver: (deps, text, eventId, groupId, excludedUserIds, preset) => {
+    deliver: (
+      deps,
+      text,
+      eventId,
+      groupId,
+      excludedUserIds,
+      preset,
+      sourceImage,
+    ) => {
       const telegram = requireTelegram(deps)
       return deliverAnnouncement(
         deps,
@@ -425,7 +438,10 @@ const CHANNELS: Record<
         eventId,
         groupId,
         excludedUserIds,
-        eventImageUrl(telegram.siteUrl, preset),
+        eventImageUrl(telegram.siteUrl, preset) ??
+          (sourceImage
+            ? broadcastImageUrl(telegram.siteUrl, sourceImage)
+            : null),
       )
     },
   },
@@ -435,7 +451,15 @@ const CHANNELS: Record<
     require: requireVk,
     count: (deps, groupId, eventId, excludedUserIds = []) =>
       vkRepository.recipientCount(deps.db, groupId, eventId, excludedUserIds),
-    deliver: (deps, text, eventId, groupId, excludedUserIds, preset) => {
+    deliver: (
+      deps,
+      text,
+      eventId,
+      groupId,
+      excludedUserIds,
+      preset,
+      sourceImage,
+    ) => {
       const vk = requireVk(deps)
       return deliverVkAnnouncement(
         deps,
@@ -444,7 +468,8 @@ const CHANNELS: Record<
         eventId,
         groupId,
         excludedUserIds,
-        eventImageUrl(vk.siteUrl, preset),
+        eventImageUrl(vk.siteUrl, preset) ??
+          (sourceImage ? broadcastImageUrl(vk.siteUrl, sourceImage) : null),
       )
     },
   },
@@ -454,7 +479,15 @@ const CHANNELS: Record<
     require: requireMax,
     count: (deps, groupId, eventId, excludedUserIds = []) =>
       maxRepository.recipientCount(deps.db, groupId, eventId, excludedUserIds),
-    deliver: (deps, text, eventId, groupId, excludedUserIds, preset) => {
+    deliver: (
+      deps,
+      text,
+      eventId,
+      groupId,
+      excludedUserIds,
+      preset,
+      sourceImage,
+    ) => {
       const max = requireMax(deps)
       return deliverMaxAnnouncement(
         deps,
@@ -463,7 +496,8 @@ const CHANNELS: Record<
         eventId,
         groupId,
         excludedUserIds,
-        eventImageUrl(max.siteUrl, preset),
+        eventImageUrl(max.siteUrl, preset) ??
+          (sourceImage ? broadcastImageUrl(max.siteUrl, sourceImage) : null),
       )
     },
   },
@@ -592,6 +626,18 @@ export async function sendAnnouncement(
   if (input.eventId && input.groupId) {
     throw new ApiError('validation_failed', { groupId: 'invalid' })
   }
+  if (input.voteId && (input.eventId || input.groupId)) {
+    throw new ApiError('validation_failed', { voteId: 'invalid' })
+  }
+  const vote = input.voteId
+    ? await voteRepository.find(deps.db, input.voteId)
+    : null
+  if (input.voteId && !vote) {
+    throw new ApiError('not_found')
+  }
+  if (vote?.closed_at) {
+    throw new ApiError('state_conflict', { reason: 'closed' })
+  }
   // Анонс группы: группа незакрытого события, без кнопок (TGM-12, Q-104).
   const group = input.groupId
     ? await groupRepository.findGroup(deps.db, input.groupId)
@@ -624,6 +670,11 @@ export async function sendAnnouncement(
   }
   const groupId = group?.id ?? null
   const eventId = event?.id ?? null
+  const sourceImage: BroadcastImageSource | null = group
+    ? 'group'
+    : vote
+      ? 'vote'
+      : null
   const counts = await Promise.all(
     input.channels.map((channel) =>
       CHANNELS[channel].count(deps, groupId, eventId, input.excludedUserIds),
@@ -658,6 +709,7 @@ export async function sendAnnouncement(
             groupId,
             input.excludedUserIds,
             preset,
+            sourceImage,
           )
         : EMPTY_DELIVERY,
     ),

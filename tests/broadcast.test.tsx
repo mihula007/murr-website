@@ -769,6 +769,43 @@ describe('broadcast page (BRC, E2E-07)', () => {
     )
   })
 
+  it('sends a vote announcement with its source id for the vote image', async () => {
+    const id = '00000000-0000-4000-8000-000000000003'
+    routes['broadcasts/prefill'] = () => ({
+      subject: 'Голосование: название',
+      body: 'Выберите вариант',
+      recipients: null,
+    })
+    routes['broadcasts/recipients'] = () => recipients(1, 1)
+    routes['broadcasts/send'] = () => ({
+      recipients: 2,
+      sent: 2,
+      failed: 0,
+      channels: {
+        telegram: { recipients: 1, sent: 1, failed: 0 },
+        vk: { recipients: 0, sent: 0, failed: 0 },
+        max: { recipients: 1, sent: 1, failed: 0 },
+      },
+    })
+    await renderApp({
+      role: 'officer',
+      path: `/broadcast?source=vote&id=${id}`,
+    })
+    fireEvent.click(await screen.findByRole('button', { name: SEND }))
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Отправить' }))
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('broadcasts/send', {
+        subject: 'Голосование: название',
+        body: 'Выберите вариант',
+        eventId: null,
+        groupId: null,
+        voteId: id,
+        channels: ['telegram', 'vk', 'max'],
+      }),
+    )
+  })
+
   it('fills the form from an event and applies a template', async () => {
     routes['broadcasts/prefill'] = () => ({
       subject: 'Рейд',

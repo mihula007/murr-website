@@ -121,6 +121,13 @@ test('E2E-07: подготовка рассылки из события, гол�
     options: ['Башня', 'Пещера'],
   })
   expect(vote.status).toBe(200)
+  const telegramChatId = randomInt(1_000_000, 9_000_000)
+  await sql(async (db) => {
+    await db`
+      insert into app.telegram_links
+        (user_id, telegram_user_id, chat_id, display_name)
+      values (${member.id}, ${telegramChatId}, ${telegramChatId}, ${member.nickname})`
+  })
 
   await signInUi(page, officer.email)
   await expectSignedIn(page)
@@ -143,6 +150,27 @@ test('E2E-07: подготовка рассылки из события, гол�
   await expect(page.getByLabel('Текст рассылки')).toHaveValue(
     /Выбираем подземелье/,
   )
+  await page.getByRole('checkbox', { name: 'ВКонтакте' }).uncheck()
+  await page.getByRole('checkbox', { name: 'MAX' }).uncheck()
+  let voteSendBody: Record<string, unknown> | null = null
+  page.on('request', (request) => {
+    if (request.url().includes('/broadcasts/send')) {
+      voteSendBody = request.postDataJSON() as Record<string, unknown>
+    }
+  })
+  await page.getByRole('button', { name: 'Отправить анонс' }).click()
+  const voteDialog = page.getByRole('alertdialog')
+  await expect(voteDialog.getByText(/Получателей — Telegram: 1/)).toBeVisible()
+  await voteDialog
+    .getByRole('button', { name: 'Отправить', exact: true })
+    .click()
+  await expect(page.getByText(/^Отправлено — Telegram: 1/)).toBeVisible()
+  expect(voteSendBody).toMatchObject({
+    voteId: vote.body.id,
+    eventId: null,
+    groupId: null,
+    channels: ['telegram'],
+  })
 
   // Из непустой группы (BRC-04).
   await page.goto(`./#/events/${eventId}`)

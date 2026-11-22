@@ -63,6 +63,25 @@ describe('telegram gateway', () => {
     })
   })
 
+  it('sends a photo without a caption', async () => {
+    const { gateway, calls } = fakeApi({
+      ok: true,
+      result: { message_id: 43, photo: [{ file_id: 'photo-file' }] },
+    })
+    expect(await gateway.sendPhoto(7, 'https://example.test/vote.jpg')).toEqual(
+      {
+        status: 'ok',
+        messageId: 43,
+        photoId: 'photo-file',
+      },
+    )
+    expect(calls[0]!.method).toBe('sendPhoto')
+    expect(calls[0]!.params).toEqual({
+      chat_id: 7,
+      photo: 'https://example.test/vote.jpg',
+    })
+  })
+
   it('reports a blocked bot without logging it as an error', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { gateway } = fakeApi(

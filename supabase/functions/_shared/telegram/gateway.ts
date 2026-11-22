@@ -30,6 +30,8 @@ export type TelegramGateway = {
     keyboard?: InlineKeyboard,
     photo?: string,
   ): Promise<SendResult>
+  /** Картинка без подписи, для длинных анонсов (BRC-18). */
+  sendPhoto(chatId: number, photo: string): Promise<SendResult>
   /** Простой текст без разметки: ответы бота (TGM-09). */
   sendText(chatId: number, text: string): Promise<SendResult>
   /**
@@ -158,6 +160,9 @@ export function createTelegramGateway(
   }
 
   return {
+    sendPhoto(chatId, photo) {
+      return send({ chat_id: chatId, photo }, 'sendPhoto')
+    },
     sendHtml(chatId, html, keyboard, photo) {
       if (photo) {
         return send(

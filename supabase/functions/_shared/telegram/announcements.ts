@@ -1,6 +1,7 @@
 import type { AppDeps, TelegramDeps } from '../app.ts'
 import { withTransaction } from '../db/client.ts'
 import { eventRepository } from '../events/repository.ts'
+import { announcementPlain } from '../messenger/announcement.ts'
 import type { InlineKeyboard } from './gateway.ts'
 import {
   announcementHtml,
@@ -13,6 +14,8 @@ import { telegramRepository } from './repository.ts'
 /** Пул одновременных отправок и темп ≤ 25 сообщений в секунду (лимит ~30). */
 const SEND_BATCH = 20
 const BATCH_INTERVAL_MS = 800
+/** Максимум Telegram для подписи к фотографии (в символах текста). */
+const PHOTO_CAPTION_LIMIT = 1024
 
 export type DeliveryResult = {
   recipients: number
@@ -64,15 +67,29 @@ export async function deliverAnnouncement(
         ? { html: announcementHtml(announcement), keyboard: undefined }
         : eventMessage(announcement, eventId, null)
     const sentPhoto = photo
-    let result = await telegram.gateway.sendHtml(
-      recipient.chatId,
-      message.html,
-      message.keyboard,
-      sentPhoto ?? undefined,
-    )
+    const longPhotoAnnouncement =
+      sentPhoto !== null &&
+      eventId === null &&
+      announcementPlain(announcement).length > PHOTO_CAPTION_LIMIT
+    let result = longPhotoAnnouncement
+      ? await telegram.gateway.sendPhoto(recipient.chatId, sentPhoto)
+      : await telegram.gateway.sendHtml(
+          recipient.chatId,
+          message.html,
+          message.keyboard,
+          sentPhoto ?? undefined,
+        )
     let media: string | null = null
     if (sentPhoto && result.status === 'failed') {
       // Картинку отправить не удалось — тот же анонс без неё (TGM-27).
+      result = await telegram.gateway.sendHtml(
+        recipient.chatId,
+        message.html,
+        message.keyboard,
+      )
+    } else if (longPhotoAnnouncement && result.status === 'ok') {
+      photo = result.photoId ?? sentPhoto
+      // Подпись короче лимита; весь текст идёт следующим сообщением (BRC-18).
       result = await telegram.gateway.sendHtml(
         recipient.chatId,
         message.html,

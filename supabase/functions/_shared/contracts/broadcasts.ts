@@ -87,7 +87,8 @@ export type SaveBroadcastTemplateRequest = z.input<
 
 /**
  * Анонс в выбранные каналы (TGM-11–TGM-13, MAX-05); `eventId` — анонс
- * события с кнопками. Без `channels` — только Telegram (прежний клиент).
+ * события с кнопками; `voteId` — проверенный источник картинки (BRC-18).
+ * Без `channels` — только Telegram (прежний клиент).
  */
 const optionalId = z
   .guid('not_found')
@@ -100,6 +101,8 @@ export const sendAnnouncementSchema = z.object({
   eventId: optionalId,
   /** Анонс группы: только её участникам, без кнопок (TGM-12, Q-104). */
   groupId: optionalId,
+  /** Источник картинки отдельной рассылки из голосования (BRC-18). */
+  voteId: optionalId,
   channels: z
     .array(z.enum(SENDABLE_CHANNELS, 'invalid'), 'required')
     .min(1, 'required')

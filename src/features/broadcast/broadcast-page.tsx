@@ -492,6 +492,7 @@ function BroadcastForm({
   // событие — с кнопками, группа — только её участникам.
   const eventId = source?.kind === 'event' ? source.id : null
   const groupId = source?.kind === 'group' ? source.id : null
+  const voteId = source?.kind === 'vote' ? source.id : null
   // Одна проверка формы для двух действий: черновик или отправка.
   const intent = useRef<'save' | 'send'>('save')
   const [checking, setChecking] = useState(false)
@@ -812,6 +813,7 @@ function BroadcastForm({
               body: values.body,
               eventId,
               groupId,
+              ...(voteId ? { voteId } : {}),
               channels,
               ...(values.excludedRecipients.length > 0
                 ? {
