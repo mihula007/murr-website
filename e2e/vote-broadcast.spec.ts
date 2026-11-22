@@ -173,8 +173,8 @@ test('E2E-12: рассылка голосования и ответы из тр�
   expect(
     (await callsFor(telegramChatId)).filter(
       (call) =>
-        call.method === 'sendMessage' &&
-        (call.params.text ?? '').includes(title),
+        (call.method === 'sendMessage' || call.method === 'sendPhoto') &&
+        (call.params.text ?? call.params.caption ?? '').includes(title),
     ),
   ).toHaveLength(1)
 })
