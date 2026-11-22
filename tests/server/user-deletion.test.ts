@@ -769,6 +769,15 @@ describe('user deletion: failures and retry (Q-74, Q-75)', () => {
   it('rolls back the database stage entirely and retries without a second audit', async () => {
     const admin = await roleActor('admin')
     const target = await roleActor('officer')
+    await db
+      .insertInto('app.character_stat_history')
+      .values({
+        user_id: target.user.id,
+        field: 'pa',
+        value: 123,
+        kind: 'change',
+      })
+      .execute()
     await createEvent(deps, target.actor, eventFields)
     // Транзакция этапа БД выполняет все изменения и падает до фиксации.
     let transactions = 0
@@ -804,6 +813,9 @@ describe('user deletion: failures and retry (Q-74, Q-75)', () => {
       fields: { stage: 'database' },
     })
     expect(await count('app.profiles', 'id', target.user.id)).toBe(1)
+    expect(
+      await count('app.character_stat_history', 'user_id', target.user.id),
+    ).toBe(1)
     expect(await count('app.events', 'created_by', target.user.id)).toBe(1)
     const audit = () =>
       db
@@ -815,6 +827,9 @@ describe('user deletion: failures and retry (Q-74, Q-75)', () => {
 
     await deleteAccount(deps, admin.actor, request)
     expect(await count('app.profiles', 'id', target.user.id)).toBe(0)
+    expect(
+      await count('app.character_stat_history', 'user_id', target.user.id),
+    ).toBe(0)
     expect(await audit()).toHaveLength(1)
   })
 

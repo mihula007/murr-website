@@ -218,6 +218,42 @@ export type Database = {
         }
         Relationships: []
       }
+      character_stat_history: {
+        Row: {
+          field: string
+          id: string
+          kind: string
+          recorded_at: string
+          user_id: string
+          value: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          field: string
+          id?: string
+          kind?: string
+          recorded_at?: string
+          user_id: string
+          value?: number | null
+        }
+        Update: {
+          field?: string
+          id?: string
+          kind?: string
+          recorded_at?: string
+          user_id?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'character_stat_history_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       discussion_messages: {
         Row: {
           author_id: string | null

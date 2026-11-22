@@ -22,6 +22,7 @@ type AuthUsersTable = {
 export type DB = {
   'app.character_classes': KyselyTable<Generated['character_classes']>
   'app.profiles': KyselyTable<Generated['profiles']>
+  'app.character_stat_history': KyselyTable<Generated['character_stat_history']>
   'app.join_applications': KyselyTable<Generated['join_applications']>
   'app.application_equipment_links': KyselyTable<
     Generated['application_equipment_links']

@@ -52,6 +52,7 @@ import { parseBody } from '../http/validation.ts'
 import { joinedOnAfterRoleChange, moscowDate } from '../membership.ts'
 import { notify } from '../notifications/service.ts'
 import { accountRepository, type AccountKey } from './repository.ts'
+import { characterStatHistoryRepository } from '../character-stats/repository.ts'
 
 /** Восстанавливают чтеца офицер и администратор (ACL-06, ADM-09). */
 const READER_KEEPERS = ['officer', 'master', 'admin'] as const
@@ -292,6 +293,13 @@ async function saveCharacterStats(
     const changes: ProfileUpdate = {}
     const changedFields: string[] = []
     const statChanges: string[] = []
+    const historyChanges: Array<{
+      user_id: string
+      field: (typeof CHARACTER_STAT_FIELDS)[number]
+      value: number | null
+      recorded_at: string
+      kind: 'change'
+    }> = []
     for (const field of STAT_FIELDS) {
       const next = command[field]
       const previous = savedStat(target, field)
@@ -304,6 +312,15 @@ async function saveCharacterStats(
       statChanges.push(
         `${label}: ${auditStatValue(field, previous)} → ${auditStatValue(field, next)}`,
       )
+      if (field !== 'source') {
+        historyChanges.push({
+          user_id: command.userId,
+          field,
+          value: next as number | null,
+          recorded_at: deps.now().toISOString(),
+          kind: 'change',
+        })
+      }
     }
 
     if (changedFields.length > 0) {
@@ -311,6 +328,7 @@ async function saveCharacterStats(
         ...changes,
         updated_at: deps.now().toISOString(),
       })
+      await characterStatHistoryRepository.insertMany(tx, historyChanges)
       const user = await userRepository.findById(tx, command.userId)
       await writeAudit(tx, {
         category: 'profiles',

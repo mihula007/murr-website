@@ -1,4 +1,12 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 import { GUEST } from '../../supabase/functions/_shared/auth/actor.ts'
 import type { AccessRole } from '../../supabase/functions/_shared/contracts/account.ts'
 import {
@@ -7,6 +15,7 @@ import {
   setCharacterStats,
 } from '../../supabase/functions/_shared/accounts/service.ts'
 import { listRoster } from '../../supabase/functions/_shared/roster/service.ts'
+import { characterStatHistoryRepository } from '../../supabase/functions/_shared/character-stats/repository.ts'
 import {
   actorOf,
   createAuthUser,
@@ -20,6 +29,7 @@ const db = testDb()
 const deps = testDeps(db)
 
 beforeEach(() => resetAppData(db))
+afterEach(() => vi.restoreAllMocks())
 afterAll(() => db.destroy())
 
 const rejects = (promise: Promise<unknown>, code: string) =>
@@ -31,6 +41,83 @@ async function roleActor(role: AccessRole) {
 }
 
 describe('admin: character stats', () => {
+  it('records only actual numeric changes for both write operations', async () => {
+    const admin = await roleActor('admin')
+    const target = await roleActor('member')
+
+    await setCharacterStats(deps, admin.actor, {
+      userId: target.user.id,
+      pa: '100',
+      pz: '200',
+      source: 'ручной источник',
+    })
+    await setCharacterStats(deps, admin.actor, {
+      userId: target.user.id,
+      pa: '100',
+      pz: '200',
+    })
+    await setCharacterStat(deps, admin.actor, {
+      userId: target.user.id,
+      field: 'pa',
+      value: '150',
+    })
+    await setCharacterStats(deps, admin.actor, {
+      userId: target.user.id,
+      pz: null,
+    })
+
+    const changes = await db
+      .selectFrom('app.character_stat_history')
+      .select(['field', 'value', 'kind'])
+      .where('user_id', '=', target.user.id)
+      .where('kind', '=', 'change')
+      .orderBy('recorded_at')
+      .orderBy('id')
+      .execute()
+    expect(changes).toHaveLength(4)
+    expect(
+      changes.map((row) => `${row.field}:${row.value ?? 'null'}`).sort(),
+    ).toEqual(['pa:100.000', 'pa:150.000', 'pz:200.000', 'pz:null'])
+  })
+
+  it('rolls profile, history and audit back when history cannot be written', async () => {
+    const admin = await roleActor('admin')
+    const target = await roleActor('member')
+    vi.spyOn(
+      characterStatHistoryRepository,
+      'insertMany',
+    ).mockRejectedValueOnce(new Error('history write failed'))
+
+    await expect(
+      setCharacterStats(deps, admin.actor, {
+        userId: target.user.id,
+        pa: '500',
+      }),
+    ).rejects.toThrow('history write failed')
+    expect(
+      await db
+        .selectFrom('app.profiles')
+        .select('pa')
+        .where('id', '=', target.user.id)
+        .executeTakeFirstOrThrow(),
+    ).toMatchObject({ pa: null })
+    expect(
+      await db
+        .selectFrom('app.character_stat_history')
+        .select('id')
+        .where('user_id', '=', target.user.id)
+        .execute(),
+    ).toEqual([])
+    expect(
+      await db
+        .selectFrom('app.audit_log')
+        .select('id')
+        .where('action', '=', 'character_stat_changed')
+        .where('target_id', '=', target.user.id)
+        .execute(),
+    ).toEqual([])
+  })
+
   it('saves all fields at once, writes one audit entry with old and new values, and sends no notification', async () => {
     const admin = await roleActor('admin')
     const target = await roleActor('member')
