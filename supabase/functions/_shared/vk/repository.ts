@@ -15,6 +15,11 @@ export type VkLink = LinkValues & {
   blockedAt: string | null
 }
 
+export type VkActiveVoteMessage = VkActiveMessage & {
+  voteId: string
+  userId: string
+}
+
 const LINK_COLUMNS = [
   'user_id',
   'vk_user_id',
@@ -230,6 +235,88 @@ export const vkRepository = {
     return row.id
   },
 
+  /** Заменяет рассылку голосования и возвращает её старые сообщения. */
+  async replaceVoteAnnouncement(
+    tx: Executor,
+    values: { voteId: string; subject: string | null; body: string },
+  ) {
+    const previousMessages = await activeVoteMessageQuery(tx)
+      .where('m.vote_id', '=', values.voteId)
+      .execute()
+    await tx
+      .deleteFrom('app.vk_vote_announcements')
+      .where('vote_id', '=', values.voteId)
+      .execute()
+    const announcement = await tx
+      .insertInto('app.vk_vote_announcements')
+      .values({
+        vote_id: values.voteId,
+        subject: values.subject,
+        body: values.body,
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow()
+    return {
+      announcementId: announcement.id,
+      previousMessages: previousMessages.map(toActiveVoteMessage),
+    }
+  },
+
+  /** Сохраняет последнее активное сообщение участника по голосованию. */
+  async saveActiveVoteMessage(
+    tx: Executor,
+    values: {
+      voteId: string
+      userId: string
+      announcementId: string
+      chatId: number
+      messageId: number
+      media: string | null
+    },
+  ) {
+    await tx
+      .insertInto('app.vk_vote_messages')
+      .values({
+        vote_id: values.voteId,
+        user_id: values.userId,
+        announcement_id: values.announcementId,
+        chat_id: values.chatId,
+        message_id: values.messageId,
+        media: values.media,
+      })
+      .onConflict((oc) =>
+        oc.columns(['vote_id', 'user_id']).doUpdateSet({
+          announcement_id: values.announcementId,
+          chat_id: values.chatId,
+          message_id: values.messageId,
+          media: values.media,
+          sent_at: sql<string>`now()`,
+        }),
+      )
+      .execute()
+  },
+
+  async activeVoteMessage(db: Executor, voteId: string, userId: string) {
+    const row = await activeVoteMessageQuery(db)
+      .where('m.vote_id', '=', voteId)
+      .where('m.user_id', '=', userId)
+      .executeTakeFirst()
+    return row ? toActiveVoteMessage(row) : null
+  },
+
+  /** Проверяет владельца и идентификаторы callback-сообщения VK. */
+  async activeVoteMessageByTarget(
+    db: Executor,
+    chatId: number,
+    messageId: number,
+  ) {
+    const row = await activeVoteMessageQuery(db)
+      .where('m.chat_id', '=', chatId)
+      .where('m.message_id', '=', messageId)
+      .executeTakeFirst()
+    return row ? toActiveVoteMessage(row) : null
+  },
+
   /** Активное сообщение участника по событию с текстом его анонса. */
   async activeMessage(db: Executor, eventId: string, userId: string) {
     const row = await activeMessageQuery(db)
@@ -355,6 +442,22 @@ function activeMessageQuery(db: Executor) {
     ])
 }
 
+function activeVoteMessageQuery(db: Executor) {
+  return db
+    .selectFrom('app.vk_vote_messages as m')
+    .innerJoin('app.vk_vote_announcements as a', 'a.id', 'm.announcement_id')
+    .select([
+      'm.vote_id',
+      'm.user_id',
+      'm.announcement_id',
+      'm.chat_id',
+      'm.message_id',
+      'm.media',
+      'a.subject',
+      'a.body',
+    ])
+}
+
 export type VkActiveMessage = {
   announcementId: string
   chatId: number
@@ -364,6 +467,21 @@ export type VkActiveMessage = {
   /** Картинка сообщения (TGM-27); null — без картинки. */
   media: string | null
 }
+
+const toActiveVoteMessage = (row: {
+  vote_id: string
+  user_id: string
+  announcement_id: string
+  chat_id: number
+  message_id: number
+  subject: string | null
+  body: string
+  media: string | null
+}): VkActiveVoteMessage => ({
+  ...toActiveMessage(row),
+  voteId: row.vote_id,
+  userId: row.user_id,
+})
 
 const toActiveMessage = (row: {
   announcement_id: string

@@ -14,7 +14,13 @@ import {
 import {
   answerData,
   changeData,
+  voteAnswerData,
+  voteChangeData,
 } from '../../supabase/functions/_shared/messenger/callback-data.ts'
+import {
+  deliverVkAnnouncement,
+  syncVkVoteMessage,
+} from '../../supabase/functions/_shared/vk/announcements.ts'
 import {
   VK_BOT_TEXTS,
   VK_CALLBACK_TEXTS,
@@ -25,6 +31,11 @@ import {
   unlinkVk,
   vkStatus,
 } from '../../supabase/functions/_shared/vk/service.ts'
+import {
+  castBallot,
+  closeVote,
+  createVote,
+} from '../../supabase/functions/_shared/votes/service.ts'
 import {
   actorOf,
   createProfiledUser,
@@ -148,6 +159,16 @@ async function activeCmid(eventId: string, userId: string) {
     .selectFrom('app.vk_event_messages')
     .select('message_id')
     .where('event_id', '=', eventId)
+    .where('user_id', '=', userId)
+    .executeTakeFirst()
+  return row ? Number(row.message_id) : null
+}
+
+async function activeVoteCmid(voteId: string, userId: string) {
+  const row = await db
+    .selectFrom('app.vk_vote_messages')
+    .select('message_id')
+    .where('vote_id', '=', voteId)
     .where('user_id', '=', userId)
     .executeTakeFirst()
   return row ? Number(row.message_id) : null
@@ -514,5 +535,147 @@ describe('vk: event buttons (VK-07, VK-08)', () => {
       keyboard: null,
     })
     expect(await answerOf(event.id, member.user.id)).toBeNull()
+  })
+})
+
+describe('vk: vote buttons (VK-12, VOT-17)', () => {
+  async function sendVote(
+    vote: Awaited<ReturnType<typeof createVote>>,
+    imageUrl: string | null = null,
+  ) {
+    return deliverVkAnnouncement(
+      deps,
+      fake.vk,
+      { subject: 'Маршрут', body: 'Выберите вариант кнопкой или на сайте.' },
+      null,
+      null,
+      [],
+      imageUrl,
+      vote.id,
+      vote.options,
+    )
+  }
+
+  it('sends current choice and truncates only long button labels', async () => {
+    const member = await linked('member')
+    const officer = await linked('officer')
+    const { actor } = await officerWithEvent()
+    const vote = await createVote(deps, actor, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Большинство участников выберет этот путь'],
+    })
+    await castBallot(
+      { ...deps, vk: null, telegram: null, max: null },
+      member.actor,
+      {
+        voteId: vote.id,
+        optionId: vote.options[0]!.id,
+      },
+    )
+
+    const result = await sendVote(vote)
+    expect(result).toEqual({ recipients: 2, sent: 2, failed: 0 })
+    expect(
+      fake.calls.find(
+        (call) => call.method === 'send' && call.peerId === member.vkUserId,
+      ),
+    ).toMatchObject({
+      text: expect.stringContaining('Ваш голос: За'),
+      keyboard: [[button('Изменить решение', voteChangeData())]],
+    })
+    const open = fake.calls.find(
+      (call) => call.method === 'send' && call.peerId === officer.vkUserId,
+    )!
+    expect(open.text).toContain('2. Большинство участников выберет этот путь')
+    expect(open.keyboard?.flat().map((item) => item.action.label)).toEqual([
+      'За',
+      expect.stringMatching(/^2\. Большин/),
+    ])
+  })
+
+  it('saves and changes the ballot from a callback and preserves the image', async () => {
+    const member = await linked('member')
+    const { actor } = await officerWithEvent()
+    const vote = await createVote(deps, actor, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    await sendVote(vote, 'https://murr.test/messenger/vote.jpg')
+    const cmid = (await activeVoteCmid(vote.id, member.user.id))!
+
+    await press(
+      member.vkUserId,
+      cmid,
+      payload(voteAnswerData(vote.options[0]!.id)),
+    )
+    expect(lastAnswer()).toMatchObject({ text: 'Ваш голос: За' })
+    expect(fake.calls.at(-2)).toMatchObject({
+      method: 'edit',
+      text: expect.stringContaining('Ваш голос: За'),
+      keyboard: [[button('Изменить решение', voteChangeData())]],
+      attachment: expect.stringMatching(/^photo-/),
+    })
+
+    await press(member.vkUserId, cmid, payload(voteChangeData()))
+    expect(fake.calls.at(-2)?.keyboard?.flat()).toHaveLength(2)
+    await press(
+      member.vkUserId,
+      cmid,
+      payload(voteAnswerData(vote.options[1]!.id)),
+    )
+    expect(
+      await db
+        .selectFrom('app.vote_ballots')
+        .select('option_id')
+        .where('vote_id', '=', vote.id)
+        .where('voter_id', '=', member.user.id)
+        .executeTakeFirstOrThrow(),
+    ).toMatchObject({ option_id: vote.options[1]!.id })
+  })
+
+  it('rejects an old or closed announcement and syncs website votes', async () => {
+    const member = await linked('member')
+    const { actor } = await officerWithEvent()
+    const vote = await createVote(deps, actor, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    await sendVote(vote)
+    const old = (await activeVoteCmid(vote.id, member.user.id))!
+    await sendVote(vote)
+    expect(fake.calls).toContainEqual(
+      expect.objectContaining({
+        method: 'edit',
+        messageId: old,
+        keyboard: null,
+      }),
+    )
+    await press(
+      member.vkUserId,
+      old,
+      payload(voteAnswerData(vote.options[0]!.id)),
+    )
+    expect(lastAnswer()).toMatchObject({ text: VK_CALLBACK_TEXTS.voteStale })
+    const current = (await activeVoteCmid(vote.id, member.user.id))!
+    await castBallot({ ...deps, telegram: null, max: null }, member.actor, {
+      voteId: vote.id,
+      optionId: vote.options[1]!.id,
+    })
+    await syncVkVoteMessage(deps, member.user.id, vote.id)
+    expect(fake.calls.at(-1)).toMatchObject({
+      method: 'edit',
+      messageId: current,
+      text: expect.stringContaining('Ваш голос: Против'),
+    })
+    await closeVote(deps, actor, { id: vote.id })
+    await press(
+      member.vkUserId,
+      current,
+      payload(voteAnswerData(vote.options[0]!.id)),
+    )
+    expect(lastAnswer()).toMatchObject({ text: VK_CALLBACK_TEXTS.voteClosed })
   })
 })

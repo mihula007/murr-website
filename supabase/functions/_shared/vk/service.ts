@@ -24,12 +24,16 @@ import {
   parseCallbackData,
   type CallbackAction,
 } from '../messenger/callback-data.ts'
+import { announcementPlain } from '../messenger/announcement.ts'
 import { randomCode, sameSecret, sha256Hex } from '../messenger/link-code.ts'
 import { syncEventMessages } from '../messenger/sync.ts'
+import { syncVoteMessages } from '../messenger/sync.ts'
 import { editVkMessage } from './announcements.ts'
 import { VK_BOT_TEXTS, VK_CALLBACK_TEXTS } from './messages.ts'
-import { vkEventMessage } from './render.ts'
+import { vkEventMessage, vkVoteMessage } from './render.ts'
 import { VK_USER_CONSTRAINT, vkRepository } from './repository.ts'
+import { saveBallot } from '../votes/service.ts'
+import { voteRepository } from '../votes/repository.ts'
 import {
   envelopeSchema,
   eventSchema,
@@ -326,6 +330,9 @@ async function pressButton(
   if (!link) {
     return refuse(VK_CALLBACK_TEXTS.notLinked)
   }
+  if (action.kind === 'vote-answer' || action.kind === 'vote-change') {
+    return pressVoteButton(deps, vk, link.userId, target, action)
+  }
   const event = await eventRepository.find(deps.db, action.eventId)
   if (!event) {
     return refuse(VK_CALLBACK_TEXTS.deleted)
@@ -393,6 +400,90 @@ async function pressButton(
     true,
   )
   await editVkMessage(deps, vk, link.userId, active, body, keyboard)
+  return { notice: VK_CALLBACK_TEXTS.chooseAgain, refused: false }
+}
+
+async function pressVoteButton(
+  deps: AppDeps,
+  vk: VkDeps,
+  userId: string,
+  target: { chatId: number; messageId: number },
+  action: Extract<CallbackAction, { kind: 'vote-answer' | 'vote-change' }>,
+): Promise<PressOutcome> {
+  const active = await vkRepository.activeVoteMessageByTarget(
+    deps.db,
+    target.chatId,
+    target.messageId,
+  )
+  if (!active || active.userId !== userId) {
+    return { notice: VK_CALLBACK_TEXTS.voteStale, refused: false }
+  }
+  const refuse = (notice: string): PressOutcome => ({
+    notice,
+    refused: true,
+    text: announcementPlain(active),
+    media: active.media,
+  })
+  let viewer: ProfiledActor
+  try {
+    viewer = requireRole(await loadActor(deps.db, userId), INTERNAL_ROLES)
+  } catch {
+    return refuse(VK_CALLBACK_TEXTS.forbidden)
+  }
+  const vote = await voteRepository.find(deps.db, active.voteId)
+  if (!vote) return refuse(VK_CALLBACK_TEXTS.voteDeleted)
+  if (vote.closed_at !== null) return refuse(VK_CALLBACK_TEXTS.voteClosed)
+
+  if (action.kind === 'vote-answer') {
+    let details
+    try {
+      details = await saveBallot(deps, viewer, {
+        voteId: active.voteId,
+        optionId: action.optionId,
+      })
+    } catch (error) {
+      if (!(error instanceof ApiError)) throw error
+      if (error.code === 'not_found') return refuse(VK_CALLBACK_TEXTS.voteStale)
+      if (error.code === 'forbidden') return refuse(VK_CALLBACK_TEXTS.forbidden)
+      if (error.code === 'state_conflict')
+        return refuse(VK_CALLBACK_TEXTS.voteClosed)
+      return { notice: VK_CALLBACK_TEXTS.failed, refused: false }
+    }
+    const rendered = vkVoteMessage(active, details.options, details.myOptionId)
+    await editVkMessage(
+      deps,
+      vk,
+      userId,
+      active,
+      rendered.text,
+      rendered.keyboard,
+    )
+    await runInBackground(deps, () =>
+      syncVoteMessages(deps, userId, active.voteId, 'vk'),
+    )
+    return {
+      notice: `Ваш голос: ${details.options.find((option) => option.id === details.myOptionId)?.label ?? ''}`,
+      refused: false,
+    }
+  }
+  const [options, choices] = await Promise.all([
+    voteRepository.totals(deps.db, [active.voteId]),
+    voteRepository.choicesOf(deps.db, [active.voteId], userId),
+  ])
+  const rendered = vkVoteMessage(
+    active,
+    options.map((option) => ({ id: option.id, label: option.label })),
+    choices.get(active.voteId) ?? null,
+    true,
+  )
+  await editVkMessage(
+    deps,
+    vk,
+    userId,
+    active,
+    rendered.text,
+    rendered.keyboard,
+  )
   return { notice: VK_CALLBACK_TEXTS.chooseAgain, refused: false }
 }
 

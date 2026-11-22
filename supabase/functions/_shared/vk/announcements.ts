@@ -1,13 +1,15 @@
 import type { AppDeps, VkDeps } from '../app.ts'
 import { withTransaction } from '../db/client.ts'
 import { eventRepository } from '../events/repository.ts'
+import { voteRepository } from '../votes/repository.ts'
 import {
   announcementPlain,
   type AnnouncementText,
 } from '../messenger/announcement.ts'
 import type { VkKeyboard } from './gateway.ts'
 import { vkEventMessage } from './render.ts'
-import { vkRepository } from './repository.ts'
+import { vkVoteMessage } from './render.ts'
+import { vkRepository, type VkActiveVoteMessage } from './repository.ts'
 
 /** Пул одновременных отправок и темп ≤ 15 сообщений в секунду (лимит 20). */
 const SEND_BATCH = 15
@@ -34,7 +36,13 @@ export async function deliverVkAnnouncement(
   excludedUserIds: string[] = [],
   /** Картинка постоянного события (VK-10); null — без картинки. */
   imageUrl: string | null = null,
+  /** Активное голосование и его серверные варианты. */
+  voteId: string | null = null,
+  voteOptions?: readonly { id: string; label: string }[],
 ): Promise<DeliveryResult> {
+  if (voteId && (!voteOptions || voteOptions.length === 0)) {
+    throw new Error('Для рассылки голосования нужны его варианты')
+  }
   const fetchedRecipients = await vkRepository.recipients(
     deps.db,
     eventId,
@@ -44,11 +52,21 @@ export async function deliverVkAnnouncement(
   const recipients = fetchedRecipients.filter(
     (recipient) => !excluded.has(recipient.userId),
   )
-  const announcementId = eventId
-    ? await vkRepository.createAnnouncement(deps.db, {
-        eventId,
-        ...announcement,
-      })
+  let announcementId: string | null = null
+  if (voteId) {
+    const replaced = await withTransaction(deps.db, (tx) =>
+      vkRepository.replaceVoteAnnouncement(tx, { voteId, ...announcement }),
+    )
+    announcementId = replaced.announcementId
+    await removeVoteButtons(deps, vk, replaced.previousMessages)
+  } else if (eventId) {
+    announcementId = await vkRepository.createAnnouncement(deps.db, {
+      eventId,
+      ...announcement,
+    })
+  }
+  const existingChoices = voteId
+    ? await voteRepository.choicesForVote(deps.db, voteId)
     : null
   let sent = 0
   let failed = 0
@@ -60,8 +78,17 @@ export async function deliverVkAnnouncement(
 
   const deliver = async (recipient: (typeof recipients)[number]) => {
     // Ответившие на событие анонс не получают (Q-109): кнопки без ответа.
-    const message =
-      eventId === null
+    const voteMessage =
+      voteId && voteOptions
+        ? vkVoteMessage(
+            announcement,
+            voteOptions,
+            existingChoices?.get(recipient.userId) ?? null,
+          )
+        : null
+    const message = voteMessage
+      ? voteMessage
+      : eventId === null
         ? { text: announcementPlain(announcement), keyboard: undefined }
         : vkEventMessage(announcement, eventId, null)
     let result = await vk.gateway.send(
@@ -93,6 +120,31 @@ export async function deliverVkAnnouncement(
       return
     }
     sent++
+    if (voteId && announcementId) {
+      try {
+        await withTransaction(deps.db, (tx) =>
+          vkRepository.saveActiveVoteMessage(tx, {
+            voteId,
+            userId: recipient.userId,
+            announcementId: announcementId!,
+            chatId: recipient.chatId,
+            messageId: result.messageId,
+            media,
+          }),
+        )
+      } catch (error) {
+        console.error('Сообщение голосования ВКонтакте не сохранено', error)
+        await vk.gateway.edit(
+          recipient.chatId,
+          result.messageId,
+          message.text,
+          null,
+          media,
+        )
+        failed++
+      }
+      return
+    }
     if (eventId === null || announcementId === null) {
       return
     }
@@ -150,6 +202,70 @@ export async function syncVkEventMessage(
     answers.get(eventId) ?? null,
   )
   await editVkMessage(deps, vk, userId, message, text, keyboard)
+}
+
+/** Ответ сайта или другого мессенджера обновляет активное сообщение VK. */
+export async function syncVkVoteMessage(
+  deps: AppDeps,
+  userId: string,
+  voteId: string,
+) {
+  const vk = deps.vk
+  if (!vk) return
+  const message = await vkRepository.activeVoteMessage(deps.db, voteId, userId)
+  if (!message) return
+  const vote = await voteRepository.find(deps.db, voteId)
+  if (!vote || vote.closed_at !== null) {
+    await editVkMessage(
+      deps,
+      vk,
+      userId,
+      message,
+      announcementPlain(message),
+      null,
+    )
+    return
+  }
+  const [options, choices] = await Promise.all([
+    voteRepository.totals(deps.db, [voteId]),
+    voteRepository.choicesOf(deps.db, [voteId], userId),
+  ])
+  const rendered = vkVoteMessage(
+    message,
+    options.map((option) => ({ id: option.id, label: option.label })),
+    choices.get(voteId) ?? null,
+  )
+  await editVkMessage(
+    deps,
+    vk,
+    userId,
+    message,
+    rendered.text,
+    rendered.keyboard,
+  )
+}
+
+async function removeVoteButtons(
+  deps: AppDeps,
+  vk: VkDeps,
+  messages: readonly VkActiveVoteMessage[],
+) {
+  for (const message of messages) {
+    const result = await vk.gateway.edit(
+      message.chatId,
+      message.messageId,
+      announcementPlain(message),
+      null,
+      message.media,
+    )
+    if (result === 'blocked') {
+      await vkRepository.markBlocked(
+        deps.db,
+        message.userId,
+        deps.now().toISOString(),
+      )
+    }
+  }
 }
 
 /** Перерисовка сообщения; запрет сообщений отмечается (VK-03). */

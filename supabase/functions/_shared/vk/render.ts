@@ -9,6 +9,10 @@ import {
   type AnnouncementText,
 } from '../messenger/announcement.ts'
 import { answerData, changeData } from '../messenger/callback-data.ts'
+import {
+  renderVoteMessage,
+  type VoteMessageOption,
+} from '../messenger/vote-message.ts'
 import type { VkButton, VkKeyboard } from './gateway.ts'
 
 /**
@@ -30,6 +34,31 @@ export function vkEventMessage(
           ),
         ]
   return { text: eventPlain(announcement, answer), keyboard }
+}
+
+/** Простой текст и inline-кнопки голосования без оформления (VK-12). */
+export function vkVoteMessage(
+  announcement: AnnouncementText,
+  options: readonly VoteMessageOption[],
+  selectedOptionId: string | null,
+  choosing = false,
+) {
+  const message = renderVoteMessage(
+    announcement,
+    options,
+    selectedOptionId,
+    choosing,
+    32,
+  )
+  const buttons = message.actions.map(({ label, data }) => button(label, data))
+  const keyboard: VkKeyboard = []
+  for (let index = 0; index < buttons.length; index += 2) {
+    keyboard.push(buttons.slice(index, index + 2))
+  }
+  return {
+    text: message.text,
+    keyboard,
+  }
 }
 
 /** `payload` кнопки — JSON-объект с данными `{ d }`, не длиннее 255. */
