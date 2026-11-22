@@ -123,6 +123,11 @@ import {
   listRosterPage,
   rosterStats,
 } from './roster/service.ts'
+import {
+  dynamicsAttendance,
+  dynamicsProfile,
+  dynamicsStats,
+} from './roster/dynamics-service.ts'
 import { createStorageGateway, type StorageGateway } from './storage/gateway.ts'
 import {
   listOfficerPermissions,
@@ -360,6 +365,12 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'roster/stats': ({ actor }) => rosterStats(deps, actor),
     'roster/list': ({ actor }) => listRoster(deps, actor),
     'roster/page': ({ actor, body }) => listRosterPage(deps, actor, body),
+    'roster/dynamics/profile': ({ actor, body }) =>
+      dynamicsProfile(deps, actor, body),
+    'roster/dynamics/stats': ({ actor, body }) =>
+      dynamicsStats(deps, actor, body),
+    'roster/dynamics/attendance': ({ actor, body }) =>
+      dynamicsAttendance(deps, actor, body),
     'roster/readers': ({ actor, body }) => listReaders(deps, actor, body),
     'accounts/list': ({ actor, body }) => listAccounts(deps, actor, body),
     'accounts/set-role': ({ actor, body }) => setRole(deps, actor, body),

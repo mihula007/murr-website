@@ -1,4 +1,5 @@
 import type { Executor } from '../db/client.ts'
+import { sql } from 'kysely'
 
 /** Ключ сортировки карточек: ник и `id` (последний ключ — для однозначности). */
 export type NicknameKey = { gameNickname: string; id: string }
@@ -104,5 +105,82 @@ export const rosterRepository = {
       className: row.name,
       count: Number(row.count),
     }))
+  },
+}
+
+/** Приватные данные только для операций динамики с серверной проверкой роли. */
+export const rosterDynamicsRepository = {
+  profile(db: Executor, userId: string) {
+    return db
+      .selectFrom('app.profiles as p')
+      .innerJoin('app.character_classes as c', 'c.id', 'p.class_id')
+      .select((eb) => [
+        'p.id',
+        'p.game_nickname',
+        'p.display_name',
+        'p.joined_on',
+        'p.avatar_path',
+        'p.access_role',
+        'c.name as class_name',
+        eb
+          .exists(
+            eb
+              .selectFrom('app.user_deletions as d')
+              .select('d.user_id')
+              .whereRef('d.user_id', '=', 'p.id'),
+          )
+          .as('deletion_pending'),
+      ])
+      .where('p.id', '=', userId)
+      .executeTakeFirst()
+  },
+
+  attendance(
+    db: Executor,
+    userId: string,
+    cutoff: string | null,
+    after: string | null,
+    limit: number,
+  ) {
+    let query = db
+      .selectFrom('app.event_activity_records as r')
+      .innerJoin('app.events as e', 'e.id', 'r.event_id')
+      .select((eb) => [
+        sql<string>`to_char(date_trunc('week', e.starts_at at time zone 'Europe/Moscow'), 'YYYY-MM-DD')`.as(
+          'week_start',
+        ),
+        eb.fn
+          .sum<number>(sql`case when r.status = 'visited' then 1 else 0 end`)
+          .as('visited'),
+        eb.fn
+          .sum<number>(sql`case when r.status = 'missed' then 1 else 0 end`)
+          .as('missed'),
+        eb.fn
+          .sum<number>(sql`case when r.status = 'unmarked' then 1 else 0 end`)
+          .as('unmarked'),
+      ])
+      .where('r.user_id', '=', userId)
+      .where('e.closed_at', 'is not', null)
+    if (cutoff) {
+      query = query.where(
+        sql`(e.starts_at at time zone 'Europe/Moscow')::date`,
+        '>=',
+        cutoff,
+      )
+    }
+    if (after) {
+      query = query.having(
+        sql`to_char(date_trunc('week', e.starts_at at time zone 'Europe/Moscow'), 'YYYY-MM-DD')`,
+        '<',
+        after,
+      )
+    }
+    return query
+      .groupBy(
+        sql`date_trunc('week', e.starts_at at time zone 'Europe/Moscow')`,
+      )
+      .orderBy('week_start', 'desc')
+      .limit(limit)
+      .execute()
   },
 }
