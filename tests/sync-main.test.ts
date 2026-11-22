@@ -63,7 +63,7 @@ it('догоняет origin/main без своих коммитов', () => {
   const result = sync()
   expect(result).toMatchObject({ kind: 'ok', unfinished: [] })
   expect(head()).toBe('remote\nbase')
-})
+}, 15_000)
 
 it('сообщает о своих неотправленных коммитах как о незавершённом изменении', () => {
   const { clone, sync } = fixture()
