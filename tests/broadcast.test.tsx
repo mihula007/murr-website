@@ -774,8 +774,9 @@ describe('broadcast page (BRC, E2E-07)', () => {
     const id = '00000000-0000-4000-8000-000000000003'
     routes['broadcasts/prefill'] = () => ({
       subject: 'Голосование: название',
-      body: 'Выберите вариант',
+      body: 'Выберите ответ кнопкой ниже или на сайте.',
       recipients: null,
+      bodyLimit: 3500,
     })
     routes['broadcasts/recipients'] = () => recipients(1, 1)
     routes['broadcasts/send'] = () => ({
@@ -792,13 +793,20 @@ describe('broadcast page (BRC, E2E-07)', () => {
       role: 'officer',
       path: `/broadcast?source=vote&id=${id}`,
     })
+    expect(
+      await screen.findByText(/учитывает варианты голосования/),
+    ).toBeVisible()
+    expect(
+      screen.getByText(/кнопкой в мессенджере или открыть голосование/),
+    ).toBeVisible()
     fireEvent.click(await screen.findByRole('button', { name: SEND }))
     const dialog = await screen.findByRole('alertdialog')
+    expect(within(dialog).getByText(/кнопками вариантов ответа/)).toBeVisible()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Отправить' }))
     await waitFor(() =>
       expect(callApi).toHaveBeenCalledWith('broadcasts/send', {
         subject: 'Голосование: название',
-        body: 'Выберите вариант',
+        body: 'Выберите ответ кнопкой ниже или на сайте.',
         eventId: null,
         groupId: null,
         voteId: id,

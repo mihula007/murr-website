@@ -9,6 +9,7 @@ import {
   listBroadcastTemplates,
   listDrafts,
   prefillBroadcast,
+  sendAnnouncement,
   saveBroadcastTemplate,
   saveDraft,
 } from '../../supabase/functions/_shared/broadcasts/service.ts'
@@ -25,6 +26,7 @@ import {
   setGroupLeader,
 } from '../../supabase/functions/_shared/groups/service.ts'
 import {
+  castBallot,
   closeVote,
   createVote,
 } from '../../supabase/functions/_shared/votes/service.ts'
@@ -32,6 +34,7 @@ import {
   actorOf,
   createAuthUser,
   createProfiledUser,
+  fakeTelegram,
   resetAppData,
   testDb,
   testDeps,
@@ -720,11 +723,105 @@ describe('broadcasts: prefill from context (BRC-02–04)', () => {
     expect(result.subject).toBe('Голосование: Куда идём?')
     expect(result.body).toContain('Выбираем подземелье')
     expect(result.body).toContain('на сайте')
+    expect(result.body).toContain('кнопкой ниже')
+    expect(result.bodyLimit).toBeLessThan(BROADCAST_LIMITS.body)
     await closeVote(deps, officer.actor, { id: vote.id })
     await rejects(
       prefillBroadcast(deps, officer.actor, { source: 'vote', id: vote.id }),
       'state_conflict',
     )
+  })
+
+  it('sends verified vote options to linked members, including voters, in one audit entry', async () => {
+    const officer = await roleActor('officer')
+    const member = await createProfiledUser(db, 'member')
+    await db
+      .insertInto('app.telegram_links')
+      .values({
+        user_id: member.id,
+        telegram_user_id: 81001,
+        chat_id: 81001,
+        display_name: member.nickname,
+      })
+      .execute()
+    const fake = fakeTelegram()
+    const sendDeps = { ...deps, telegram: fake.telegram }
+    const vote = await createVote(deps, officer.actor, {
+      title: 'Куда идём?',
+      context: '',
+      options: ['Башня', 'Пещера'],
+    })
+    await castBallot(
+      { ...sendDeps, telegram: null },
+      await actorOf(db, member.id),
+      {
+        voteId: vote.id,
+        optionId: vote.options[0]!.id,
+      },
+    )
+
+    const result = await sendAnnouncement(sendDeps, officer.actor, {
+      subject: 'Куда идём?',
+      body: 'Выберите ответ кнопкой ниже или на сайте.',
+      voteId: vote.id,
+      channels: ['telegram'],
+    })
+
+    expect(result).toMatchObject({ recipients: 1, sent: 1, failed: 0 })
+    const message = fake.calls.find((call) => call.method === 'sendHtml')!
+    expect(message.text).toContain('Ваш голос: Башня')
+    expect(message.keyboard).toEqual({
+      inline_keyboard: [[{ text: 'Изменить решение', callback_data: 'vc' }]],
+    })
+    expect(await auditActions()).toMatchObject([
+      expect.objectContaining({
+        action: 'broadcast_sent',
+        details: expect.objectContaining({
+          vote_id: vote.id,
+          source_kind: 'vote',
+        }),
+      }),
+    ])
+
+    await sendAnnouncement(sendDeps, officer.actor, {
+      body: 'Обычное сообщение',
+      channels: ['telegram'],
+    })
+    expect(fake.calls.at(-1)).toMatchObject({
+      method: 'sendHtml',
+      keyboard: null,
+    })
+    expect(await auditActions()).toHaveLength(2)
+  })
+
+  it('rejects a vote message whose option list exceeds the common channel limit', async () => {
+    const officer = await roleActor('officer')
+    const fake = fakeTelegram()
+    const sendDeps = { ...deps, telegram: fake.telegram }
+    const vote = await createVote(deps, officer.actor, {
+      title: 'Куда идём?',
+      context: '',
+      options: Array.from(
+        { length: 10 },
+        (_, index) => `${index}${'А'.repeat(79)}`,
+      ),
+    })
+    const prefill = await prefillBroadcast(deps, officer.actor, {
+      source: 'vote',
+      id: vote.id,
+    })
+    expect(prefill.bodyLimit).toBeDefined()
+    await rejects(
+      sendAnnouncement(sendDeps, officer.actor, {
+        subject: prefill.subject,
+        body: 'x'.repeat(prefill.bodyLimit! + 1),
+        voteId: vote.id,
+        channels: ['telegram'],
+      }),
+      'validation_failed',
+    )
+    expect(fake.calls).toEqual([])
+    expect(await auditActions()).toEqual([])
   })
 
   it('lists a non-empty group in order with the leader', async () => {

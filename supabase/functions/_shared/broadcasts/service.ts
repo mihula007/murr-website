@@ -53,6 +53,7 @@ import { deliverMaxAnnouncement } from '../max/announcements.ts'
 import { maxRepository } from '../max/repository.ts'
 import { requireMax } from '../max/service.ts'
 import type { AnnouncementText } from '../messenger/announcement.ts'
+import { voteMessageBodyLimit } from '../messenger/vote-message.ts'
 import { deliverVkAnnouncement } from '../vk/announcements.ts'
 import { vkRepository } from '../vk/repository.ts'
 import { requireVk } from '../vk/service.ts'
@@ -144,14 +145,23 @@ export async function prefillBroadcast(
       throw new ApiError('state_conflict')
     }
     const lines = [`Голосование: ${vote.title}`]
+    const options = await voteRepository.totals(deps.db, [vote.id])
     if (vote.context) {
       lines.push('', vote.context)
     }
-    lines.push('', 'Выберите ответ на сайте в разделе «Голосование».')
+    lines.push(
+      '',
+      'Выберите ответ кнопкой ниже или на сайте в разделе «Голосование».',
+    )
     return {
       subject: `Голосование: ${vote.title}`,
       body: lines.join('\n'),
       recipients: null,
+      bodyLimit: voteMessageBodyLimit(
+        `Голосование: ${vote.title}`,
+        options.map((option) => ({ id: option.id, label: option.label })),
+        BROADCAST_LIMITS.body,
+      ),
     }
   }
 
@@ -407,6 +417,8 @@ const CHANNELS: Record<
       excludedUserIds: string[],
       preset: string | null,
       sourceImage: BroadcastImageSource | null,
+      voteId: string | null,
+      voteOptions: readonly { id: string; label: string }[] | undefined,
     ) => Promise<ChannelDelivery>
   }
 > = {
@@ -429,6 +441,8 @@ const CHANNELS: Record<
       excludedUserIds,
       preset,
       sourceImage,
+      voteId,
+      voteOptions,
     ) => {
       const telegram = requireTelegram(deps)
       return deliverAnnouncement(
@@ -442,6 +456,8 @@ const CHANNELS: Record<
           (sourceImage
             ? broadcastImageUrl(telegram.siteUrl, sourceImage)
             : null),
+        voteId,
+        voteOptions,
       )
     },
   },
@@ -459,6 +475,8 @@ const CHANNELS: Record<
       excludedUserIds,
       preset,
       sourceImage,
+      voteId,
+      voteOptions,
     ) => {
       const vk = requireVk(deps)
       return deliverVkAnnouncement(
@@ -470,6 +488,8 @@ const CHANNELS: Record<
         excludedUserIds,
         eventImageUrl(vk.siteUrl, preset) ??
           (sourceImage ? broadcastImageUrl(vk.siteUrl, sourceImage) : null),
+        voteId,
+        voteOptions,
       )
     },
   },
@@ -487,6 +507,8 @@ const CHANNELS: Record<
       excludedUserIds,
       preset,
       sourceImage,
+      voteId,
+      voteOptions,
     ) => {
       const max = requireMax(deps)
       return deliverMaxAnnouncement(
@@ -498,6 +520,8 @@ const CHANNELS: Record<
         excludedUserIds,
         eventImageUrl(max.siteUrl, preset) ??
           (sourceImage ? broadcastImageUrl(max.siteUrl, sourceImage) : null),
+        voteId,
+        voteOptions,
       )
     },
   },
@@ -638,6 +662,19 @@ export async function sendAnnouncement(
   if (vote?.closed_at) {
     throw new ApiError('state_conflict', { reason: 'closed' })
   }
+  const voteOptions = vote
+    ? (await voteRepository.totals(deps.db, [vote.id])).map((option) => ({
+        id: option.id,
+        label: option.label,
+      }))
+    : undefined
+  if (
+    vote &&
+    input.body.length >
+      voteMessageBodyLimit(input.subject, voteOptions!, BROADCAST_LIMITS.body)
+  ) {
+    throw new ApiError('validation_failed', { body: 'too_long' })
+  }
   // Анонс группы: группа незакрытого события, без кнопок (TGM-12, Q-104).
   const group = input.groupId
     ? await groupRepository.findGroup(deps.db, input.groupId)
@@ -710,6 +747,8 @@ export async function sendAnnouncement(
             input.excludedUserIds,
             preset,
             sourceImage,
+            vote?.id ?? null,
+            voteOptions,
           )
         : EMPTY_DELIVERY,
     ),
@@ -737,15 +776,17 @@ export async function sendAnnouncement(
     writeAudit(tx, {
       category: 'broadcast',
       action: 'broadcast_sent',
-      summary: `${event ? 'Отправка анонса события' : group ? 'Отправка анонса группы' : 'Отправка анонса'} в ${names}`,
+      summary: `${event ? 'Отправка анонса события' : group ? 'Отправка анонса группы' : vote ? 'Отправка анонса голосования' : 'Отправка анонса'} в ${names}`,
       actor: auditPerson(user),
       ...(event ? { target: { kind: 'event', id: event.id } } : {}),
       // Как действия с группами: запись указывает на событие группы.
       ...(group ? { target: { kind: 'event', id: group.event_id } } : {}),
+      ...(vote ? { target: { kind: 'vote', id: vote.id } } : {}),
       details: {
         title: input.subject,
         event_id: event?.id ?? group?.event_id ?? null,
-        source_kind: event ? 'event' : group ? 'group' : null,
+        vote_id: vote?.id ?? null,
+        source_kind: event ? 'event' : group ? 'group' : vote ? 'vote' : null,
         ...(group ? { group_id: group.id } : {}),
         channels: input.channels,
         recipients: totals.recipients,

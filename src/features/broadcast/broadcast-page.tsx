@@ -629,7 +629,9 @@ function BroadcastForm({
                       error={error}
                       hint={
                         bodyLimit < BROADCAST_LIMITS.body
-                          ? `Анонс придёт в мессенджеры с картинкой события, поэтому текст — не длиннее ${bodyLimit} символов. Сейчас: ${field.state.value.trim().length}.`
+                          ? voteId
+                            ? `Лимит учитывает варианты голосования: не больше ${bodyLimit} символов. Сейчас: ${field.state.value.trim().length}.`
+                            : `Анонс придёт в мессенджеры с картинкой события, поэтому текст — не длиннее ${bodyLimit} символов. Сейчас: ${field.state.value.trim().length}.`
                           : undefined
                       }
                       className="col-span-full"
@@ -800,7 +802,9 @@ function BroadcastForm({
               ? 'Анонс события придёт с кнопками ответа.'
               : groupId
                 ? 'Анонс придёт только участникам группы, текстом без кнопок.'
-                : 'Анонс придёт текстом без кнопок.'
+                : voteId
+                  ? 'Анонс голосования придёт с кнопками вариантов ответа.'
+                  : 'Анонс придёт текстом без кнопок.'
           } Отправленный анонс не редактируется.`}
           confirmLabel="Отправить"
           pendingLabel="Отправляем…"
@@ -928,7 +932,7 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
     <section className="grid gap-5">
       <PageHeader
         title="Рассылка"
-        description="Анонсы клана в Telegram, ВКонтакте и MAX: отдельные и анонсы событий с кнопками ответа."
+        description="Анонсы клана в Telegram, ВКонтакте и MAX: отдельные, событий и голосований с кнопками ответа."
       />
       <Tabs
         value={tab}
@@ -960,6 +964,13 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
                       Заполнено из контекста: {SOURCE_LABELS[target.source]}.
                       Текст можно изменить.
                     </p>
+                  ) : null}
+                  {target?.source === 'vote' ? (
+                    <Notice className="col-span-full">
+                      Анонс голосования: участники смогут выбрать вариант
+                      кнопкой в мессенджере или открыть голосование на сайте.
+                      Текст ниже можно изменить.
+                    </Notice>
                   ) : null}
                   {form}
                 </Card>

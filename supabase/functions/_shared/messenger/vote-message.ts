@@ -9,6 +9,30 @@ export type VoteMessage = {
   actions: VoteMessageAction[]
 }
 
+/** Максимальная длина редактируемого текста с учётом полного списка ответов. */
+export function voteMessageBodyLimit(
+  subject: string | null,
+  options: readonly VoteMessageOption[],
+  maximumMessageLength: number,
+) {
+  const subjectLength = subject ? subject.length + 2 : 0
+  const optionLines = options
+    .map((option, index) => `${index + 1}. ${option.label}`)
+    .join('\n')
+  const optionsBlock = `\n\nВарианты:\n${optionLines}`
+  const longestChoice = Math.max(
+    ...options.map((option) => option.label.length),
+  )
+  const selectedBlock = `\n\nВаш голос: ${'я'.repeat(longestChoice)}`
+  return Math.max(
+    0,
+    maximumMessageLength -
+      subjectLength -
+      optionsBlock.length -
+      selectedBlock.length,
+  )
+}
+
 function buttonLabel(label: string, position: number, limit: number) {
   const characters = Array.from(label)
   if (characters.length <= limit) {
