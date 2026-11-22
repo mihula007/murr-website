@@ -316,6 +316,8 @@ type VoteCardProps = {
    * в карточке остаются итоги, голос и действия.
    */
   page?: boolean
+  /** Внешняя карточка уже создана родителем; вывести только содержимое. */
+  embedded?: boolean
   onDeleted?: () => void
   className?: string
 }
@@ -325,6 +327,7 @@ export function VoteCard({
   vote,
   linkToPage = false,
   page = false,
+  embedded = false,
   onDeleted,
   className,
 }: VoteCardProps) {
@@ -425,6 +428,14 @@ export function VoteCard({
         <header className="mb-6">{header}</header>
         <Card className={cn('grid min-w-0 gap-4', className)}>{body}</Card>
       </>
+    )
+  }
+  if (embedded) {
+    return (
+      <div className={cn('grid min-w-0 gap-4', className)}>
+        {header}
+        {body}
+      </div>
     )
   }
   return (

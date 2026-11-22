@@ -248,17 +248,14 @@ function RosterBrief() {
 function VotesCard() {
   // Тот же кеш, что у раздела «Голосование»: отдельной операции нет.
   const votes = useActiveVotes()
-  const items = votes.data?.items ?? []
+  const items = votes.data?.items.slice(0, 1) ?? []
   return (
-    <section
-      aria-labelledby="home-votes"
-      className="grid min-w-0 content-start gap-3"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <Card className="grid content-start gap-4">
+      <div className={headClass}>
         <h2 id="home-votes" className="m-0 text-xl font-bold">
           Голосования
         </h2>
-        <Button asChild variant="ghost" size="sm">
+        <Button asChild variant="ghost" className="px-2 py-1 text-[13px]">
           <Link to="/votes">
             Все голосования <ArrowRight aria-hidden="true" size={16} />
           </Link>
@@ -273,15 +270,9 @@ function VotesCard() {
           Сейчас голосований нет.
         </p>
       ) : (
-        <ul className="m-0 grid min-w-0 list-none gap-3 p-0">
-          {items.map((vote) => (
-            <li key={vote.id} className="min-w-0">
-              <VoteCard vote={vote} linkToPage />
-            </li>
-          ))}
-        </ul>
+        <VoteCard vote={items[0]!} linkToPage embedded />
       )}
-    </section>
+    </Card>
   )
 }
 
