@@ -586,6 +586,51 @@ describe('roster page', () => {
     expect(await screen.findByRole('heading', { name: 'Альфа' })).toBeVisible()
   })
 
+  it('opens member dynamics with name, guild date, filters and separated charts', async () => {
+    routes['roster/dynamics/profile'] = () => ({
+      id: 'm1',
+      gameNickname: 'Альфа',
+      className: 'Оборотень',
+      avatarUrl: null,
+      displayName: 'Мурр',
+      joinedOn: '2024-01-02',
+    })
+    routes['roster/dynamics/stats'] = () => ({ items: [], nextCursor: null })
+    routes['roster/dynamics/attendance'] = () => ({
+      items: [],
+      nextCursor: null,
+    })
+    await renderApp({ role: 'member', path: '/roster' })
+    fireEvent.click(
+      await screen
+        .findAllByRole('button', { name: 'Динамика развития' })
+        .then((buttons) => buttons[0]!),
+    )
+    expect(await screen.findByText('Мурр')).toBeVisible()
+    expect(screen.getByText('В клане с 02.01.2024')).toBeVisible()
+    expect(screen.getByRole('checkbox', { name: 'ПА' })).toBeChecked()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'ПЗ' }))
+    expect(
+      await screen.findByRole('region', { name: 'График ПА' }),
+    ).toBeVisible()
+    expect(screen.getByRole('region', { name: 'График ПЗ' })).toBeVisible()
+    expect(
+      callApi.mock.calls.some(([route]) => route === 'roster/dynamics/profile'),
+    ).toBe(true)
+  })
+
+  it('does not show dynamics controls in the reader list', async () => {
+    await renderApp({ role: 'officer', path: '/roster?view=readers' })
+    expect(
+      await within(
+        await screen.findByRole('list', { name: 'Чтецы' }),
+      ).findByText('Чтец1', { selector: 'strong' }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: 'Динамика развития' }),
+    ).toBeNull()
+  })
+
   it('opens the readers tab from the address for an officer', async () => {
     await renderApp({ role: 'officer', path: '/roster?view=readers' })
     expect(

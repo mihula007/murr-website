@@ -8,4 +8,6 @@ export const rosterKeys = {
   page: (filters: { classId?: number; search: string }) =>
     ['roster', 'page', filters] as const,
   readers: ['roster', 'readers'] as const,
+  dynamics: (userId: string, period: string, fields: string[]) =>
+    ['roster', 'dynamics', userId, period, fields] as const,
 }

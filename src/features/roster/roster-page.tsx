@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { MoreHorizontal, UserRoundX } from 'lucide-react'
+import { ChartNoAxesCombined, MoreHorizontal, UserRoundX } from 'lucide-react'
 import { z } from 'zod'
 import type { RosterMember, RosterStatsResponse } from '@contracts/roster'
 import {
@@ -43,6 +43,7 @@ import {
 import { useRestoreReader, useRosterPages, useRosterStats } from './api'
 import { formatCharacterStat } from './character-stats'
 import { ReadersPanel } from './readers-panel'
+import { MemberDynamicsDialog } from './member-dynamics-dialog'
 
 const ALL = 'all'
 const MASTER_ROLE_CHOICES = {
@@ -168,6 +169,7 @@ type MemberCardProps = {
   isCurrentUser: boolean
   onBlock?: (() => void) | undefined
   onChangeRole?: ((role: MasterRole) => void) | undefined
+  onDynamics: () => void
 }
 
 function CharacterStatsSummary({ member }: { member: RosterMember }) {
@@ -199,6 +201,7 @@ function MemberCard({
   isCurrentUser,
   onBlock,
   onChangeRole,
+  onDynamics,
 }: MemberCardProps) {
   return (
     <div
@@ -288,6 +291,16 @@ function MemberCard({
           </DropdownMenu>
         ) : null}
         <CharacterStatsSummary member={member} />
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="col-span-full justify-self-start"
+          onClick={onDynamics}
+        >
+          <ChartNoAxesCombined size={15} aria-hidden="true" />
+          Динамика развития
+        </Button>
       </div>
     </div>
   )
@@ -301,6 +314,7 @@ function MembersList({
   userId,
   onBlock,
   onChangeRole,
+  onDynamics,
 }: {
   classId: number | null
   search: string
@@ -309,6 +323,7 @@ function MembersList({
   userId: string | undefined
   onBlock: (member: RosterMember) => void
   onChangeRole: (member: RosterMember, role: MasterRole) => void
+  onDynamics: (member: RosterMember) => void
 }) {
   const columns = { base: 1, sm: 2, lg: 3 }
   const activeColumns = useGridColumns(columns)
@@ -338,6 +353,7 @@ function MembersList({
   const renderMember = (member: RosterMember) => (
     <MemberCard
       member={member}
+      onDynamics={() => onDynamics(member)}
       isCurrentUser={member.id === userId}
       onBlock={
         !canManageRoles &&
@@ -400,6 +416,9 @@ export function RosterPage({
   const setRole = useSetRole()
   const restoreReader = useRestoreReader()
   const [blocking, setBlocking] = useState<RosterMember | null>(null)
+  const [dynamicsMember, setDynamicsMember] = useState<RosterMember | null>(
+    null,
+  )
   const [changing, setChanging] = useState<{
     member: RosterMember
     role: MasterRole
@@ -518,6 +537,7 @@ export function RosterPage({
             onChangeRole={(member, nextRole) =>
               setChanging({ member, role: nextRole })
             }
+            onDynamics={setDynamicsMember}
           />
         </>
       )}
@@ -538,6 +558,15 @@ export function RosterPage({
           }
           await setRole.mutateAsync({ userId: blocking.id, role: 'reader' })
           toast(`${blocking.gameNickname} теперь чтец`)
+        }}
+      />
+      <MemberDynamicsDialog
+        member={dynamicsMember}
+        open={dynamicsMember !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDynamicsMember(null)
+          }
         }}
       />
       <ConfirmActionDialog
