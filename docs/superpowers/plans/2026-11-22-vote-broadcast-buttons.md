@@ -33,6 +33,7 @@
 ### Task 1: Хранить активные рассылки голосований и сообщения
 
 **Файлы:**
+
 - Create: `supabase/migrations/20261122120000_stage20_vote_messenger_messages.sql`
 - Create: `supabase/tests/database/stage20_vote_messenger_messages.test.sql`
 - Изменить: `supabase/functions/_shared/db/database.types.ts` (сгенерировать командой проекта)
@@ -40,6 +41,7 @@
 - Изменить: `tests/server/user-deletion.test.ts`
 
 **Интерфейсы:**
+
 - Создать пары таблиц рассылок и сообщений для каждого канала: `telegram_vote_announcements` / `telegram_vote_messages`, `max_vote_announcements` / `max_vote_messages`, `vk_vote_announcements` / `vk_vote_messages`.
 - В каждой рассылке хранить `id`, `vote_id`, `subject`, `body` и `created_at`. Для каждого сообщения хранить `vote_id`, `user_id`, `announcement_id`, идентификаторы чата и сообщения канала, необязательное поле `media` и `sent_at`.
 - Составной первичный ключ каждой таблицы сообщений — `(vote_id, user_id)`; повторная рассылка заменяет строку. Связи рассылки, профиля и голосования удаляются вместе с родительской записью. Таблицы закрыты для ролей Data API.
@@ -54,6 +56,7 @@
 ### Task 2: Добавить общие кнопки голосования и синхронизацию
 
 **Файлы:**
+
 - Modify: `supabase/functions/_shared/messenger/callback-data.ts`
 - Create: `supabase/functions/_shared/messenger/vote-message.ts`
 - Create: `tests/vote-message.test.ts`
@@ -63,6 +66,7 @@
 - Modify: `tests/server/votes.test.ts`
 
 **Интерфейсы:**
+
 - Добавить действия кнопок `vote-answer(optionId)` и `vote-change`; ID голосования и участника берутся по активному сообщению, чтобы не передавать два UUID в данных кнопки.
 - Добавить `renderVoteMessage(announcement, options, selectedOption, choosing, labelLimit)`: функция возвращает текст и общий список действий с подписями. Каждый канал преобразует эти действия в собственные кнопки. Полный текст варианта добавляется в сообщение, только если подпись не помещается на кнопку.
 - Добавить `saveBallot(deps, voter, { voteId, optionId })`, использующую ту же блокировку активного голосования, проверку принадлежности варианта и сохранение одного голоса, что и `castBallot`.
@@ -79,6 +83,7 @@
 ### Task 3: Добавить кнопки голосования в Telegram
 
 **Файлы:**
+
 - Modify: `supabase/functions/_shared/telegram/render.ts`
 - Modify: `supabase/functions/_shared/telegram/repository.ts`
 - Modify: `supabase/functions/_shared/telegram/announcements.ts`
@@ -88,6 +93,7 @@
 - Modify: `tests/telegram-render.test.ts`
 
 **Интерфейсы:**
+
 - Добавить в репозиторий методы создания рассылки голосования, замены/чтения последнего сообщения участника, поиска по callback `chat_id/message_id` и удаления старой рассылки без активных сообщений.
 - Расширить `deliverAnnouncement` необязательными `voteId` и вариантами; обычные рассылки, ивенты и группы сохраняют прежний путь.
 - Обработчик нажатия: найти привязанный профиль → сверить последнее активное сообщение → загрузить роль → сохранить голос через `saveBallot` или показать режим выбора → изменить сообщение → обновить другие каналы в фоне.
@@ -102,6 +108,7 @@
 ### Task 4: Добавить кнопки голосования в MAX
 
 **Файлы:**
+
 - Modify: `supabase/functions/_shared/max/render.ts`
 - Modify: `supabase/functions/_shared/max/repository.ts`
 - Modify: `supabase/functions/_shared/max/announcements.ts`
@@ -110,6 +117,7 @@
 - Create or modify: `tests/max-vote-render.test.ts`
 
 **Интерфейсы:**
+
 - Использовать общий вывод голосования и методы `maxRepository`; ID сообщения MAX хранить строкой, а при изменении сообщения сохранять вложения-картинки.
 - Нажатие обновляет сообщение, отвечает через `answerCallback` и синхронизирует Telegram и ВКонтакте в фоне.
 
@@ -122,6 +130,7 @@
 ### Task 5: Добавить кнопки голосования во ВКонтакте
 
 **Файлы:**
+
 - Modify: `supabase/functions/_shared/vk/render.ts`
 - Modify: `supabase/functions/_shared/vk/repository.ts`
 - Modify: `supabase/functions/_shared/vk/announcements.ts`
@@ -130,6 +139,7 @@
 - Create or modify: `tests/vk-vote-render.test.ts`
 
 **Интерфейсы:**
+
 - Использовать общий вывод голосования и методы `vkRepository`; сообщение определять парой `(peer_id, conversation_message_id)`, оставлять текст без оформления и сохранять картинки.
 - Нажатие отвечает существующим методом событий ВКонтакте и синхронизирует Telegram и MAX в фоне.
 
@@ -142,6 +152,7 @@
 ### Task 6: Подключить рассылки голосований и лимиты текста
 
 **Файлы:**
+
 - Modify: `supabase/functions/_shared/broadcasts/service.ts`
 - Modify: `supabase/functions/_shared/contracts/broadcasts.ts`
 - Modify: `src/features/broadcast/broadcast-page.tsx`
@@ -149,6 +160,7 @@
 - Modify: `tests/broadcast.test.tsx`
 
 **Интерфейсы:**
+
 - `broadcasts/prefill` возвращает `bodyLimit` для голосования с учётом полного текста длинных вариантов.
 - `broadcasts/send` проверяет активный `voteId` и передаёт в выбранные каналы серверные варианты и голос пользователя. Подписи вариантов от клиента не принимаются.
 - Подтверждение сообщает, что рассылка голосования придёт с кнопками. Если текст и длинные варианты не помещаются в выбранные каналы, отправка отклоняется до доставки; поле формы остаётся доступным для исправления.
@@ -162,17 +174,18 @@
 ### Task 7: Локальные данные, браузерная проверка и общие проверки
 
 **Файлы:**
+
 - Modify: `scripts/seed-dev.ts`
 - Create or modify: `e2e/vote-broadcast.spec.ts`
 - Изменить: `docs/architecture/module-decisions.md`, если потребуется уточнить названия или правила работы модулей.
 
 **Интерфейсы:**
+
 - Локальные данные содержат активное голосование с коротким и длинным вариантом, чтобы при ручной проверке увидеть оба вида кнопок.
 - Playwright использует существующие подставные боты Telegram/MAX/ВКонтакте; живые учётные данные не применяются.
 
-- [ ] **Шаг 1: Написать Playwright-сценарий**: отправить рассылку активного голосования, нажать кнопки подставных ботов и проверить голос на сайте.
-- [ ] **Шаг 2: Запустить `npx vitest run tests/vote-message.test.ts tests/telegram-render.test.ts tests/max-vote-render.test.ts tests/vk-vote-render.test.ts tests/broadcast.test.tsx tests/server/votes.test.ts tests/server/broadcasts.test.ts tests/server/telegram-announcements.test.ts tests/server/telegram.test.ts tests/server/max.test.ts tests/server/vk.test.ts tests/server/user-deletion.test.ts`**; все адресные проверки должны пройти.
-- [ ] **Шаг 3: Запустить `npm run check:quick`, `npm run test:server` и `npm run supabase:test`**; команды должны завершиться без ошибок.
-- [ ] **Шаг 4: Сохранить отдельным коммитом** `test: cover messenger vote broadcasts`.
-- [ ] **Шаг 5: Не запускать Playwright локально.** Полный набор e2e выполняется CI после принятия локальной проверки и отправки изменений по правилам выкладки.
-
+- [x] **Шаг 1: Написать Playwright-сценарий**: отправить рассылку активного голосования, нажать кнопки подставных ботов и проверить голос на сайте.
+- [x] **Шаг 2: Запустить адресные проверки для модулей и каналов**; все адресные проверки должны пройти.
+- [x] **Шаг 3: Запустить `npm run check:quick`, `npm run test:server` и `npm run supabase:test`**; команды должны завершиться без ошибок.
+- [x] **Шаг 4: Сохранить отдельным коммитом** `test: cover messenger vote broadcasts`.
+- [x] **Шаг 5: Не запускать Playwright локально.** Полный набор e2e выполняется CI после принятия локальной проверки и отправки изменений по правилам выкладки.

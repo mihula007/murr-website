@@ -431,8 +431,12 @@ async function pressVoteButton(
     return refuse(VK_CALLBACK_TEXTS.forbidden)
   }
   const vote = await voteRepository.find(deps.db, active.voteId)
-  if (!vote) return refuse(VK_CALLBACK_TEXTS.voteDeleted)
-  if (vote.closed_at !== null) return refuse(VK_CALLBACK_TEXTS.voteClosed)
+  if (!vote) {
+    return refuse(VK_CALLBACK_TEXTS.voteDeleted)
+  }
+  if (vote.closed_at !== null) {
+    return refuse(VK_CALLBACK_TEXTS.voteClosed)
+  }
 
   if (action.kind === 'vote-answer') {
     let details
@@ -442,11 +446,18 @@ async function pressVoteButton(
         optionId: action.optionId,
       })
     } catch (error) {
-      if (!(error instanceof ApiError)) throw error
-      if (error.code === 'not_found') return refuse(VK_CALLBACK_TEXTS.voteStale)
-      if (error.code === 'forbidden') return refuse(VK_CALLBACK_TEXTS.forbidden)
-      if (error.code === 'state_conflict')
+      if (!(error instanceof ApiError)) {
+        throw error
+      }
+      if (error.code === 'not_found') {
+        return refuse(VK_CALLBACK_TEXTS.voteStale)
+      }
+      if (error.code === 'forbidden') {
+        return refuse(VK_CALLBACK_TEXTS.forbidden)
+      }
+      if (error.code === 'state_conflict') {
         return refuse(VK_CALLBACK_TEXTS.voteClosed)
+      }
       return { notice: VK_CALLBACK_TEXTS.failed, refused: false }
     }
     const rendered = vkVoteMessage(active, details.options, details.myOptionId)

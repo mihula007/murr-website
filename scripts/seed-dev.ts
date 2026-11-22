@@ -599,6 +599,20 @@ for (let i = 1; i <= 110; i += 1) {
     }),
   )
 }
+generalVotes.push(
+  addVote({
+    kind: 'general',
+    title: 'Проверка кнопок голосования в мессенджерах',
+    context: 'Выберите вариант кнопкой или на сайте.',
+    createdAt: NOW - HOUR,
+    closedAt: null,
+    applicationId: null,
+    labels: [
+      'За',
+      'Большинство участников выберет этот маршрут для следующего рейда',
+    ],
+  }),
+)
 await insert('join_applications', applications)
 await insert('application_equipment_links', links)
 await insert('votes', votes)

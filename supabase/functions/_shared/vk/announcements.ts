@@ -211,9 +211,13 @@ export async function syncVkVoteMessage(
   voteId: string,
 ) {
   const vk = deps.vk
-  if (!vk) return
+  if (!vk) {
+    return
+  }
   const message = await vkRepository.activeVoteMessage(deps.db, voteId, userId)
-  if (!message) return
+  if (!message) {
+    return
+  }
   const vote = await voteRepository.find(deps.db, voteId)
   if (!vote || vote.closed_at !== null) {
     await editVkMessage(
