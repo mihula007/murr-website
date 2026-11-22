@@ -33,6 +33,7 @@ import {
   castBallot,
   closeVote,
   createVote,
+  deleteVote,
 } from '../../supabase/functions/_shared/votes/service.ts'
 import {
   actorOf,
@@ -679,5 +680,45 @@ describe('vk: vote buttons (VK-12, VOT-17)', () => {
       payload(voteAnswerData(vote.options[0]!.id)),
     )
     expect(lastAnswer()).toMatchObject({ text: VK_CALLBACK_TEXTS.voteClosed })
+  })
+
+  it('removes VK vote buttons when the vote is deleted', async () => {
+    const member = await linked('member')
+    const { actor } = await officerWithEvent()
+    const vote = await createVote(deps, actor, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    await sendVote(vote)
+    const messageId = (await activeVoteCmid(vote.id, member.user.id))!
+
+    await deleteVote(deps, actor, { id: vote.id })
+
+    expect(fake.calls).toContainEqual(
+      expect.objectContaining({ method: 'edit', messageId, keyboard: null }),
+    )
+  })
+
+  it('stops syncing vote choices to a VK account after unlinking', async () => {
+    const member = await linked('member')
+    const { actor } = await officerWithEvent()
+    const vote = await createVote(deps, actor, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    await sendVote(vote)
+    const callsBefore = fake.calls.length
+
+    await unlinkVk(deps, member.actor)
+    await castBallot(deps, member.actor, {
+      voteId: vote.id,
+      optionId: vote.options[1]!.id,
+    })
+
+    expect(fake.calls.slice(callsBefore)).not.toContainEqual(
+      expect.objectContaining({ method: 'edit' }),
+    )
   })
 })

@@ -19,10 +19,11 @@ import { INTERNAL_ROLES } from '../membership.ts'
 import { eventRepository } from '../events/repository.ts'
 import { saveAnswer } from '../events/service.ts'
 import { voteRepository } from '../votes/repository.ts'
-import { saveBallot } from '../votes/service.ts'
+import { saveMessengerBallot } from '../votes/service.ts'
 import { editMessage } from './announcements.ts'
 import { randomCode, sameSecret, sha256Hex } from '../messenger/link-code.ts'
 import { syncEventMessages, syncVoteMessages } from '../messenger/sync.ts'
+import { syncVoteMessage } from './announcements.ts'
 import { runInBackground } from '../background.ts'
 import {
   parseCallbackData,
@@ -110,6 +111,7 @@ export async function unlinkTelegram(
 ): Promise<TelegramStatus> {
   const user = requireRole(actor, TELEGRAM_LINKERS)
   await withTransaction(deps.db, async (tx) => {
+    await telegramRepository.deleteVoteMessagesForUser(tx, user.userId)
     await telegramRepository.deleteLink(tx, user.userId)
     await telegramRepository.deleteCode(tx, user.userId)
   })
@@ -378,22 +380,29 @@ async function pressVoteButton(
   if (action.kind === 'vote-answer') {
     let details
     try {
-      details = await saveBallot(deps, viewer, {
-        voteId: active.voteId,
-        optionId: action.optionId,
-      })
+      details = await saveMessengerBallot(
+        deps,
+        viewer,
+        { voteId: active.voteId, optionId: action.optionId },
+        async (tx) => {
+          const current = await telegramRepository.activeVoteMessageByTarget(
+            tx,
+            target.chatId,
+            target.messageId,
+          )
+          return (
+            current?.userId === userId &&
+            current.announcementId === active.announcementId
+          )
+        },
+      )
     } catch (error) {
       return voteRefusalText(error)
     }
-    const rendered = voteMessage(active, details.options, details.myOptionId)
-    await editMessage(
-      deps,
-      telegram,
-      userId,
-      active,
-      rendered.html,
-      rendered.keyboard,
-    )
+    if (!details) {
+      return CALLBACK_TEXTS.voteStale
+    }
+    await syncVoteMessage(deps, userId, active.voteId)
     await runInBackground(deps, () =>
       syncVoteMessages(deps, userId, active.voteId, 'telegram'),
     )

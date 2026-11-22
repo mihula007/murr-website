@@ -6,6 +6,7 @@ import {
 import {
   CHANGE_LABEL,
   announcementHtml,
+  announcementPlain,
   eventHtml,
   type AnnouncementText,
 } from '../messenger/announcement.ts'
@@ -37,7 +38,7 @@ export function maxEventMessage(
   return { html: eventHtml(announcement, answer), keyboard }
 }
 
-/** Сообщение голосования: варианты сеткой по два, как в остальных каналах. */
+/** Сообщение голосования: отдельная строка сохраняет подписи до 20 знаков. */
 export function maxVoteMessage(
   announcement: AnnouncementText,
   options: readonly VoteMessageOption[],
@@ -49,17 +50,14 @@ export function maxVoteMessage(
     options,
     selectedOptionId,
     choosing,
-    32,
+    20,
   )
   const buttons: MaxButton[] = message.actions.map(({ label, data }) =>
     button(label, data),
   )
-  const keyboard: MaxKeyboard = []
-  for (let index = 0; index < buttons.length; index += 2) {
-    keyboard.push(buttons.slice(index, index + 2))
-  }
+  const keyboard: MaxKeyboard = buttons.map((item) => [item])
   return {
-    html: announcementHtml({ subject: null, body: message.text }),
+    html: `${announcementHtml(announcement)}${message.text.slice(announcementPlain(announcement).length)}`,
     keyboard,
   }
 }

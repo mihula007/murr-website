@@ -209,6 +209,13 @@ export type TelegramCall = {
 export function fakeTelegram() {
   const calls: TelegramCall[] = []
   const blocked = new Set<number>()
+  const controls: {
+    beforeSendHtml: (() => Promise<void>) | null
+    beforeEditHtml: (() => Promise<void>) | null
+  } = {
+    beforeSendHtml: null,
+    beforeEditHtml: null,
+  }
   /** Картинки, которые «не отправляются» (TGM-27). */
   const failingPhotos = new Set<string>()
   let nextMessageId = 100
@@ -238,6 +245,7 @@ export function fakeTelegram() {
       if (blocked.has(chatId)) {
         return { status: 'blocked' }
       }
+      await controls.beforeSendHtml?.()
       if (photo && failingPhotos.has(photo)) {
         return { status: 'failed' }
       }
@@ -265,6 +273,7 @@ export function fakeTelegram() {
         keyboard,
         ...(caption ? { caption: true as const } : {}),
       })
+      await controls.beforeEditHtml?.()
       return blocked.has(chatId) ? 'blocked' : 'ok'
     },
     async editKeyboard(chatId, messageId, keyboard) {
@@ -285,7 +294,7 @@ export function fakeTelegram() {
     webhookSecret: TELEGRAM_TEST_SECRET,
     siteUrl: 'https://murr.test/',
   }
-  return { telegram, calls, blocked, failingPhotos }
+  return { telegram, calls, blocked, failingPhotos, controls }
 }
 
 export const TELEGRAM_TEST_SECRET = 'test-webhook-secret-0123456789abcdef'

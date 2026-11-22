@@ -28,11 +28,12 @@ import { announcementPlain } from '../messenger/announcement.ts'
 import { randomCode, sameSecret, sha256Hex } from '../messenger/link-code.ts'
 import { syncEventMessages } from '../messenger/sync.ts'
 import { syncVoteMessages } from '../messenger/sync.ts'
+import { syncVkVoteMessage } from './announcements.ts'
 import { editVkMessage } from './announcements.ts'
 import { VK_BOT_TEXTS, VK_CALLBACK_TEXTS } from './messages.ts'
 import { vkEventMessage, vkVoteMessage } from './render.ts'
 import { VK_USER_CONSTRAINT, vkRepository } from './repository.ts'
-import { saveBallot } from '../votes/service.ts'
+import { saveMessengerBallot } from '../votes/service.ts'
 import { voteRepository } from '../votes/repository.ts'
 import {
   envelopeSchema,
@@ -106,6 +107,7 @@ export async function startVkLink(
 export async function unlinkVk(deps: AppDeps, actor: Actor): Promise<VkStatus> {
   const user = requireRole(actor, VK_LINKERS)
   await withTransaction(deps.db, async (tx) => {
+    await vkRepository.deleteVoteMessagesForUser(tx, user.userId)
     await vkRepository.deleteLink(tx, user.userId)
     await vkRepository.deleteCode(tx, user.userId)
   })
@@ -441,10 +443,22 @@ async function pressVoteButton(
   if (action.kind === 'vote-answer') {
     let details
     try {
-      details = await saveBallot(deps, viewer, {
-        voteId: active.voteId,
-        optionId: action.optionId,
-      })
+      details = await saveMessengerBallot(
+        deps,
+        viewer,
+        { voteId: active.voteId, optionId: action.optionId },
+        async (tx) => {
+          const current = await vkRepository.activeVoteMessageByTarget(
+            tx,
+            target.chatId,
+            target.messageId,
+          )
+          return (
+            current?.userId === userId &&
+            current.announcementId === active.announcementId
+          )
+        },
+      )
     } catch (error) {
       if (!(error instanceof ApiError)) {
         throw error
@@ -460,15 +474,10 @@ async function pressVoteButton(
       }
       return { notice: VK_CALLBACK_TEXTS.failed, refused: false }
     }
-    const rendered = vkVoteMessage(active, details.options, details.myOptionId)
-    await editVkMessage(
-      deps,
-      vk,
-      userId,
-      active,
-      rendered.text,
-      rendered.keyboard,
-    )
+    if (!details) {
+      return refuse(VK_CALLBACK_TEXTS.voteStale)
+    }
+    await syncVkVoteMessage(deps, userId, active.voteId)
     await runInBackground(deps, () =>
       syncVoteMessages(deps, userId, active.voteId, 'vk'),
     )

@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import type { AppDeps } from '../../supabase/functions/_shared/app.ts'
 import { GUEST } from '../../supabase/functions/_shared/auth/actor.ts'
 import { deliverAnnouncement } from '../../supabase/functions/_shared/telegram/announcements.ts'
+import { telegramRepository } from '../../supabase/functions/_shared/telegram/repository.ts'
 import {
   sendAnnouncement,
   broadcastRecipients,
@@ -20,7 +21,10 @@ import {
   voteChangeData,
 } from '../../supabase/functions/_shared/messenger/callback-data.ts'
 import { CALLBACK_TEXTS } from '../../supabase/functions/_shared/telegram/messages.ts'
-import { handleTelegramWebhook } from '../../supabase/functions/_shared/telegram/service.ts'
+import {
+  handleTelegramWebhook,
+  unlinkTelegram,
+} from '../../supabase/functions/_shared/telegram/service.ts'
 import {
   castBallot,
   closeVote,
@@ -728,6 +732,199 @@ describe('vote announcements (TGM-30, VOT-17)', () => {
     })
   })
 
+  it('does not save an old button press that overlaps a replacement broadcast', async () => {
+    const member = await linked('member')
+    const { actor: voteOwner } = await officerWithEvent()
+    const vote = await createVote(deps, voteOwner, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    await sendVoteAnnouncement(vote)
+    const oldMessageId = (await activeVoteMessageId(vote.id, member.user.id))!
+    const original = telegramRepository.activeVoteMessageByTarget
+    let signalLoaded!: () => void
+    let releaseLookup!: () => void
+    const loaded = new Promise<void>((resolve) => {
+      signalLoaded = resolve
+    })
+    const gate = new Promise<void>((resolve) => {
+      releaseLookup = resolve
+    })
+    telegramRepository.activeVoteMessageByTarget = async (
+      executor,
+      chatId,
+      messageId,
+    ) => {
+      const message = await original(executor, chatId, messageId)
+      if (messageId === oldMessageId) {
+        signalLoaded()
+        await gate
+      }
+      return message
+    }
+
+    try {
+      const oldPress = press(
+        member.chatId,
+        oldMessageId,
+        voteAnswerData(vote.options[0]!.id),
+      )
+      await loaded
+      await sendVoteAnnouncement(vote)
+      releaseLookup()
+      await oldPress
+    } finally {
+      releaseLookup()
+      telegramRepository.activeVoteMessageByTarget = original
+    }
+
+    expect(lastAnswer()?.text).toBe(CALLBACK_TEXTS.voteStale)
+    expect(
+      await db
+        .selectFrom('app.vote_ballots')
+        .select('id')
+        .where('vote_id', '=', vote.id)
+        .execute(),
+    ).toEqual([])
+  })
+
+  it('reconciles a ballot cast while the Telegram message is being sent', async () => {
+    const member = await linked('member')
+    const { actor: voteOwner } = await officerWithEvent()
+    const vote = await createVote(deps, voteOwner, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    let signalSend!: () => void
+    let releaseSend!: () => void
+    const started = new Promise<void>((resolve) => {
+      signalSend = resolve
+    })
+    const gate = new Promise<void>((resolve) => {
+      releaseSend = resolve
+    })
+    fake.controls.beforeSendHtml = async () => {
+      signalSend()
+      await gate
+    }
+
+    const pendingBroadcast = sendVoteAnnouncement(vote)
+    await started
+    await castBallot(deps, member.actor, {
+      voteId: vote.id,
+      optionId: vote.options[1]!.id,
+    })
+    releaseSend()
+    await pendingBroadcast
+
+    expect(fake.calls).toContainEqual(
+      expect.objectContaining({
+        method: 'editHtml',
+        text: expect.stringContaining('Ваш голос: Против'),
+      }),
+    )
+  })
+
+  it('counts a replaced message with no saved button record as failed only', async () => {
+    await linked('member')
+    const { actor: voteOwner } = await officerWithEvent()
+    const vote = await createVote(deps, voteOwner, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    let signalSend!: () => void
+    let releaseSend!: () => void
+    const started = new Promise<void>((resolve) => {
+      signalSend = resolve
+    })
+    const gate = new Promise<void>((resolve) => {
+      releaseSend = resolve
+    })
+    fake.controls.beforeSendHtml = async () => {
+      fake.controls.beforeSendHtml = null
+      signalSend()
+      await gate
+    }
+
+    const replacedBroadcast = sendVoteAnnouncement(vote)
+    await started
+    const currentBroadcast = await sendVoteAnnouncement(vote)
+    releaseSend()
+    const replacedResult = await replacedBroadcast
+
+    expect(currentBroadcast).toMatchObject({ sent: 1, failed: 0 })
+    expect(replacedResult).toMatchObject({ sent: 0, failed: 1 })
+  })
+
+  it('rechecks the latest choice when two Telegram message edits overlap', async () => {
+    const member = await linked('member')
+    const { actor: voteOwner } = await officerWithEvent()
+    const vote = await createVote(deps, voteOwner, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    await sendVoteAnnouncement(vote)
+    fake.controls.beforeEditHtml = async () => {
+      fake.controls.beforeEditHtml = null
+      await castBallot(
+        { ...deps, telegram: null, max: null, vk: null },
+        member.actor,
+        { voteId: vote.id, optionId: vote.options[0]!.id },
+      )
+    }
+
+    await castBallot(deps, member.actor, {
+      voteId: vote.id,
+      optionId: vote.options[1]!.id,
+    })
+
+    expect(fake.calls.at(-1)).toMatchObject({
+      method: 'editHtml',
+      text: expect.stringContaining('Ваш голос: За'),
+    })
+    expect(
+      await db
+        .selectFrom('app.vote_ballots')
+        .select('option_id')
+        .where('vote_id', '=', vote.id)
+        .where('voter_id', '=', member.user.id)
+        .executeTakeFirstOrThrow(),
+    ).toMatchObject({ option_id: vote.options[0]!.id })
+  })
+
+  it('stops syncing private vote choices to a Telegram account after unlinking', async () => {
+    const member = await linked('member')
+    const { actor: voteOwner } = await officerWithEvent()
+    const vote = await createVote(deps, voteOwner, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    await sendVoteAnnouncement(vote)
+    const sentCalls = fake.calls.length
+
+    await unlinkTelegram(deps, member.actor)
+    await castBallot(deps, member.actor, {
+      voteId: vote.id,
+      optionId: vote.options[1]!.id,
+    })
+
+    expect(fake.calls.slice(sentCalls)).not.toContainEqual(
+      expect.objectContaining({ method: 'editHtml' }),
+    )
+    expect(
+      await db
+        .selectFrom('app.telegram_vote_messages')
+        .select('vote_id')
+        .where('user_id', '=', member.user.id)
+        .execute(),
+    ).toEqual([])
+  })
+
   it('removes the buttons when a member loses access or the vote closes', async () => {
     const member = await linked('member')
     const { actor: voteOwner } = await officerWithEvent()
@@ -807,6 +1004,46 @@ describe('vote announcements (TGM-30, VOT-17)', () => {
       },
     })
     expect(await activeVoteMessageId(vote.id, member.user.id)).toBeTruthy()
+  })
+
+  it('splits a photo when the full vote options exceed the caption limit', async () => {
+    const member = await linked('member')
+    const { actor: voteOwner } = await officerWithEvent()
+    const options = Array.from(
+      { length: 10 },
+      (_, index) => `Вариант ${index + 1} ${'маршрутный '.repeat(6)}`,
+    )
+    const vote = await createVote(deps, voteOwner, {
+      title: 'Маршрут',
+      context: '',
+      options,
+    })
+    const imageUrl = 'https://murr.test/messenger/long-options.jpg'
+
+    await deliverAnnouncement(
+      deps,
+      fake.telegram,
+      {
+        subject: 'Маршрут '.repeat(12),
+        body: 'Детали маршрута. '.repeat(9),
+      },
+      null,
+      null,
+      [],
+      imageUrl,
+      vote.id,
+      vote.options,
+    )
+
+    expect(fake.calls[0]).toMatchObject({
+      method: 'sendPhoto',
+      photo: imageUrl,
+    })
+    expect(fake.calls[1]).toMatchObject({
+      method: 'sendHtml',
+      chatId: member.chatId,
+      keyboard: expect.any(Object),
+    })
   })
 
   it('keeps the vote buttons when Telegram cannot send the image', async () => {

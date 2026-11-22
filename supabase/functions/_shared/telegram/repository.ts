@@ -280,6 +280,13 @@ export const telegramRepository = {
       .execute()
   },
 
+  async deleteVoteMessagesForUser(tx: Executor, userId: string) {
+    await tx
+      .deleteFrom('app.telegram_vote_messages')
+      .where('user_id', '=', userId)
+      .execute()
+  },
+
   /** Текущее сообщение пользователя вместе с текстом анонса. */
   async activeVoteMessage(db: Executor, voteId: string, userId: string) {
     const row = await activeVoteMessageQuery(db)
@@ -287,6 +294,13 @@ export const telegramRepository = {
       .where('m.user_id', '=', userId)
       .executeTakeFirst()
     return row ? toActiveVoteMessage(row) : null
+  },
+
+  async activeVoteMessages(db: Executor, voteId: string) {
+    const rows = await activeVoteMessageQuery(db)
+      .where('m.vote_id', '=', voteId)
+      .execute()
+    return rows.map(toActiveVoteMessage)
   },
 
   /** Находит сообщение callback и проверяет его владельца и рассылку. */

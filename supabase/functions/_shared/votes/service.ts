@@ -31,6 +31,11 @@ import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
 import { voteRepository, type VoteRow } from './repository.ts'
+import { lockActiveVote as lockActive } from './locking.ts'
+import { telegramRepository } from '../telegram/repository.ts'
+import { maxRepository } from '../max/repository.ts'
+import { vkRepository } from '../vk/repository.ts'
+import { announcementPlain } from '../messenger/announcement.ts'
 
 /** Читают и голосуют члены, офицеры и администраторы (ACL-04). */
 const VOTERS = INTERNAL_ROLES
@@ -204,18 +209,6 @@ export async function createVote(
   return loadVoteDetails(deps, deps.db, manager, id)
 }
 
-/** Активное голосование под блокировкой; иначе not_found / state_conflict. */
-async function lockActive(tx: Executor, id: string, mode: 'share' | 'update') {
-  const vote = await voteRepository.lock(tx, id, mode)
-  if (!vote) {
-    throw new ApiError('not_found')
-  }
-  if (vote.closed_at !== null) {
-    throw new ApiError('state_conflict')
-  }
-  return vote
-}
-
 /**
  * Тема и контекст активного голосования (VOT-08); голоса сохраняются.
  * Тема голосования по заявке («Заявка: <ник>») не меняется.
@@ -258,11 +251,17 @@ async function persistBallot(
   deps: AppDeps,
   actor: Actor,
   body: unknown,
-): Promise<{ details: VoteDetails; userId: string; voteId: string }> {
+  isCurrentMessage?: (tx: Executor) => Promise<boolean>,
+): Promise<{ details: VoteDetails; userId: string; voteId: string } | null> {
   const voter = requireRole(actor, VOTERS)
   const input = parseBody(castBallotSchema, body)
+  let staleMessage = false
   await withTransaction(deps.db, async (tx) => {
     await lockActive(tx, input.voteId, 'share')
+    if (isCurrentMessage && !(await isCurrentMessage(tx))) {
+      staleMessage = true
+      return
+    }
     if (!(await voteRepository.hasOption(tx, input.voteId, input.optionId))) {
       throw new ApiError('not_found')
     }
@@ -273,6 +272,9 @@ async function persistBallot(
       at: deps.now().toISOString(),
     })
   })
+  if (staleMessage) {
+    return null
+  }
   return {
     details: await loadVoteDetails(deps, deps.db, voter, input.voteId),
     userId: voter.userId,
@@ -285,7 +287,19 @@ export async function saveBallot(
   actor: Actor,
   body: unknown,
 ): Promise<VoteDetails> {
-  return (await persistBallot(deps, actor, body)).details
+  return (await persistBallot(deps, actor, body))!.details
+}
+
+/** Нажатие кнопки и проверка её актуальности происходят под одной блокировкой. */
+export async function saveMessengerBallot(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+  isCurrentMessage: (tx: Executor) => Promise<boolean>,
+): Promise<VoteDetails | null> {
+  return (
+    (await persistBallot(deps, actor, body, isCurrentMessage))?.details ?? null
+  )
 }
 
 /** Сайт и кнопки мессенджеров используют одно сохранение голоса. */
@@ -381,8 +395,13 @@ export async function deleteVote(
     'votes.complete_delete',
   )
   const { id } = parseBody(voteIdSchema, body)
-  await withTransaction(deps.db, async (tx) => {
+  const messages = await withTransaction(deps.db, async (tx) => {
     const vote = await lockActive(tx, id, 'update')
+    const activeMessages = {
+      telegram: await telegramRepository.activeVoteMessages(tx, vote.id),
+      max: await maxRepository.activeVoteMessages(tx, vote.id),
+      vk: await vkRepository.activeVoteMessages(tx, vote.id),
+    }
     await voteRepository.delete(tx, vote.id)
     if (vote.application_id) {
       await moveApplication(
@@ -406,8 +425,52 @@ export async function deleteVote(
         application_id: vote.application_id,
       },
     })
+    return activeMessages
   })
+  await Promise.all([
+    deps.telegram
+      ? cleanupInBatches(messages.telegram, (message) =>
+          deps.telegram!.gateway.editKeyboard(
+            message.chatId,
+            message.messageId,
+            null,
+          ),
+        )
+      : Promise.resolve(),
+    deps.max
+      ? cleanupInBatches(messages.max, (message) =>
+          deps.max!.gateway.removeKeyboard(message.messageId, message.media),
+        )
+      : Promise.resolve(),
+    deps.vk
+      ? cleanupInBatches(messages.vk, (message) =>
+          deps.vk!.gateway.edit(
+            message.chatId,
+            message.messageId,
+            announcementPlain(message),
+            null,
+            message.media,
+          ),
+        )
+      : Promise.resolve(),
+  ])
   return { deleted: true }
+}
+
+async function cleanupInBatches<T>(
+  items: readonly T[],
+  cleanup: (item: T) => Promise<unknown>,
+) {
+  for (let start = 0; start < items.length; start += 20) {
+    const results = await Promise.allSettled(
+      items.slice(start, start + 20).map(cleanup),
+    )
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.error('Кнопки удалённого голосования не сняты', result.reason)
+      }
+    }
+  }
 }
 
 /** Переход связанной заявки; другой статус означает гонку. */

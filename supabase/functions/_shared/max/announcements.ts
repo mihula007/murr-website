@@ -2,6 +2,8 @@ import type { AppDeps, MaxDeps } from '../app.ts'
 import { withTransaction } from '../db/client.ts'
 import { eventRepository } from '../events/repository.ts'
 import { voteRepository } from '../votes/repository.ts'
+import { lockActiveVote } from '../votes/locking.ts'
+import { serializeMessageUpdate } from '../messenger/message-queue.ts'
 import {
   announcementHtml,
   type AnnouncementText,
@@ -53,9 +55,13 @@ export async function deliverMaxAnnouncement(
   )
   let announcementId: string | null = null
   if (voteId) {
-    const replaced = await withTransaction(deps.db, (tx) =>
-      maxRepository.replaceVoteAnnouncement(tx, { voteId, ...announcement }),
-    )
+    const replaced = await withTransaction(deps.db, async (tx) => {
+      await lockActiveVote(tx, voteId, 'update')
+      return maxRepository.replaceVoteAnnouncement(tx, {
+        voteId,
+        ...announcement,
+      })
+    })
     announcementId = replaced.announcementId
     await removeVoteButtons(deps, max, replaced.previousMessages)
   } else if (eventId) {
@@ -85,6 +91,7 @@ export async function deliverMaxAnnouncement(
             existingChoices?.get(recipient.userId) ?? null,
           )
         : null
+    const initialChoice = existingChoices?.get(recipient.userId) ?? null
     const message = voteMessageForUser
       ? voteMessageForUser
       : eventId === null
@@ -118,7 +125,6 @@ export async function deliverMaxAnnouncement(
       failed++
       return
     }
-    sent++
     if (voteId && announcementId) {
       try {
         await withTransaction(deps.db, (tx) =>
@@ -135,9 +141,24 @@ export async function deliverMaxAnnouncement(
         console.error('Сообщение голосования MAX не сохранено', error)
         await max.gateway.removeKeyboard(result.messageId, media)
         failed++
+        return
+      }
+      sent++
+      try {
+        const latestChoices = await voteRepository.choicesOf(
+          deps.db,
+          [voteId],
+          recipient.userId,
+        )
+        if ((latestChoices.get(voteId) ?? null) !== initialChoice) {
+          await syncVoteMessage(deps, recipient.userId, voteId)
+        }
+      } catch (error) {
+        console.error('Сообщение голосования MAX не обновлено', error)
       }
       return
     }
+    sent++
     if (eventId === null || announcementId === null) {
       return
     }
@@ -197,7 +218,13 @@ export async function syncMaxEventMessage(
 }
 
 /** Ответ с сайта или из другого канала обновляет активное сообщение MAX. */
-export async function syncVoteMessage(
+export function syncVoteMessage(deps: AppDeps, userId: string, voteId: string) {
+  return serializeMessageUpdate(`max:${voteId}:${userId}`, () =>
+    syncLatestVoteMessage(deps, userId, voteId),
+  )
+}
+
+async function syncLatestVoteMessage(
   deps: AppDeps,
   userId: string,
   voteId: string,
@@ -206,39 +233,84 @@ export async function syncVoteMessage(
   if (!max) {
     return
   }
-  const message = await maxRepository.activeVoteMessage(deps.db, voteId, userId)
-  if (!message) {
-    return
-  }
-  const vote = await voteRepository.find(deps.db, voteId)
-  if (!vote || vote.closed_at !== null) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const message = await maxRepository.activeVoteMessage(
+      deps.db,
+      voteId,
+      userId,
+    )
+    const link = await maxRepository.linkByUser(deps.db, userId)
+    if (!message) {
+      return
+    }
+    if (!link || link.chatId !== message.chatId) {
+      return
+    }
+    const vote = await voteRepository.find(deps.db, voteId)
+    if (!vote || vote.closed_at !== null) {
+      await editMaxMessage(
+        deps,
+        max,
+        userId,
+        message,
+        announcementHtml(message),
+        null,
+      )
+      return
+    }
+    const [options, choices] = await Promise.all([
+      voteRepository.totals(deps.db, [voteId]),
+      voteRepository.choicesOf(deps.db, [voteId], userId),
+    ])
+    const selected = choices.get(voteId) ?? null
+    const rendered = maxVoteMessage(
+      message,
+      options.map((option) => ({ id: option.id, label: option.label })),
+      selected,
+    )
     await editMaxMessage(
       deps,
       max,
       userId,
       message,
-      announcementHtml(message),
-      null,
+      rendered.html,
+      rendered.keyboard,
     )
-    return
+    const [current, latestChoices, latestVote] = await Promise.all([
+      maxRepository.activeVoteMessage(deps.db, voteId, userId),
+      voteRepository.choicesOf(deps.db, [voteId], userId),
+      voteRepository.find(deps.db, voteId),
+    ])
+    if (
+      !current ||
+      current.messageId !== message.messageId ||
+      current.announcementId !== message.announcementId
+    ) {
+      await editMaxMessage(
+        deps,
+        max,
+        userId,
+        message,
+        announcementHtml(message),
+        null,
+      )
+      return
+    }
+    if (!latestVote || latestVote.closed_at !== null) {
+      await editMaxMessage(
+        deps,
+        max,
+        userId,
+        message,
+        announcementHtml(message),
+        null,
+      )
+      return
+    }
+    if ((latestChoices.get(voteId) ?? null) === selected) {
+      return
+    }
   }
-  const [options, choices] = await Promise.all([
-    voteRepository.totals(deps.db, [voteId]),
-    voteRepository.choicesOf(deps.db, [voteId], userId),
-  ])
-  const rendered = maxVoteMessage(
-    message,
-    options.map((option) => ({ id: option.id, label: option.label })),
-    choices.get(voteId) ?? null,
-  )
-  await editMaxMessage(
-    deps,
-    max,
-    userId,
-    message,
-    rendered.html,
-    rendered.keyboard,
-  )
 }
 
 async function removeVoteButtons(

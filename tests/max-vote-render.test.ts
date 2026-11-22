@@ -23,6 +23,7 @@ describe('MAX vote message rendering', () => {
     )
 
     expect(result.html).toContain('2. Большинство участников выберет этот путь')
+    expect(result.html).toMatch(/^<b>Маршрут<\/b>/)
     expect(result.keyboard).toEqual([
       [
         {
@@ -30,9 +31,11 @@ describe('MAX vote message rendering', () => {
           text: 'За',
           payload: voteAnswerData(options[0]!.id),
         },
+      ],
+      [
         {
           type: 'callback',
-          text: '2. Большинство участников выбер…',
+          text: '2. Большинство учас…',
           payload: voteAnswerData(options[1]!.id),
         },
       ],
@@ -44,6 +47,9 @@ describe('MAX vote message rendering', () => {
         },
       ],
     ])
+    expect(
+      result.keyboard.flat().every((button) => button.text.length <= 20),
+    ).toBe(true)
   })
 
   it('shows the current choice with a change action', () => {

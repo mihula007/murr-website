@@ -473,7 +473,7 @@ describe('source-specific broadcast images', () => {
         .map((call) => call.method),
     ).toEqual(['sendPhoto', 'sendHtml'])
     const message = telegram.calls.find((call) => call.method === 'sendHtml')
-    expect(message?.text).toContain(`Голосование\n\n${body}`)
+    expect(message?.text).toContain(`<b>Голосование</b>\n\n${body}`)
     expect(message?.text).toContain('\n\nВарианты:\n1. Башня\n2. Пещера')
     expect(
       message?.keyboard?.inline_keyboard.flat().map((button) => button.text),

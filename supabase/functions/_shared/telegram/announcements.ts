@@ -2,7 +2,10 @@ import type { AppDeps, TelegramDeps } from '../app.ts'
 import { withTransaction } from '../db/client.ts'
 import { eventRepository } from '../events/repository.ts'
 import { voteRepository } from '../votes/repository.ts'
+import { lockActiveVote } from '../votes/locking.ts'
 import { announcementPlain } from '../messenger/announcement.ts'
+import { renderVoteMessage } from '../messenger/vote-message.ts'
+import { serializeMessageUpdate } from '../messenger/message-queue.ts'
 import type { InlineKeyboard } from './gateway.ts'
 import {
   announcementHtml,
@@ -58,12 +61,13 @@ export async function deliverAnnouncement(
   )
   let announcementId: string | null = null
   if (voteId) {
-    const replaced = await withTransaction(deps.db, (tx) =>
-      telegramRepository.replaceVoteAnnouncement(tx, {
+    const replaced = await withTransaction(deps.db, async (tx) => {
+      await lockActiveVote(tx, voteId, 'update')
+      return telegramRepository.replaceVoteAnnouncement(tx, {
         voteId,
         ...announcement,
-      }),
-    )
+      })
+    })
     announcementId = replaced.announcementId
     await removeVoteButtons(deps, telegram, replaced.previousMessages)
   } else if (eventId) {
@@ -91,6 +95,7 @@ export async function deliverAnnouncement(
             existingChoices?.get(recipient.userId) ?? null,
           )
         : null
+    const initialChoice = existingChoices?.get(recipient.userId) ?? null
     const message = voteMessageForUser
       ? voteMessageForUser
       : eventId === null
@@ -100,7 +105,13 @@ export async function deliverAnnouncement(
     const longPhotoAnnouncement =
       sentPhoto !== null &&
       eventId === null &&
-      announcementPlain(announcement).length > PHOTO_CAPTION_LIMIT
+      (voteId && voteOptions
+        ? voteOptions.some(
+            (option) =>
+              renderVoteMessage(announcement, voteOptions, option.id, false, 32)
+                .text.length > PHOTO_CAPTION_LIMIT,
+          )
+        : announcementPlain(announcement).length > PHOTO_CAPTION_LIMIT)
     let result = longPhotoAnnouncement
       ? await telegram.gateway.sendPhoto(recipient.chatId, sentPhoto)
       : await telegram.gateway.sendHtml(
@@ -144,7 +155,6 @@ export async function deliverAnnouncement(
       failed++
       return
     }
-    sent++
     if (voteId && announcementId) {
       try {
         await withTransaction(deps.db, (tx) =>
@@ -165,9 +175,24 @@ export async function deliverAnnouncement(
           null,
         )
         failed++
+        return
+      }
+      sent++
+      try {
+        const latestChoices = await voteRepository.choicesOf(
+          deps.db,
+          [voteId],
+          recipient.userId,
+        )
+        if ((latestChoices.get(voteId) ?? null) !== initialChoice) {
+          await syncVoteMessage(deps, recipient.userId, voteId)
+        }
+      } catch (error) {
+        console.error('Сообщение голосования Telegram не обновлено', error)
       }
       return
     }
+    sent++
     if (eventId === null || announcementId === null) {
       return
     }
@@ -241,7 +266,13 @@ export async function syncEventMessage(
 }
 
 /** Ответ с сайта или из другого канала обновляет активное сообщение Telegram. */
-export async function syncVoteMessage(
+export function syncVoteMessage(deps: AppDeps, userId: string, voteId: string) {
+  return serializeMessageUpdate(`telegram:${voteId}:${userId}`, () =>
+    syncLatestVoteMessage(deps, userId, voteId),
+  )
+}
+
+async function syncLatestVoteMessage(
   deps: AppDeps,
   userId: string,
   voteId: string,
@@ -250,43 +281,84 @@ export async function syncVoteMessage(
   if (!telegram) {
     return
   }
-  const message = await telegramRepository.activeVoteMessage(
-    deps.db,
-    voteId,
-    userId,
-  )
-  if (!message) {
-    return
-  }
-  const vote = await voteRepository.find(deps.db, voteId)
-  if (!vote || vote.closed_at !== null) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const message = await telegramRepository.activeVoteMessage(
+      deps.db,
+      voteId,
+      userId,
+    )
+    const link = await telegramRepository.linkByUser(deps.db, userId)
+    if (!message) {
+      return
+    }
+    if (!link || link.chatId !== message.chatId) {
+      return
+    }
+    const vote = await voteRepository.find(deps.db, voteId)
+    if (!vote || vote.closed_at !== null) {
+      await editMessage(
+        deps,
+        telegram,
+        userId,
+        message,
+        announcementHtml(message),
+        null,
+      )
+      return
+    }
+    const [options, choices] = await Promise.all([
+      voteRepository.totals(deps.db, [voteId]),
+      voteRepository.choicesOf(deps.db, [voteId], userId),
+    ])
+    const selected = choices.get(voteId) ?? null
+    const rendered = voteMessage(
+      message,
+      options.map((option) => ({ id: option.id, label: option.label })),
+      selected,
+    )
     await editMessage(
       deps,
       telegram,
       userId,
       message,
-      announcementHtml(message),
-      null,
+      rendered.html,
+      rendered.keyboard,
     )
-    return
+    const [current, latestChoices, latestVote] = await Promise.all([
+      telegramRepository.activeVoteMessage(deps.db, voteId, userId),
+      voteRepository.choicesOf(deps.db, [voteId], userId),
+      voteRepository.find(deps.db, voteId),
+    ])
+    if (
+      !current ||
+      current.messageId !== message.messageId ||
+      current.announcementId !== message.announcementId
+    ) {
+      await editMessage(
+        deps,
+        telegram,
+        userId,
+        message,
+        announcementHtml(message),
+        null,
+      )
+      return
+    }
+    if (!latestVote || latestVote.closed_at !== null) {
+      await editMessage(
+        deps,
+        telegram,
+        userId,
+        message,
+        announcementHtml(message),
+        null,
+      )
+      return
+    }
+    if ((latestChoices.get(voteId) ?? null) === selected) {
+      return
+    }
   }
-  const [options, choices] = await Promise.all([
-    voteRepository.totals(deps.db, [voteId]),
-    voteRepository.choicesOf(deps.db, [voteId], userId),
-  ])
-  const rendered = voteMessage(
-    message,
-    options.map((option) => ({ id: option.id, label: option.label })),
-    choices.get(voteId) ?? null,
-  )
-  await editMessage(
-    deps,
-    telegram,
-    userId,
-    message,
-    rendered.html,
-    rendered.keyboard,
-  )
 }
 
 async function removeVoteButtons(

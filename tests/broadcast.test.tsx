@@ -815,6 +815,32 @@ describe('broadcast page (BRC, E2E-07)', () => {
     )
   })
 
+  it('adjusts the vote body limit when the author lengthens the subject', async () => {
+    const id = '00000000-0000-4000-8000-000000000003'
+    routes['broadcasts/prefill'] = () => ({
+      subject: 'Голосование: название',
+      body: 'Выберите ответ кнопкой ниже или на сайте.',
+      recipients: null,
+      bodyLimit: 3500,
+    })
+    await renderApp({
+      role: 'officer',
+      path: `/broadcast?source=vote&id=${id}`,
+    })
+    fireEvent.change(await screen.findByLabelText('Тема (необязательно)'), {
+      target: { value: 'С'.repeat(120) },
+    })
+    fireEvent.change(screen.getByLabelText('Текст рассылки'), {
+      target: { value: 'Б'.repeat(3450) },
+    })
+    fireEvent.click(screen.getByRole('button', { name: SEND }))
+    expect(await screen.findByText('Слишком длинное значение')).toBeVisible()
+    expect(callApi).not.toHaveBeenCalledWith(
+      'broadcasts/send',
+      expect.anything(),
+    )
+  })
+
   it('fills the form from an event and applies a template', async () => {
     routes['broadcasts/prefill'] = () => ({
       subject: 'Рейд',

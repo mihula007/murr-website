@@ -142,6 +142,7 @@ describe('telegram vote rendering (TGM-30, VOT-17)', () => {
 
     expect(rendered.html).toContain(`3. Против`)
     expect(rendered.html).toContain(`2. ${longLabel}`)
+    expect(rendered.html).toMatch(/^<b>Маршрут<\/b>/)
     expect(rendered.keyboard.inline_keyboard).toEqual([
       [
         { text: 'За', callback_data: voteAnswerData(options[0]!.id) },

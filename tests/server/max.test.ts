@@ -168,7 +168,12 @@ async function activeVoteMid(voteId: string, userId: string) {
 }
 
 let callbackCounter = 1
-function press(maxUserId: number, mid: string, payload: string) {
+function press(
+  maxUserId: number,
+  mid: string,
+  payload: string,
+  includeChatId = true,
+) {
   return hook({
     update_type: 'message_callback',
     timestamp: Date.now(),
@@ -179,7 +184,10 @@ function press(maxUserId: number, mid: string, payload: string) {
       user: maxUser(maxUserId),
     },
     message: {
-      recipient: { chat_id: maxUserId + 1_000_000, chat_type: 'dialog' },
+      recipient: {
+        ...(includeChatId ? { chat_id: maxUserId + 1_000_000 } : {}),
+        chat_type: 'dialog',
+      },
       body: { mid, seq: 1, text: 'Рейд' },
     },
   })
@@ -848,6 +856,10 @@ describe('max: vote buttons (MAX-15, VOT-17)', () => {
       'За',
       expect.stringMatching(/^2\. Большин/),
     ])
+    expect(open.keyboard?.every((row) => row.length === 1)).toBe(true)
+    expect(
+      open.keyboard?.flat().every((button) => button.text.length <= 20),
+    ).toBe(true)
   })
 
   it('saves and changes the ballot from a callback and preserves the image', async () => {
@@ -965,5 +977,56 @@ describe('max: vote buttons (MAX-15, VOT-17)', () => {
         [{ type: 'callback', text: 'Изменить решение', payload: 'vc' }],
       ],
     })
+  })
+
+  it('accepts a vote callback when MAX omits the direct-message chat id', async () => {
+    const member = await linked('member')
+    const { actor } = await officerWithEvent()
+    const vote = await createVote(deps, actor, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    await sendVote(vote)
+    const mid = (await activeVoteMid(vote.id, member.user.id))!
+
+    await press(
+      member.maxUserId,
+      mid,
+      voteAnswerData(vote.options[0]!.id),
+      false,
+    )
+
+    expect(lastAnswer()).toMatchObject({ text: 'Ваш голос: За' })
+    expect(
+      await db
+        .selectFrom('app.vote_ballots')
+        .select('option_id')
+        .where('vote_id', '=', vote.id)
+        .where('voter_id', '=', member.user.id)
+        .executeTakeFirstOrThrow(),
+    ).toMatchObject({ option_id: vote.options[0]!.id })
+  })
+
+  it('stops syncing vote choices to a MAX account after unlinking', async () => {
+    const member = await linked('member')
+    const { actor } = await officerWithEvent()
+    const vote = await createVote(deps, actor, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    await sendVote(vote)
+    const callsBefore = fake.calls.length
+
+    await unlinkMax(deps, member.actor)
+    await castBallot(deps, member.actor, {
+      voteId: vote.id,
+      optionId: vote.options[1]!.id,
+    })
+
+    expect(fake.calls.slice(callsBefore)).not.toContainEqual(
+      expect.objectContaining({ method: 'editHtml' }),
+    )
   })
 })

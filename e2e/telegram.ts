@@ -10,6 +10,7 @@ export type FakeCall = {
     chat_id?: number
     message_id?: number
     text?: string
+    caption?: string
     reply_markup?: {
       inline_keyboard: { text: string; callback_data: string }[][]
     }

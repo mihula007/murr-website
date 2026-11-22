@@ -5,6 +5,7 @@ import {
 } from '../contracts/events.ts'
 import {
   announcementHtml,
+  announcementPlain,
   CHANGE_LABEL,
   eventHtml,
   type AnnouncementText,
@@ -86,7 +87,7 @@ export function voteMessage(
     rows.push(buttons.slice(index, index + 2))
   }
   return {
-    html: announcementHtml({ subject: null, body: message.text }),
+    html: `${announcementHtml(announcement)}${message.text.slice(announcementPlain(announcement).length)}`,
     keyboard: { inline_keyboard: rows },
   }
 }

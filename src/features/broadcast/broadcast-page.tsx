@@ -77,20 +77,50 @@ const checkboxClass =
   'flex cursor-pointer items-center gap-2 text-sm text-foreground [&>input]:size-4 [&>input]:accent-primary'
 
 /** Схема формы; `bodyLimit` меньше у анонса с картинкой (TGM-28). */
-const draftSchema = (bodyLimit: number) =>
-  z.object({
-    subject: z.string().max(BROADCAST_LIMITS.subject, 'too_long'),
-    body: z.string().trim().min(1, 'required').max(bodyLimit, 'too_long'),
-    channels: z.array(z.enum(BROADCAST_CHANNELS)).min(1, 'required'),
-    excludedRecipients: z
-      .array(
-        z.object({
-          id: z.guid(),
-          channels: z.array(z.enum(SENDABLE_CHANNELS)).min(1),
-        }),
+const draftSchema = (bodyLimit: number, initialSubjectBudget?: number) =>
+  z
+    .object({
+      subject: z.string().max(BROADCAST_LIMITS.subject, 'too_long'),
+      body: z
+        .string()
+        .trim()
+        .min(1, 'required')
+        .max(
+          initialSubjectBudget === undefined
+            ? bodyLimit
+            : BROADCAST_LIMITS.body,
+          'too_long',
+        ),
+      channels: z.array(z.enum(BROADCAST_CHANNELS)).min(1, 'required'),
+      excludedRecipients: z
+        .array(
+          z.object({
+            id: z.guid(),
+            channels: z.array(z.enum(SENDABLE_CHANNELS)).min(1),
+          }),
+        )
+        .max(MEMBER_LIST_LIMIT),
+    })
+    .superRefine(({ subject, body }, context) => {
+      if (initialSubjectBudget === undefined) {
+        return
+      }
+      const currentSubject = subject.trim()
+      const currentSubjectBudget = currentSubject
+        ? currentSubject.length + 2
+        : 0
+      const currentLimit = Math.max(
+        0,
+        bodyLimit + initialSubjectBudget - currentSubjectBudget,
       )
-      .max(MEMBER_LIST_LIMIT),
-  })
+      if (body.trim().length > currentLimit) {
+        context.addIssue({
+          code: 'custom',
+          path: ['body'],
+          message: 'too_long',
+        })
+      }
+    })
 
 type FormValues = {
   subject: string
@@ -498,7 +528,16 @@ function BroadcastForm({
   const [checking, setChecking] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
   const [confirmCounts, setConfirmCounts] = useState<ChannelCounts | null>(null)
-  const schema = useMemo(() => draftSchema(bodyLimit), [bodyLimit])
+  const initialSubject = initial.subject.trim()
+  const initialSubjectBudget = initialSubject ? initialSubject.length + 2 : 0
+  const schema = useMemo(
+    () =>
+      draftSchema(
+        bodyLimit,
+        voteId === null ? undefined : initialSubjectBudget,
+      ),
+    [bodyLimit, initialSubjectBudget, voteId],
+  )
   const form = useForm({
     defaultValues: { ...EMPTY, ...initial },
     validators: { onChange: schema },
@@ -524,6 +563,15 @@ function BroadcastForm({
     },
   })
   const isDirty = useStore(form.store, (state) => state.isDirty)
+  const currentSubject = useStore(form.store, (state) => state.values.subject)
+  const currentSubjectText = currentSubject.trim()
+  const currentSubjectBudget = currentSubjectText
+    ? currentSubjectText.length + 2
+    : 0
+  const currentBodyLimit =
+    voteId === null
+      ? bodyLimit
+      : Math.max(0, bodyLimit + initialSubjectBudget - currentSubjectBudget)
   const { dialog } = useUnsavedChangesGuard(isDirty)
   const chosen = useStore(form.store, (state) =>
     state.values.channels.filter(isSendable),
@@ -628,10 +676,10 @@ function BroadcastForm({
                       label="Текст рассылки"
                       error={error}
                       hint={
-                        bodyLimit < BROADCAST_LIMITS.body
+                        currentBodyLimit < BROADCAST_LIMITS.body
                           ? voteId
-                            ? `Лимит учитывает варианты голосования: не больше ${bodyLimit} символов. Сейчас: ${field.state.value.trim().length}.`
-                            : `Анонс придёт в мессенджеры с картинкой события, поэтому текст — не длиннее ${bodyLimit} символов. Сейчас: ${field.state.value.trim().length}.`
+                            ? `Лимит учитывает варианты голосования: не больше ${currentBodyLimit} символов. Сейчас: ${field.state.value.trim().length}.`
+                            : `Анонс придёт в мессенджеры с картинкой события, поэтому текст — не длиннее ${currentBodyLimit} символов. Сейчас: ${field.state.value.trim().length}.`
                           : undefined
                       }
                       className="col-span-full"
@@ -647,7 +695,7 @@ function BroadcastForm({
                         aria-invalid={error ? true : undefined}
                         aria-describedby={
                           [
-                            bodyLimit < BROADCAST_LIMITS.body
+                            currentBodyLimit < BROADCAST_LIMITS.body
                               ? 'broadcast-body-hint'
                               : '',
                             error ? 'broadcast-body-error' : '',

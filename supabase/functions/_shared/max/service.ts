@@ -19,7 +19,7 @@ import { isUniqueViolation } from '../db/errors.ts'
 import { eventRepository } from '../events/repository.ts'
 import { saveAnswer } from '../events/service.ts'
 import { voteRepository } from '../votes/repository.ts'
-import { saveBallot } from '../votes/service.ts'
+import { saveMessengerBallot } from '../votes/service.ts'
 import { ApiError } from '../http/errors.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
 import {
@@ -28,6 +28,7 @@ import {
 } from '../messenger/callback-data.ts'
 import { randomCode, sameSecret, sha256Hex } from '../messenger/link-code.ts'
 import { syncEventMessages, syncVoteMessages } from '../messenger/sync.ts'
+import { syncVoteMessage } from './announcements.ts'
 import { editMaxMessage } from './announcements.ts'
 import { MAX_BOT_TEXTS, MAX_CALLBACK_TEXTS } from './messages.ts'
 import { maxEventMessage, maxVoteMessage } from './render.ts'
@@ -103,6 +104,7 @@ export async function unlinkMax(
 ): Promise<MaxStatus> {
   const user = requireRole(actor, MAX_LINKERS)
   await withTransaction(deps.db, async (tx) => {
+    await maxRepository.deleteVoteMessagesForUser(tx, user.userId)
     await maxRepository.deleteLink(tx, user.userId)
     await maxRepository.deleteCode(tx, user.userId)
   })
@@ -264,8 +266,8 @@ async function onCallback(
   let notice: string = MAX_CALLBACK_TEXTS.failed
   try {
     const messageId = message?.body?.mid
-    const chatId = message?.recipient.chat_id
-    if (!messageId || chatId == null) {
+    const chatId = message?.recipient.chat_id ?? null
+    if (!messageId) {
       notice = MAX_CALLBACK_TEXTS.stale
       return
     }
@@ -304,15 +306,19 @@ async function pressButton(
   deps: AppDeps,
   max: MaxDeps,
   maxUserId: number,
-  target: { chatId: number; messageId: string },
+  target: { chatId: number | null; messageId: string },
   action: CallbackAction,
 ): Promise<PressOutcome> {
   const link = await maxRepository.linkByMax(deps.db, maxUserId)
   if (!link) {
     return refuse(MAX_CALLBACK_TEXTS.notLinked)
   }
+  if (target.chatId != null && target.chatId !== link.chatId) {
+    return refuse(MAX_CALLBACK_TEXTS.stale)
+  }
+  const resolvedTarget = { ...target, chatId: target.chatId ?? link.chatId }
   if (action.kind === 'vote-answer' || action.kind === 'vote-change') {
-    return pressVoteButton(deps, max, link.userId, target, action)
+    return pressVoteButton(deps, max, link.userId, resolvedTarget, action)
   }
   const event = await eventRepository.find(deps.db, action.eventId)
   if (!event) {
@@ -324,7 +330,7 @@ async function pressButton(
     action.eventId,
     link.userId,
   )
-  if (!active || active.messageId !== target.messageId) {
+  if (!active || active.messageId !== resolvedTarget.messageId) {
     return refuse(MAX_CALLBACK_TEXTS.stale)
   }
   let viewer: ProfiledActor
@@ -409,22 +415,29 @@ async function pressVoteButton(
   if (action.kind === 'vote-answer') {
     let details
     try {
-      details = await saveBallot(deps, viewer, {
-        voteId: active.voteId,
-        optionId: action.optionId,
-      })
+      details = await saveMessengerBallot(
+        deps,
+        viewer,
+        { voteId: active.voteId, optionId: action.optionId },
+        async (tx) => {
+          const current = await maxRepository.activeVoteMessageByTarget(
+            tx,
+            target.chatId,
+            target.messageId,
+          )
+          return (
+            current?.userId === userId &&
+            current.announcementId === active.announcementId
+          )
+        },
+      )
     } catch (error) {
       return refuse(voteRefusalText(error), active.media)
     }
-    const rendered = maxVoteMessage(active, details.options, details.myOptionId)
-    await editMaxMessage(
-      deps,
-      max,
-      userId,
-      active,
-      rendered.html,
-      rendered.keyboard,
-    )
+    if (!details) {
+      return refuse(MAX_CALLBACK_TEXTS.voteStale, active.media)
+    }
+    await syncVoteMessage(deps, userId, active.voteId)
     await runInBackground(deps, () =>
       syncVoteMessages(deps, userId, active.voteId, 'max'),
     )

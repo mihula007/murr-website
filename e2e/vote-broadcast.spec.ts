@@ -99,7 +99,8 @@ test('E2E-12: рассылка голосования и ответы из тр�
   const telegramMessage = await waitForCall(
     telegramChatId,
     (call) =>
-      call.method === 'sendMessage' && (call.params.text ?? '').includes(title),
+      (call.method === 'sendMessage' || call.method === 'sendPhoto') &&
+      (call.params.text ?? call.params.caption ?? '').includes(title),
   )
   const telegramButtons =
     telegramMessage.params.reply_markup!.inline_keyboard.flat()
@@ -117,9 +118,12 @@ test('E2E-12: рассылка голосования и ответы из тр�
   await waitForCall(
     telegramChatId,
     (call) =>
-      call.method === 'editMessageText' &&
+      call.method ===
+        (telegramMessage.method === 'sendPhoto'
+          ? 'editMessageCaption'
+          : 'editMessageText') &&
       call.params.message_id === telegramMessage.messageId &&
-      (call.params.text ?? '').includes('Ваш голос: За'),
+      (call.params.text ?? call.params.caption ?? '').includes('Ваш голос: За'),
   )
 
   const maxMessage = await waitForMaxCall(
@@ -152,21 +156,19 @@ test('E2E-12: рассылка голосования и ответы из тр�
   const vkButtons = vkKeyboard.buttons.flat()
   await sendVkEvent(
     'message_event',
-    vkPress(vkUserId, vkMessage.messageId!, vkButtons[1]!.action.payload),
+    vkPress(vkUserId, vkMessage.messageId!, vkButtons[0]!.action.payload),
   )
   await waitForVkCall(
     vkUserId,
     (call) =>
       call.method === 'messages.edit' &&
       call.params.cmid === String(vkMessage.messageId) &&
-      (call.params.message ?? '').includes(`Ваш голос: ${longOption}`),
+      (call.params.message ?? '').includes('Ваш голос: За'),
   )
 
   const memberPage = await signedInPage(browser, member.email)
   await memberPage.goto(`./#/votes/${voteId}`)
-  await expect(
-    memberPage.getByText(`Ваше решение: ${longOption}`),
-  ).toBeVisible()
+  await expect(memberPage.getByText('Ваше решение: За')).toBeVisible()
   await memberPage.context().close()
   expect(
     (await callsFor(telegramChatId)).filter(

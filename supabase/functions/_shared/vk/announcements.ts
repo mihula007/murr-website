@@ -2,6 +2,8 @@ import type { AppDeps, VkDeps } from '../app.ts'
 import { withTransaction } from '../db/client.ts'
 import { eventRepository } from '../events/repository.ts'
 import { voteRepository } from '../votes/repository.ts'
+import { lockActiveVote } from '../votes/locking.ts'
+import { serializeMessageUpdate } from '../messenger/message-queue.ts'
 import {
   announcementPlain,
   type AnnouncementText,
@@ -54,9 +56,13 @@ export async function deliverVkAnnouncement(
   )
   let announcementId: string | null = null
   if (voteId) {
-    const replaced = await withTransaction(deps.db, (tx) =>
-      vkRepository.replaceVoteAnnouncement(tx, { voteId, ...announcement }),
-    )
+    const replaced = await withTransaction(deps.db, async (tx) => {
+      await lockActiveVote(tx, voteId, 'update')
+      return vkRepository.replaceVoteAnnouncement(tx, {
+        voteId,
+        ...announcement,
+      })
+    })
     announcementId = replaced.announcementId
     await removeVoteButtons(deps, vk, replaced.previousMessages)
   } else if (eventId) {
@@ -86,6 +92,7 @@ export async function deliverVkAnnouncement(
             existingChoices?.get(recipient.userId) ?? null,
           )
         : null
+    const initialChoice = existingChoices?.get(recipient.userId) ?? null
     const message = voteMessage
       ? voteMessage
       : eventId === null
@@ -119,7 +126,6 @@ export async function deliverVkAnnouncement(
       failed++
       return
     }
-    sent++
     if (voteId && announcementId) {
       try {
         await withTransaction(deps.db, (tx) =>
@@ -142,9 +148,24 @@ export async function deliverVkAnnouncement(
           media,
         )
         failed++
+        return
+      }
+      sent++
+      try {
+        const latestChoices = await voteRepository.choicesOf(
+          deps.db,
+          [voteId],
+          recipient.userId,
+        )
+        if ((latestChoices.get(voteId) ?? null) !== initialChoice) {
+          await syncVkVoteMessage(deps, recipient.userId, voteId)
+        }
+      } catch (error) {
+        console.error('Сообщение голосования ВКонтакте не обновлено', error)
       }
       return
     }
+    sent++
     if (eventId === null || announcementId === null) {
       return
     }
@@ -205,7 +226,17 @@ export async function syncVkEventMessage(
 }
 
 /** Ответ сайта или другого мессенджера обновляет активное сообщение VK. */
-export async function syncVkVoteMessage(
+export function syncVkVoteMessage(
+  deps: AppDeps,
+  userId: string,
+  voteId: string,
+) {
+  return serializeMessageUpdate(`vk:${voteId}:${userId}`, () =>
+    syncLatestVkVoteMessage(deps, userId, voteId),
+  )
+}
+
+async function syncLatestVkVoteMessage(
   deps: AppDeps,
   userId: string,
   voteId: string,
@@ -214,39 +245,84 @@ export async function syncVkVoteMessage(
   if (!vk) {
     return
   }
-  const message = await vkRepository.activeVoteMessage(deps.db, voteId, userId)
-  if (!message) {
-    return
-  }
-  const vote = await voteRepository.find(deps.db, voteId)
-  if (!vote || vote.closed_at !== null) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const message = await vkRepository.activeVoteMessage(
+      deps.db,
+      voteId,
+      userId,
+    )
+    const link = await vkRepository.linkByUser(deps.db, userId)
+    if (!message) {
+      return
+    }
+    if (!link || link.chatId !== message.chatId) {
+      return
+    }
+    const vote = await voteRepository.find(deps.db, voteId)
+    if (!vote || vote.closed_at !== null) {
+      await editVkMessage(
+        deps,
+        vk,
+        userId,
+        message,
+        announcementPlain(message),
+        null,
+      )
+      return
+    }
+    const [options, choices] = await Promise.all([
+      voteRepository.totals(deps.db, [voteId]),
+      voteRepository.choicesOf(deps.db, [voteId], userId),
+    ])
+    const selected = choices.get(voteId) ?? null
+    const rendered = vkVoteMessage(
+      message,
+      options.map((option) => ({ id: option.id, label: option.label })),
+      selected,
+    )
     await editVkMessage(
       deps,
       vk,
       userId,
       message,
-      announcementPlain(message),
-      null,
+      rendered.text,
+      rendered.keyboard,
     )
-    return
+    const [current, latestChoices, latestVote] = await Promise.all([
+      vkRepository.activeVoteMessage(deps.db, voteId, userId),
+      voteRepository.choicesOf(deps.db, [voteId], userId),
+      voteRepository.find(deps.db, voteId),
+    ])
+    if (
+      !current ||
+      current.messageId !== message.messageId ||
+      current.announcementId !== message.announcementId
+    ) {
+      await editVkMessage(
+        deps,
+        vk,
+        userId,
+        message,
+        announcementPlain(message),
+        null,
+      )
+      return
+    }
+    if (!latestVote || latestVote.closed_at !== null) {
+      await editVkMessage(
+        deps,
+        vk,
+        userId,
+        message,
+        announcementPlain(message),
+        null,
+      )
+      return
+    }
+    if ((latestChoices.get(voteId) ?? null) === selected) {
+      return
+    }
   }
-  const [options, choices] = await Promise.all([
-    voteRepository.totals(deps.db, [voteId]),
-    voteRepository.choicesOf(deps.db, [voteId], userId),
-  ])
-  const rendered = vkVoteMessage(
-    message,
-    options.map((option) => ({ id: option.id, label: option.label })),
-    choices.get(voteId) ?? null,
-  )
-  await editVkMessage(
-    deps,
-    vk,
-    userId,
-    message,
-    rendered.text,
-    rendered.keyboard,
-  )
 }
 
 async function removeVoteButtons(

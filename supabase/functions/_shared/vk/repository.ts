@@ -296,12 +296,26 @@ export const vkRepository = {
       .execute()
   },
 
+  async deleteVoteMessagesForUser(tx: Executor, userId: string) {
+    await tx
+      .deleteFrom('app.vk_vote_messages')
+      .where('user_id', '=', userId)
+      .execute()
+  },
+
   async activeVoteMessage(db: Executor, voteId: string, userId: string) {
     const row = await activeVoteMessageQuery(db)
       .where('m.vote_id', '=', voteId)
       .where('m.user_id', '=', userId)
       .executeTakeFirst()
     return row ? toActiveVoteMessage(row) : null
+  },
+
+  async activeVoteMessages(db: Executor, voteId: string) {
+    const rows = await activeVoteMessageQuery(db)
+      .where('m.vote_id', '=', voteId)
+      .execute()
+    return rows.map(toActiveVoteMessage)
   },
 
   /** Проверяет владельца и идентификаторы callback-сообщения VK. */

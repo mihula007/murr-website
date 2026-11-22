@@ -289,6 +289,13 @@ export const maxRepository = {
       .execute()
   },
 
+  async deleteVoteMessagesForUser(tx: Executor, userId: string) {
+    await tx
+      .deleteFrom('app.max_vote_messages')
+      .where('user_id', '=', userId)
+      .execute()
+  },
+
   /** Текущее сообщение пользователя вместе с текстом анонса. */
   async activeVoteMessage(db: Executor, voteId: string, userId: string) {
     const row = await activeVoteMessageQuery(db)
@@ -296,6 +303,13 @@ export const maxRepository = {
       .where('m.user_id', '=', userId)
       .executeTakeFirst()
     return row ? toActiveVoteMessage(row) : null
+  },
+
+  async activeVoteMessages(db: Executor, voteId: string) {
+    const rows = await activeVoteMessageQuery(db)
+      .where('m.vote_id', '=', voteId)
+      .execute()
+    return rows.map(toActiveVoteMessage)
   },
 
   /** Проверяет владельца и идентификаторы MAX callback-сообщения. */
