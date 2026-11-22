@@ -79,6 +79,8 @@ type DataTableProps<T extends RowData> = {
   numbered?: boolean
   /** ID строки текущего пользователя, если её нужно подсветить. */
   highlightRowId?: string | undefined
+  /** Внутренняя прокрутка на широком экране, без неё на телефоне. */
+  scrollable?: boolean
   empty: ReactNode
 }
 
@@ -91,10 +93,11 @@ export function DataTable<T extends RowData>({
   sortable = false,
   numbered = false,
   highlightRowId,
+  scrollable = false,
   empty,
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
-  const table = useTable({
+  const tableModel = useTable({
     features: activityTableFeatures,
     columns,
     data,
@@ -103,14 +106,16 @@ export function DataTable<T extends RowData>({
     state: { sorting },
     onSortingChange: setSorting,
   })
-  const rows = table.getRowModel().rows
+  const rows = tableModel.getRowModel().rows
   if (data.length === 0) {
     return <>{empty}</>
   }
-  return (
+  const renderedTable = (
     <table aria-label={label} className={tableClass}>
-      <thead>
-        {table.getHeaderGroups().map((group) => (
+      <thead
+        className={scrollable ? 'sticky top-0 z-10 bg-surface-to' : undefined}
+      >
+        {tableModel.getHeaderGroups().map((group) => (
           <tr key={group.id}>
             {numbered ? <th scope="col">№</th> : null}
             {group.headers.map((header) => {
@@ -176,13 +181,23 @@ export function DataTable<T extends RowData>({
                     {index + 1}.{' '}
                   </span>
                 ) : null}
-                <table.FlexRender cell={cell} />
+                <tableModel.FlexRender cell={cell} />
               </td>
             ))}
           </tr>
         ))}
       </tbody>
     </table>
+  )
+  return scrollable ? (
+    <section
+      aria-label="Список рейтинга посещения"
+      className="max-h-[680px] overflow-y-auto [scrollbar-gutter:stable] max-[900px]:max-h-none max-[900px]:overflow-visible"
+    >
+      {renderedTable}
+    </section>
+  ) : (
+    renderedTable
   )
 }
 

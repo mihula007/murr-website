@@ -166,6 +166,29 @@ beforeEach(() => {
 })
 
 describe('attendance rating (ACT-14, ACT-15)', () => {
+  it('shows an internally scrollable desktop rating with all rows available', async () => {
+    const manyRows: RatingResponse = {
+      ...rating,
+      items: Array.from({ length: 20 }, (_, index) => ({
+        ...rating.items[index % rating.items.length]!,
+        userId: `u${index + 1}`,
+        gameNickname: `Участник ${index + 1}`,
+      })),
+    }
+    respond({ 'activity/rating': () => manyRows })
+    await renderApp({ role: 'member', path: '/rating' })
+
+    const region = await screen.findByRole('region', {
+      name: 'Список рейтинга посещения',
+    })
+    expect(region).toHaveClass('max-h-[680px]', 'overflow-y-auto')
+    expect(region).toHaveClass(
+      'max-[900px]:max-h-none',
+      'max-[900px]:overflow-visible',
+    )
+    expect(within(region).getAllByRole('row')).toHaveLength(21)
+  })
+
   it('highlights the current user after sorting and search', async () => {
     sessionUserId.current = 'u2'
     respond({ 'activity/rating': () => rating })

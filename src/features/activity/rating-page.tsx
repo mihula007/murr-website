@@ -118,6 +118,7 @@ export function RatingPage() {
           highlightRowId={currentUserId}
           sortable
           numbered
+          scrollable
           empty={
             <EmptyState
               title={query ? 'Никого не нашли' : 'Участников пока нет'}
