@@ -486,6 +486,9 @@ describe('broadcast page (BRC, E2E-07)', () => {
 
     await renderApp({ role: 'admin', path: '/broadcast' })
     expect(await screen.findByText('Первый')).toBeVisible()
+    const recipientScroller = screen.getByLabelText(
+      'Прокручиваемый список: Получатели объявления',
+    )
     fireEvent.click(
       await screen.findByRole('button', { name: 'Показать ещё' }),
     )
@@ -494,6 +497,8 @@ describe('broadcast page (BRC, E2E-07)', () => {
         expect.objectContaining({ cursor: 'cursor-1' }),
       ),
     )
+    recipientScroller.scrollTop = 4_000
+    fireEvent.scroll(recipientScroller)
     expect(await screen.findByText('Продолжение')).toBeVisible()
 
     fireEvent.change(screen.getByLabelText('Поиск по нику'), {
