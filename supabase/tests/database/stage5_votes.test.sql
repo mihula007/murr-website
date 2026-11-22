@@ -2,7 +2,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(14);
+select plan(17);
 
 select ok(
   (select bool_and(rowsecurity) from pg_tables
@@ -41,6 +41,17 @@ values
   ('00000000-0000-0000-0000-0000000000c1', 'general', 'Обычное', '00000000-0000-0000-0000-000000000053'),
   ('00000000-0000-0000-0000-0000000000c2', 'general', 'Второе', '00000000-0000-0000-0000-000000000053');
 
+select is(
+  (select is_public from app.votes where id = '00000000-0000-0000-0000-0000000000c1'),
+  false,
+  'старые и новые голосования по умолчанию непубличны'
+);
+
+select lives_ok(
+  $$update app.votes set is_public = true where id = '00000000-0000-0000-0000-0000000000c1'$$,
+  'обычное голосование можно сделать публичным'
+);
+
 insert into app.vote_options (id, vote_id, label, normalized_label, position)
 values
   ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000c1', 'Да', 'да', 0),
@@ -73,6 +84,11 @@ select throws_ok(
 insert into app.votes (id, kind, title, application_id)
 values ('00000000-0000-0000-0000-0000000000c3', 'application', 'Заявка: Cand5',
   '00000000-0000-0000-0000-0000000000b1');
+
+select throws_ok(
+  $$update app.votes set is_public = true where id = '00000000-0000-0000-0000-0000000000c3'$$,
+  '23514', null, 'голосование по заявке нельзя сделать публичным'
+);
 
 select throws_ok(
   $$insert into app.votes (kind, title, application_id)

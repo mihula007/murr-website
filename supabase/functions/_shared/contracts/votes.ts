@@ -74,6 +74,10 @@ export const createVoteSchema = z.object({
   title: titleSchema,
   context: contextSchema,
   options: voteOptionsSchema,
+  isPublic: z
+    .boolean()
+    .optional()
+    .transform((value) => value ?? false),
 })
 export type CreateVoteRequest = z.input<typeof createVoteSchema>
 
@@ -121,6 +125,7 @@ export type VoteApplicant = { gameNickname: string; className: string }
 export type VoteSummary = {
   id: string
   kind: VoteKind
+  isPublic: boolean
   title: string
   context: string
   createdAt: string
@@ -143,7 +148,7 @@ export type VoteBallotView = {
 }
 
 export type VoteDetails = VoteSummary & {
-  /** Только офицеру и администратору (VOT-07); членам поля нет. */
+  /** При VOT-07 или публичности VOT-18; иначе поле не возвращается. */
   ballots?: VoteBallotView[]
   /** Голосов больше порога малого списка: показана часть. */
   ballotsTruncated?: boolean

@@ -85,6 +85,7 @@ function vote(extra: Partial<VoteDetails> = {}): VoteDetails {
   return {
     id: VOTE_ID,
     kind: 'general',
+    isPublic: false,
     title: 'Куда идём?',
     context: '',
     createdAt: '2026-11-10T10:00:00Z',

@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, CalendarDays, Trophy, Users, Vote } from 'lucide-react'
+import { ArrowRight, CalendarDays, Trophy, Users } from 'lucide-react'
 import type { MonthTopRow } from '@contracts/activity'
 import type { RosterMember } from '@contracts/roster'
 import { MANAGER_ROLES, ROLE_LABELS, hasRole, useAccess } from '@/app/access'
@@ -17,8 +17,9 @@ import { EventCard } from '@/features/events/event-card'
 import { useRoster } from '@/features/roster/api'
 import { formatMonth } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
-import { activeVotesLabel, eventsLabel, membersLabel } from './plural'
+import { eventsLabel, membersLabel } from './plural'
 import { CharacterStrengthRating } from './character-strength-rating'
+import { VoteCard } from '@/features/votes/vote-card'
 
 /** Карточек ближайших событий на главной (HOM-07). */
 const HOME_EVENTS = 3
@@ -247,33 +248,40 @@ function RosterBrief() {
 function VotesCard() {
   // Тот же кеш, что у раздела «Голосование»: отдельной операции нет.
   const votes = useActiveVotes()
-  const count = votes.data?.activeCount
-  const waiting =
-    votes.data?.items.filter((vote) => vote.myOptionId === null).length ?? 0
+  const items = votes.data?.items ?? []
   return (
-    <Card className="grid content-start gap-3">
-      <h2 className="m-0 text-xl font-bold">Голосования</h2>
-      {count === undefined || count === 0 ? (
+    <section
+      aria-labelledby="home-votes"
+      className="grid min-w-0 content-start gap-3"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="home-votes" className="m-0 text-xl font-bold">
+          Голосования
+        </h2>
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/votes">
+            Все голосования <ArrowRight aria-hidden="true" size={16} />
+          </Link>
+        </Button>
+      </div>
+      {votes.isPending ? (
+        <LoadingState label="Загружаем голосования…" />
+      ) : votes.isError ? (
+        <ErrorState onRetry={() => void votes.refetch()} />
+      ) : items.length === 0 ? (
         <p className="m-0 text-sm text-muted-foreground">
-          {count === 0
-            ? 'Сейчас голосований нет.'
-            : 'Решения клана и приём новых участников.'}
+          Сейчас голосований нет.
         </p>
       ) : (
-        <p className="m-0 text-sm text-muted-foreground">
-          <strong className="text-2xl text-primary tabular-nums">
-            {count}
-          </strong>{' '}
-          {activeVotesLabel(count)}
-          {waiting > 0 ? ` · без вашего голоса: ${waiting}` : ''}
-        </p>
+        <ul className="m-0 grid min-w-0 list-none gap-3 p-0">
+          {items.map((vote) => (
+            <li key={vote.id} className="min-w-0">
+              <VoteCard vote={vote} linkToPage />
+            </li>
+          ))}
+        </ul>
       )}
-      <Button asChild className="justify-self-start">
-        <Link to="/votes">
-          <Vote aria-hidden="true" size={16} /> К голосованиям
-        </Link>
-      </Button>
-    </Card>
+    </section>
   )
 }
 

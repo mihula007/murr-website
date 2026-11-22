@@ -95,6 +95,38 @@ beforeEach(() => {
 const calledRoutes = () => callApi.mock.calls.map(([route]) => route)
 
 describe('главная внутренних ролей (HOM-07–09, ACT-12, ROS-08)', () => {
+  it('shows active vote results in a card on the home page (HOM-21)', async () => {
+    responses['votes/list'] = {
+      items: [
+        {
+          id: 'v1',
+          kind: 'general',
+          title: 'Выход на гв',
+          context: 'нас 55 +, Order 70-80',
+          createdAt: '2026-11-21T12:00:00Z',
+          closedAt: null,
+          createdBy: { gameNickname: 'fury' },
+          applicant: null,
+          options: [
+            { id: 'yes', label: 'да', count: 24, leading: true },
+            { id: 'no', label: 'нет', count: 4, leading: false },
+          ],
+          totalBallots: 28,
+          myOptionId: 'yes',
+          messageCount: 3,
+        },
+      ],
+      activeCount: 1,
+      truncated: false,
+      nextCursor: null,
+    }
+    await renderApp({ role: 'member' })
+    expect(
+      await screen.findByRole('heading', { name: 'Выход на гв' }),
+    ).toBeVisible()
+    expect(screen.getByText(/Голосов: 28/)).toBeVisible()
+    expect(screen.getByText('ваш выбор')).toBeVisible()
+  })
   it('без событий показывает пустое состояние списка', async () => {
     responses['events/list'] = { items: [], nextCursor: null, activeCount: 0 }
     await renderApp({ role: 'officer' })
@@ -138,7 +170,7 @@ describe('главная внутренних ролей (HOM-07–09, ACT-12, R
     ).not.toHaveLength(0)
     expect(within(events).queryByText('Член1')).not.toBeInTheDocument()
     expect(
-      screen.getByRole('link', { name: /К голосованиям/ }),
+      screen.getByRole('link', { name: /Все голосования/ }),
     ).toHaveAttribute('href', '/votes')
   })
 

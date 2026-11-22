@@ -73,6 +73,7 @@ async function summarize(
     return {
       id: row.id,
       kind: row.kind as VoteKind,
+      isPublic: row.is_public,
       title: row.title,
       context: row.context,
       createdAt: row.created_at,
@@ -128,8 +129,8 @@ export async function listVotes(
 }
 
 /**
- * Карточка голосования. Членам — только итоги и свой голос; офицеру и
- * администратору — ещё голоса с никами и связанная заявка (VOT-07, Q-16).
+ * Карточка голосования. Отдельные голоса выдаются по VOT-07 или публичности
+ * VOT-18; связанная заявка остаётся доступна только разрешённому офицеру.
  */
 export async function loadVoteDetails(
   deps: AppDeps,
@@ -143,7 +144,11 @@ export async function loadVoteDetails(
   }
   const [summary] = await summarize(db, [row], viewer.userId)
   const details: VoteDetails = { ...summary! }
-  if (await hasOfficerPermission(deps, viewer, 'votes.view_ballots')) {
+  if (
+    (row.is_public &&
+      INTERNAL_ROLES.some((role) => role === viewer.profile.access_role)) ||
+    (await hasOfficerPermission(deps, viewer, 'votes.view_ballots'))
+  ) {
     const ballots = await voteRepository.ballots(db, id, MEMBER_LIST_LIMIT + 1)
     details.ballots = ballots.slice(0, MEMBER_LIST_LIMIT).map((ballot) => ({
       gameNickname: ballot.game_nickname,
@@ -193,6 +198,7 @@ export async function createVote(
         context: input.context,
         createdBy: manager.userId,
         applicationId: null,
+        isPublic: input.isPublic,
       },
       input.options,
     )

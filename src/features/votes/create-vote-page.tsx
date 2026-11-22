@@ -27,6 +27,7 @@ import { useCreateVote } from './api'
 /** Схема формы: контекст в поле — всегда строка (пустая — без контекста). */
 const formSchema = createVoteSchema.extend({
   context: z.string().trim().max(VOTE_LIMITS.context, 'too_long'),
+  isPublic: z.boolean(),
 })
 
 type OptionsEditorProps = {
@@ -107,7 +108,12 @@ export function CreateVotePage() {
   const [serverError, setServerError] = useState<AppError | null>(null)
 
   const form = useForm({
-    defaultValues: { title: '', context: '', options: ['', ''] },
+    defaultValues: {
+      title: '',
+      context: '',
+      options: ['', ''],
+      isPublic: false,
+    },
     validators: { onChange: formSchema },
     onSubmitInvalid: focusFirstInvalid,
     onSubmit: async ({ value }) => {
@@ -206,6 +212,21 @@ export function CreateVotePage() {
                       </FormField>
                     )
                   }}
+                </form.Field>
+                <form.Field name="isPublic">
+                  {(field) => (
+                    <label className="flex min-w-0 items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={field.state.value}
+                        onChange={(event) =>
+                          field.handleChange(event.target.checked)
+                        }
+                        className="mt-0.5 size-4 accent-primary"
+                      />
+                      <span>Сделать голосование публичным</span>
+                    </label>
+                  )}
                 </form.Field>
                 <form.Field name="options">
                   {(field) => {

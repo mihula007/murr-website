@@ -20,6 +20,7 @@ function selectVotes(db: Executor) {
     .select([
       'v.id',
       'v.kind',
+      'v.is_public',
       'v.title',
       'v.context',
       'v.created_at',
@@ -44,6 +45,7 @@ export const voteRepository = {
       context: string
       createdBy: string
       applicationId: string | null
+      isPublic?: boolean
     },
     labels: readonly string[],
   ) {
@@ -55,6 +57,7 @@ export const voteRepository = {
         context: vote.context,
         created_by: vote.createdBy,
         application_id: vote.applicationId,
+        is_public: vote.kind === 'general' && (vote.isPublic ?? false),
       })
       .returning('id')
       .executeTakeFirstOrThrow()

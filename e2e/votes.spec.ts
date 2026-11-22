@@ -151,6 +151,7 @@ test('обычное голосование: создание, правка, з�
   await page.goto('./#/votes')
   await page.getByRole('link', { name: /Создать голосование/ }).click()
   const form = page.getByRole('form', { name: 'Новое голосование' })
+  await form.getByLabel('Сделать голосование публичным').check()
   await form.getByLabel('Тема').fill(title)
   await form.getByLabel('Вариант 1', { exact: true }).fill('Да')
   await form.getByLabel('Вариант 2', { exact: true }).fill('да')
@@ -166,6 +167,23 @@ test('обычное голосование: создание, правка, з�
   const memberPage = await signedInPage(browser, member.email)
   await openVote(memberPage, title)
   await choose(memberPage, 'Позже')
+  await expect(
+    memberPage
+      .getByRole('list', { name: 'Голоса участников' })
+      .getByText(member.nickname),
+  ).toBeVisible()
+  await memberPage.getByLabel('Фильтр ответов').selectOption({ label: 'Да' })
+  await expect(
+    memberPage
+      .getByRole('list', { name: 'Голоса участников' })
+      .getByText(member.nickname),
+  ).toHaveCount(0)
+  await memberPage
+    .getByLabel('Фильтр ответов')
+    .selectOption({ label: 'Все ответы' })
+  await memberPage.goto('./')
+  await expect(memberPage.getByRole('heading', { name: title })).toBeVisible()
+  expect(await hasHorizontalScroll(memberPage)).toBe(false)
   // Член клана не управляет голосованием.
   await expect(
     memberPage.getByRole('button', { name: /^Управление голосованием/ }),

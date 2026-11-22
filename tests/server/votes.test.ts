@@ -161,6 +161,44 @@ describe('access matrix', () => {
     ])
     expect(forAdmin.ballotsTruncated).toBe(false)
   })
+
+  it('shows public ballots to internal members but not readers or applicants (VOT-18)', async () => {
+    const { actor: admin } = await roleActor('admin')
+    const { user: memberUser, actor: member } = await roleActor('member')
+    const vote = await createVote(deps, admin, {
+      ...general(),
+      isPublic: true,
+    })
+    await castBallot(deps, member, {
+      voteId: vote.id,
+      optionId: vote.options[0]!.id,
+    })
+    expect((await getVote(deps, member, { id: vote.id })).ballots).toEqual([
+      { gameNickname: memberUser.nickname, optionId: vote.options[0]!.id },
+    ])
+    for (const role of ['reader', 'applicant'] as const) {
+      const { actor } = await roleActor(role)
+      await expect(getVote(deps, actor, { id: vote.id })).rejects.toMatchObject(
+        {
+          code: 'forbidden',
+        },
+      )
+    }
+    const officerWithoutBallotPermission = await createProfiledUser(
+      db,
+      'officer',
+      { officerPermissions: [] },
+    )
+    expect(
+      (
+        await getVote(
+          deps,
+          await actorOf(db, officerWithoutBallotPermission.id),
+          { id: vote.id },
+        )
+      ).ballots,
+    ).toHaveLength(1)
+  })
 })
 
 describe('officer permissions', () => {

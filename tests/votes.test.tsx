@@ -30,6 +30,7 @@ function vote(extra: Partial<VoteDetails> = {}): VoteDetails {
   return {
     id: VOTE_ID,
     kind: 'general',
+    isPublic: false,
     title: 'Куда идём в субботу?',
     context: 'Выбираем подземелье',
     createdAt: '2026-11-10T10:00:00Z',
@@ -256,6 +257,65 @@ describe('vote page', () => {
     ).toBeVisible()
   })
 
+  it('filters the ballot list by the selected option', async () => {
+    respond({
+      'votes/get': () =>
+        vote({
+          ballots: [
+            { gameNickname: 'Борис', optionId: YES },
+            { gameNickname: 'Анна', optionId: NO },
+          ],
+          ballotsTruncated: false,
+        }),
+    })
+    await renderApp({ role: 'officer', path: `/votes/${VOTE_ID}` })
+    const list = within(
+      await screen.findByRole('list', { name: 'Голоса участников' }),
+    )
+    expect(list.getByText('Борис')).toBeVisible()
+    expect(list.getByText('Анна')).toBeVisible()
+    fireEvent.change(screen.getByRole('combobox', { name: 'Фильтр ответов' }), {
+      target: { value: YES },
+    })
+    expect(list.getByText('Борис')).toBeVisible()
+    expect(list.queryByText('Анна')).toBeNull()
+  })
+
+  it('keeps a long ballot list in a ten-row scroll area (VOT-19)', async () => {
+    respond({
+      'votes/get': () =>
+        vote({
+          ballots: Array.from({ length: 12 }, (_, index) => ({
+            gameNickname: `Участник ${index + 1}`,
+            optionId: index % 2 === 0 ? YES : NO,
+          })),
+          ballotsTruncated: false,
+        }),
+    })
+    await renderApp({ role: 'officer', path: `/votes/${VOTE_ID}` })
+    const list = await screen.findByRole('list', {
+      name: 'Голоса участников',
+    })
+    expect(within(list).getAllByRole('listitem')).toHaveLength(12)
+    expect(list).toHaveClass('max-h-[25rem]', 'overflow-y-auto')
+  })
+
+  it('shows public ballots to a member', async () => {
+    respond({
+      'votes/get': () =>
+        vote({
+          isPublic: true,
+          ballots: [{ gameNickname: 'Борис', optionId: YES }],
+          ballotsTruncated: false,
+        }),
+    })
+    await renderApp({ role: 'member', path: `/votes/${VOTE_ID}` })
+    expect(
+      await screen.findByRole('list', { name: 'Голоса участников' }),
+    ).toBeVisible()
+    expect(screen.getByText('Борис')).toBeVisible()
+  })
+
   it('shows a member no ballots', async () => {
     respond({ 'votes/get': () => vote() })
     await renderApp({ role: 'member', path: `/votes/${VOTE_ID}` })
@@ -360,11 +420,45 @@ describe('create vote (VOT-02, VOT-03)', () => {
         title: 'Тема',
         context: '',
         options: ['Башня', 'Пещера'],
+        isPublic: false,
       }),
     )
     expect(
       await screen.findByRole('link', { name: /К голосованиям/ }),
     ).toBeVisible()
+  })
+
+  it('sends the public option when selected (VOT-18)', async () => {
+    respond({
+      'votes/create': () => vote({ title: 'Тема', context: '' }),
+      'votes/get': () => vote({ title: 'Тема', context: '' }),
+      'votes/list': () => list([]),
+    })
+    await renderApp({ role: 'admin', path: '/votes/new' })
+    const form = within(
+      await screen.findByRole('form', { name: 'Новое голосование' }),
+    )
+    fireEvent.click(
+      form.getByRole('checkbox', { name: 'Сделать голосование публичным' }),
+    )
+    fireEvent.change(form.getByLabelText('Тема'), {
+      target: { value: 'Тема' },
+    })
+    fireEvent.change(form.getByLabelText('Вариант 1'), {
+      target: { value: 'Да' },
+    })
+    fireEvent.change(form.getByLabelText('Вариант 2'), {
+      target: { value: 'Нет' },
+    })
+    fireEvent.click(form.getByRole('button', { name: 'Создать голосование' }))
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('votes/create', {
+        title: 'Тема',
+        context: '',
+        options: ['Да', 'Нет'],
+        isPublic: true,
+      }),
+    )
   })
 
   it('is closed to members', async () => {
