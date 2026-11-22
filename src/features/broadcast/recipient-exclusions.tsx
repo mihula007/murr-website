@@ -170,6 +170,7 @@ export function RecipientExclusions({
         getKey={(member) => member.id}
         estimateSize={62}
         viewportRows={15}
+        autoLoadMore={false}
         paging={pagingOf(recipients)}
         renderItem={(member) => (
           <RecipientRow

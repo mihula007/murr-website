@@ -430,13 +430,15 @@ type ScrollableVirtualListProps<T> = {
   paging: Paging
   /** Высота области в примерных строках. */
   viewportRows: number
+  /** Автоматически загружать продолжение при прокрутке к концу списка. */
+  autoLoadMore?: boolean
   /** Число карточек в CSS-сетке на малом, среднем и большом экране. */
   columns?: { base: number; sm: number; lg: number }
   gridClassName?: string
   gap?: keyof typeof GAP
 }
 
-/** Виртуализированный список с собственной прокруткой и догрузкой вниз. */
+/** Виртуализированный список с собственной прокруткой и курсорными страницами. */
 export function ScrollableVirtualList<T>({
   items,
   getKey,
@@ -445,6 +447,7 @@ export function ScrollableVirtualList<T>({
   estimateSize,
   paging,
   viewportRows,
+  autoLoadMore = true,
   columns: columnCounts = { base: 1, sm: 1, lg: 1 },
   gridClassName,
   gap = 'sm',
@@ -479,10 +482,10 @@ export function ScrollableVirtualList<T>({
   const { hasMore, loadingMore, loadError, onLoadMore } = paging
 
   useEffect(() => {
-    if (reachedEnd && hasMore && !loadingMore && !loadError) {
+    if (autoLoadMore && reachedEnd && hasMore && !loadingMore && !loadError) {
       onLoadMore()
     }
-  }, [reachedEnd, hasMore, loadingMore, loadError, onLoadMore])
+  }, [autoLoadMore, reachedEnd, hasMore, loadingMore, loadError, onLoadMore])
 
   return (
     <section
