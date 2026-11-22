@@ -19,6 +19,7 @@ import {
   deleteVote,
   getVote,
   listVotes,
+  saveBallot,
   updateVote,
 } from '../../supabase/functions/_shared/votes/service.ts'
 import {
@@ -297,6 +298,41 @@ describe('creation rules (VOT-02, VOT-03)', () => {
 })
 
 describe('ballots (VOT-05, VOT-06)', () => {
+  it('schedules messenger updates after a website vote is saved', async () => {
+    const { actor: officer } = await roleActor('officer')
+    const { actor: member } = await roleActor('member')
+    const vote = await createGeneral(officer)
+    const scheduled: (() => Promise<void>)[] = []
+    const backgroundDeps = {
+      ...deps,
+      background: async (task: () => Promise<void>) => {
+        scheduled.push(task)
+      },
+    }
+
+    await castBallot(backgroundDeps, member, {
+      voteId: vote.id,
+      optionId: vote.options[0]!.id,
+    })
+
+    expect(scheduled).toHaveLength(1)
+  })
+
+  it('exposes the shared ballot save for messenger callbacks without an audit row', async () => {
+    const { actor: officer } = await roleActor('officer')
+    const { actor: member } = await roleActor('member')
+    const vote = await createGeneral(officer)
+
+    const result = await saveBallot(deps, member, {
+      voteId: vote.id,
+      optionId: vote.options[1]!.id,
+    })
+
+    expect(result.myOptionId).toBe(vote.options[1]!.id)
+    expect(result.totalBallots).toBe(1)
+    expect(await auditActions()).toEqual(['vote_created'])
+  })
+
   it('keeps one ballot per member and moves it on change', async () => {
     const { actor: officer } = await roleActor('officer')
     const { actor: first } = await roleActor('member')

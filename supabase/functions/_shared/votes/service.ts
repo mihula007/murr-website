@@ -25,6 +25,8 @@ import {
 import { withTransaction, type Executor } from '../db/client.ts'
 import { decodeCursor, splitPage } from '../http/cursor.ts'
 import { withMessageCounts } from '../discussions/counts.ts'
+import { runInBackground } from '../background.ts'
+import { syncVoteMessages } from '../messenger/sync.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
@@ -252,11 +254,11 @@ export async function updateVote(
  * на чтение: голос не проходит после параллельного завершения. В аудит не
  * пишется (Q-41).
  */
-export async function castBallot(
+async function persistBallot(
   deps: AppDeps,
   actor: Actor,
   body: unknown,
-): Promise<VoteDetails> {
+): Promise<{ details: VoteDetails; userId: string; voteId: string }> {
   const voter = requireRole(actor, VOTERS)
   const input = parseBody(castBallotSchema, body)
   await withTransaction(deps.db, async (tx) => {
@@ -271,7 +273,36 @@ export async function castBallot(
       at: deps.now().toISOString(),
     })
   })
-  return loadVoteDetails(deps, deps.db, voter, input.voteId)
+  return {
+    details: await loadVoteDetails(deps, deps.db, voter, input.voteId),
+    userId: voter.userId,
+    voteId: input.voteId,
+  }
+}
+
+export async function saveBallot(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<VoteDetails> {
+  return (await persistBallot(deps, actor, body)).details
+}
+
+/** Сайт и кнопки мессенджеров используют одно сохранение голоса. */
+export function castBallot(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<VoteDetails> {
+  return (async () => {
+    const voter = requireRole(actor, VOTERS)
+    const { voteId } = parseBody(castBallotSchema, body)
+    const details = await saveBallot(deps, actor, body)
+    await runInBackground(deps, () =>
+      syncVoteMessages(deps, voter.userId, voteId),
+    )
+    return details
+  })()
 }
 
 /**
