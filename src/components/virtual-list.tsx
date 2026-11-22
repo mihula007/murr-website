@@ -432,6 +432,8 @@ type ScrollableVirtualListProps<T> = {
   viewportRows: number
   /** Автоматически загружать продолжение при прокрутке к концу списка. */
   autoLoadMore?: boolean
+  /** Измерять ли высоту строк при появлении в прокручиваемом списке. */
+  measureRows?: boolean
   /** Число карточек в CSS-сетке на малом, среднем и большом экране. */
   columns?: { base: number; sm: number; lg: number }
   gridClassName?: string
@@ -448,6 +450,7 @@ export function ScrollableVirtualList<T>({
   paging,
   viewportRows,
   autoLoadMore = true,
+  measureRows = true,
   columns: columnCounts = { base: 1, sm: 1, lg: 1 },
   gridClassName,
   gap = 'sm',
@@ -518,7 +521,11 @@ export function ScrollableVirtualList<T>({
             <li
               key={getKey(item)}
               data-index={position === 0 ? row.index : undefined}
-              ref={position === 0 ? virtualizer.measureElement : undefined}
+              ref={
+                position === 0 && measureRows
+                  ? virtualizer.measureElement
+                  : undefined
+              }
               className="min-w-0"
             >
               {renderItem(item)}
