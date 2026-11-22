@@ -20,6 +20,7 @@ import {
   MAX_BOT_TEXTS,
   MAX_CALLBACK_TEXTS,
 } from '../../supabase/functions/_shared/max/messages.ts'
+import { deliverMaxAnnouncement } from '../../supabase/functions/_shared/max/announcements.ts'
 import {
   handleMaxWebhook,
   maxStatus,
@@ -29,7 +30,14 @@ import {
 import {
   answerData,
   changeData,
+  voteAnswerData,
+  voteChangeData,
 } from '../../supabase/functions/_shared/messenger/callback-data.ts'
+import {
+  castBallot,
+  closeVote,
+  createVote,
+} from '../../supabase/functions/_shared/votes/service.ts'
 import { handleTelegramWebhook } from '../../supabase/functions/_shared/telegram/service.ts'
 import {
   actorOf,
@@ -144,6 +152,16 @@ async function activeMid(eventId: string, userId: string) {
     .selectFrom('app.max_event_messages')
     .select('message_id')
     .where('event_id', '=', eventId)
+    .where('user_id', '=', userId)
+    .executeTakeFirst()
+  return row?.message_id ?? null
+}
+
+async function activeVoteMid(voteId: string, userId: string) {
+  const row = await db
+    .selectFrom('app.max_vote_messages')
+    .select('message_id')
+    .where('vote_id', '=', voteId)
     .where('user_id', '=', userId)
     .executeTakeFirst()
   return row?.message_id ?? null
@@ -777,5 +795,175 @@ describe('group announcements (TGM-12, TGM-14, Q-104)', () => {
       'state_conflict',
       'group_missing',
     )
+  })
+})
+
+describe('max: vote buttons (MAX-15, VOT-17)', () => {
+  async function sendVote(
+    vote: Awaited<ReturnType<typeof createVote>>,
+    imageUrl: string | null = null,
+  ) {
+    return deliverMaxAnnouncement(
+      deps,
+      fake.max,
+      { subject: 'Маршрут', body: 'Выберите вариант кнопкой или на сайте.' },
+      null,
+      null,
+      [],
+      imageUrl,
+      vote.id,
+      vote.options,
+    )
+  }
+
+  it('sends the current choice and shortened long options on MAX buttons', async () => {
+    const member = await linked('member')
+    const officer = await linked('officer')
+    const { actor } = await officerWithEvent()
+    const vote = await createVote(deps, actor, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Большинство участников выберет этот путь'],
+    })
+    await castBallot(
+      { ...deps, max: null, telegram: null, vk: null },
+      member.actor,
+      {
+        voteId: vote.id,
+        optionId: vote.options[0]!.id,
+      },
+    )
+
+    const result = await sendVote(vote)
+
+    expect(result).toEqual({ recipients: 2, sent: 2, failed: 0 })
+    const voted = sentTo(member.maxUserId)[0]!
+    const open = sentTo(officer.maxUserId)[0]!
+    expect(voted.text).toContain('Ваш голос: За')
+    expect(voted.keyboard).toEqual([
+      [{ type: 'callback', text: 'Изменить решение', payload: 'vc' }],
+    ])
+    expect(open.text).toContain('2. Большинство участников выберет этот путь')
+    expect(open.keyboard?.flat().map((button) => button.text)).toEqual([
+      'За',
+      expect.stringMatching(/^2\. Большин/),
+    ])
+  })
+
+  it('saves and changes the ballot from a callback and preserves the image', async () => {
+    const member = await linked('member')
+    const { actor } = await officerWithEvent()
+    const vote = await createVote(deps, actor, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    await sendVote(vote, 'https://murr.test/messenger/vote.jpg')
+    const mid = (await activeVoteMid(vote.id, member.user.id))!
+
+    await press(member.maxUserId, mid, voteAnswerData(vote.options[0]!.id))
+    expect(lastAnswer()).toMatchObject({ text: 'Ваш голос: За' })
+    expect(fake.calls.at(-2)).toMatchObject({
+      method: 'editHtml',
+      text: expect.stringContaining('Ваш голос: За'),
+      keyboard: [
+        [{ type: 'callback', text: 'Изменить решение', payload: 'vc' }],
+      ],
+      image: 'token-vote.jpg',
+    })
+
+    await press(member.maxUserId, mid, voteChangeData())
+    expect(fake.calls.at(-2)?.keyboard?.flat()).toHaveLength(2)
+    await press(member.maxUserId, mid, voteAnswerData(vote.options[1]!.id))
+    expect(
+      await db
+        .selectFrom('app.vote_ballots')
+        .select('option_id')
+        .where('vote_id', '=', vote.id)
+        .where('voter_id', '=', member.user.id)
+        .executeTakeFirstOrThrow(),
+    ).toMatchObject({ option_id: vote.options[1]!.id })
+  })
+
+  it('rejects a message from the previous broadcast', async () => {
+    const member = await linked('member')
+    const { actor } = await officerWithEvent()
+    const vote = await createVote(deps, actor, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    await sendVote(vote)
+    const previous = (await activeVoteMid(vote.id, member.user.id))!
+    await sendVote(vote)
+
+    await press(member.maxUserId, previous, voteAnswerData(vote.options[0]!.id))
+
+    expect(lastAnswer()).toMatchObject({ text: MAX_CALLBACK_TEXTS.voteStale })
+    expect(fake.calls).toContainEqual({
+      method: 'removeKeyboard',
+      messageId: previous,
+    })
+    expect(
+      await db
+        .selectFrom('app.vote_ballots')
+        .select('id')
+        .where('vote_id', '=', vote.id)
+        .execute(),
+    ).toEqual([])
+  })
+
+  it('rejects a button after the vote is closed', async () => {
+    const member = await linked('member')
+    const { actor } = await officerWithEvent()
+    const vote = await createVote(deps, actor, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    await sendVote(vote)
+    const mid = (await activeVoteMid(vote.id, member.user.id))!
+    await closeVote(deps, actor, { id: vote.id })
+
+    await press(member.maxUserId, mid, voteAnswerData(vote.options[0]!.id))
+
+    expect(lastAnswer()).toMatchObject({ text: MAX_CALLBACK_TEXTS.voteClosed })
+    expect(fake.calls).toContainEqual({
+      method: 'removeKeyboard',
+      messageId: mid,
+    })
+    expect(
+      await db
+        .selectFrom('app.vote_ballots')
+        .select('id')
+        .where('vote_id', '=', vote.id)
+        .execute(),
+    ).toEqual([])
+  })
+
+  it('updates an active MAX message after a website vote', async () => {
+    const member = await linked('member')
+    const { actor } = await officerWithEvent()
+    const vote = await createVote(deps, actor, {
+      title: 'Маршрут',
+      context: '',
+      options: ['За', 'Против'],
+    })
+    await sendVote(vote)
+    const mid = (await activeVoteMid(vote.id, member.user.id))!
+
+    await castBallot(deps, member.actor, {
+      voteId: vote.id,
+      optionId: vote.options[1]!.id,
+    })
+
+    expect(fake.calls.at(-1)).toMatchObject({
+      method: 'editHtml',
+      messageId: mid,
+      text: expect.stringContaining('Ваш голос: Против'),
+      keyboard: [
+        [{ type: 'callback', text: 'Изменить решение', payload: 'vc' }],
+      ],
+    })
   })
 })

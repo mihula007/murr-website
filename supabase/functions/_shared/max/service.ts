@@ -18,6 +18,8 @@ import { withTransaction } from '../db/client.ts'
 import { isUniqueViolation } from '../db/errors.ts'
 import { eventRepository } from '../events/repository.ts'
 import { saveAnswer } from '../events/service.ts'
+import { voteRepository } from '../votes/repository.ts'
+import { saveBallot } from '../votes/service.ts'
 import { ApiError } from '../http/errors.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
 import {
@@ -25,10 +27,10 @@ import {
   type CallbackAction,
 } from '../messenger/callback-data.ts'
 import { randomCode, sameSecret, sha256Hex } from '../messenger/link-code.ts'
-import { syncEventMessages } from '../messenger/sync.ts'
+import { syncEventMessages, syncVoteMessages } from '../messenger/sync.ts'
 import { editMaxMessage } from './announcements.ts'
 import { MAX_BOT_TEXTS, MAX_CALLBACK_TEXTS } from './messages.ts'
-import { maxEventMessage } from './render.ts'
+import { maxEventMessage, maxVoteMessage } from './render.ts'
 import { MAX_USER_CONSTRAINT, maxRepository } from './repository.ts'
 import {
   displayNameOf,
@@ -262,13 +264,20 @@ async function onCallback(
   let notice: string = MAX_CALLBACK_TEXTS.failed
   try {
     const messageId = message?.body?.mid
-    if (!messageId) {
+    const chatId = message?.recipient.chat_id
+    if (!messageId || chatId == null) {
       notice = MAX_CALLBACK_TEXTS.stale
       return
     }
     const action = parseCallbackData(callback.payload ?? '')
     const outcome = action
-      ? await pressButton(deps, max, callback.user.user_id, messageId, action)
+      ? await pressButton(
+          deps,
+          max,
+          callback.user.user_id,
+          { chatId, messageId },
+          action,
+        )
       : refuse(MAX_CALLBACK_TEXTS.stale)
     notice = outcome.notice
     if (outcome.refused) {
@@ -295,12 +304,15 @@ async function pressButton(
   deps: AppDeps,
   max: MaxDeps,
   maxUserId: number,
-  messageId: string,
+  target: { chatId: number; messageId: string },
   action: CallbackAction,
 ): Promise<PressOutcome> {
   const link = await maxRepository.linkByMax(deps.db, maxUserId)
   if (!link) {
     return refuse(MAX_CALLBACK_TEXTS.notLinked)
+  }
+  if (action.kind === 'vote-answer' || action.kind === 'vote-change') {
+    return pressVoteButton(deps, max, link.userId, target, action)
   }
   const event = await eventRepository.find(deps.db, action.eventId)
   if (!event) {
@@ -312,7 +324,7 @@ async function pressButton(
     action.eventId,
     link.userId,
   )
-  if (!active || active.messageId !== messageId) {
+  if (!active || active.messageId !== target.messageId) {
     return refuse(MAX_CALLBACK_TEXTS.stale)
   }
   let viewer: ProfiledActor
@@ -365,6 +377,84 @@ async function pressButton(
   return { notice: MAX_CALLBACK_TEXTS.chooseAgain, refused: false }
 }
 
+async function pressVoteButton(
+  deps: AppDeps,
+  max: MaxDeps,
+  userId: string,
+  target: { chatId: number; messageId: string },
+  action: Extract<CallbackAction, { kind: 'vote-answer' | 'vote-change' }>,
+): Promise<PressOutcome> {
+  const active = await maxRepository.activeVoteMessageByTarget(
+    deps.db,
+    target.chatId,
+    target.messageId,
+  )
+  if (!active || active.userId !== userId) {
+    return refuse(MAX_CALLBACK_TEXTS.voteStale)
+  }
+  let viewer: ProfiledActor
+  try {
+    viewer = requireRole(await loadActor(deps.db, userId), INTERNAL_ROLES)
+  } catch {
+    return refuse(MAX_CALLBACK_TEXTS.forbidden, active.media)
+  }
+  const vote = await voteRepository.find(deps.db, active.voteId)
+  if (!vote) {
+    return refuse(MAX_CALLBACK_TEXTS.voteDeleted, active.media)
+  }
+  if (vote.closed_at !== null) {
+    return refuse(MAX_CALLBACK_TEXTS.voteClosed, active.media)
+  }
+
+  if (action.kind === 'vote-answer') {
+    let details
+    try {
+      details = await saveBallot(deps, viewer, {
+        voteId: active.voteId,
+        optionId: action.optionId,
+      })
+    } catch (error) {
+      return refuse(voteRefusalText(error), active.media)
+    }
+    const rendered = maxVoteMessage(active, details.options, details.myOptionId)
+    await editMaxMessage(
+      deps,
+      max,
+      userId,
+      active,
+      rendered.html,
+      rendered.keyboard,
+    )
+    await runInBackground(deps, () =>
+      syncVoteMessages(deps, userId, active.voteId, 'max'),
+    )
+    return {
+      notice: `Ваш голос: ${details.options.find((option) => option.id === details.myOptionId)?.label ?? ''}`,
+      refused: false,
+    }
+  }
+
+  const [options, choices] = await Promise.all([
+    voteRepository.totals(deps.db, [active.voteId]),
+    voteRepository.choicesOf(deps.db, [active.voteId], userId),
+  ])
+  const rendered = maxVoteMessage(
+    active,
+    options.map((option) => ({ id: option.id, label: option.label })),
+    choices.get(active.voteId) ?? null,
+    true,
+  )
+  await editMaxMessage(
+    deps,
+    max,
+    userId,
+    active,
+    rendered.html,
+    rendered.keyboard,
+  )
+  return { notice: MAX_CALLBACK_TEXTS.chooseAgain, refused: false }
+}
+
 /** Отказ `saveAnswer` при гонке с закрытием, началом или удалением события. */
 function refusalText(error: unknown) {
   if (!(error instanceof ApiError)) {
@@ -382,4 +472,20 @@ function refusalText(error: unknown) {
       : MAX_CALLBACK_TEXTS.started
   }
   throw error
+}
+
+function voteRefusalText(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    throw error
+  }
+  if (error.code === 'not_found') {
+    return MAX_CALLBACK_TEXTS.voteStale
+  }
+  if (error.code === 'forbidden') {
+    return MAX_CALLBACK_TEXTS.forbidden
+  }
+  if (error.code === 'state_conflict') {
+    return MAX_CALLBACK_TEXTS.voteClosed
+  }
+  return MAX_CALLBACK_TEXTS.failed
 }

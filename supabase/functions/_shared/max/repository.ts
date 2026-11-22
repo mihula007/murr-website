@@ -15,6 +15,11 @@ export type MaxLink = LinkValues & {
   blockedAt: string | null
 }
 
+export type MaxActiveVoteMessage = MaxActiveMessage & {
+  voteId: string
+  userId: string
+}
+
 const LINK_COLUMNS = [
   'user_id',
   'max_user_id',
@@ -223,6 +228,89 @@ export const maxRepository = {
     return row.id
   },
 
+  /** Заменяет прежнюю рассылку этого голосования и возвращает её сообщения. */
+  async replaceVoteAnnouncement(
+    tx: Executor,
+    values: { voteId: string; subject: string | null; body: string },
+  ) {
+    const previousMessages = await activeVoteMessageQuery(tx)
+      .where('m.vote_id', '=', values.voteId)
+      .execute()
+    await tx
+      .deleteFrom('app.max_vote_announcements')
+      .where('vote_id', '=', values.voteId)
+      .execute()
+    const announcement = await tx
+      .insertInto('app.max_vote_announcements')
+      .values({
+        vote_id: values.voteId,
+        subject: values.subject,
+        body: values.body,
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow()
+    return {
+      announcementId: announcement.id,
+      previousMessages: previousMessages.map(toActiveVoteMessage),
+    }
+  },
+
+  /** Сохраняет единственное активное сообщение пользователя по голосованию. */
+  async saveActiveVoteMessage(
+    tx: Executor,
+    values: {
+      voteId: string
+      userId: string
+      announcementId: string
+      chatId: number
+      messageId: string
+      media: string | null
+    },
+  ) {
+    await tx
+      .insertInto('app.max_vote_messages')
+      .values({
+        vote_id: values.voteId,
+        user_id: values.userId,
+        announcement_id: values.announcementId,
+        chat_id: values.chatId,
+        message_id: values.messageId,
+        media: values.media,
+      })
+      .onConflict((oc) =>
+        oc.columns(['vote_id', 'user_id']).doUpdateSet({
+          announcement_id: values.announcementId,
+          chat_id: values.chatId,
+          message_id: values.messageId,
+          media: values.media,
+          sent_at: sql<string>`now()`,
+        }),
+      )
+      .execute()
+  },
+
+  /** Текущее сообщение пользователя вместе с текстом анонса. */
+  async activeVoteMessage(db: Executor, voteId: string, userId: string) {
+    const row = await activeVoteMessageQuery(db)
+      .where('m.vote_id', '=', voteId)
+      .where('m.user_id', '=', userId)
+      .executeTakeFirst()
+    return row ? toActiveVoteMessage(row) : null
+  },
+
+  /** Проверяет владельца и идентификаторы MAX callback-сообщения. */
+  async activeVoteMessageByTarget(
+    db: Executor,
+    chatId: number,
+    messageId: string,
+  ) {
+    const row = await activeVoteMessageQuery(db)
+      .where('m.chat_id', '=', chatId)
+      .where('m.message_id', '=', messageId)
+      .executeTakeFirst()
+    return row ? toActiveVoteMessage(row) : null
+  },
+
   /** Активное сообщение участника по событию с текстом его анонса. */
   async activeMessage(db: Executor, eventId: string, userId: string) {
     const row = await activeMessageQuery(db)
@@ -348,6 +436,22 @@ function activeMessageQuery(db: Executor) {
     ])
 }
 
+function activeVoteMessageQuery(db: Executor) {
+  return db
+    .selectFrom('app.max_vote_messages as m')
+    .innerJoin('app.max_vote_announcements as a', 'a.id', 'm.announcement_id')
+    .select([
+      'm.vote_id',
+      'm.user_id',
+      'm.announcement_id',
+      'm.chat_id',
+      'm.message_id',
+      'm.media',
+      'a.subject',
+      'a.body',
+    ])
+}
+
 export type MaxActiveMessage = {
   announcementId: string
   chatId: number
@@ -372,4 +476,19 @@ const toActiveMessage = (row: {
   subject: row.subject,
   body: row.body,
   media: row.media,
+})
+
+const toActiveVoteMessage = (row: {
+  vote_id: string
+  user_id: string
+  announcement_id: string
+  chat_id: number
+  message_id: string
+  subject: string | null
+  body: string
+  media: string | null
+}): MaxActiveVoteMessage => ({
+  ...toActiveMessage(row),
+  voteId: row.vote_id,
+  userId: row.user_id,
 })

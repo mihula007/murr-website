@@ -1,13 +1,14 @@
 import type { AppDeps, MaxDeps } from '../app.ts'
 import { withTransaction } from '../db/client.ts'
 import { eventRepository } from '../events/repository.ts'
+import { voteRepository } from '../votes/repository.ts'
 import {
   announcementHtml,
   type AnnouncementText,
 } from '../messenger/announcement.ts'
 import type { MaxKeyboard } from './gateway.ts'
-import { maxEventMessage } from './render.ts'
-import { maxRepository } from './repository.ts'
+import { maxEventMessage, maxVoteMessage } from './render.ts'
+import { maxRepository, type MaxActiveVoteMessage } from './repository.ts'
 
 /** Пул одновременных отправок и темп ≤ 25 сообщений в секунду. */
 const SEND_BATCH = 20
@@ -34,7 +35,13 @@ export async function deliverMaxAnnouncement(
   excludedUserIds: string[] = [],
   /** Картинка постоянного события (MAX-13); null — без картинки. */
   imageUrl: string | null = null,
+  /** Активное голосование: серверные варианты добавляются в кнопки. */
+  voteId: string | null = null,
+  voteOptions?: readonly { id: string; label: string }[],
 ): Promise<DeliveryResult> {
+  if (voteId && (!voteOptions || voteOptions.length === 0)) {
+    throw new Error('Для рассылки голосования нужны его варианты')
+  }
   const fetchedRecipients = await maxRepository.recipients(
     deps.db,
     eventId,
@@ -44,11 +51,21 @@ export async function deliverMaxAnnouncement(
   const recipients = fetchedRecipients.filter(
     (recipient) => !excluded.has(recipient.userId),
   )
-  const announcementId = eventId
-    ? await maxRepository.createAnnouncement(deps.db, {
-        eventId,
-        ...announcement,
-      })
+  let announcementId: string | null = null
+  if (voteId) {
+    const replaced = await withTransaction(deps.db, (tx) =>
+      maxRepository.replaceVoteAnnouncement(tx, { voteId, ...announcement }),
+    )
+    announcementId = replaced.announcementId
+    await removeVoteButtons(deps, max, replaced.previousMessages)
+  } else if (eventId) {
+    announcementId = await maxRepository.createAnnouncement(deps.db, {
+      eventId,
+      ...announcement,
+    })
+  }
+  const existingChoices = voteId
+    ? await voteRepository.choicesForVote(deps.db, voteId)
     : null
   let sent = 0
   let failed = 0
@@ -60,8 +77,17 @@ export async function deliverMaxAnnouncement(
 
   const deliver = async (recipient: (typeof recipients)[number]) => {
     // Ответившие на событие анонс не получают (Q-109): кнопки без ответа.
-    const message =
-      eventId === null
+    const voteMessageForUser =
+      voteId && voteOptions
+        ? maxVoteMessage(
+            announcement,
+            voteOptions,
+            existingChoices?.get(recipient.userId) ?? null,
+          )
+        : null
+    const message = voteMessageForUser
+      ? voteMessageForUser
+      : eventId === null
         ? { html: announcementHtml(announcement), keyboard: undefined }
         : maxEventMessage(announcement, eventId, null)
     let result = await max.gateway.sendHtml(
@@ -93,6 +119,25 @@ export async function deliverMaxAnnouncement(
       return
     }
     sent++
+    if (voteId && announcementId) {
+      try {
+        await withTransaction(deps.db, (tx) =>
+          maxRepository.saveActiveVoteMessage(tx, {
+            voteId,
+            userId: recipient.userId,
+            announcementId,
+            chatId: recipient.chatId,
+            messageId: result.messageId,
+            media,
+          }),
+        )
+      } catch (error) {
+        console.error('Сообщение голосования MAX не сохранено', error)
+        await max.gateway.removeKeyboard(result.messageId, media)
+        failed++
+      }
+      return
+    }
     if (eventId === null || announcementId === null) {
       return
     }
@@ -149,6 +194,79 @@ export async function syncMaxEventMessage(
     answers.get(eventId) ?? null,
   )
   await editMaxMessage(deps, max, userId, message, html, keyboard)
+}
+
+/** Ответ с сайта или из другого канала обновляет активное сообщение MAX. */
+export async function syncVoteMessage(
+  deps: AppDeps,
+  userId: string,
+  voteId: string,
+) {
+  const max = deps.max
+  if (!max) {
+    return
+  }
+  const message = await maxRepository.activeVoteMessage(deps.db, voteId, userId)
+  if (!message) {
+    return
+  }
+  const vote = await voteRepository.find(deps.db, voteId)
+  if (!vote || vote.closed_at !== null) {
+    await editMaxMessage(
+      deps,
+      max,
+      userId,
+      message,
+      announcementHtml(message),
+      null,
+    )
+    return
+  }
+  const [options, choices] = await Promise.all([
+    voteRepository.totals(deps.db, [voteId]),
+    voteRepository.choicesOf(deps.db, [voteId], userId),
+  ])
+  const rendered = maxVoteMessage(
+    message,
+    options.map((option) => ({ id: option.id, label: option.label })),
+    choices.get(voteId) ?? null,
+  )
+  await editMaxMessage(
+    deps,
+    max,
+    userId,
+    message,
+    rendered.html,
+    rendered.keyboard,
+  )
+}
+
+async function removeVoteButtons(
+  deps: AppDeps,
+  max: MaxDeps,
+  messages: readonly MaxActiveVoteMessage[],
+) {
+  for (let start = 0; start < messages.length; start += SEND_BATCH) {
+    const batch = messages.slice(start, start + SEND_BATCH)
+    await Promise.all(
+      batch.map(async (message) => {
+        const result = await max.gateway.removeKeyboard(
+          message.messageId,
+          message.media,
+        )
+        if (result === 'blocked') {
+          await maxRepository.markBlocked(
+            deps.db,
+            message.userId,
+            deps.now().toISOString(),
+          )
+        }
+      }),
+    )
+    if (start + SEND_BATCH < messages.length) {
+      await new Promise((resolve) => setTimeout(resolve, BATCH_INTERVAL_MS))
+    }
+  }
 }
 
 /** Перерисовка сообщения; остановленный бот отмечается (MAX-03). */
