@@ -35,11 +35,11 @@
 **Файлы:**
 - Создать: `public/messenger/vote.jpg`
 - Создать: `public/messenger/group-list.jpg`
-- Создать: `supabase/functions/_shared/messenger/broadcast-image.ts`
+- Изменить: `supabase/functions/_shared/messenger/event-image.ts`
 - Изменить и проверить: `tests/server/messenger-event-images.test.ts`
 
 **Интерфейсы:**
-- Создаёт `broadcastImageUrl(siteUrl: string | null, source: 'vote' | 'group'): string | null`.
+- Добавляет в существующий файл `broadcastImageUrl(siteUrl: string | null, source: 'vote' | 'group'): string | null`.
 - URL — `<SITE_URL>/messenger/vote.jpg` для `vote`, `<SITE_URL>/messenger/group-list.jpg` для `group`; при пустом `siteUrl` — `null`.
 
 - [ ] **Шаг 1: Написать падающий тест URL-сопоставления.** Проверить оба файла, ведущий слэш в `siteUrl` и `null`.
@@ -57,7 +57,7 @@ Expected: PASS для обоих URL и отсутствующего `siteUrl`.
 - [ ] **Шаг 5: Сохранить задачу Conventional Commit.**
 
 ```bash
-git add public/messenger/vote.jpg public/messenger/group-list.jpg supabase/functions/_shared/messenger/broadcast-image.ts tests/server/messenger-event-images.test.ts
+git add public/messenger/vote.jpg public/messenger/group-list.jpg supabase/functions/_shared/messenger/event-image.ts tests/server/messenger-event-images.test.ts
 git commit -m "feat(broadcast): add vote and group images"
 ```
 
