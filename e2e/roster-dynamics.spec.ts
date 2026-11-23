@@ -97,7 +97,10 @@ test('участник видит историю характеристик и �
     name: 'Посещение ивентов по неделям',
   })
   await expect(attendanceChart.locator('circle')).not.toHaveCount(0)
-  await attendanceChart.locator('circle').first().hover()
+  await attendanceChart
+    .locator('circle[aria-label^="Не отметил"]')
+    .first()
+    .hover()
   await expect(dialog.getByRole('status')).toContainText('Неделя с')
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await hasHorizontalScroll(page)).toBe(false)
