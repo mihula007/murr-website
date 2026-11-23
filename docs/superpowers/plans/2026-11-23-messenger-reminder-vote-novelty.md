@@ -32,6 +32,7 @@
 ### Task 1: Серверное напоминание без дубликатов
 
 **Файлы:**
+
 - Изменить: `supabase/migrations/<временная_метка>_messenger_reminders.sql`
 - Изменить: `supabase/functions/_shared/contracts/notifications.ts`
 - Изменить: `supabase/functions/_shared/notifications/repository.ts`
@@ -42,6 +43,7 @@
 - Тест: `supabase/tests/database/stage22_messenger_reminders.test.sql`
 
 **Интерфейсы:**
+
 - Использует: `telegramRepository.linkByUser(db, userId)`, `maxRepository.linkByUser(db, userId)`, `vkRepository.linkByUser(db, userId)`.
 - Добавляет вид уведомления `messenger_reminder` и серверную проверку/обновление его единственной строки по ключу получателя, вида и постоянного источника.
 - `notifications/summary` и `notifications/list` запускают одну и ту же синхронизацию напоминания. Счётчик и список скрывают это напоминание, пока у пользователя есть хотя бы одна привязка.
@@ -58,6 +60,7 @@
 ### Task 2: Переход к блоку привязки
 
 **Файлы:**
+
 - Изменить: `supabase/functions/_shared/notifications/service.ts` (цель напоминания)
 - Изменить: `src/features/notifications/notification-target.ts`
 - Изменить: `src/routes/account.tsx`
@@ -68,6 +71,7 @@
 - Тест: `e2e/notifications.spec.ts`
 
 **Интерфейсы:**
+
 - Цель напоминания — вид `messengers`; маршрут `/account?section=messengers`.
 - Параметр раздела проверяется схемой маршрута; кабинет прокручивает к блоку после загрузки профиля. Блок имеет стабильный `id`.
 
@@ -83,18 +87,20 @@
 ### Task 3: Счётчик только новых голосований
 
 **Файлы:**
+
 - Изменить: `src/features/votes/votes-page.tsx`
 - Тест: `tests/votes.test.tsx`
 - Тест: `e2e/votes.spec.ts`
 
 **Интерфейсы:**
+
 - Использует `useNotificationSummary(true)` из `src/features/notifications/api.ts`.
-- Источник бейджа вкладки «Актуальные» — `summary.sections.votes`; общий API голосований остаётся источником списка и количества открытых голосований.
+- Красный бейдж вкладки «Актуальные» использует `summary.sections.votes`; обычный текст рядом показывает `active.data.activeCount`, как у событий.
 
 - [ ] Добавить тест страницы, где активных голосований больше нуля, а `sections.votes` равно нулю: красного бейджа нет.
 - [ ] Добавить тест страницы, где `sections.votes` больше нуля: вкладка показывает это число, а не `activeCount`.
 - [ ] Запустить новые тесты `tests/votes.test.tsx` и убедиться, что нужный сценарий падает до реализации.
-- [ ] Переключить бейдж вкладки с `active.data.activeCount` на число новых голосований из общей сводки.
+- [ ] Переключить красный бейдж вкладки с `active.data.activeCount` на число новых голосований из общей сводки; сохранить `active.data.activeCount` рядом обычным текстом, как на странице событий.
 - [ ] Добавить e2e-проверку: новое голосование даёт бейдж до просмотра; открытие раздела его снимает; старое активное голосование само по себе бейдж не создаёт.
 - [ ] Повторно запустить `tests/votes.test.tsx` и `npm run check:quick`; результат — все проверки зелёные.
 - [ ] Сохранить задачу коммитом `fix(votes): show only unseen votes in badge`.
@@ -102,6 +108,7 @@
 ### Task 4: Архитектурная запись и итоговые проверки
 
 **Файлы:**
+
 - Изменить: `docs/architecture/module-decisions.md`
 
 - [ ] Зафиксировать в решениях уведомлений хранение одной повторно используемой записи, интервал 48 часов и скрытие при привязке; отметить, что новая вкладка использует `sections.votes`.
