@@ -138,7 +138,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
     })
     expect(subscriptions).toBeVisible()
     expect(recipients).toBeVisible()
-    expect(within(subscriptions).getByLabelText('Поиск по нику')).toBeVisible()
+    expect(within(subscriptions).queryByLabelText('Поиск по нику')).toBeNull()
     expect(within(recipients).queryByLabelText('Поиск по нику')).toBeNull()
     await waitFor(() =>
       expect(callApi).toHaveBeenCalledWith('broadcasts/subscriptions', {
@@ -168,32 +168,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
     ).toHaveClass('min-w-0', 'break-words')
   })
 
-  it('stores nickname search in the address and sends it after a short pause', async () => {
-    const requests: unknown[] = []
-    routes['broadcasts/subscriptions'] = (body) => {
-      requests.push(body)
-      return { items: [], nextCursor: null }
-    }
-    const { router } = await renderApp({
-      role: 'admin',
-      path: '/broadcast?q=',
-    })
-    const subscriptions = await screen.findByRole('region', {
-      name: 'Подписки на рассылки',
-    })
-    fireEvent.change(within(subscriptions).getByLabelText('Поиск по нику'), {
-      target: { value: 'Мой ник' },
-    })
-    await waitFor(() =>
-      expect(router.state.location.search).toMatchObject({ q: 'Мой ник' }),
-    )
-    await waitFor(() =>
-      expect(requests).toContainEqual({ cursor: null, search: 'Мой ник' }),
-    )
-    expect(await screen.findByText('Участников не нашли')).toBeVisible()
-  })
-
-  it('filters subscription search to people without links', async () => {
+  it('ignores an obsolete nickname search parameter', async () => {
     const requests: unknown[] = []
     routes['broadcasts/subscriptions'] = (body) => {
       requests.push(body)
@@ -203,27 +178,90 @@ describe('broadcast page (BRC, E2E-07)', () => {
       role: 'admin',
       path: '/broadcast?q=TestNick',
     })
+    const subscriptions = await screen.findByRole('region', {
+      name: 'Подписки на рассылки',
+    })
+    expect(within(subscriptions).queryByLabelText('Поиск по нику')).toBeNull()
+    expect(router.state.location.search.q).toBe('TestNick')
+    await waitFor(() => expect(requests).toContainEqual({ cursor: null }))
+    expect(requests).not.toContainEqual(
+      expect.objectContaining({ search: expect.anything() }),
+    )
+  })
+
+  it('filters subscriptions without losing the current scroll container', async () => {
+    const requests: unknown[] = []
+    let finishFilter: (response: unknown) => void = () => undefined
+    routes['broadcasts/subscriptions'] = (body) => {
+      requests.push(body)
+      if ((body as { unlinkedOnly?: boolean }).unlinkedOnly) {
+        return new Promise((resolve) => {
+          finishFilter = resolve
+        })
+      }
+      return {
+        items: Array.from({ length: 24 }, (_, index) => ({
+          id: `member-${index}`,
+          gameNickname: `Участник ${index}`,
+          role: 'member',
+          telegram: { linked: true, blocked: false },
+          vk: { linked: false, blocked: false },
+          max: { linked: false, blocked: false },
+        })),
+        nextCursor: null,
+      }
+    }
+    const { router } = await renderApp({
+      role: 'admin',
+      path: '/broadcast',
+    })
     const filter = await screen.findByRole('checkbox', {
       name: 'Показать без подписки',
     })
     expect(filter).not.toBeChecked()
+    const scrollRegion = await screen.findByRole('region', {
+      name: 'Прокручиваемый список: Участники и привязки мессенджеров',
+    })
+    scrollRegion.scrollTop = 180
+    const pageScroll = vi
+      .spyOn(window, 'scrollTo')
+      .mockImplementation(() => undefined)
+    pageScroll.mockClear()
 
-    fireEvent.click(filter)
+    try {
+      fireEvent.click(filter)
 
-    await waitFor(() =>
-      expect(router.state.location.search).toMatchObject({
-        q: 'TestNick',
-        unlinkedOnly: true,
-      }),
-    )
-    await waitFor(() =>
-      expect(requests).toContainEqual({
-        cursor: null,
-        search: 'TestNick',
-        unlinkedOnly: true,
-      }),
-    )
-    expect(await screen.findByText('Людей без привязки не нашли')).toBeVisible()
+      await waitFor(() =>
+        expect(router.state.location.search).toMatchObject({
+          unlinkedOnly: true,
+        }),
+      )
+      await waitFor(() =>
+        expect(requests).toContainEqual({
+          cursor: null,
+          unlinkedOnly: true,
+        }),
+      )
+      expect(pageScroll).not.toHaveBeenCalled()
+      expect(scrollRegion).toBeInTheDocument()
+      expect(scrollRegion.scrollTop).toBe(180)
+    } finally {
+      pageScroll.mockRestore()
+    }
+    finishFilter({
+      items: [
+        {
+          id: 'unlinked-member',
+          gameNickname: 'Без связи',
+          role: 'member',
+          telegram: { linked: false, blocked: false },
+          vk: { linked: false, blocked: false },
+          max: { linked: false, blocked: false },
+        },
+      ],
+      nextCursor: null,
+    })
+    expect(await screen.findByText('Без связи')).toBeVisible()
   })
 
   it('saves a draft; all three channels are chosen (Q-99, Q-102)', async () => {
@@ -449,6 +487,128 @@ describe('broadcast page (BRC, E2E-07)', () => {
     ).not.toBeChecked()
     expect(
       screen.getByText(/Получателей по каналам: Telegram: 1/),
+    ).toBeVisible()
+  })
+
+  it('bulk marks every page of one class and preserves exclusions from other classes', async () => {
+    const rows = {
+      mage: {
+        id: '00000000-0000-4000-8000-000000000031',
+        gameNickname: 'Маг',
+        channels: ['telegram'],
+        classId: 2,
+      },
+      warrior1: {
+        id: '00000000-0000-4000-8000-000000000032',
+        gameNickname: 'Воин 1',
+        channels: ['telegram'],
+        classId: 1,
+      },
+      warrior2: {
+        id: '00000000-0000-4000-8000-000000000033',
+        gameNickname: 'Воин 2',
+        channels: ['telegram'],
+        classId: 1,
+      },
+    }
+    const requests: Array<Record<string, unknown>> = []
+    routes['catalog/classes'] = () => ({
+      classes: [
+        { id: 1, name: 'Воин', slug: 'warrior' },
+        { id: 2, name: 'Маг', slug: 'mage' },
+      ],
+    })
+    routes['broadcasts/recipients'] = (body) => {
+      const request = body as Record<string, unknown>
+      requests.push(request)
+      const page =
+        request.classId === 1
+          ? request.cursor
+            ? { items: [rows.warrior2], nextCursor: null }
+            : { items: [rows.warrior1], nextCursor: 'warrior-page-2' }
+          : request.cursor
+            ? { items: [rows.warrior2], nextCursor: null }
+            : { items: [rows.mage, rows.warrior1], nextCursor: 'all-page-2' }
+      return { ...recipients(3, 0), ...page }
+    }
+
+    await renderApp({ role: 'officer', path: '/broadcast' })
+    fireEvent.click(
+      await screen.findByRole('checkbox', { name: 'Получит: Маг' }),
+    )
+    const classFilter = screen.getByRole('combobox', {
+      name: 'Класс получателя',
+    })
+    fireEvent.keyDown(classFilter, { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Воин' }))
+    expect(
+      await screen.findByRole('checkbox', { name: 'Получит: Воин 1' }),
+    ).toBeChecked()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Снять отметки' }))
+    await waitFor(() =>
+      expect(requests).toContainEqual(
+        expect.objectContaining({ cursor: 'warrior-page-2', classId: 1 }),
+      ),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Получателей по каналам: Telegram: 0/),
+      ).toBeVisible(),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отметить всех' }))
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Получателей по каналам: Telegram: 2/),
+      ).toBeVisible(),
+    )
+
+    fireEvent.keyDown(classFilter, { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Все классы' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Снять отметки' }))
+    await waitFor(() =>
+      expect(requests).toContainEqual(
+        expect.objectContaining({ cursor: 'all-page-2' }),
+      ),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Получателей по каналам: Telegram: 0/),
+      ).toBeVisible(),
+    )
+  })
+
+  it('keeps the recipient heading and removes the explanatory copy', async () => {
+    routes['broadcasts/recipients'] = () => ({
+      ...recipients(1, 0),
+      items: [
+        {
+          id: '00000000-0000-4000-8000-000000000034',
+          gameNickname: 'Получатель',
+          channels: ['telegram'],
+        },
+      ],
+      nextCursor: null,
+    })
+    await renderApp({ role: 'admin', path: '/broadcast' })
+    const recipientPanel = await screen.findByRole('region', {
+      name: 'Исключения получателей',
+    })
+    expect(
+      within(recipientPanel).getByRole('heading', { name: 'Кому отправить' }),
+    ).toBeVisible()
+    expect(
+      within(recipientPanel).queryByText(/Все подходящие участники отмечены/),
+    ).toBeNull()
+    expect(
+      within(recipientPanel).queryByText(/Фильтр помогает найти участников/),
+    ).toBeNull()
+    expect(
+      within(recipientPanel).getByRole('button', { name: 'Снять отметки' }),
+    ).toBeVisible()
+    expect(
+      within(recipientPanel).getByRole('button', { name: 'Отметить всех' }),
     ).toBeVisible()
   })
 

@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -24,8 +25,8 @@ export const broadcastKeys = {
   all: ['broadcasts'] as const,
   drafts: ['broadcasts', 'drafts'] as const,
   templates: ['broadcasts', 'templates'] as const,
-  subscriptions: (search: string, unlinkedOnly: boolean) =>
-    ['broadcasts', 'subscriptions', search, unlinkedOnly] as const,
+  subscriptions: (unlinkedOnly: boolean) =>
+    ['broadcasts', 'subscriptions', unlinkedOnly] as const,
   recipients: ['broadcasts', 'recipients'] as const,
   prefill: (source: BroadcastSource, id: string) =>
     ['broadcasts', 'prefill', source, id] as const,
@@ -33,21 +34,20 @@ export const broadcastKeys = {
 
 /** Состав и статусы привязок для вкладки рассылок (BRC-15). */
 export function useBroadcastSubscriptions(
-  search: string,
   unlinkedOnly: boolean,
   enabled = true,
 ) {
   return useInfiniteQuery({
-    queryKey: broadcastKeys.subscriptions(search, unlinkedOnly),
+    queryKey: broadcastKeys.subscriptions(unlinkedOnly),
     queryFn: ({ pageParam }) =>
       callApi<BroadcastSubscriptionsResponse>('broadcasts/subscriptions', {
         cursor: pageParam,
-        ...(search ? { search } : {}),
         ...(unlinkedOnly ? { unlinkedOnly: true } : {}),
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
     enabled,
+    placeholderData: keepPreviousData,
     select: (data) => data.pages.flatMap((page) => page.items),
   })
 }

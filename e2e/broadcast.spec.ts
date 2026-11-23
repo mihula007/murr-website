@@ -442,12 +442,13 @@ test('BRC-15: subscription list shows messenger links to managers only', async (
 
   await signInUi(page, officer.email)
   await expectSignedIn(page)
-  await page.goto(`./#/broadcast?q=${encodeURIComponent(linked.nickname)}`)
+  await page.goto('./#/broadcast')
   const subscriptionsPanel = page.getByRole('region', {
     name: 'Подписки на рассылки',
   })
   await expect(subscriptionsPanel).toBeVisible()
   await expect(subscriptionsPanel.getByText(linked.nickname)).toBeVisible()
+  await expect(subscriptionsPanel.getByLabel('Поиск по нику')).toHaveCount(0)
   await expect(
     subscriptionsPanel.getByRole('group', { name: 'Telegram: привязан' }),
   ).toBeVisible()
@@ -460,8 +461,15 @@ test('BRC-15: subscription list shows messenger links to managers only', async (
     subscriptionsPanel.getByRole('group', { name: 'MAX: привязан' }),
   ).toBeVisible()
 
-  await subscriptionsPanel.getByLabel('Поиск по нику').fill(unlinked.nickname)
+  await subscriptionsPanel
+    .getByRole('checkbox', { name: 'Показать без подписки' })
+    .check()
+  await expect(subscriptionsPanel.getByText(linked.nickname)).toHaveCount(0)
   await expect(subscriptionsPanel.getByText(unlinked.nickname)).toBeVisible()
+  await subscriptionsPanel
+    .getByRole('checkbox', { name: 'Показать без подписки' })
+    .uncheck()
+  await expect(subscriptionsPanel.getByText(linked.nickname)).toBeVisible()
   await page.setViewportSize({ width: 375, height: 812 })
   expect(await hasHorizontalScroll(page)).toBe(false)
 
@@ -522,11 +530,22 @@ test('BRC-16: excludes a recipient from one announcement only', async ({
   ).toHaveCount(0)
   const recipientSummary = page.getByText(/^Получателей по каналам:/)
   await expect(recipientSummary).toBeVisible()
+  const recipientPanel = page.getByRole('region', {
+    name: 'Исключения получателей',
+  })
   const initialTelegramCountText = (
     await recipientSummary.textContent()
   )?.match(/Telegram: (\d+)/)?.[1]
   expect(initialTelegramCountText).toBeDefined()
   const initialTelegramCount = Number(initialTelegramCountText)
+  await recipientPanel.getByRole('button', { name: 'Снять отметки' }).click()
+  await expect(recipientSummary).toHaveText(
+    'Получателей по каналам: Telegram: 0',
+  )
+  await recipientPanel.getByRole('button', { name: 'Отметить всех' }).click()
+  await expect(recipientSummary).toHaveText(
+    `Получателей по каналам: Telegram: ${initialTelegramCount}`,
+  )
   await (await findRecipientCheckbox(page, excluded.nickname)).uncheck()
   await expect(recipientSummary).toHaveText(
     `Получателей по каналам: Telegram: ${initialTelegramCount - 1}`,

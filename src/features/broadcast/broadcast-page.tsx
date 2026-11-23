@@ -60,7 +60,6 @@ import {
 export const broadcastSearchSchema = z.object({
   source: z.enum(BROADCAST_SOURCES).optional().catch(undefined),
   id: z.guid().optional().catch(undefined),
-  q: z.string().max(100).catch(''),
   unlinkedOnly: z.boolean().catch(false),
 })
 export type BroadcastSearch = z.output<typeof broadcastSearchSchema>
@@ -930,7 +929,6 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
   const navigate = useNavigate()
   const { hasOfficerPermission } = useAccess()
   const { source, id } = searchParams
-  const search = searchParams.q ?? ''
   const unlinkedOnly = searchParams.unlinkedOnly ?? false
   const canSend = hasOfficerPermission('broadcasts.send')
   const canManageTemplates = hasOfficerPermission('broadcasts.templates')
@@ -940,12 +938,6 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
   // Черновик сохранён — форма чистая: переход без вопроса о потере данных.
   const clearSource = () =>
     void navigate({ to: '/broadcast', search: {}, ignoreBlocker: true })
-  const changeSearch = (q: string) =>
-    void navigate({
-      to: '/broadcast',
-      search: (previous) => ({ ...previous, q: q || undefined }),
-      replace: true,
-    })
   const changeUnlinkedOnly = (value: boolean) =>
     void navigate({
       to: '/broadcast',
@@ -954,6 +946,7 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
         unlinkedOnly: value || undefined,
       }),
       replace: true,
+      resetScroll: false,
     })
 
   let form
@@ -1027,10 +1020,7 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
             <Card className="grid min-w-0 gap-3">
               <h2 className="m-0 text-xl font-bold">Подписки</h2>
               <SubscriptionsPanel
-                key={search}
-                search={search}
                 unlinkedOnly={unlinkedOnly}
-                onSearchChange={changeSearch}
                 onUnlinkedOnlyChange={changeUnlinkedOnly}
               />
             </Card>

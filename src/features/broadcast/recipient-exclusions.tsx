@@ -9,7 +9,9 @@ import { FormField } from '@/components/form/form-field'
 import { EmptyState } from '@/components/states/empty-state'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
+import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
+import { toast } from '@/components/ui/toaster'
 import { pagingOf, ScrollableVirtualList } from '@/components/virtual-list'
 import { cn } from '@/lib/utils'
 import { useClasses } from '@/features/catalog/use-classes'
@@ -120,6 +122,7 @@ export function RecipientExclusions({
         `${BROADCAST_CHANNEL_LABELS[channel]}: ${counts[channel] ?? 0}`,
     )
     .join(', ')
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false)
 
   const toggle = (member: BroadcastRecipientOption) => {
     if (excludedIds.has(member.id)) {
@@ -129,6 +132,47 @@ export function RecipientExclusions({
         ...excludedRecipients,
         { id: member.id, channels: member.channels },
       ])
+    }
+  }
+
+  const setClassExclusion = async (excluded: boolean) => {
+    setIsBulkUpdating(true)
+    try {
+      let result = recipients
+      while (result.hasNextPage) {
+        result = await result.fetchNextPage({ cancelRefetch: false })
+        if (result.isFetchNextPageError) {
+          throw new Error('recipient_page_failed')
+        }
+      }
+
+      const members = result.data?.pages.flatMap((page) => page.items) ?? []
+      if (members.length === 0) {
+        return
+      }
+      const memberIds = new Set(members.map((member) => member.id))
+      if (excluded) {
+        const exclusions = new Map(
+          excludedRecipients.map((recipient) => [recipient.id, recipient]),
+        )
+        for (const member of members) {
+          exclusions.set(member.id, {
+            id: member.id,
+            channels: member.channels,
+          })
+        }
+        onChange([...exclusions.values()])
+      } else {
+        onChange(
+          excludedRecipients.filter(
+            (recipient) => !memberIds.has(recipient.id),
+          ),
+        )
+      }
+    } catch {
+      toast.error('Не удалось загрузить получателей. Отметки не изменены.')
+    } finally {
+      setIsBulkUpdating(false)
     }
   }
 
@@ -181,34 +225,65 @@ export function RecipientExclusions({
       aria-label="Исключения получателей"
       className="col-span-full grid gap-3"
     >
-      <div className="grid gap-1">
-        <h2 className="m-0 text-base font-semibold">Кому отправить</h2>
-        <p className="m-0 text-sm text-muted-foreground">
-          Все подходящие участники отмечены. Снимите отметку, чтобы не
-          отправлять человеку это объявление ни в один выбранный мессенджер.
-        </p>
-      </div>
-      <FormField id="broadcast-recipient-class" label="Класс получателя">
-        <Select
+      <h2 className="m-0 text-base font-semibold">Кому отправить</h2>
+      <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,18rem)_max-content] sm:items-end">
+        <FormField
           id="broadcast-recipient-class"
-          aria-label="Класс получателя"
-          value={classId === null ? 'all' : String(classId)}
-          onValueChange={(value) =>
-            setClassId(value === 'all' ? null : Number(value))
-          }
-          options={[
-            { value: 'all', label: 'Все классы' },
-            ...(classes.data ?? []).map((item) => ({
-              value: String(item.id),
-              label: item.name,
-            })),
-          ]}
-        />
-      </FormField>
-      <p className="m-0 text-sm text-muted-foreground">
-        Фильтр помогает найти участников; на отправку влияют только снятые
-        отметки.
-      </p>
+          label="Класс получателя"
+          className="min-w-0"
+        >
+          <Select
+            id="broadcast-recipient-class"
+            aria-label="Класс получателя"
+            disabled={isBulkUpdating || recipients.isFetchingNextPage}
+            value={classId === null ? 'all' : String(classId)}
+            onValueChange={(value) =>
+              setClassId(value === 'all' ? null : Number(value))
+            }
+            options={[
+              { value: 'all', label: 'Все классы' },
+              ...(classes.data ?? []).map((item) => ({
+                value: String(item.id),
+                label: item.name,
+              })),
+            ]}
+          />
+        </FormField>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={
+              selectedChannels.length === 0 ||
+              recipients.isPending ||
+              recipients.isError ||
+              recipients.isFetchingNextPage ||
+              isBulkUpdating ||
+              items.length === 0
+            }
+            onClick={() => void setClassExclusion(true)}
+          >
+            Снять отметки
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={
+              selectedChannels.length === 0 ||
+              recipients.isPending ||
+              recipients.isError ||
+              recipients.isFetchingNextPage ||
+              isBulkUpdating ||
+              items.length === 0
+            }
+            onClick={() => void setClassExclusion(false)}
+          >
+            Отметить всех
+          </Button>
+        </div>
+      </div>
       {content}
       {selectedChannels.length > 0 && firstPage ? (
         <p aria-live="polite" className="m-0 text-sm text-muted-foreground">

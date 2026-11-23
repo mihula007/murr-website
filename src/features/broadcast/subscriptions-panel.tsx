@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { AlertTriangle, Check } from 'lucide-react'
 import type {
   BroadcastSubscription,
@@ -7,8 +6,6 @@ import type {
 import { EmptyState } from '@/components/states/empty-state'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
-import { FormField } from '@/components/form/form-field'
-import { Input } from '@/components/ui/input'
 import { MessengerIcon, type Messenger } from '@/components/ui/messenger-icon'
 import { pagingOf, ScrollableVirtualList } from '@/components/virtual-list'
 import { cn } from '@/lib/utils'
@@ -22,15 +19,6 @@ const CHANNELS: {
   { key: 'vk', label: 'ВКонтакте' },
   { key: 'max', label: 'MAX' },
 ]
-
-function useDebounced(value: string, delay: number) {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-  return debounced
-}
 
 function MessengerState({
   messenger,
@@ -111,26 +99,13 @@ function SubscriptionRow({ member }: { member: BroadcastSubscription }) {
 
 /** Read-only messenger link overview for officers and administrators (BRC-15). */
 export function SubscriptionsPanel({
-  search,
   unlinkedOnly,
-  onSearchChange,
   onUnlinkedOnlyChange,
 }: {
-  search: string
   unlinkedOnly: boolean
-  onSearchChange: (search: string) => void
   onUnlinkedOnlyChange: (unlinkedOnly: boolean) => void
 }) {
-  const [text, setText] = useState(search)
-  const debounced = useDebounced(text, 350)
-  const subscriptions = useBroadcastSubscriptions(search, unlinkedOnly)
-
-  useEffect(() => {
-    const value = debounced.trim()
-    if (value !== search) {
-      onSearchChange(value)
-    }
-  }, [debounced, search, onSearchChange])
+  const subscriptions = useBroadcastSubscriptions(unlinkedOnly)
 
   let content
   if (subscriptions.isPending) {
@@ -141,10 +116,8 @@ export function SubscriptionsPanel({
     content = unlinkedOnly ? (
       <EmptyState
         title="Людей без привязки не нашли"
-        description="Измените поиск или снимите флажок."
+        description="Снимите флажок, чтобы увидеть весь состав."
       />
-    ) : search ? (
-      <EmptyState title="Участников не нашли" description="Проверьте ник." />
     ) : (
       <EmptyState
         title="Состав пока пуст"
@@ -187,16 +160,6 @@ export function SubscriptionsPanel({
         отправка в этот мессенджер остановлена. Строка с подсветкой — без
         привязок.
       </p>
-      <FormField id="broadcast-subscriptions-search" label="Поиск по нику">
-        <Input
-          id="broadcast-subscriptions-search"
-          type="search"
-          value={text}
-          maxLength={100}
-          onChange={(event) => setText(event.target.value)}
-          placeholder="Введите ник"
-        />
-      </FormField>
       <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
         <input
           type="checkbox"
