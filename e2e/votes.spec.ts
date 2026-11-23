@@ -71,6 +71,12 @@ test('VOT 20: просмотр убирает красный счётчик, о�
     createMember('member'),
     createMember('officer'),
   ])
+  await sql(
+    (db) => db`insert into app.telegram_links
+      (user_id, telegram_user_id, chat_id, display_name)
+      values (${member.id}, ${Number.parseInt(member.id.slice(-8), 16)},
+        ${Number.parseInt(member.id.slice(-8), 16)}, 'Тест')`,
+  )
   await signInUi(page, member.email)
   await expectSignedIn(page)
   await page.goto('./#/votes')
@@ -83,6 +89,12 @@ test('VOT 20: просмотр убирает красный счётчик, о�
     { title: `Новое голосование ${Date.now()}`, options: ['Да', 'Нет'] },
   )
   expect(created.status).toBe(200)
+  const listed = await callApi('votes/list', await accessToken(member.email), {
+    tab: 'active',
+  })
+  expect(listed.status).toBe(200)
+  const activeCount = listed.body.activeCount as number
+  expect(activeCount).toBeGreaterThan(0)
   await page.reload()
   const navigation = isMobile
     ? page.getByRole('banner').getByRole('button', { name: 'Открыть меню' })
@@ -91,7 +103,9 @@ test('VOT 20: просмотр убирает красный счётчик, о�
 
   await page.goto('./#/votes')
   const activeTab = page.getByRole('tab', { name: /Актуальные/ })
-  await expect(activeTab.getByText('1')).toBeVisible()
+  await expect(
+    activeTab.getByText(String(activeCount), { exact: true }),
+  ).toBeVisible()
   await expect(activeTab.getByLabel(/новых записей/)).toHaveCount(0)
 })
 

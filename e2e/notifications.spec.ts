@@ -93,6 +93,12 @@ test('приёмка NTF 1–2: одно уведомление о приёме,
   expect(decided.status).toBe(200)
   expect(await notificationCount(applicant.id)).toBe(1)
   expect(await notificationCount(admin.id)).toBe(0)
+  await sql(
+    (db) => db`insert into app.telegram_links
+      (user_id, telegram_user_id, chat_id, display_name)
+      values (${applicant.id}, ${Number.parseInt(applicant.id.slice(-8), 16)},
+        ${Number.parseInt(applicant.id.slice(-8), 16)}, 'Тест')`,
+  )
 
   await signInUi(page, applicant.email)
   await expectSignedIn(page)

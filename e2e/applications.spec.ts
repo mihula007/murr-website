@@ -111,7 +111,8 @@ test('E2E-02: офицер принимает заявку, кандидат с�
   )
   const [notification] = await sql(
     (db) => db<{ kind: string }[]>`select kind from app.user_notifications
-      where recipient_id = ${applicant.id}`,
+      where recipient_id = ${applicant.id}
+        and kind = 'application_accepted'`,
   )
   expect(notification?.kind).toBe('application_accepted')
 })
