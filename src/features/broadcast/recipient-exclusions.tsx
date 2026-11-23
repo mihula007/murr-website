@@ -22,6 +22,9 @@ export type ExcludedRecipient = {
   channels: SendableChannel[]
 }
 
+const RECIPIENT_ROW_HEIGHT = 48
+const RECIPIENT_END_PADDING = RECIPIENT_ROW_HEIGHT * 2 + 16
+
 function RecipientRow({
   member,
   selectedChannels,
@@ -205,8 +208,8 @@ export function RecipientExclusions({
         label="Получатели объявления"
         items={items}
         getKey={(member) => member.id}
-        estimateSize={48}
-        endPadding={64}
+        estimateSize={RECIPIENT_ROW_HEIGHT}
+        endPadding={RECIPIENT_END_PADDING}
         viewportRows={15}
         autoLoadMore={false}
         measureRows={false}

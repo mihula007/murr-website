@@ -706,6 +706,12 @@ describe('broadcast page (BRC, E2E-07)', () => {
     expect(nickname.parentElement).toBe(channelName.parentElement)
     expect(nickname.parentElement).toHaveClass('flex', 'items-center')
     expect(nickname.closest('label')).toHaveClass('h-12')
+    const recipientScroller = within(recipientPanel).getByLabelText(
+      'Прокручиваемый список: Получатели объявления',
+    )
+    expect(recipientScroller.querySelector('ul')).toHaveStyle({
+      '--virtual-after': '112px',
+    })
   })
 
   it('paginates recipients without a nickname search field', async () => {
