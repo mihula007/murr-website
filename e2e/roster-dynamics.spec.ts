@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { hasHorizontalScroll, skipSplash } from './helpers'
-import { createMember, expectSignedIn, signInUi } from './supabase'
+import { createMember, expectSignedIn, signInUi, sql } from './supabase'
 
 test.skip(
   ({ baseURL }) => Boolean(baseURL?.includes('/repository/')),
@@ -25,7 +25,38 @@ async function openDynamics(page: Page) {
 test('участник видит историю характеристик и недельные посещения на телефоне', async ({
   page,
 }) => {
-  await signInUi(page, 'seed-member-1@example.test')
+  const member = await createMember('member')
+  await sql(async (db) => {
+    const [profile] = await db<{ class_id: number }[]>`
+      select class_id from app.profiles where id = ${member.id}
+    `
+    const events = [
+      {
+        id: crypto.randomUUID(),
+        status: 'visited',
+        date: '2026-11-20T17:00:00Z',
+      },
+      {
+        id: crypto.randomUUID(),
+        status: 'missed',
+        date: '2026-11-13T17:00:00Z',
+      },
+      {
+        id: crypto.randomUUID(),
+        status: 'unmarked',
+        date: '2026-11-06T17:00:00Z',
+      },
+    ]
+    for (const event of events) {
+      await db`insert into app.events
+        (id, title, event_type, description, starts_at, closed_at)
+        values (${event.id}, 'Проверка динамики', 'clan', 'Тест', ${event.date}, ${event.date})`
+      await db`insert into app.event_activity_records
+        (event_id, user_id, nickname, class_id, status, group_name, is_leader)
+        values (${event.id}, ${member.id}, ${member.nickname}, ${profile!.class_id}, ${event.status}, ${event.status === 'visited' ? 'Пати' : null}, false)`
+    }
+  })
+  await signInUi(page, member.email)
   await expectSignedIn(page)
   const dialog = await openDynamics(page)
   await expect(dialog.getByRole('checkbox', { name: 'ПА' })).toBeChecked()
@@ -61,7 +92,12 @@ test('участник видит историю характеристик и �
 test('администратор открывает динамику и видит дату вступления участника', async ({
   page,
 }) => {
-  await signInUi(page, 'seed-admin@example.test')
+  const admin = await createMember('admin')
+  await sql(
+    (db) =>
+      db`update app.profiles set joined_on = '2026-01-01' where id = ${admin.id}`,
+  )
+  await signInUi(page, admin.email)
   await expectSignedIn(page)
   const dialog = await openDynamics(page)
   await expect(dialog.getByText(/В клане с \d{2}\.\d{2}\.\d{4}/)).toBeVisible()
