@@ -16,7 +16,11 @@ import {
 } from '@/components/ui/dialog'
 import { Select } from '@/components/ui/select'
 import { formatDate } from '@/lib/format-date'
-import { AttendanceChart, StatChart } from './dynamics-chart'
+import {
+  AttendanceChart,
+  StatChart,
+  type AttendanceStatus,
+} from './dynamics-chart'
 import {
   useDynamicsAttendance,
   useDynamicsProfile,
@@ -37,6 +41,15 @@ const FIELD_MARKER_CLASSES: Record<CharacterStatNumberField, string> = {
   hp: 'bg-live',
   bd: 'bg-destructive',
 }
+const ATTENDANCE_STATUSES: {
+  value: AttendanceStatus
+  label: string
+  marker: string
+}[] = [
+  { value: 'visited', label: 'Посетил', marker: 'bg-highlight' },
+  { value: 'missed', label: 'Не посетил', marker: 'bg-destructive' },
+  { value: 'unmarked', label: 'Не отметил', marker: 'bg-muted-foreground' },
+]
 
 export function MemberDynamicsDialog({
   member,
@@ -49,6 +62,9 @@ export function MemberDynamicsDialog({
 }) {
   const [period, setPeriod] = useState<DynamicsPeriod>('all')
   const [fields, setFields] = useState<CharacterStatNumberField[]>(['pa'])
+  const [attendanceStatuses, setAttendanceStatuses] = useState<
+    AttendanceStatus[]
+  >(['visited', 'missed', 'unmarked'])
   const [tab, setTab] = useState<'stats' | 'attendance'>('stats')
   const userId = member?.id ?? ''
   const profile = useDynamicsProfile(userId, open && Boolean(member))
@@ -210,6 +226,37 @@ export function MemberDynamicsDialog({
                 ))}
               </fieldset>
             )}
+            {tab === 'attendance' && (
+              <fieldset
+                className="flex flex-wrap gap-x-2.5 gap-y-1 border-0 p-0"
+                aria-label="Статусы посещения"
+              >
+                {ATTENDANCE_STATUSES.map((status) => (
+                  <label
+                    key={status.value}
+                    className="inline-flex cursor-pointer items-center gap-1 text-xs"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`size-2 rounded-full ${status.marker}`}
+                    />
+                    <input
+                      type="checkbox"
+                      checked={attendanceStatuses.includes(status.value)}
+                      onChange={(event) =>
+                        setAttendanceStatuses((current) => {
+                          if (event.target.checked) {
+                            return [...current, status.value]
+                          }
+                          return current.filter((item) => item !== status.value)
+                        })
+                      }
+                    />
+                    {status.label}
+                  </label>
+                ))}
+              </fieldset>
+            )}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>Период</span>
               <Select
@@ -255,7 +302,11 @@ export function MemberDynamicsDialog({
               </Button>
             </div>
           ) : (
-            <AttendanceChart points={weeks} loading={attendance.isPending} />
+            <AttendanceChart
+              points={weeks}
+              loading={attendance.isPending}
+              statuses={attendanceStatuses}
+            />
           )}
         </div>
       </DialogContent>

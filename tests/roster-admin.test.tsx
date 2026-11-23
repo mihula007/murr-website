@@ -678,12 +678,29 @@ describe('roster page', () => {
     const attendance = await screen.findByRole('region', {
       name: 'Посещение ивентов по неделям',
     })
+    expect(screen.getByRole('checkbox', { name: 'Посетил' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Не посетил' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Не отметил' })).toBeChecked()
     await waitFor(() =>
       expect(attendance.querySelectorAll('circle')).toHaveLength(9),
     )
     expect(
       attendance.querySelectorAll('path[fill="none"][stroke-width="1.75"]'),
     ).toHaveLength(3)
+    const attendanceAxis = () =>
+      Array.from(
+        attendance.querySelectorAll('div.flex.flex-col.justify-between span'),
+        (label) => label.textContent,
+      )
+    expect(attendanceAxis()).toEqual(['3', '1,5', '0'])
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Не посетил' }))
+    await waitFor(() =>
+      expect(attendance.querySelectorAll('circle')).toHaveLength(6),
+    )
+    expect(
+      attendance.querySelectorAll('path[fill="none"][stroke-width="1.75"]'),
+    ).toHaveLength(2)
+    expect(attendanceAxis()).toEqual(['3', '1,5', '0'])
     fireEvent.mouseEnter(attendance.querySelector('circle')!)
     expect(screen.getByRole('status')).toHaveTextContent('посетил — 2')
     expect(

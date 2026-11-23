@@ -22,6 +22,7 @@ function numberLabel(value: number) {
 }
 
 type NumericStatPoint = DynamicsStatPoint & { value: number }
+export type AttendanceStatus = 'visited' | 'missed' | 'unmarked'
 
 function smoothPath<T extends { value: number }>(
   points: T[],
@@ -370,9 +371,11 @@ export function StatChart({
 export function AttendanceChart({
   points,
   loading,
+  statuses,
 }: {
   points: DynamicsAttendancePoint[]
   loading: boolean
+  statuses: AttendanceStatus[]
 }) {
   const [hoveredWeek, setHoveredWeek] =
     useState<DynamicsAttendancePoint | null>(null)
@@ -411,15 +414,18 @@ export function AttendanceChart({
             { at: 1, value: maxTime },
           ]
   const hoveredExists =
+    statuses.length > 0 &&
     hoveredWeek &&
     sortedPoints.some((point) => point.weekStart === hoveredWeek.weekStart)
   const statusText = hoveredExists
     ? `Неделя с ${formatDate(hoveredWeek.weekStart)}: посетил — ${hoveredWeek.visited}, не посетил — ${hoveredWeek.missed}, не отметил — ${hoveredWeek.unmarked}`
     : loading
       ? 'Загружаем посещения…'
-      : sortedPoints.length
-        ? 'Наведите на точку, чтобы увидеть итоги недели.'
-        : 'За выбранный период закрытых ивентов нет.'
+      : !statuses.length
+        ? 'Выберите статус, чтобы показать линию.'
+        : sortedPoints.length
+          ? 'Наведите на точку, чтобы увидеть итоги недели.'
+          : 'За выбранный период закрытых ивентов нет.'
   const series = [
     {
       key: 'visited',
@@ -440,6 +446,7 @@ export function AttendanceChart({
       legend: 'border-muted-foreground',
     },
   ] as const
+  const visibleSeries = series.filter((item) => statuses.includes(item.key))
 
   return (
     <section
@@ -471,7 +478,7 @@ export function AttendanceChart({
           className="h-[250px] w-full overflow-visible sm:h-[390px]"
         >
           <defs>
-            {series.map((item) => (
+            {visibleSeries.map((item) => (
               <linearGradient
                 key={item.key}
                 id={`dynamics-area-${item.key}`}
@@ -504,7 +511,7 @@ export function AttendanceChart({
             opacity=".45"
             strokeWidth="1.25"
           />
-          {series.map((item) => {
+          {visibleSeries.map((item) => {
             const values = sortedPoints.map((point) => ({
               weekStart: point.weekStart,
               value: point[item.key],
@@ -598,7 +605,7 @@ export function AttendanceChart({
         </div>
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-        {series.map((item) => (
+        {visibleSeries.map((item) => (
           <span key={item.key} className="inline-flex items-center gap-1.5">
             <span
               aria-hidden="true"
