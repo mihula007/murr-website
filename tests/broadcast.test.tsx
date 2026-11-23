@@ -139,7 +139,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
     expect(subscriptions).toBeVisible()
     expect(recipients).toBeVisible()
     expect(within(subscriptions).getByLabelText('Поиск по нику')).toBeVisible()
-    expect(within(recipients).getByLabelText('Поиск по нику')).toBeVisible()
+    expect(within(recipients).queryByLabelText('Поиск по нику')).toBeNull()
     await waitFor(() =>
       expect(callApi).toHaveBeenCalledWith('broadcasts/subscriptions', {
         cursor: null,
@@ -452,24 +452,11 @@ describe('broadcast page (BRC, E2E-07)', () => {
     ).toBeVisible()
   })
 
-  it('searches recipients on the server and asks for the next cursor page', async () => {
+  it('paginates recipients without a nickname search field', async () => {
     const requests: Array<Record<string, unknown>> = []
     routes['broadcasts/recipients'] = (body) => {
       const request = body as Record<string, unknown>
       requests.push(request)
-      if (request.search) {
-        return {
-          ...recipients(1, 0),
-          items: [
-            {
-              id: '00000000-0000-4000-8000-000000000021',
-              gameNickname: 'Найденный',
-              channels: ['telegram'],
-            },
-          ],
-          nextCursor: null,
-        }
-      }
       return {
         ...recipients(2, 0),
         items: request.cursor
@@ -503,19 +490,12 @@ describe('broadcast page (BRC, E2E-07)', () => {
     recipientScroller.scrollTop = 4_000
     fireEvent.scroll(recipientScroller)
     expect(await screen.findByText('Продолжение')).toBeVisible()
-
-    fireEvent.change(
+    expect(
       within(
         screen.getByRole('region', { name: 'Исключения получателей' }),
-      ).getByLabelText('Поиск по нику'),
-      { target: { value: 'Найденный' } },
-    )
-    expect(await screen.findByText('Найденный')).toBeVisible()
-    await waitFor(() =>
-      expect(requests).toContainEqual(
-        expect.objectContaining({ cursor: null, search: 'Найденный' }),
-      ),
-    )
+      ).queryByLabelText('Поиск по нику'),
+    ).toBeNull()
+    expect(requests.every((request) => !('search' in request))).toBe(true)
   })
 
   it('sends a standalone announcement after confirming the recipients', async () => {
