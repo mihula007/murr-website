@@ -140,7 +140,7 @@ export function StatChart({
         <svg
           viewBox="0 0 108 100"
           aria-label="Ось X — дата, ось Y — значение показателя"
-          className="h-52 w-full overflow-visible"
+          className="h-72 w-full overflow-visible sm:h-80"
         >
           {[0, 0.5, 1].map((fraction) => {
             const gridY = plot.bottom - fraction * (plot.bottom - plot.top)
@@ -217,13 +217,12 @@ export function StatChart({
                   const cx = x(point)
                   const cy =
                     point.value === null ? plot.bottom + 2 : y(point.value)
-                  const isHovered = hovered?.id === point.id
                   return (
                     <circle
                       key={point.id}
                       cx={cx}
                       cy={cy}
-                      r={isHovered ? '1.9' : '1.35'}
+                      r="1.35"
                       fill={
                         point.value === null
                           ? 'var(--background)'
@@ -319,11 +318,15 @@ export function StatChart({
           За этот период нет записей.
         </p>
       )}
-      {hovered && history.some((point) => point.id === hovered.id) && (
-        <p className="m-0 text-sm text-foreground" role="status">
-          {pointSummary(hovered)}
-        </p>
-      )}
+      <p
+        className="m-0 flex h-10 items-center truncate text-sm text-foreground"
+        role="status"
+        title={hovered ? pointSummary(hovered) : undefined}
+      >
+        {hovered && history.some((point) => point.id === hovered.id)
+          ? pointSummary(hovered)
+          : 'Наведите на точку, чтобы увидеть изменение.'}
+      </p>
     </section>
   )
 }
@@ -463,13 +466,19 @@ export function AttendanceChart({
         <span>Не посетил</span>
         <span>Без отметки</span>
       </div>
-      {hoveredWeek && (
-        <p className="m-0 text-sm text-foreground" role="status">
-          Неделя с {formatDate(hoveredWeek.weekStart)}: посетил —{' '}
-          {hoveredWeek.visited}, не посетил — {hoveredWeek.missed}, без отметки
-          — {hoveredWeek.unmarked}
-        </p>
-      )}
+      <p
+        className="m-0 flex h-10 items-center truncate text-sm text-foreground"
+        role="status"
+        title={
+          hoveredWeek
+            ? `Неделя с ${formatDate(hoveredWeek.weekStart)}: посетил — ${hoveredWeek.visited}, не посетил — ${hoveredWeek.missed}, без отметки — ${hoveredWeek.unmarked}`
+            : undefined
+        }
+      >
+        {hoveredWeek
+          ? `Неделя с ${formatDate(hoveredWeek.weekStart)}: посетил — ${hoveredWeek.visited}, не посетил — ${hoveredWeek.missed}, без отметки — ${hoveredWeek.unmarked}`
+          : 'Наведите на столбец, чтобы увидеть числа за неделю.'}
+      </p>
     </section>
   )
 }
