@@ -182,7 +182,7 @@ describe('attendance rating (ACT-14, ACT-15)', () => {
       name: 'Список рейтинга посещения',
     })
     expect(region).toHaveClass(
-      'max-h-[min(680px,calc(100svh-26rem))]',
+      'max-h-[calc(100svh-28rem)]',
       'overflow-y-auto',
     )
     expect(region).toHaveClass(

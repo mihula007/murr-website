@@ -438,8 +438,6 @@ type ScrollableVirtualListProps<T> = {
   columns?: { base: number; sm: number; lg: number }
   /** Резервирует ширину внутренней полосы прокрутки при смене содержимого. */
   stableScrollbarGutter?: boolean
-  /** Ограничивает высоту списком свободным местом окна на большом экране. */
-  maxViewportHeightOffset?: number
   gridClassName?: string
   gap?: keyof typeof GAP
 }
@@ -457,12 +455,10 @@ export function ScrollableVirtualList<T>({
   measureRows = true,
   columns: columnCounts = { base: 1, sm: 1, lg: 1 },
   stableScrollbarGutter = false,
-  maxViewportHeightOffset,
   gridClassName,
   gap = 'sm',
 }: ScrollableVirtualListProps<T>) {
   const columns = useGridColumns(columnCounts)
-  const desktop = useMediaQuery('(min-width: 901px)')
   const rowCount = Math.ceil(items.length / columns)
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null)
   // Проект не использует React Compiler; функции виртуализатора меняются
@@ -504,10 +500,7 @@ export function ScrollableVirtualList<T>({
       data-viewport-rows={viewportRows}
       style={
         {
-          '--virtual-height':
-            desktop && maxViewportHeightOffset !== undefined
-              ? `min(calc(${viewportRows} * ${estimateSize}px + ${viewportRows - 1} * ${GAP[gap]}px), max(${estimateSize}px, calc(100svh - ${maxViewportHeightOffset}px)))`
-              : `calc(${viewportRows} * ${estimateSize}px + ${viewportRows - 1} * ${GAP[gap]}px)`,
+          '--virtual-height': `calc(${viewportRows} * ${estimateSize}px + ${viewportRows - 1} * ${GAP[gap]}px)`,
         } as CSSProperties
       }
       className={cn(
