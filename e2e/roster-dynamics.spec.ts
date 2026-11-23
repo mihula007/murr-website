@@ -30,11 +30,16 @@ test('участник видит историю характеристик и �
   const dialog = await openDynamics(page)
   await expect(dialog.getByRole('checkbox', { name: 'ПА' })).toBeChecked()
   await dialog.getByRole('checkbox', { name: 'ПЗ' }).check()
-  await expect(dialog.getByRole('region', { name: 'График ПА' })).toBeVisible()
-  await expect(dialog.getByRole('region', { name: 'График ПЗ' })).toBeVisible()
+  const statChart = dialog.getByRole('region', {
+    name: 'График характеристик',
+  })
+  await expect(statChart).toBeVisible()
   await expect(
-    dialog.getByRole('region', { name: 'График ПА' }).locator('circle'),
-  ).not.toHaveCount(0)
+    dialog.getByRole('region', { name: 'График характеристик' }),
+  ).toHaveCount(1)
+  const statPoint = statChart.locator('circle').first()
+  await statPoint.hover()
+  await expect(dialog.getByRole('status')).toContainText(/ПА|ПЗ/)
   await dialog.getByRole('combobox', { name: 'Период истории' }).click()
   await page.getByRole('option', { name: '90 дней' }).click()
   await dialog.getByRole('button', { name: 'Посещение ивентов' }).click()
@@ -46,6 +51,12 @@ test('участник видит историю характеристик и �
       .getByRole('region', { name: 'Посещение ивентов по неделям' })
       .locator('g'),
   ).not.toHaveCount(0)
+  await dialog
+    .getByRole('region', { name: 'Посещение ивентов по неделям' })
+    .locator('g')
+    .first()
+    .hover()
+  await expect(dialog.getByRole('status')).toContainText('Неделя с')
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await hasHorizontalScroll(page)).toBe(false)
   await page.keyboard.press('Escape')

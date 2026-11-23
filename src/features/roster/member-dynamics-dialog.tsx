@@ -30,6 +30,13 @@ const PERIODS: { value: DynamicsPeriod; label: string }[] = [
   { value: '365', label: '365 дней' },
   { value: 'all', label: 'Всё время' },
 ]
+const FIELD_MARKER_CLASSES: Record<CharacterStatNumberField, string> = {
+  pa: 'bg-highlight',
+  pz: 'bg-foreground',
+  bu: 'bg-primary',
+  hp: 'bg-live',
+  bd: 'bg-destructive',
+}
 
 export function MemberDynamicsDialog({
   member,
@@ -49,7 +56,7 @@ export function MemberDynamicsDialog({
     userId,
     period,
     fields,
-    open && Boolean(member) && tab === 'stats',
+    open && Boolean(member) && tab === 'stats' && fields.length > 0,
   )
   const attendance = useDynamicsAttendance(
     userId,
@@ -191,6 +198,10 @@ export function MemberDynamicsDialog({
                     key={field}
                     className="inline-flex items-center gap-2 text-sm"
                   >
+                    <span
+                      aria-hidden="true"
+                      className={`size-2 rounded-full ${FIELD_MARKER_CLASSES[field]}`}
+                    />
                     <input
                       type="checkbox"
                       checked={fields.includes(field)}
@@ -199,9 +210,7 @@ export function MemberDynamicsDialog({
                           if (event.target.checked) {
                             return [...current, field]
                           }
-                          return current.length > 1
-                            ? current.filter((item) => item !== field)
-                            : current
+                          return current.filter((item) => item !== field)
                         })
                       }
                     />
@@ -209,7 +218,11 @@ export function MemberDynamicsDialog({
                   </label>
                 ))}
               </fieldset>
-              {stats.isPending ? (
+              {fields.length === 0 ? (
+                <p className="m-0 py-8 text-center text-sm text-muted-foreground">
+                  Выберите показатель, чтобы показать линию.
+                </p>
+              ) : stats.isPending ? (
                 <p className="text-sm text-muted-foreground">
                   Загружаем историю…
                 </p>
@@ -225,10 +238,8 @@ export function MemberDynamicsDialog({
                   </Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {fields.map((field) => (
-                    <StatChart key={field} field={field} points={points} />
-                  ))}
+                <div className="grid grid-cols-1 gap-3">
+                  <StatChart fields={fields} points={points} />
                 </div>
               )}
             </>

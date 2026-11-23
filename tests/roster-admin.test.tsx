@@ -611,9 +611,12 @@ describe('roster page', () => {
     expect(screen.getByRole('checkbox', { name: 'ПА' })).toBeChecked()
     fireEvent.click(screen.getByRole('checkbox', { name: 'ПЗ' }))
     expect(
-      await screen.findByRole('region', { name: 'График ПА' }),
+      await screen.findByRole('region', { name: 'График характеристик' }),
     ).toBeVisible()
-    expect(screen.getByRole('region', { name: 'График ПЗ' })).toBeVisible()
+    expect(
+      screen.getAllByRole('region', { name: 'График характеристик' }),
+    ).toHaveLength(1)
+    expect(screen.getByRole('checkbox', { name: 'ПЗ' })).toBeChecked()
     expect(
       callApi.mock.calls.some(([route]) => route === 'roster/dynamics/profile'),
     ).toBe(true)
