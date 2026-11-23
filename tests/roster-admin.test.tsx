@@ -179,6 +179,26 @@ const cards = () =>
   )
 
 describe('roster page', () => {
+  it('caps the desktop roster list to the available window height', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: /min-width: (?:901px|64rem|40rem)/.test(query),
+      addEventListener: vi.fn<(event: string, listener: () => void) => void>(),
+      removeEventListener:
+        vi.fn<(event: string, listener: () => void) => void>(),
+    }))
+    try {
+      await renderApp({ role: 'member', path: '/roster' })
+      const list = await screen.findByRole('region', {
+        name: 'Прокручиваемый список: Участники',
+      })
+      expect(list.style.getPropertyValue('--virtual-height')).toBe(
+        'min(calc(4 * 150px + 3 * 12px), max(150px, calc(100svh - 512px)))',
+      )
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('uses one permanent illustration for each of the 17 classes', () => {
     const backgrounds = Array.from({ length: 17 }, (_, index) =>
       rosterBackgroundForClass(index + 1),

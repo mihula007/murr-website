@@ -144,6 +144,7 @@ export function RatingPage() {
       <PageHeader
         title="Рейтинг посещения"
         description="Посещения, пропуски и пати-лидерство участников клана."
+        className="-mt-6 mb-3 max-[900px]:mt-0 max-[900px]:mb-6"
       />
       {content}
     </section>

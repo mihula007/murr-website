@@ -192,7 +192,7 @@ export function DataTable<T extends RowData>({
   return scrollable ? (
     <section
       aria-label="Список рейтинга посещения"
-      className="max-h-[680px] overflow-y-auto [scrollbar-gutter:stable] max-[900px]:max-h-none max-[900px]:overflow-visible"
+      className="max-h-[min(680px,calc(100svh-26rem))] overflow-y-auto [scrollbar-gutter:stable] max-[900px]:max-h-none max-[900px]:overflow-visible"
     >
       {renderedTable}
     </section>

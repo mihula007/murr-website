@@ -181,7 +181,10 @@ describe('attendance rating (ACT-14, ACT-15)', () => {
     const region = await screen.findByRole('region', {
       name: 'Список рейтинга посещения',
     })
-    expect(region).toHaveClass('max-h-[680px]', 'overflow-y-auto')
+    expect(region).toHaveClass(
+      'max-h-[min(680px,calc(100svh-26rem))]',
+      'overflow-y-auto',
+    )
     expect(region).toHaveClass(
       'max-[900px]:max-h-none',
       'max-[900px]:overflow-visible',

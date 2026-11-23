@@ -367,6 +367,7 @@ function MembersList({
       label="Участники"
       estimateSize={150}
       viewportRows={4}
+      maxViewportHeightOffset={512}
       columns={columns}
       stableScrollbarGutter
       gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 px-3"
@@ -452,6 +453,7 @@ export function RosterPage({
       <PageHeader
         title="Состав"
         description="Текущие участники клана: члены, офицеры, мастера и администраторы."
+        className="-mt-6 mb-3 max-[900px]:mt-0 max-[900px]:mb-6"
       />
       {canRestore ? (
         <Tabs
