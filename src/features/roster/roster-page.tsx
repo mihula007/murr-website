@@ -116,7 +116,7 @@ function StatsPanel({
               className={cn(
                 'inline-flex items-center gap-2 rounded-full border border-border bg-surface-inset py-1 pr-2.5 pl-1 text-left text-sm transition-colors hover:border-border-accent focus-visible:ring-2 focus-visible:ring-border-accent',
                 selectedClassIds.includes(item.classId) &&
-                  'border-border-accent ring-1 ring-border-accent text-highlight',
+                  'border-highlight bg-highlight text-background shadow-sm',
               )}
             >
               <ClassIcon
@@ -222,7 +222,7 @@ function MemberCard({
           src={member.avatarUrl}
           alt=""
         />
-        <div className="grid min-w-0 flex-1 gap-1">
+        <div className="grid min-h-14 min-w-0 content-between gap-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <h3 className="text-xl leading-tight font-bold break-words">
               {member.gameNickname}
@@ -370,6 +370,7 @@ function MembersList({
       estimateSize={150}
       viewportRows={4}
       columns={columns}
+      stableScrollbarGutter
       gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 px-3"
       paging={paging}
       gap="md"
@@ -414,7 +415,12 @@ export function RosterPage({
     [selectedClassIds],
   )
   const go = (nextSearch: RosterSearch) =>
-    void navigate({ to: '/roster', search: nextSearch, replace: true })
+    void navigate({
+      to: '/roster',
+      search: nextSearch,
+      replace: true,
+      resetScroll: false,
+    })
 
   const toggleClass = (nextClassId: number) => {
     const next = selectedClassIds.includes(nextClassId)

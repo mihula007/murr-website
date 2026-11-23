@@ -436,6 +436,8 @@ type ScrollableVirtualListProps<T> = {
   measureRows?: boolean
   /** Число карточек в CSS-сетке на малом, среднем и большом экране. */
   columns?: { base: number; sm: number; lg: number }
+  /** Резервирует ширину внутренней полосы прокрутки при смене содержимого. */
+  stableScrollbarGutter?: boolean
   gridClassName?: string
   gap?: keyof typeof GAP
 }
@@ -452,6 +454,7 @@ export function ScrollableVirtualList<T>({
   autoLoadMore = true,
   measureRows = true,
   columns: columnCounts = { base: 1, sm: 1, lg: 1 },
+  stableScrollbarGutter = false,
   gridClassName,
   gap = 'sm',
 }: ScrollableVirtualListProps<T>) {
@@ -500,7 +503,10 @@ export function ScrollableVirtualList<T>({
           '--virtual-height': `calc(${viewportRows} * ${estimateSize}px + ${viewportRows - 1} * ${GAP[gap]}px)`,
         } as CSSProperties
       }
-      className="max-h-(--virtual-height) [overflow-anchor:none] overflow-y-auto overscroll-contain rounded-lg"
+      className={cn(
+        'max-h-(--virtual-height) [overflow-anchor:none] overflow-y-auto overscroll-contain rounded-lg',
+        stableScrollbarGutter && '[scrollbar-gutter:stable]',
+      )}
     >
       <ul
         aria-label={label}

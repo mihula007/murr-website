@@ -223,8 +223,12 @@ describe('roster page', () => {
     const mage = within(stats).getByRole('button', {
       name: 'Фильтр по классу Маг',
     })
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
     fireEvent.click(mage)
     await waitFor(() => expect(mage).toHaveAttribute('aria-pressed', 'true'))
+    expect(mage.className).toMatch(/bg-highlight/)
+    expect(werewolf.className).not.toMatch(/bg-highlight/)
+    expect(scrollTo).not.toHaveBeenCalled()
     fireEvent.click(werewolf)
     await waitFor(() =>
       expect(werewolf).toHaveAttribute('aria-pressed', 'true'),
