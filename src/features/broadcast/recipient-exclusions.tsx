@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type {
   BroadcastRecipientOption,
   BroadcastRecipientsResponse,
@@ -9,7 +9,6 @@ import { FormField } from '@/components/form/form-field'
 import { EmptyState } from '@/components/states/empty-state'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
-import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { pagingOf, ScrollableVirtualList } from '@/components/virtual-list'
 import { cn } from '@/lib/utils'
@@ -19,15 +18,6 @@ import { useBroadcastRecipientOptions } from './api'
 export type ExcludedRecipient = {
   id: string
   channels: SendableChannel[]
-}
-
-function useDebounced(value: string, delay: number) {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-  return debounced
 }
 
 function RecipientRow({
@@ -109,12 +99,9 @@ export function RecipientExclusions({
   excludedRecipients: ExcludedRecipient[]
   onChange: (value: ExcludedRecipient[]) => void
 }) {
-  const [search, setSearch] = useState('')
   const [classId, setClassId] = useState<number | null>(null)
-  const debouncedSearch = useDebounced(search, 350)
   const classes = useClasses()
   const recipients = useBroadcastRecipientOptions(
-    debouncedSearch.trim(),
     selectedChannels,
     classId,
     groupId,
@@ -158,12 +145,7 @@ export function RecipientExclusions({
   } else if (recipients.isError) {
     content = <ErrorState onRetry={() => void recipients.refetch()} />
   } else if (items.length === 0) {
-    content = search.trim() ? (
-      <EmptyState
-        title="Участника не нашли"
-        description="Проверьте ник и попробуйте ещё раз."
-      />
-    ) : (
+    content = (
       <EmptyState
         title="Подходящих получателей нет"
         description="Сейчас никто не может получить объявление в выбранные мессенджеры."
@@ -172,11 +154,12 @@ export function RecipientExclusions({
   } else {
     content = (
       <ScrollableVirtualList
-        key={`${classId ?? 'all'}:${debouncedSearch}:${selectedChannels.join(',')}`}
+        key={`${classId ?? 'all'}:${selectedChannels.join(',')}`}
         label="Получатели объявления"
         items={items}
         getKey={(member) => member.id}
         estimateSize={64}
+        endPadding={64}
         viewportRows={15}
         autoLoadMore={false}
         measureRows={false}
@@ -205,16 +188,6 @@ export function RecipientExclusions({
           отправлять человеку это объявление ни в один выбранный мессенджер.
         </p>
       </div>
-      <FormField id="broadcast-recipient-search" label="Поиск по нику">
-        <Input
-          id="broadcast-recipient-search"
-          type="search"
-          value={search}
-          maxLength={100}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Введите ник"
-        />
-      </FormField>
       <FormField id="broadcast-recipient-class" label="Класс получателя">
         <Select
           id="broadcast-recipient-class"

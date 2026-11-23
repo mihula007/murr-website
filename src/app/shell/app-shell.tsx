@@ -15,6 +15,7 @@ export function AppShell({ children }: PropsWithChildren) {
   })
   const showcase = isShowcase(pathname)
   const wideEventPage = /^\/events\/[^/]+$/.test(pathname)
+  const wideBroadcastPage = pathname === '/broadcast'
   return (
     <div className="relative isolate flex min-h-svh flex-col">
       {/* Фон под шапкой: высота картинки — 55vw (110% ширины, пропорции 2:1),
@@ -52,7 +53,7 @@ export function AppShell({ children }: PropsWithChildren) {
         tabIndex={-1}
         className={cn(
           'mx-auto w-full min-w-0 flex-1 px-[22px] py-14 outline-none max-sm:px-[14px] max-sm:py-9',
-          wideEventPage
+          wideEventPage || wideBroadcastPage
             ? 'max-w-none px-[clamp(14px,3vw,56px)]'
             : 'max-w-[1240px]',
         )}

@@ -54,7 +54,6 @@ export function useBroadcastSubscriptions(
 
 /** Cursor pages of people who can receive the current announcement (BRC-16). */
 export function useBroadcastRecipientOptions(
-  search: string,
   channels: SendableChannel[],
   classId: number | null,
   groupId: string | null,
@@ -68,7 +67,6 @@ export function useBroadcastRecipientOptions(
       classId,
       groupId,
       eventId,
-      search,
     ],
     queryFn: ({ pageParam }) =>
       callApi<BroadcastRecipientsResponse>('broadcasts/recipients', {
@@ -77,7 +75,6 @@ export function useBroadcastRecipientOptions(
         ...(classId !== null ? { classId } : {}),
         ...(groupId ? { groupId } : {}),
         ...(eventId ? { eventId } : {}),
-        ...(search ? { search } : {}),
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,

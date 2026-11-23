@@ -434,6 +434,8 @@ type ScrollableVirtualListProps<T> = {
   autoLoadMore?: boolean
   /** Измерять ли высоту строк при появлении в прокручиваемом списке. */
   measureRows?: boolean
+  /** Запас после последней строки, чтобы она не упиралась в край прокрутки. */
+  endPadding?: number
   /** Число карточек в CSS-сетке на малом, среднем и большом экране. */
   columns?: { base: number; sm: number; lg: number }
   /** Резервирует ширину внутренней полосы прокрутки при смене содержимого. */
@@ -453,6 +455,7 @@ export function ScrollableVirtualList<T>({
   viewportRows,
   autoLoadMore = true,
   measureRows = true,
+  endPadding = 0,
   columns: columnCounts = { base: 1, sm: 1, lg: 1 },
   stableScrollbarGutter = false,
   gridClassName,
@@ -469,6 +472,7 @@ export function ScrollableVirtualList<T>({
     getScrollElement: () => scrollElement,
     estimateSize: () => estimateSize,
     gap: GAP[gap],
+    paddingEnd: endPadding,
     overscan: 4,
     getItemKey: (index) => {
       const item = items[index * columns]
@@ -494,53 +498,57 @@ export function ScrollableVirtualList<T>({
   }, [autoLoadMore, reachedEnd, hasMore, loadingMore, loadError, onLoadMore])
 
   return (
-    <section
-      ref={setScrollElement}
-      aria-label={`Прокручиваемый список: ${label}`}
-      data-viewport-rows={viewportRows}
-      style={
-        {
-          '--virtual-height': `calc(${viewportRows} * ${estimateSize}px + ${viewportRows - 1} * ${GAP[gap]}px)`,
-        } as CSSProperties
-      }
-      className={cn(
-        'max-h-(--virtual-height) [overflow-anchor:none] overflow-y-auto overscroll-contain rounded-lg',
-        stableScrollbarGutter && '[scrollbar-gutter:stable]',
-      )}
-    >
-      <ul
-        aria-label={label}
+    <div>
+      <section
+        ref={setScrollElement}
+        aria-label={`Прокручиваемый список: ${label}`}
+        data-viewport-rows={viewportRows}
         style={
           {
-            '--virtual-before': `${before}px`,
-            '--virtual-after': `${after}px`,
+            '--virtual-height': `calc(${viewportRows} * ${estimateSize}px + ${viewportRows - 1} * ${GAP[gap]}px)`,
           } as CSSProperties
         }
         className={cn(
-          'm-0 grid list-none px-0 pt-(--virtual-before) pb-(--virtual-after)',
-          gapClass[gap],
-          gridClassName,
+          'max-h-(--virtual-height) [overflow-anchor:none] overflow-y-auto overscroll-contain rounded-lg',
+          stableScrollbarGutter && '[scrollbar-gutter:stable]',
         )}
       >
-        {virtualItems.flatMap((row) =>
-          itemsInVirtualRow(items, row.index, columns).map((item, position) => (
-            <li
-              key={getKey(item)}
-              data-index={position === 0 ? row.index : undefined}
-              ref={
-                position === 0 && measureRows
-                  ? virtualizer.measureElement
-                  : undefined
-              }
-              className="min-w-0"
-            >
-              {renderItem(item)}
-            </li>
-          )),
-        )}
-      </ul>
+        <ul
+          aria-label={label}
+          style={
+            {
+              '--virtual-before': `${before}px`,
+              '--virtual-after': `${after}px`,
+            } as CSSProperties
+          }
+          className={cn(
+            'm-0 grid list-none px-0 pt-(--virtual-before) pb-(--virtual-after)',
+            gapClass[gap],
+            gridClassName,
+          )}
+        >
+          {virtualItems.flatMap((row) =>
+            itemsInVirtualRow(items, row.index, columns).map(
+              (item, position) => (
+                <li
+                  key={getKey(item)}
+                  data-index={position === 0 ? row.index : undefined}
+                  ref={
+                    position === 0 && measureRows
+                      ? virtualizer.measureElement
+                      : undefined
+                  }
+                  className="min-w-0"
+                >
+                  {renderItem(item)}
+                </li>
+              ),
+            ),
+          )}
+        </ul>
+      </section>
       <LoadMore paging={paging} />
-    </section>
+    </div>
   )
 }
 
