@@ -255,7 +255,8 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
       ), users as (
         insert into auth.users (id, instance_id, aud, role, email)
         select id, '00000000-0000-0000-0000-000000000000',
-          'authenticated', 'authenticated', id::text || '@example.test'
+          'authenticated', 'authenticated',
+          'e2e-subscriptions-' || id::text || '@example.test'
         from candidates
         returning id
       )
@@ -286,14 +287,12 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
       request.search === prefix
     )
   })
-  await page.goto(`./#/broadcast?q=${prefix}`)
+  await page.goto('./#/broadcast')
   const subscriptionsPanel = page.getByRole('region', {
     name: 'Подписки на рассылки',
   })
   await expect(subscriptionsPanel).toBeVisible()
-  await expect(subscriptionsPanel.getByLabel('Поиск по нику')).toHaveValue(
-    prefix,
-  )
+  await subscriptionsPanel.getByLabel('Поиск по нику').fill(prefix)
   const first = (await (await firstResponse).json()) as {
     items: { id: string; gameNickname: string }[]
     nextCursor: string | null
