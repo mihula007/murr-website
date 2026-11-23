@@ -70,11 +70,16 @@ async function cardPage(
   roles: readonly string[],
   cursor: string | null,
   limit: number,
-  options: { classId?: number | undefined; search?: string | undefined } = {},
+  options: {
+    classId?: number | undefined
+    classIds?: number[] | undefined
+    search?: string | undefined
+  } = {},
 ) {
   const rows = await rosterRepository.listByRoles(deps.db, {
     roles,
     classId: options.classId ?? null,
+    classIds: options.classIds,
     search: options.search,
     after: cursor ? decodeCursor(nicknameCursor, cursor) : null,
     limit: limit + 1,
@@ -113,11 +118,15 @@ export async function listRosterPage(
   body: unknown,
 ): Promise<RosterPageResponse> {
   requireRole(actor, INTERNAL_ROLES)
-  const { cursor, classId, search } = parseBody(
+  const { cursor, classId, classIds, search } = parseBody(
     rosterPageRequestSchema,
     body ?? {},
   )
-  return cardPage(deps, INTERNAL_ROLES, cursor, 24, { classId, search })
+  return cardPage(deps, INTERNAL_ROLES, cursor, 24, {
+    classId,
+    classIds,
+    search,
+  })
 }
 
 /** Страница чтецов для офицера и администратора (ACL-06, ADM-09). */

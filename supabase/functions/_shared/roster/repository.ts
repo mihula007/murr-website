@@ -8,6 +8,7 @@ export type NicknameKey = { gameNickname: string; id: string }
 export type CardPageOptions = {
   roles: readonly string[]
   classId: number | null
+  classIds?: number[] | undefined
   search?: string | undefined
   after: NicknameKey | null
   limit: number
@@ -51,7 +52,9 @@ export const rosterRepository = {
         'p.bd',
       ])
       .where('p.access_role', 'in', options.roles)
-    if (options.classId !== null) {
+    if (options.classIds !== undefined && options.classIds.length > 0) {
+      query = query.where('p.class_id', 'in', options.classIds)
+    } else if (options.classIds === undefined && options.classId !== null) {
       query = query.where('p.class_id', '=', options.classId)
     }
     if (options.search) {

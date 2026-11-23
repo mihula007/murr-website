@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { ChartNoAxesCombined, MoreHorizontal, UserRoundX } from 'lucide-react'
 import { z } from 'zod'
@@ -22,7 +22,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
 import { Badge, tileClass } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
@@ -45,7 +44,6 @@ import { formatCharacterStat } from './character-stats'
 import { ReadersPanel } from './readers-panel'
 import { MemberDynamicsDialog } from './member-dynamics-dialog'
 
-const ALL = 'all'
 const MASTER_ROLE_CHOICES = {
   member: ['officer', 'reader'],
   officer: ['member', 'reader'],
@@ -68,6 +66,11 @@ function masterRoleChoices(
  */
 export const rosterSearchSchema = z.object({
   classId: z.number().int().positive().optional().catch(undefined),
+  classIds: z
+    .array(z.number().int().positive())
+    .max(17)
+    .optional()
+    .catch(undefined),
   search: z.string().trim().max(100).catch(''),
   view: z.enum(['members', 'readers']).catch('members'),
 })
@@ -111,11 +114,16 @@ function RosterSearchInput({
   )
 }
 
-/**
- * Общая численность и распределение по классам (ROS-05). Как в прототипе,
- * показываются только классы с участниками; фильтр предлагает весь справочник.
- */
-function StatsPanel({ roster }: { roster: RosterStatsResponse }) {
+/** Общая численность и распределение по классам; значки служат фильтрами. */
+function StatsPanel({
+  roster,
+  selectedClassIds,
+  onToggleClass,
+}: {
+  roster: RosterStatsResponse
+  selectedClassIds: number[]
+  onToggleClass: (classId: number) => void
+}) {
   return (
     <section
       aria-labelledby="roster-stats-title"
@@ -141,12 +149,18 @@ function StatsPanel({ roster }: { roster: RosterStatsResponse }) {
         aria-label="По классам"
         className="m-0 flex max-h-[112px] list-none flex-wrap gap-[7px] overflow-auto p-0 pr-1 max-sm:max-h-none max-sm:overflow-visible max-sm:pr-0"
       >
-        {roster.classes
-          .filter((item) => item.count > 0)
-          .map((item) => (
-            <li
-              key={item.classId}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-inset py-0.5 pr-2 pl-0.5 text-xs max-sm:text-2xs"
+        {roster.classes.map((item) => (
+          <li key={item.classId} className="list-none">
+            <button
+              type="button"
+              aria-label={`Фильтр по классу ${item.className}`}
+              aria-pressed={selectedClassIds.includes(item.classId)}
+              onClick={() => onToggleClass(item.classId)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-inset py-0.5 pr-2 pl-0.5 text-left text-xs transition-colors hover:border-border-accent focus-visible:ring-2 focus-visible:ring-border-accent max-sm:text-2xs',
+                selectedClassIds.includes(item.classId) &&
+                  'border-border-accent ring-1 ring-border-accent text-highlight',
+              )}
             >
               <ClassIcon
                 classId={item.classId}
@@ -157,8 +171,9 @@ function StatsPanel({ roster }: { roster: RosterStatsResponse }) {
               <b className="inline-grid h-[19px] min-w-[19px] place-items-center rounded-full bg-linear-135/srgb from-button-primary-from to-button-primary-to px-1 text-2xs text-primary-foreground">
                 {item.count}
               </b>
-            </li>
-          ))}
+            </button>
+          </li>
+        ))}
       </ul>
     </section>
   )
@@ -307,7 +322,7 @@ function MemberCard({
 }
 
 function MembersList({
-  classId,
+  classIds,
   search,
   canAssignReader,
   canManageRoles,
@@ -316,7 +331,7 @@ function MembersList({
   onChangeRole,
   onDynamics,
 }: {
-  classId: number | null
+  classIds: number[]
   search: string
   canAssignReader: boolean
   canManageRoles: boolean
@@ -328,7 +343,7 @@ function MembersList({
   const columns = { base: 1, sm: 2, lg: 3 }
   const activeColumns = useGridColumns(columns)
   const roster = useRosterPages({
-    ...(classId === null ? {} : { classId }),
+    classIds,
     search,
   })
   if (roster.isPending) {
@@ -341,12 +356,12 @@ function MembersList({
   const members = roster.data.pages.flatMap((page) => page.items)
   if (members.length === 0) {
     let description = 'В составе пока нет участников.'
-    if (needle && classId !== null) {
-      description = 'Никто не подходит под поиск и класс.'
+    if (needle && classIds.length > 0) {
+      description = 'Никто не подходит под поиск и выбранные классы.'
     } else if (needle) {
       description = 'Никто не подходит под поиск.'
-    } else if (classId !== null) {
-      description = 'В составе нет участников этого класса.'
+    } else if (classIds.length > 0) {
+      description = 'В составе нет участников выбранных классов.'
     }
     return <EmptyState title="Никого нет" description={description} />
   }
@@ -375,7 +390,7 @@ function MembersList({
   const paging = pagingOf(roster)
   return activeColumns === 1 ? (
     <VirtualList
-      key={`${classId ?? 'all'}:${search}`}
+      key={`${classIds.join(',') || 'all'}:${search}`}
       items={members}
       getKey={(member) => member.id}
       renderItem={renderMember}
@@ -388,7 +403,7 @@ function MembersList({
     />
   ) : (
     <ScrollableVirtualList
-      key={`${classId ?? 'all'}:${search}`}
+      key={`${classIds.join(',') || 'all'}:${search}`}
       items={members}
       getKey={(member) => member.id}
       renderItem={renderMember}
@@ -406,6 +421,7 @@ function MembersList({
 /** Состав клана для внутренних ролей (ROS-01–09, ACL-09). */
 export function RosterPage({
   classId,
+  classIds,
   search: searchParam = '',
   view = 'members',
 }: Partial<RosterSearch>) {
@@ -426,18 +442,43 @@ export function RosterPage({
   const canManageRoles = role === 'master'
   const canRestore = hasOfficerPermission('roster.reader_roles')
   const showReaders = canRestore && view === 'readers'
+  const selectedClassIds = useMemo(
+    () =>
+      [...new Set(classIds ?? (classId === undefined ? [] : [classId]))].sort(
+        (a, b) => a - b,
+      ),
+    [classId, classIds],
+  )
+  const classFilterSearch = useMemo(
+    () => ({
+      ...(selectedClassIds.length > 0 ? { classIds: selectedClassIds } : {}),
+      search: searchParam,
+    }),
+    [searchParam, selectedClassIds],
+  )
   const go = (nextSearch: RosterSearch) =>
     void navigate({ to: '/roster', search: nextSearch, replace: true })
+
+  const toggleClass = (nextClassId: number) => {
+    const next = selectedClassIds.includes(nextClassId)
+      ? selectedClassIds.filter((id) => id !== nextClassId)
+      : [...selectedClassIds, nextClassId].sort((a, b) => a - b)
+    go({
+      view: 'members',
+      ...(next.length > 0 ? { classIds: next } : {}),
+      search: searchParam,
+    })
+  }
 
   const commitSearch = useCallback(
     (value: string) => {
       void navigate({
         to: '/roster',
-        search: { classId, search: value, view },
+        search: { ...classFilterSearch, search: value, view },
         replace: true,
       })
     },
-    [classId, navigate, view],
+    [classFilterSearch, navigate, view],
   )
 
   let filters
@@ -447,7 +488,7 @@ export function RosterPage({
     filters = <ErrorState onRetry={() => void stats.refetch()} />
   } else {
     filters = (
-      <div className="mb-[18px] grid grid-cols-[minmax(260px,.68fr)_minmax(0,1.32fr)] items-end gap-6 max-[900px]:grid-cols-1 max-[900px]:gap-3.5">
+      <div className="mb-[18px] grid grid-cols-[minmax(260px,.68fr)_minmax(0,1.32fr)] items-start gap-6 max-[900px]:grid-cols-1 max-[900px]:gap-3.5">
         <div className="grid gap-3">
           <div className="grid gap-2">
             <label
@@ -462,34 +503,12 @@ export function RosterPage({
               onCommit={commitSearch}
             />
           </div>
-          <div className="grid gap-2">
-            <label
-              htmlFor="roster-class"
-              className="text-sm text-muted-foreground"
-            >
-              Класс
-            </label>
-            <Select
-              id="roster-class"
-              value={classId === undefined ? ALL : String(classId)}
-              onValueChange={(value) =>
-                go({
-                  view: 'members',
-                  classId: value === ALL ? undefined : Number(value),
-                  search: searchParam,
-                })
-              }
-              options={[
-                { value: ALL, label: 'Все классы' },
-                ...stats.data.classes.map((item) => ({
-                  value: String(item.classId),
-                  label: item.className,
-                })),
-              ]}
-            />
-          </div>
         </div>
-        <StatsPanel roster={stats.data} />
+        <StatsPanel
+          roster={stats.data}
+          selectedClassIds={selectedClassIds}
+          onToggleClass={toggleClass}
+        />
       </div>
     )
   }
@@ -506,8 +525,7 @@ export function RosterPage({
           onValueChange={(value) =>
             go({
               view: value === 'readers' ? 'readers' : 'members',
-              classId,
-              search: searchParam,
+              ...classFilterSearch,
             })
           }
         >
@@ -528,7 +546,7 @@ export function RosterPage({
         <>
           {filters}
           <MembersList
-            classId={classId ?? null}
+            classIds={selectedClassIds}
             search={searchParam}
             canAssignReader={canRestore && !canManageRoles}
             canManageRoles={canManageRoles}

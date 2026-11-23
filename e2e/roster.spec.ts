@@ -47,6 +47,12 @@ test('неограниченный состав ищет по серверу и 
 }) => {
   const prefix = `R${Date.now().toString(36).slice(-3)}`
   const created = await seedMembers(26, prefix)
+  const excluded = await createMember('member')
+  excluded.nickname = `${prefix}Excluded`
+  await sql(
+    (db) =>
+      db`update app.profiles set game_nickname = ${excluded.nickname}, class_id = 8 where id = ${excluded.id}`,
+  )
   const lastNickname = created
     .map((row) => row.nickname)
     .sort()
@@ -64,9 +70,16 @@ test('неограниченный состав ищет по серверу и 
   await expectSignedIn(page)
   await page.goto('./#/roster')
   await page.getByLabel('Поиск', { exact: true }).fill(prefix)
-  const classFilter = page.getByRole('combobox', { name: 'Класс' })
-  await classFilter.click()
-  await page.getByRole('option', { name: 'Оборотень' }).click()
+  const werewolfFilter = page.getByRole('button', {
+    name: 'Фильтр по классу Оборотень',
+  })
+  const mageFilter = page.getByRole('button', {
+    name: 'Фильтр по классу Маг',
+  })
+  await werewolfFilter.click()
+  await mageFilter.click()
+  await expect(werewolfFilter).toHaveAttribute('aria-pressed', 'true')
+  await expect(mageFilter).toHaveAttribute('aria-pressed', 'true')
 
   const desktopList = page.getByRole('region', {
     name: 'Прокручиваемый список: Участники',
@@ -78,7 +91,9 @@ test('неограниченный состав ищет по серверу и 
       requests.some(
         (request) =>
           request.search === prefix &&
-          request.classId === 1 &&
+          Array.isArray(request.classIds) &&
+          request.classIds.includes(1) &&
+          request.classIds.includes(7) &&
           request.cursor === null,
       ),
     )
@@ -96,20 +111,48 @@ test('неограниченный состав ищет по серверу и 
   await expect(
     desktopCards.getByRole('heading', { name: lastNickname }),
   ).toBeVisible()
+  await expect(
+    desktopCards.getByRole('heading', { name: excluded.nickname }),
+  ).toHaveCount(0)
   expect(await hasHorizontalScroll(page)).toBe(false)
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.reload()
   await expect(page.getByLabel('Поиск', { exact: true })).toHaveValue(prefix)
-  await expect(page.getByRole('combobox', { name: 'Класс' })).toContainText(
-    'Оборотень',
-  )
+  await expect(
+    page.getByRole('button', { name: 'Фильтр по классу Оборотень' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await expect(
+    page.getByRole('button', { name: 'Фильтр по классу Маг' }),
+  ).toHaveAttribute('aria-pressed', 'true')
   await expect(
     page.getByRole('region', { name: 'Прокручиваемый список: Участники' }),
   ).toHaveCount(0)
   await scrollUntilVisible(
     page,
     page.getByRole('heading', { name: lastNickname }),
+  )
+  await page.getByRole('button', { name: 'Фильтр по классу Оборотень' }).click()
+  await expect(
+    page.getByRole('button', { name: 'Фильтр по классу Оборотень' }),
+  ).toHaveAttribute('aria-pressed', 'false')
+  await page.getByRole('button', { name: 'Фильтр по классу Маг' }).click()
+  await expect(
+    page.getByRole('button', { name: 'Фильтр по классу Маг' }),
+  ).toHaveAttribute('aria-pressed', 'false')
+  await expect
+    .poll(() =>
+      requests.some(
+        (request) =>
+          request.search === prefix &&
+          request.classIds === undefined &&
+          request.cursor === null,
+      ),
+    )
+    .toBe(true)
+  await scrollUntilVisible(
+    page,
+    page.getByRole('heading', { name: excluded.nickname }),
   )
   expect(await hasHorizontalScroll(page)).toBe(false)
 })

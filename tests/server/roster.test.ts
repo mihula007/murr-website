@@ -259,6 +259,33 @@ describe('roster/page', () => {
     expect(literalPercent.items.map((item) => item.id)).toEqual([wildcard.id])
   })
 
+  it('filters by multiple classes and intersects them with the search', async () => {
+    const { actor, user } = await roleActor('member')
+    await setProfile(user.id, { class_id: 17 })
+    const wolf = await createProfiledUser(db, 'member')
+    const mage = await createProfiledUser(db, 'member')
+    const warrior = await createProfiledUser(db, 'member')
+    await setProfile(wolf.id, { game_nickname: 'Wolf1', class_id: 1 })
+    await setProfile(mage.id, { game_nickname: 'Mage1', class_id: 7 })
+    await setProfile(warrior.id, { game_nickname: 'Warrior1', class_id: 8 })
+
+    const selected = await listRosterPage(deps, actor, { classIds: [1, 7] })
+    expect(selected.items.map((item) => item.id).sort()).toEqual(
+      [wolf.id, mage.id].sort(),
+    )
+
+    const searched = await listRosterPage(deps, actor, {
+      classIds: [1, 7],
+      search: 'mage',
+    })
+    expect(searched.items.map((item) => item.id)).toEqual([mage.id])
+
+    const all = await listRosterPage(deps, actor, { classIds: [] })
+    expect(all.items.map((item) => item.id)).toEqual(
+      expect.arrayContaining([wolf.id, mage.id, warrior.id]),
+    )
+  })
+
   it('rejects invalid cursors, classes, and search strings longer than 100 characters', async () => {
     const { actor } = await roleActor('member')
     await rejects(

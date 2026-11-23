@@ -82,12 +82,20 @@ function rosterPageResponse(
   nextCursor: string | null = null,
 ) {
   return (body: unknown) => {
-    const request = body as { classId?: number; search?: string }
+    const request = body as {
+      classId?: number
+      classIds?: number[]
+      search?: string
+    }
     const needle = request.search?.toLowerCase() ?? ''
     return {
       items: members.filter(
         (item) =>
-          (request.classId === undefined || item.classId === request.classId) &&
+          (request.classIds !== undefined
+            ? request.classIds.length === 0 ||
+              request.classIds.includes(item.classId)
+            : request.classId === undefined ||
+              item.classId === request.classId) &&
           (!needle ||
             item.gameNickname.toLowerCase().includes(needle) ||
             item.className.toLowerCase().includes(needle)),
@@ -209,34 +217,120 @@ describe('roster page', () => {
     sessionUserId.current = null
   })
 
-  it('shows the stats panel for the whole roster and filters cards by class', async () => {
+  it('filters cards by multiple stat chips and keeps whole-roster statistics', async () => {
     await renderApp({ role: 'member', path: '/roster' })
     expect(await screen.findByRole('heading', { name: 'Альфа' })).toBeVisible()
     const stats = screen.getByRole('list', { name: 'По классам' })
-    // Классы без участников в панели не показываются, но есть в фильтре.
-    expect(within(stats).getAllByRole('listitem')).toHaveLength(2)
-    expect(within(stats).queryByText('Воин')).toBeNull()
+    expect(within(stats).getAllByRole('listitem')).toHaveLength(3)
     expect(cards()).toHaveLength(3)
 
-    chooseOption(screen.getByRole('combobox', { name: 'Класс' }), 'Маг')
+    const werewolf = within(stats).getByRole('button', {
+      name: 'Фильтр по классу Оборотень',
+    })
+    const mage = within(stats).getByRole('button', {
+      name: 'Фильтр по классу Маг',
+    })
+    fireEvent.click(mage)
+    await waitFor(() => expect(mage).toHaveAttribute('aria-pressed', 'true'))
+    fireEvent.click(werewolf)
     await waitFor(() =>
-      expect(cards().map((card) => card.textContent)).toEqual([
-        expect.stringContaining('Бета'),
-        expect.stringContaining('Гамма'),
-      ]),
+      expect(werewolf).toHaveAttribute('aria-pressed', 'true'),
     )
-    await waitFor(() => expect(rosterCalls()).toBeGreaterThan(1))
+    await waitFor(() => expect(cards()).toHaveLength(3))
+    expect(mage).toHaveAttribute('aria-pressed', 'true')
+    expect(werewolf).toHaveAttribute('aria-pressed', 'true')
     expect(callApi).toHaveBeenCalledWith(
       'roster/page',
-      expect.objectContaining({ classId: 7 }),
+      expect.objectContaining({ classIds: [1, 7] }),
     )
-    // Статистика не зависит от фильтра.
     expect(screen.getByText('3')).toBeVisible()
 
-    chooseOption(screen.getByRole('combobox', { name: 'Класс' }), 'Воин')
+    await fireEvent.click(mage)
+    await waitFor(() => expect(cards()).toHaveLength(1))
+    expect(cards()[0]?.textContent).toContain('Альфа')
+
+    await fireEvent.click(werewolf)
+    await waitFor(() => expect(cards()).toHaveLength(3))
+    expect(werewolf).toHaveAttribute('aria-pressed', 'false')
+    expect(callApi).toHaveBeenCalledWith('roster/page', {
+      cursor: null,
+      search: '',
+    })
+
+    const warrior = within(stats).getByRole('button', {
+      name: 'Фильтр по классу Воин',
+    })
+    fireEvent.click(warrior)
     expect(
-      await screen.findByText('В составе нет участников этого класса.'),
+      await screen.findByText('В составе нет участников выбранных классов.'),
     ).toBeVisible()
+  })
+
+  it('restores multiple class filters from the roster address', async () => {
+    const { router } = await renderApp({
+      role: 'member',
+      path: '/roster?classIds=%5B1%2C7%5D',
+    })
+    await screen.findByRole('heading', { name: 'Альфа' })
+    const stats = screen.getByRole('list', { name: 'По классам' })
+    expect(
+      within(stats).getByRole('button', {
+        name: 'Фильтр по классу Оборотень',
+      }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(
+      within(stats).getByRole('button', { name: 'Фильтр по классу Маг' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({
+        classIds: [1, 7],
+      }),
+    )
+  })
+
+  it('keeps older single-class roster links working', async () => {
+    await renderApp({ role: 'member', path: '/roster?classId=7' })
+    await screen.findByRole('heading', { name: 'Бета' })
+    const stats = screen.getByRole('list', { name: 'По классам' })
+    expect(
+      within(stats).getByRole('button', { name: 'Фильтр по классу Маг' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(callApi).toHaveBeenCalledWith(
+      'roster/page',
+      expect.objectContaining({ classIds: [7] }),
+    )
+  })
+
+  it('combines roster search with all selected classes', async () => {
+    await renderApp({ role: 'member', path: '/roster' })
+    await screen.findByRole('heading', { name: 'Альфа' })
+    const stats = screen.getByRole('list', { name: 'По классам' })
+    const werewolf = within(stats).getByRole('button', {
+      name: 'Фильтр по классу Оборотень',
+    })
+    fireEvent.click(werewolf)
+    await waitFor(() =>
+      expect(werewolf).toHaveAttribute('aria-pressed', 'true'),
+    )
+    const mage = within(stats).getByRole('button', {
+      name: 'Фильтр по классу Маг',
+    })
+    fireEvent.click(mage)
+    await waitFor(() => expect(mage).toHaveAttribute('aria-pressed', 'true'))
+    fireEvent.change(screen.getByLabelText('Поиск'), {
+      target: { value: 'бета' },
+    })
+
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith(
+        'roster/page',
+        expect.objectContaining({ classIds: [1, 7], search: 'бета' }),
+      ),
+    )
+    await waitFor(() => {
+      expect(cards()).toHaveLength(1)
+      expect(cards()[0]?.textContent).toContain('Бета')
+    })
   })
 
   it('shows a member no management actions and no readers', async () => {

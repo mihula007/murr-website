@@ -42,6 +42,7 @@ export type RosterListResponse = MemberList<RosterMember>
 export const rosterPageRequestSchema = z.object({
   cursor: pageRequestShape.cursor,
   classId: z.number().int().positive().optional(),
+  classIds: z.array(z.number().int().positive()).max(17).optional(),
   search: z.string().trim().max(100).default(''),
 })
 export type RosterPageRequest = z.input<typeof rosterPageRequestSchema>
