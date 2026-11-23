@@ -75,6 +75,8 @@ export function MessengerLinks() {
   ]
   return (
     <section
+      id="messengers"
+      tabIndex={-1}
       aria-labelledby="messengers-title"
       className="grid gap-3 border-y border-border py-3"
     >

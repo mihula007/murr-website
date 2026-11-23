@@ -153,7 +153,8 @@ export const notificationRepository = {
     if (!includeMessengerReminder) {
       query = query.where('kind', '!=', 'messenger_reminder')
     }
-    return query.orderBy('created_at', 'desc')
+    return query
+      .orderBy('created_at', 'desc')
       .orderBy('id', 'desc')
       .limit(limit)
       .execute()

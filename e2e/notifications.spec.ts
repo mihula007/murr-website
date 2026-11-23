@@ -66,6 +66,14 @@ async function notificationCount(recipientId: string) {
   return Number(row?.count)
 }
 
+async function messengerReminderCount(recipientId: string) {
+  const [row] = await sql(
+    (db) => db<{ count: string }[]>`select count(*) from app.user_notifications
+      where recipient_id = ${recipientId} and kind = 'messenger_reminder'`,
+  )
+  return Number(row?.count)
+}
+
 test('приёмка NTF 1–2: одно уведомление о приёме, прочтение одного и всех', async ({
   page,
 }) => {
@@ -119,6 +127,33 @@ test('приёмка NTF 1–2: одно уведомление о приёме,
   ).toBeVisible()
 })
 
+test('NTF 14: напоминание ведёт к мессенджерам и не повторяется непрочитанным', async ({
+  page,
+}) => {
+  const member = await createMember('member')
+  await signInUi(page, member.email)
+  await expectSignedIn(page)
+  await expect(bell(page)).toHaveAccessibleName('Уведомления, непрочитанных: 1')
+  await bell(page).click()
+  const reminder = panel(page).getByRole('button', {
+    name: /Подключите мессенджер/,
+  })
+  await expect(reminder).toContainText(
+    'Привяжите Telegram, MAX или ВКонтакте, чтобы получать уведомления клана.',
+  )
+  await reminder.click()
+
+  await expect(page).toHaveURL(/#\/account$/)
+  const messengers = page.getByRole('region', { name: 'Мессенджеры' })
+  await expect(messengers).toBeInViewport()
+  await expect(bell(page)).toHaveAccessibleName('Уведомления')
+  expect(await messengerReminderCount(member.id)).toBe(1)
+
+  await page.reload()
+  await expect(bell(page)).toHaveAccessibleName('Уведомления')
+  expect(await messengerReminderCount(member.id)).toBe(1)
+})
+
 test('приёмка NTF 3: счётчик раздела отделён от колокольчика и снимается посещением', async ({
   page,
   browser,
@@ -131,7 +166,7 @@ test('приёмка NTF 3: счётчик раздела отделён от к
   await signInUi(page, member.email)
   await expectSignedIn(page)
   // Первая сводка ставит отметки просмотра: новый участник начинает с нуля.
-  await expect(bell(page)).toHaveAccessibleName('Уведомления')
+  await expect(bell(page)).toHaveAccessibleName('Уведомления, непрочитанных: 1')
 
   const officerPage = await signedInPage(browser, officer.email)
   await createEvent(officer, `E2E новизна ${Date.now()}`)
@@ -143,7 +178,7 @@ test('приёмка NTF 3: счётчик раздела отделён от к
     : page.getByRole('banner').getByRole('button', { name: /^Клан/ })
   // На категории и кнопке меню — точка «есть новое», число — у раздела.
   await expect(trigger.getByText('есть новое')).toHaveCount(1)
-  await expect(bell(page)).toHaveAccessibleName('Уведомления')
+  await expect(bell(page)).toHaveAccessibleName('Уведомления, непрочитанных: 1')
 
   await page.goto('./#/events')
   await expect(trigger.getByText('есть новое')).toHaveCount(0)
@@ -161,6 +196,12 @@ test('приёмка NTF 4: переход к событию и к удалён�
     createMember('officer'),
     createMember('member'),
   ])
+  await sql(
+    (db) => db`insert into app.telegram_links
+      (user_id, telegram_user_id, chat_id, display_name)
+      values (${member.id}, ${Number.parseInt(member.id.slice(-8), 16)},
+        ${Number.parseInt(member.id.slice(-8), 16)}, 'Тест')`,
+  )
   const token = await accessToken(officer.email)
   const kept = `E2E группа ${Date.now()}`
   const keptId = await createEvent(officer, kept)

@@ -108,6 +108,30 @@ beforeEach(() => {
 })
 
 describe('account dashboard', () => {
+  it('scrolls and focuses the messenger section when requested by a reminder', async () => {
+    me.value = profile('member')
+    const scrollIntoView = vi.fn<(options?: ScrollIntoViewOptions) => void>()
+    Object.defineProperty(window, 'scrollTo', {
+      configurable: true,
+      value: vi.fn<typeof window.scrollTo>(),
+    })
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    })
+
+    await renderApp({
+      role: 'member',
+      path: '/account?section=messengers',
+    })
+
+    const section = await screen.findByRole('region', {
+      name: 'Мессенджеры',
+    })
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledOnce())
+    expect(section).toHaveFocus()
+  })
+
   it('offers sign out and login when account data cannot be loaded', async () => {
     me.value = undefined
     accountLoad.failed = true

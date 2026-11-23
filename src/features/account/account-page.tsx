@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from '@tanstack/react-router'
 import { ChevronDown } from 'lucide-react'
 import type { MeResponse } from '@contracts/account'
@@ -200,11 +200,33 @@ function Dashboard({ me }: { me: ReadyMe }) {
 }
 
 /** Личный кабинет (ACC-05, ACC-06): гостя ведёт ко входу, незавершённую регистрацию — к её завершению. */
-export function AccountPage() {
+export function AccountPage({
+  focusMessenger = false,
+}: {
+  focusMessenger?: boolean
+}) {
   const navigate = useNavigate()
   const access = useAccess()
   const me = useMe()
   const signOut = useSignOut()
+  useEffect(() => {
+    const role = me.data?.state === 'ready' ? me.data.profile.role : undefined
+    if (!focusMessenger || !role || !INTERNAL_ROLES.includes(role)) {
+      return
+    }
+    const section = document.getElementById('messengers')
+    if (!section) {
+      return
+    }
+    section.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    section.focus({ preventScroll: true })
+    void navigate({
+      to: '/account',
+      search: {},
+      replace: true,
+      resetScroll: false,
+    })
+  }, [focusMessenger, me.data, navigate])
   if (access.status === 'loading') {
     return <LoadingState label="Загружаем аккаунт…" />
   }

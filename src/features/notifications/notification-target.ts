@@ -9,6 +9,7 @@ export type NotificationRoute =
   | { to: '/market/$id'; params: { id: string } }
   | { to: '/applications/$id'; params: { id: string } }
   | { to: '/account' }
+  | { to: '/account'; search: { section: 'messengers' } }
 
 /**
  * Переход к объекту уведомления (NTF-06). Ссылка доступа не даёт: удалённый
@@ -39,6 +40,8 @@ export function notificationRoute(
         : { to: '/account' }
     case 'account':
       return { to: '/account' }
+    case 'messengers':
+      return { to: '/account', search: { section: 'messengers' } }
     default:
       return null
   }

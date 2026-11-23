@@ -195,4 +195,10 @@ describe('переход по уведомлению (NTF-06, NTF-07)', () => {
     expect(notificationRoute({ kind: 'unknown', id: 'x' }, 'member')).toBe(null)
     expect(notificationRoute(null, 'member')).toBe(null)
   })
+
+  it('ведёт по напоминанию прямо к блоку мессенджеров в кабинете', () => {
+    expect(
+      notificationRoute({ kind: 'messengers', id: 'self' }, 'member'),
+    ).toEqual({ to: '/account', search: { section: 'messengers' } })
+  })
 })
