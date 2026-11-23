@@ -92,6 +92,44 @@ async function seed(recipientId: string, count: number) {
   }
 }
 
+async function linkMessenger(
+  channel: 'telegram' | 'max' | 'vk',
+  userId: string,
+) {
+  const externalId = Number.parseInt(userId.slice(-8), 16)
+  if (channel === 'telegram') {
+    await db
+      .insertInto('app.telegram_links')
+      .values({
+        user_id: userId,
+        telegram_user_id: externalId,
+        chat_id: externalId,
+        display_name: 'Тест',
+      })
+      .execute()
+  } else if (channel === 'max') {
+    await db
+      .insertInto('app.max_links')
+      .values({
+        user_id: userId,
+        max_user_id: externalId,
+        chat_id: externalId,
+        display_name: 'Тест',
+      })
+      .execute()
+  } else {
+    await db
+      .insertInto('app.vk_links')
+      .values({
+        user_id: userId,
+        vk_user_id: externalId,
+        chat_id: externalId,
+        display_name: 'Тест',
+      })
+      .execute()
+  }
+}
+
 const eventFields = {
   title: 'Рейд',
   type: 'pve',
@@ -164,6 +202,8 @@ describe('notifications: panel and reading (NTF-02, NTF-05, Q-64)', () => {
   it('lists the last 50 own notifications, newest first, and counts every unread', async () => {
     const member = await roleActor('member')
     const other = await roleActor('member')
+    await linkMessenger('telegram', member.user.id)
+    await linkMessenger('telegram', other.user.id)
     await seed(member.user.id, 55)
     await seed(other.user.id, 2)
     const list = await listNotifications(deps, member.actor)
@@ -180,6 +220,8 @@ describe('notifications: panel and reading (NTF-02, NTF-05, Q-64)', () => {
   it('reads one own notification; a foreign one is not found', async () => {
     const member = await roleActor('member')
     const other = await roleActor('member')
+    await linkMessenger('telegram', member.user.id)
+    await linkMessenger('telegram', other.user.id)
     await seed(member.user.id, 2)
     await seed(other.user.id, 1)
     const [first] = (await listNotifications(deps, member.actor)).items
@@ -203,6 +245,8 @@ describe('notifications: panel and reading (NTF-02, NTF-05, Q-64)', () => {
   it('reads all own notifications, keeps the history and leaves others intact', async () => {
     const member = await roleActor('member')
     const other = await roleActor('member')
+    await linkMessenger('telegram', member.user.id)
+    await linkMessenger('telegram', other.user.id)
     await seed(member.user.id, 60)
     await seed(other.user.id, 3)
     expect(await readAllNotifications(deps, member.actor)).toEqual({
@@ -358,6 +402,100 @@ describe('notifications: section counters (NTF-09–12, Q-67)', () => {
       markSectionSeen(deps, member.actor, { section: 'roster' }),
       'validation_failed',
     )
+  })
+})
+
+describe('notifications: messenger reminder (NTF-14)', () => {
+  async function reminderRows(userId: string) {
+    return db
+      .selectFrom('app.user_notifications')
+      .select(['id', 'created_at', 'read_at'])
+      .where('recipient_id', '=', userId)
+      .where('kind', '=', 'messenger_reminder')
+      .execute()
+  }
+
+  it.each(['member', 'officer', 'master', 'admin'] as const)(
+    '%s without a linked messenger receives one reminder that opens the messenger section',
+    async (role) => {
+      const user = await roleActor(role)
+      const summary = await notificationSummary(deps, user.actor)
+      const list = await listNotifications(deps, user.actor)
+
+      expect(summary.unreadCount).toBe(1)
+      expect(list.items).toContainEqual(
+        expect.objectContaining({
+          kind: 'messenger_reminder',
+          title: 'Подключите мессенджер',
+          body: 'Привяжите Telegram, MAX или ВКонтакте, чтобы получать уведомления клана.',
+          target: { kind: 'messengers', id: 'self' },
+          readAt: null,
+        }),
+      )
+      expect(await reminderRows(user.user.id)).toHaveLength(1)
+    },
+  )
+
+  it('does not repeat an unread reminder even after 48 hours', async () => {
+    const user = await roleActor('member')
+    const now = new Date()
+    const atStart = { ...deps, now: () => now }
+    await notificationSummary(atStart, user.actor)
+    const first = await reminderRows(user.user.id)
+
+    const afterDue = {
+      ...deps,
+      now: () => new Date(now.getTime() + 49 * 60 * 60 * 1000),
+    }
+    await notificationSummary(afterDue, user.actor)
+
+    expect(await reminderRows(user.user.id)).toEqual(first)
+  })
+
+  it('refreshes the same reminder at 48 hours and makes it unread again', async () => {
+    const user = await roleActor('member')
+    const now = new Date()
+    await notificationSummary({ ...deps, now: () => now }, user.actor)
+    const first = await reminderRows(user.user.id)
+    await readNotification(deps, user.actor, { id: first[0]!.id })
+
+    const due = new Date(now.getTime() + 48 * 60 * 60 * 1000)
+    await notificationSummary({ ...deps, now: () => due }, user.actor)
+
+    const refreshed = await reminderRows(user.user.id)
+    expect(refreshed).toHaveLength(1)
+    expect(refreshed[0]!.id).toBe(first[0]!.id)
+    expect(refreshed[0]!.read_at).toBeNull()
+    expect(new Date(refreshed[0]!.created_at).toISOString()).toBe(
+      due.toISOString(),
+    )
+  })
+
+  it.each(['telegram', 'max', 'vk'] as const)(
+    'hides an existing reminder when %s is linked',
+    async (channel) => {
+      const user = await roleActor('member')
+      await notificationSummary(deps, user.actor)
+      await linkMessenger(channel, user.user.id)
+
+      const summary = await notificationSummary(deps, user.actor)
+      const list = await listNotifications(deps, user.actor)
+      expect(summary.unreadCount).toBe(0)
+      expect(list.items).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ kind: 'messenger_reminder' }),
+        ]),
+      )
+      expect(await reminderRows(user.user.id)).toHaveLength(1)
+    },
+  )
+
+  it('does not create a reminder for applicants', async () => {
+    const applicant = await roleActor('applicant')
+
+    await notificationSummary(deps, applicant.actor)
+
+    expect(await reminderRows(applicant.user.id)).toHaveLength(0)
   })
 })
 

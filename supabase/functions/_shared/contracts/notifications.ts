@@ -9,6 +9,8 @@ export const NOTIFICATION_LIMITS = {
   sectionCap: 100,
   /** Опрос колокольчика и счётчиков при видимой вкладке. */
   pollMs: 60 * 1000,
+  /** Минимальный срок до повтора прочитанного напоминания о привязке. */
+  messengerReminderMs: 48 * 60 * 60 * 1000,
 } as const
 
 /** Кто видит колокольчик (NTF-01, HOM-01, HOM-10): не гость и не чтец. */
@@ -29,6 +31,7 @@ export const NOTIFICATION_KINDS = [
   'group_added',
   'group_leader',
   'role_changed',
+  'messenger_reminder',
 ] as const
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]
 

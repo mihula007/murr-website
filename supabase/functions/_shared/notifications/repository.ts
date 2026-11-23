@@ -131,8 +131,13 @@ export const notificationRepository = {
   },
 
   /** Последние уведомления получателя для панели (Q-64). */
-  recent(db: Executor, recipientId: string, limit: number) {
-    return db
+  recent(
+    db: Executor,
+    recipientId: string,
+    limit: number,
+    includeMessengerReminder = true,
+  ) {
+    let query = db
       .selectFrom('app.user_notifications')
       .select([
         'id',
@@ -145,20 +150,67 @@ export const notificationRepository = {
         'read_at',
       ])
       .where('recipient_id', '=', recipientId)
-      .orderBy('created_at', 'desc')
+    if (!includeMessengerReminder) {
+      query = query.where('kind', '!=', 'messenger_reminder')
+    }
+    return query.orderBy('created_at', 'desc')
       .orderBy('id', 'desc')
       .limit(limit)
       .execute()
   },
 
-  async unreadCount(db: Executor, recipientId: string) {
-    const row = await db
+  async unreadCount(
+    db: Executor,
+    recipientId: string,
+    includeMessengerReminder = true,
+  ) {
+    let query = db
       .selectFrom('app.user_notifications')
       .select((eb) => eb.fn.countAll<string>().as('count'))
       .where('recipient_id', '=', recipientId)
       .where('read_at', 'is', null)
-      .executeTakeFirstOrThrow()
+    if (!includeMessengerReminder) {
+      query = query.where('kind', '!=', 'messenger_reminder')
+    }
+    const row = await query.executeTakeFirstOrThrow()
     return Number(row.count)
+  },
+
+  /**
+   * Одна строка на аккаунт. Непрочитанное не обновляется; прочитанное —
+   * только по истечении срока. Условие выполняется атомарно при гонке.
+   */
+  async refreshMessengerReminder(
+    db: Executor,
+    userId: string,
+    now: Date,
+    repeatAfterMs: number,
+  ) {
+    const nowIso = now.toISOString()
+    const dueBefore = new Date(now.getTime() - repeatAfterMs).toISOString()
+    await db
+      .insertInto('app.user_notifications')
+      .values({
+        recipient_id: userId,
+        actor_id: null,
+        kind: 'messenger_reminder',
+        title: 'Подключите мессенджер',
+        body: 'Привяжите Telegram, MAX или ВКонтакте, чтобы получать уведомления клана.',
+        target_kind: 'messengers',
+        target_id: 'self',
+        source_kind: 'system',
+        source_id: userId,
+        created_at: nowIso,
+        read_at: null,
+      })
+      .onConflict((conflict) =>
+        conflict
+          .columns(['recipient_id', 'source_kind', 'source_id', 'kind'])
+          .doUpdateSet({ created_at: nowIso, read_at: null })
+          .where('app.user_notifications.read_at', 'is not', null)
+          .where('app.user_notifications.created_at', '<=', dueBefore),
+      )
+      .execute()
   },
 
   /** Отмечает одно своё уведомление; false — нет такого у получателя. */

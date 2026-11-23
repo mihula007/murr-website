@@ -223,6 +223,15 @@ describe('api function over HTTP', () => {
     const member = await createProfiledUser(db, 'member')
     const reader = await createProfiledUser(db, 'reader')
     await db
+      .insertInto('app.telegram_links')
+      .values({
+        user_id: member.id,
+        telegram_user_id: 98765431,
+        chat_id: 98765431,
+        display_name: 'Тест',
+      })
+      .execute()
+    await db
       .insertInto('app.user_notifications')
       .values({
         recipient_id: member.id,

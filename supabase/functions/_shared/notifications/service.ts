@@ -19,6 +19,10 @@ import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { notificationRepository, sectionViewRepository } from './repository.ts'
 import { hasOfficerPermission } from '../officer-permissions/service.ts'
+import { isInternalRole } from '../membership.ts'
+import { telegramRepository } from '../telegram/repository.ts'
+import { maxRepository } from '../max/repository.ts'
+import { vkRepository } from '../vk/repository.ts'
 
 export type { NotificationKind }
 
@@ -68,13 +72,29 @@ export async function listNotifications(
   actor: Actor,
 ): Promise<NotificationListResponse> {
   const viewer = requireRole(actor, NOTIFICATION_VIEWERS)
+  const role = viewer.profile.access_role as AccessRole
+  const hasMessenger = await hasMessengerLink(deps, viewer.userId)
+  if (isInternalRole(role) && !hasMessenger) {
+    await notificationRepository.refreshMessengerReminder(
+      deps.db,
+      viewer.userId,
+      deps.now(),
+      NOTIFICATION_LIMITS.messengerReminderMs,
+    )
+  }
+  const includeMessengerReminder = isInternalRole(role) && !hasMessenger
   const [rows, unreadCount] = await Promise.all([
     notificationRepository.recent(
       deps.db,
       viewer.userId,
       NOTIFICATION_LIMITS.panel,
+      includeMessengerReminder,
     ),
-    notificationRepository.unreadCount(deps.db, viewer.userId),
+    notificationRepository.unreadCount(
+      deps.db,
+      viewer.userId,
+      includeMessengerReminder,
+    ),
   ])
   return {
     items: rows.map((row) => ({
@@ -110,10 +130,13 @@ export async function readNotification(
   if (!found) {
     throw new ApiError('not_found')
   }
+  const role = viewer.profile.access_role as AccessRole
+  const hasMessenger = await hasMessengerLink(deps, viewer.userId)
   return {
     unreadCount: await notificationRepository.unreadCount(
       deps.db,
       viewer.userId,
+      isInternalRole(role) && !hasMessenger,
     ),
   }
 }
@@ -141,6 +164,16 @@ export async function notificationSummary(
 ): Promise<NotificationSummaryResponse> {
   const viewer = requireRole(actor, NOTIFICATION_VIEWERS)
   const role = viewer.profile.access_role as AccessRole
+  const hasMessenger = await hasMessengerLink(deps, viewer.userId)
+  if (isInternalRole(role) && !hasMessenger) {
+    await notificationRepository.refreshMessengerReminder(
+      deps.db,
+      viewer.userId,
+      deps.now(),
+      NOTIFICATION_LIMITS.messengerReminderMs,
+    )
+  }
+  const includeMessengerReminder = isInternalRole(role) && !hasMessenger
   const sections = newsSectionsFor(role)
   if (
     role === 'officer' &&
@@ -158,7 +191,11 @@ export async function notificationSummary(
     deps.now(),
   )
   const [unreadCount, ...counts] = await Promise.all([
-    notificationRepository.unreadCount(deps.db, viewer.userId),
+    notificationRepository.unreadCount(
+      deps.db,
+      viewer.userId,
+      includeMessengerReminder,
+    ),
     ...sections.map((section) =>
       sectionViewRepository.countNew(deps.db, section, {
         userId: viewer.userId,
@@ -172,6 +209,16 @@ export async function notificationSummary(
     result[section] = counts[index] ?? 0
   })
   return { unreadCount: unreadCount ?? 0, sections: result }
+}
+
+/** Наличие любой из трёх привязок прекращает напоминание. */
+async function hasMessengerLink(deps: AppDeps, userId: string) {
+  const [telegram, max, vk] = await Promise.all([
+    telegramRepository.linkByUser(deps.db, userId),
+    maxRepository.linkByUser(deps.db, userId),
+    vkRepository.linkByUser(deps.db, userId),
+  ])
+  return Boolean(telegram || max || vk)
 }
 
 /** Открытие раздела снимает его новизну только у себя (NTF-11). */
