@@ -29,7 +29,7 @@
 
 ---
 
-### Задача 1. Серверное напоминание без дубликатов
+### Task 1: Серверное напоминание без дубликатов
 
 **Файлы:**
 - Изменить: `supabase/migrations/<временная_метка>_messenger_reminders.sql`
@@ -55,7 +55,7 @@
 - [ ] Добавить проверку миграции в pgTAP на допустимость нового вида уведомления; выполнить `npm run supabase:test`.
 - [ ] Сохранить задачу коммитом `feat(notifications): remind about messenger linking`.
 
-### Задача 2. Переход к блоку привязки
+### Task 2: Переход к блоку привязки
 
 **Файлы:**
 - Изменить: `supabase/functions/_shared/notifications/service.ts` (цель напоминания)
@@ -80,7 +80,7 @@
 - [ ] Повторно запустить изменённые Vitest-тесты и `npm run check:quick`; результат — все проверки зелёные.
 - [ ] Сохранить задачу коммитом `feat(account): open messenger links from reminder`.
 
-### Задача 3. Счётчик только новых голосований
+### Task 3: Счётчик только новых голосований
 
 **Файлы:**
 - Изменить: `src/features/votes/votes-page.tsx`
@@ -99,7 +99,7 @@
 - [ ] Повторно запустить `tests/votes.test.tsx` и `npm run check:quick`; результат — все проверки зелёные.
 - [ ] Сохранить задачу коммитом `fix(votes): show only unseen votes in badge`.
 
-### Задача 4. Архитектурная запись и итоговые проверки
+### Task 4: Архитектурная запись и итоговые проверки
 
 **Файлы:**
 - Изменить: `docs/architecture/module-decisions.md`
