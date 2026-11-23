@@ -103,12 +103,10 @@ test('неограниченный состав фильтрует классы 
     images.map((image) => image.getAttribute('src')),
   )
   expect(new Set(artworkPaths).size).toBeLessThanOrEqual(1)
-  await desktopList.evaluate((element) => {
-    element.scrollTop = element.scrollHeight
-  })
-  await expect(
+  await scrollUntilVisible(
+    page,
     desktopCards.getByRole('heading', { name: lastNickname }),
-  ).toBeVisible()
+  )
   await expect(
     desktopCards.getByRole('heading', { name: excluded.nickname }),
   ).toHaveCount(0)
