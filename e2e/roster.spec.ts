@@ -42,13 +42,13 @@ async function signedInPage(browser: Browser, email: string) {
   return page
 }
 
-test('неограниченный состав ищет по серверу и прокручивается по устройству', async ({
+test('неограниченный состав фильтрует классы и прокручивается по устройству', async ({
   page,
 }) => {
   const prefix = `R${Date.now().toString(36).slice(-3)}`
   const created = await seedMembers(26, prefix)
   const excluded = await createMember('member')
-  excluded.nickname = `${prefix}Excluded`
+  excluded.nickname = `Excluded${prefix}`
   await sql(
     (db) =>
       db`update app.profiles set game_nickname = ${excluded.nickname}, class_id = 8 where id = ${excluded.id}`,
@@ -69,7 +69,6 @@ test('неограниченный состав ищет по серверу и 
   await signInUi(page, member.email)
   await expectSignedIn(page)
   await page.goto('./#/roster')
-  await page.getByLabel('Поиск', { exact: true }).fill(prefix)
   const werewolfFilter = page.getByRole('button', {
     name: 'Фильтр по классу Оборотень',
   })
@@ -90,7 +89,6 @@ test('неограниченный состав ищет по серверу и 
     .poll(() =>
       requests.some(
         (request) =>
-          request.search === prefix &&
           Array.isArray(request.classIds) &&
           request.classIds.includes(1) &&
           request.classIds.includes(7) &&
@@ -118,7 +116,6 @@ test('неограниченный состав ищет по серверу и 
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.reload()
-  await expect(page.getByLabel('Поиск', { exact: true })).toHaveValue(prefix)
   await expect(
     page.getByRole('button', { name: 'Фильтр по классу Оборотень' }),
   ).toHaveAttribute('aria-pressed', 'true')
@@ -143,10 +140,7 @@ test('неограниченный состав ищет по серверу и 
   await expect
     .poll(() =>
       requests.some(
-        (request) =>
-          request.search === prefix &&
-          request.classIds === undefined &&
-          request.cursor === null,
+        (request) => request.classIds === undefined && request.cursor === null,
       ),
     )
     .toBe(true)

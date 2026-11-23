@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { ChartNoAxesCombined, MoreHorizontal, UserRoundX } from 'lucide-react'
 import { z } from 'zod'
@@ -21,7 +21,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
 import { Badge, tileClass } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
@@ -60,10 +59,7 @@ function masterRoleChoices(
     : []
 }
 
-/**
- * Параметры адреса состава: фильтр класса и вкладка. Чтецы — отдельная
- * вкладка: их список догружается бесконечно.
- */
+/** Параметры адреса состава: фильтр класса и вкладка «Чтецы». */
 export const rosterSearchSchema = z.object({
   classId: z.number().int().positive().optional().catch(undefined),
   classIds: z
@@ -71,48 +67,9 @@ export const rosterSearchSchema = z.object({
     .max(17)
     .optional()
     .catch(undefined),
-  search: z.string().trim().max(100).catch(''),
   view: z.enum(['members', 'readers']).catch('members'),
 })
 export type RosterSearch = z.output<typeof rosterSearchSchema>
-
-function useDebouncedSearch(value: string, delay: number) {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setDebounced(value), delay)
-    return () => window.clearTimeout(timeout)
-  }, [delay, value])
-  return debounced
-}
-
-function RosterSearchInput({
-  search,
-  onCommit,
-}: {
-  search: string
-  onCommit: (value: string) => void
-}) {
-  const [text, setText] = useState(search)
-  const debounced = useDebouncedSearch(text, 250)
-
-  useEffect(() => {
-    const normalized = debounced.trim()
-    if (normalized !== search) {
-      onCommit(normalized)
-    }
-  }, [debounced, onCommit, search])
-
-  return (
-    <Input
-      id="roster-search"
-      type="search"
-      placeholder="Ник или класс"
-      maxLength={100}
-      value={text}
-      onChange={(event) => setText(event.target.value)}
-    />
-  )
-}
 
 /** Общая численность и распределение по классам; значки служат фильтрами. */
 function StatsPanel({
@@ -147,7 +104,7 @@ function StatsPanel({
       />
       <ul
         aria-label="По классам"
-        className="m-0 flex max-h-[112px] list-none flex-wrap gap-[7px] overflow-auto p-0 pr-1 max-sm:max-h-none max-sm:overflow-visible max-sm:pr-0"
+        className="m-0 flex list-none flex-wrap gap-2 p-0"
       >
         {roster.classes.map((item) => (
           <li key={item.classId} className="list-none">
@@ -157,7 +114,7 @@ function StatsPanel({
               aria-pressed={selectedClassIds.includes(item.classId)}
               onClick={() => onToggleClass(item.classId)}
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-inset py-0.5 pr-2 pl-0.5 text-left text-xs transition-colors hover:border-border-accent focus-visible:ring-2 focus-visible:ring-border-accent max-sm:text-2xs',
+                'inline-flex items-center gap-2 rounded-full border border-border bg-surface-inset py-1 pr-2.5 pl-1 text-left text-sm transition-colors hover:border-border-accent focus-visible:ring-2 focus-visible:ring-border-accent',
                 selectedClassIds.includes(item.classId) &&
                   'border-border-accent ring-1 ring-border-accent text-highlight',
               )}
@@ -165,10 +122,10 @@ function StatsPanel({
               <ClassIcon
                 classId={item.classId}
                 className={item.className}
-                wrapperClassName="size-[21px] max-sm:size-[18px]"
+                wrapperClassName="size-6"
               />
               {item.className}
-              <b className="inline-grid h-[19px] min-w-[19px] place-items-center rounded-full bg-linear-135/srgb from-button-primary-from to-button-primary-to px-1 text-2xs text-primary-foreground">
+              <b className="inline-grid h-[22px] min-w-[22px] place-items-center rounded-full bg-linear-135/srgb from-button-primary-from to-button-primary-to px-1 text-2xs text-primary-foreground">
                 {item.count}
               </b>
             </button>
@@ -218,6 +175,18 @@ function MemberCard({
   onChangeRole,
   onDynamics,
 }: MemberCardProps) {
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return
+    }
+
+    const closeMenu = () => setMenuOpen(false)
+    window.addEventListener('scroll', closeMenu, true)
+    return () => window.removeEventListener('scroll', closeMenu, true)
+  }, [menuOpen])
+
   return (
     <div
       className={cn(
@@ -272,7 +241,7 @@ function MemberCard({
           </div>
         </div>
         {onBlock || onChangeRole ? (
-          <DropdownMenu>
+          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
@@ -323,7 +292,6 @@ function MemberCard({
 
 function MembersList({
   classIds,
-  search,
   canAssignReader,
   canManageRoles,
   userId,
@@ -332,7 +300,6 @@ function MembersList({
   onDynamics,
 }: {
   classIds: number[]
-  search: string
   canAssignReader: boolean
   canManageRoles: boolean
   userId: string | undefined
@@ -342,27 +309,19 @@ function MembersList({
 }) {
   const columns = { base: 1, sm: 2, lg: 3 }
   const activeColumns = useGridColumns(columns)
-  const roster = useRosterPages({
-    classIds,
-    search,
-  })
+  const roster = useRosterPages({ classIds })
   if (roster.isPending) {
     return <LoadingState label="Загружаем состав…" />
   }
   if (roster.isError) {
     return <ErrorState onRetry={() => void roster.refetch()} />
   }
-  const needle = search.trim().toLowerCase()
   const members = roster.data.pages.flatMap((page) => page.items)
   if (members.length === 0) {
-    let description = 'В составе пока нет участников.'
-    if (needle && classIds.length > 0) {
-      description = 'Никто не подходит под поиск и выбранные классы.'
-    } else if (needle) {
-      description = 'Никто не подходит под поиск.'
-    } else if (classIds.length > 0) {
-      description = 'В составе нет участников выбранных классов.'
-    }
+    const description =
+      classIds.length > 0
+        ? 'В составе нет участников выбранных классов.'
+        : 'В составе пока нет участников.'
     return <EmptyState title="Никого нет" description={description} />
   }
   const renderMember = (member: RosterMember) => (
@@ -390,7 +349,7 @@ function MembersList({
   const paging = pagingOf(roster)
   return activeColumns === 1 ? (
     <VirtualList
-      key={`${classIds.join(',') || 'all'}:${search}`}
+      key={classIds.join(',') || 'all'}
       items={members}
       getKey={(member) => member.id}
       renderItem={renderMember}
@@ -403,7 +362,7 @@ function MembersList({
     />
   ) : (
     <ScrollableVirtualList
-      key={`${classIds.join(',') || 'all'}:${search}`}
+      key={classIds.join(',') || 'all'}
       items={members}
       getKey={(member) => member.id}
       renderItem={renderMember}
@@ -422,7 +381,6 @@ function MembersList({
 export function RosterPage({
   classId,
   classIds,
-  search: searchParam = '',
   view = 'members',
 }: Partial<RosterSearch>) {
   const { role, hasOfficerPermission } = useAccess()
@@ -452,9 +410,8 @@ export function RosterPage({
   const classFilterSearch = useMemo(
     () => ({
       ...(selectedClassIds.length > 0 ? { classIds: selectedClassIds } : {}),
-      search: searchParam,
     }),
-    [searchParam, selectedClassIds],
+    [selectedClassIds],
   )
   const go = (nextSearch: RosterSearch) =>
     void navigate({ to: '/roster', search: nextSearch, replace: true })
@@ -466,20 +423,8 @@ export function RosterPage({
     go({
       view: 'members',
       ...(next.length > 0 ? { classIds: next } : {}),
-      search: searchParam,
     })
   }
-
-  const commitSearch = useCallback(
-    (value: string) => {
-      void navigate({
-        to: '/roster',
-        search: { ...classFilterSearch, search: value, view },
-        replace: true,
-      })
-    },
-    [classFilterSearch, navigate, view],
-  )
 
   let filters
   if (stats.isPending) {
@@ -488,22 +433,7 @@ export function RosterPage({
     filters = <ErrorState onRetry={() => void stats.refetch()} />
   } else {
     filters = (
-      <div className="mb-[18px] grid grid-cols-[minmax(260px,.68fr)_minmax(0,1.32fr)] items-start gap-6 max-[900px]:grid-cols-1 max-[900px]:gap-3.5">
-        <div className="grid gap-3">
-          <div className="grid gap-2">
-            <label
-              htmlFor="roster-search"
-              className="text-sm text-muted-foreground"
-            >
-              Поиск
-            </label>
-            <RosterSearchInput
-              key={searchParam}
-              search={searchParam}
-              onCommit={commitSearch}
-            />
-          </div>
-        </div>
+      <div className="mb-[18px]">
         <StatsPanel
           roster={stats.data}
           selectedClassIds={selectedClassIds}
@@ -547,7 +477,6 @@ export function RosterPage({
           {filters}
           <MembersList
             classIds={selectedClassIds}
-            search={searchParam}
             canAssignReader={canRestore && !canManageRoles}
             canManageRoles={canManageRoles}
             userId={userId}

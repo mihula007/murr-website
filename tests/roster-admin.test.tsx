@@ -85,20 +85,13 @@ function rosterPageResponse(
     const request = body as {
       classId?: number
       classIds?: number[]
-      search?: string
     }
-    const needle = request.search?.toLowerCase() ?? ''
     return {
-      items: members.filter(
-        (item) =>
-          (request.classIds !== undefined
-            ? request.classIds.length === 0 ||
-              request.classIds.includes(item.classId)
-            : request.classId === undefined ||
-              item.classId === request.classId) &&
-          (!needle ||
-            item.gameNickname.toLowerCase().includes(needle) ||
-            item.className.toLowerCase().includes(needle)),
+      items: members.filter((item) =>
+        request.classIds !== undefined
+          ? request.classIds.length === 0 ||
+            request.classIds.includes(item.classId)
+          : request.classId === undefined || item.classId === request.classId,
       ),
       nextCursor,
     }
@@ -254,7 +247,6 @@ describe('roster page', () => {
     expect(werewolf).toHaveAttribute('aria-pressed', 'false')
     expect(callApi).toHaveBeenCalledWith('roster/page', {
       cursor: null,
-      search: '',
     })
 
     const warrior = within(stats).getByRole('button', {
@@ -301,36 +293,10 @@ describe('roster page', () => {
     )
   })
 
-  it('combines roster search with all selected classes', async () => {
+  it('does not show a text search on the roster page', async () => {
     await renderApp({ role: 'member', path: '/roster' })
     await screen.findByRole('heading', { name: 'Альфа' })
-    const stats = screen.getByRole('list', { name: 'По классам' })
-    const werewolf = within(stats).getByRole('button', {
-      name: 'Фильтр по классу Оборотень',
-    })
-    fireEvent.click(werewolf)
-    await waitFor(() =>
-      expect(werewolf).toHaveAttribute('aria-pressed', 'true'),
-    )
-    const mage = within(stats).getByRole('button', {
-      name: 'Фильтр по классу Маг',
-    })
-    fireEvent.click(mage)
-    await waitFor(() => expect(mage).toHaveAttribute('aria-pressed', 'true'))
-    fireEvent.change(screen.getByLabelText('Поиск'), {
-      target: { value: 'бета' },
-    })
-
-    await waitFor(() =>
-      expect(callApi).toHaveBeenCalledWith(
-        'roster/page',
-        expect.objectContaining({ classIds: [1, 7], search: 'бета' }),
-      ),
-    )
-    await waitFor(() => {
-      expect(cards()).toHaveLength(1)
-      expect(cards()[0]?.textContent).toContain('Бета')
-    })
+    expect(screen.queryByRole('searchbox')).toBeNull()
   })
 
   it('shows a member no management actions and no readers', async () => {
@@ -343,54 +309,6 @@ describe('roster page', () => {
     expect(callApi).not.toHaveBeenCalledWith(
       'roster/readers',
       expect.anything(),
-    )
-  })
-
-  it('sends search to the server and loads the next cursor page', async () => {
-    const firstPage = MEMBERS.slice(0, 2)
-    routes['roster/page'] = (body) =>
-      (body as { cursor?: string | null; search?: string }).cursor
-        ? { items: [MEMBERS[2]!], nextCursor: null }
-        : { items: firstPage, nextCursor: 'cursor-2' }
-    const { router } = await renderApp({ role: 'member', path: '/roster' })
-    expect(await screen.findByRole('heading', { name: 'Альфа' })).toBeVisible()
-    fireEvent.change(screen.getByLabelText('Поиск'), {
-      target: { value: 'гам' },
-    })
-    await waitFor(() =>
-      expect(callApi).toHaveBeenCalledWith(
-        'roster/page',
-        expect.objectContaining({ search: 'гам', cursor: null }),
-      ),
-    )
-    await waitFor(() =>
-      expect(router.state.location.search).toMatchObject({ search: 'гам' }),
-    )
-    routes['roster/page'] = (body) =>
-      (body as { cursor?: string | null }).cursor
-        ? { items: [MEMBERS[2]!], nextCursor: null }
-        : { items: firstPage, nextCursor: 'cursor-2' }
-    fireEvent.change(screen.getByLabelText('Поиск'), {
-      target: { value: '' },
-    })
-    expect(await screen.findByRole('heading', { name: 'Гамма' })).toBeVisible()
-    expect(callApi).toHaveBeenCalledWith(
-      'roster/page',
-      expect.objectContaining({ cursor: 'cursor-2' }),
-    )
-  })
-
-  it('restores the search from the roster address', async () => {
-    await renderApp({
-      role: 'member',
-      path: '/roster?search=%D0%91%D0%B5%D1%82%D0%B0',
-    })
-    expect(await screen.findByLabelText('Поиск')).toHaveValue('Бета')
-    await waitFor(() =>
-      expect(callApi).toHaveBeenCalledWith(
-        'roster/page',
-        expect.objectContaining({ search: 'Бета' }),
-      ),
     )
   })
 

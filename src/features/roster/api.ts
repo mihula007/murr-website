@@ -51,18 +51,14 @@ export function useRoster() {
 }
 
 /** Состав страницы участников с фильтрами на сервере (ROS-14). */
-export function useRosterPages(filters: {
-  classIds: number[]
-  search: string
-}) {
+export function useRosterPages(filters: { classIds: number[] }) {
   const classIds = [...new Set(filters.classIds)].sort((a, b) => a - b)
-  const normalized = { classIds, search: filters.search.trim() }
+  const normalized = { classIds }
   return useInfiniteQuery({
     queryKey: rosterKeys.page(normalized),
     queryFn: ({ pageParam }) =>
       callApi<RosterPageResponse>('roster/page', {
         ...(classIds.length > 0 ? { classIds } : {}),
-        search: normalized.search,
         cursor: pageParam,
       } satisfies RosterPageRequest),
     initialPageParam: null as string | null,

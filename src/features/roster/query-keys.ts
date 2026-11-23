@@ -5,7 +5,7 @@ export const rosterKeys = {
   stats: ['roster', 'stats'] as const,
   /** Весь текущий состав (Q-48). */
   list: ['roster', 'list'] as const,
-  page: (filters: { classIds: number[]; search: string }) =>
+  page: (filters: { classIds: number[] }) =>
     ['roster', 'page', filters] as const,
   readers: ['roster', 'readers'] as const,
   dynamics: (userId: string, period: string, fields: string[]) =>
