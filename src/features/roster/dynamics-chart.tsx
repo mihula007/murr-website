@@ -15,10 +15,37 @@ const colors: Record<CharacterStatNumberField, string> = {
   bd: 'var(--destructive)',
 }
 
-const plot = { left: 18, right: 98, top: 10, bottom: 72 }
+const plot = { left: 18, right: 982, top: 12, bottom: 288 }
 
 function numberLabel(value: number) {
   return value.toLocaleString('ru-RU', { maximumFractionDigits: 3 })
+}
+
+type NumericStatPoint = DynamicsStatPoint & { value: number }
+
+function smoothPath(
+  points: NumericStatPoint[],
+  x: (point: DynamicsStatPoint) => number,
+  y: (value: number) => number,
+) {
+  const coordinates = points.map((point) => ({
+    x: x(point),
+    y: y(point.value),
+  }))
+  if (!coordinates.length) return ''
+  let path = `M${coordinates[0]!.x} ${coordinates[0]!.y}`
+  for (let index = 0; index < coordinates.length - 1; index += 1) {
+    const previous = coordinates[index - 1] ?? coordinates[index]!
+    const start = coordinates[index]!
+    const end = coordinates[index + 1]!
+    const next = coordinates[index + 2] ?? end
+    const controlOneX = start.x + (end.x - previous.x) / 6
+    const controlOneY = start.y + (end.y - previous.y) / 6
+    const controlTwoX = end.x - (next.x - start.x) / 6
+    const controlTwoY = end.y - (next.y - start.y) / 6
+    path += ` C${controlOneX} ${controlOneY},${controlTwoX} ${controlTwoY},${end.x} ${end.y}`
+  }
+  return path
 }
 
 type HoveredStatPoint = {
@@ -32,9 +59,11 @@ type HoveredStatPoint = {
 export function StatChart({
   fields,
   points,
+  loading,
 }: {
   fields: CharacterStatNumberField[]
   points: DynamicsStatPoint[]
+  loading: boolean
 }) {
   const [hovered, setHovered] = useState<HoveredStatPoint | null>(null)
   const series = fields.map((field) => ({
@@ -52,16 +81,12 @@ export function StatChart({
       point.value !== null,
   )
   const timestamps = history.map((point) => Date.parse(point.recordedAt))
-  const minTime = Math.min(...timestamps)
-  const maxTime = Math.max(...timestamps)
+  const minTime = timestamps.length ? Math.min(...timestamps) : 0
+  const maxTime = timestamps.length ? Math.max(...timestamps) : 1
   const timeRange = maxTime - minTime || 1
   const values = numericPoints.map((point) => point.value)
-  const rawMin = Math.min(...values, 0)
-  const rawMax = Math.max(...values, 1)
-  const valuePadding =
-    rawMin === rawMax ? Math.max(1, Math.abs(rawMin) * 0.05) : 0
-  const minValue = rawMin - valuePadding
-  const maxValue = rawMax + valuePadding
+  const minValue = Math.min(...values, 0)
+  const maxValue = Math.max(...values, 1)
   const valueRange = maxValue - minValue || 1
   const x = (point: DynamicsStatPoint) =>
     plot.left +
@@ -105,25 +130,26 @@ export function StatChart({
     return `${CHARACTER_STAT_LABELS[point.field]} · ${formatDate(point.recordedAt)} · ${numberLabel(point.value)} · ${change} ${sign}${numberLabel(Math.abs(delta))}`
   }
 
-  const tickTimes =
-    minTime === maxTime
+  const tickTimes = history.length
+    ? minTime === maxTime
       ? [{ at: 0.5, value: minTime }]
       : [
           { at: 0, value: minTime },
           { at: 0.5, value: minTime + timeRange / 2 },
           { at: 1, value: maxTime },
         ]
-
-  const activePoint = hovered
-    ? series
-        .find((item) => item.field === hovered.field)
-        ?.points.find((point) => point.id === hovered.id)
-    : undefined
-  const activeX = activePoint ? x(activePoint) : plot.left
-  const activeY =
-    activePoint && activePoint.value !== null
-      ? y(activePoint.value)
-      : plot.bottom + 2
+    : []
+  const hoveredPoint =
+    hovered && history.some((point) => point.id === hovered.id) ? hovered : null
+  const statusText = hoveredPoint
+    ? pointSummary(hoveredPoint)
+    : loading
+      ? 'Загружаем историю…'
+      : !fields.length
+        ? 'Выберите показатель, чтобы показать линию.'
+        : !history.length
+          ? 'За этот период нет записей.'
+          : 'Наведите на точку, чтобы увидеть изменение.'
 
   return (
     <section
@@ -132,37 +158,57 @@ export function StatChart({
     >
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="m-0 text-lg">Изменение характеристик</h3>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
           {numericPoints.length} точек
         </span>
       </div>
-      {history.length ? (
+      <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3">
+        <div className="self-end pb-1 text-right text-xs font-medium text-muted-foreground sm:text-sm">
+          Значение
+        </div>
+        <div />
+        <div className="flex flex-col justify-between py-1 text-right text-xs tabular-nums text-muted-foreground sm:text-sm">
+          {[1, 0.5, 0].map((fraction) => (
+            <span key={fraction} className="whitespace-nowrap">
+              {numberLabel(minValue + fraction * valueRange)}
+            </span>
+          ))}
+        </div>
         <svg
-          viewBox="0 0 108 100"
+          viewBox="0 0 1000 300"
+          preserveAspectRatio="none"
           aria-label="Ось X — дата, ось Y — значение показателя"
-          className="h-72 w-full overflow-visible sm:h-80"
+          className="h-[250px] w-full overflow-visible sm:h-[390px]"
         >
+          <defs>
+            {fields.map((field) => (
+              <linearGradient
+                key={field}
+                id={`dynamics-area-${field}`}
+                x1="0"
+                x2="0"
+                y1="0"
+                y2="1"
+              >
+                <stop offset="0%" stopColor={colors[field]} stopOpacity=".42" />
+                <stop
+                  offset="100%"
+                  stopColor={colors[field]}
+                  stopOpacity=".025"
+                />
+              </linearGradient>
+            ))}
+          </defs>
           {[0, 0.5, 1].map((fraction) => {
             const gridY = plot.bottom - fraction * (plot.bottom - plot.top)
-            const tickValue = minValue + fraction * valueRange
             return (
-              <g key={fraction}>
-                <path
-                  d={`M${plot.left} ${gridY}H${plot.right}`}
-                  stroke="currentColor"
-                  opacity=".16"
-                  strokeWidth=".35"
-                />
-                <text
-                  x={plot.left - 2}
-                  y={gridY + 1.2}
-                  textAnchor="end"
-                  fill="var(--muted-foreground)"
-                  fontSize="2.7"
-                >
-                  {numberLabel(tickValue)}
-                </text>
-              </g>
+              <path
+                key={fraction}
+                d={`M${plot.left} ${gridY}H${plot.right}`}
+                stroke="currentColor"
+                opacity=".2"
+                strokeWidth="1"
+              />
             )
           })}
           <path
@@ -170,11 +216,11 @@ export function StatChart({
             fill="none"
             stroke="currentColor"
             opacity=".45"
-            strokeWidth=".45"
+            strokeWidth="1.25"
           />
           {series.map(({ field, points: fieldPoints }) => {
-            const segments: DynamicsStatPoint[][] = []
-            let segment: DynamicsStatPoint[] = []
+            const segments: NumericStatPoint[][] = []
+            let segment: NumericStatPoint[] = []
             for (const point of fieldPoints) {
               if (point.value === null) {
                 if (segment.length) segments.push(segment)
@@ -187,27 +233,26 @@ export function StatChart({
             return (
               <g key={field}>
                 {segments.map((items) => {
-                  const linePoints = items
-                    .map((point) => `${x(point)},${y(point.value!)}`)
-                    .join(' ')
+                  const linePath = smoothPath(items, x, y)
                   const first = items[0]!
                   const last = items.at(-1)!
-                  const areaPoints = `${x(first)},${plot.bottom} ${linePoints} ${x(last)},${plot.bottom}`
+                  const areaPath = `${linePath} L${x(last)} ${plot.bottom} L${x(first)} ${plot.bottom} Z`
                   return (
                     <g key={first.id}>
                       {items.length > 1 && (
-                        <polygon
-                          points={areaPoints}
-                          fill={colors[field]}
-                          fillOpacity=".16"
+                        <path
+                          d={areaPath}
+                          fill={`url(#dynamics-area-${field})`}
                         />
                       )}
                       {items.length > 1 && (
-                        <polyline
+                        <path
                           fill="none"
                           stroke={colors[field]}
-                          strokeWidth="1.2"
-                          points={linePoints}
+                          strokeWidth="3.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d={linePath}
                         />
                       )}
                     </g>
@@ -222,110 +267,59 @@ export function StatChart({
                       key={point.id}
                       cx={cx}
                       cy={cy}
-                      r="1.35"
+                      r="7"
                       fill={
                         point.value === null
                           ? 'var(--background)'
                           : colors[field]
                       }
                       stroke={colors[field]}
-                      strokeWidth=".65"
+                      strokeWidth="2"
+                      aria-label={pointSummary({
+                        id: point.id,
+                        field,
+                        recordedAt: point.recordedAt,
+                        value: point.value,
+                        previousValue:
+                          fieldPoints
+                            .slice(
+                              0,
+                              fieldPoints.findIndex(
+                                (item) => item.id === point.id,
+                              ),
+                            )
+                            .reverse()
+                            .find((item) => item.value !== null)?.value ?? null,
+                      })}
                       onMouseEnter={() => hoverPoint(field, point)}
                       onMouseLeave={() => setHovered(null)}
-                    >
-                      <title>
-                        {pointSummary({
-                          id: point.id,
-                          field,
-                          recordedAt: point.recordedAt,
-                          value: point.value,
-                          previousValue:
-                            fieldPoints
-                              .slice(
-                                0,
-                                fieldPoints.findIndex(
-                                  (item) => item.id === point.id,
-                                ),
-                              )
-                              .reverse()
-                              .find((item) => item.value !== null)?.value ??
-                            null,
-                        })}
-                      </title>
-                    </circle>
+                    />
                   )
                 })}
               </g>
             )
           })}
-          {tickTimes.map((tick) => {
-            const tickX = plot.left + tick.at * (plot.right - plot.left)
-            return (
-              <text
-                key={tick.at}
-                x={tickX}
-                y="81"
-                textAnchor={
-                  tick.at === 0 ? 'start' : tick.at === 1 ? 'end' : 'middle'
-                }
-                fill="var(--muted-foreground)"
-                fontSize="2.8"
-              >
-                {formatDate(new Date(tick.value).toISOString())}
-              </text>
-            )
-          })}
-          {hovered && activePoint && (
-            <g pointerEvents="none">
-              <rect
-                x={Math.min(Math.max(plot.left, activeX + 2), plot.right - 52)}
-                y={Math.max(plot.top, activeY - 10)}
-                width="52"
-                height="8"
-                rx="1"
-                fill="var(--surface-menu)"
-                stroke="var(--border-accent)"
-                strokeWidth=".35"
-              />
-              <text
-                x={
-                  Math.min(Math.max(plot.left, activeX + 2), plot.right - 52) +
-                  2
-                }
-                y={Math.max(plot.top, activeY - 5)}
-                fill="var(--foreground)"
-                fontSize="2.4"
-              >
-                {pointSummary(hovered)}
-              </text>
-            </g>
-          )}
-          <text
-            x="58"
-            y="91"
-            textAnchor="middle"
-            fill="var(--muted-foreground)"
-            fontSize="3"
-          >
-            Дата
-          </text>
-          <text x="3" y="8" fill="var(--muted-foreground)" fontSize="3">
-            Значение
-          </text>
         </svg>
-      ) : (
-        <p className="m-0 py-8 text-center text-sm text-muted-foreground">
-          За этот период нет записей.
-        </p>
-      )}
+        <div className="relative col-start-2 h-6 text-xs tabular-nums text-muted-foreground sm:text-sm">
+          {tickTimes.map((tick) => (
+            <span
+              key={tick.at}
+              className={`absolute whitespace-nowrap ${tick.at === 0 ? 'left-0' : tick.at === 1 ? 'right-0' : 'left-1/2 -translate-x-1/2'}`}
+            >
+              {formatDate(new Date(tick.value).toISOString())}
+            </span>
+          ))}
+        </div>
+        <div className="col-span-2 text-center text-xs font-medium text-muted-foreground sm:text-sm">
+          Дата
+        </div>
+      </div>
       <p
         className="m-0 flex h-10 items-center truncate text-sm text-foreground"
         role="status"
         title={hovered ? pointSummary(hovered) : undefined}
       >
-        {hovered && history.some((point) => point.id === hovered.id)
-          ? pointSummary(hovered)
-          : 'Наведите на точку, чтобы увидеть изменение.'}
+        {statusText}
       </p>
     </section>
   )
@@ -351,16 +345,16 @@ export function AttendanceChart({
       {points.length ? (
         <div className="overflow-x-auto pb-2">
           <svg
-            width={Math.max(160, points.length * 14)}
-            height="150"
-            viewBox={`0 0 ${Math.max(160, points.length * 14)} 150`}
+            width={Math.max(320, points.length * 24)}
+            height="230"
+            viewBox={`0 0 ${Math.max(320, points.length * 24)} 230`}
             aria-label={`${points.length} недель`}
           >
             {points.map((point, index) => {
               const total = point.visited + point.missed + point.unmarked
-              const height = Math.max(3, (total / max) * 112)
-              const x = index * 14 + 4
-              const top = 118 - height
+              const height = Math.max(3, (total / max) * 146)
+              const x = index * 24 + 5
+              const top = 175 - height
               const visitedHeight = total ? (height * point.visited) / total : 0
               const missedHeight = total ? (height * point.missed) / total : 0
               const unmarkedHeight = total
@@ -375,11 +369,16 @@ export function AttendanceChart({
                   onMouseLeave={() => setHoveredWeek(null)}
                 >
                   <title>{label}</title>
+                  <path
+                    d={`M${x - 2} 175h18`}
+                    stroke="currentColor"
+                    opacity=".35"
+                  />
                   {point.visited > 0 && (
                     <rect
                       x={x}
-                      y={118 - visitedHeight}
-                      width="9"
+                      y={175 - visitedHeight}
+                      width="14"
                       height={visitedHeight}
                       fill="var(--highlight)"
                     />
@@ -387,8 +386,8 @@ export function AttendanceChart({
                   {point.missed > 0 && (
                     <rect
                       x={x}
-                      y={118 - visitedHeight - missedHeight}
-                      width="9"
+                      y={175 - visitedHeight - missedHeight}
+                      width="14"
                       height={missedHeight}
                       fill="var(--destructive)"
                     />
@@ -397,63 +396,24 @@ export function AttendanceChart({
                     <rect
                       x={x}
                       y={top}
-                      width="9"
+                      width="14"
                       height={unmarkedHeight}
                       fill="var(--muted-foreground)"
                     />
                   )}
                   <text
-                    x={x + 4}
-                    y="139"
+                    x={x + 7}
+                    y="218"
                     fill="var(--muted-foreground)"
-                    fontSize="5"
+                    fontSize="12"
                     textAnchor="end"
-                    transform={`rotate(-50 ${x + 4} 139)`}
+                    transform={`rotate(-50 ${x + 7} 218)`}
                   >
-                    {point.weekStart.slice(5)}
+                    {formatDate(point.weekStart)}
                   </text>
                 </g>
               )
             })}
-            {hoveredWeek &&
-              (() => {
-                const index = points.findIndex(
-                  (point) => point.weekStart === hoveredWeek.weekStart,
-                )
-                if (index < 0) return null
-                const x = index * 14 + 4
-                const total =
-                  hoveredWeek.visited +
-                  hoveredWeek.missed +
-                  hoveredWeek.unmarked
-                const height = Math.max(3, (total / max) * 112)
-                const left = Math.min(
-                  Math.max(0, x - 22),
-                  Math.max(0, points.length * 14 - 58),
-                )
-                return (
-                  <g pointerEvents="none">
-                    <rect
-                      x={left}
-                      y={Math.max(2, 118 - height - 12)}
-                      width="58"
-                      height="10"
-                      rx="1"
-                      fill="var(--surface-menu)"
-                      stroke="var(--border-accent)"
-                      strokeWidth=".35"
-                    />
-                    <text
-                      x={left + 2}
-                      y={Math.max(2, 118 - height - 6)}
-                      fill="var(--foreground)"
-                      fontSize="2.5"
-                    >
-                      {`${formatDate(hoveredWeek.weekStart)} · ${hoveredWeek.visited}/${hoveredWeek.missed}/${hoveredWeek.unmarked}`}
-                    </text>
-                  </g>
-                )
-              })()}
           </svg>
         </div>
       ) : (

@@ -224,15 +224,7 @@ export function MemberDynamicsDialog({
         <div className="grid gap-4">
           {tab === 'stats' ? (
             <>
-              {fields.length === 0 ? (
-                <p className="m-0 py-8 text-center text-sm text-muted-foreground">
-                  Выберите показатель, чтобы показать линию.
-                </p>
-              ) : stats.isPending ? (
-                <p className="text-sm text-muted-foreground">
-                  Загружаем историю…
-                </p>
-              ) : stats.isError ? (
+              {stats.isError ? (
                 <div className="grid gap-2 text-sm">
                   <p>Не удалось загрузить историю характеристик.</p>
                   <Button
@@ -244,9 +236,11 @@ export function MemberDynamicsDialog({
                   </Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3">
-                  <StatChart fields={fields} points={points} />
-                </div>
+                <StatChart
+                  fields={fields}
+                  points={points}
+                  loading={stats.isPending && fields.length > 0}
+                />
               )}
             </>
           ) : attendance.isPending ? (
