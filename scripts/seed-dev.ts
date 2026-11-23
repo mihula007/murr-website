@@ -387,18 +387,25 @@ await insert(
           recorded_at: iso(NOW - 120 * DAY),
           kind: 'baseline',
         })
-        const values = [
-          Math.round(current * 0.72),
-          Math.round(current * 0.72),
-          Math.round(current * 0.88),
-          current,
-        ]
+        const values = Array.from({ length: 16 }, (_, point) => {
+          const factor =
+            point < 5
+              ? 0.72
+              : point < 9
+                ? 0.72
+                : point < 12
+                  ? 0.88
+                  : point < 14
+                    ? 0.83
+                    : 1
+          return Math.round(current * factor)
+        })
         values.forEach((value, point) => {
           characterHistory.push({
             user_id: u.id,
             field,
             value,
-            recorded_at: fridayCheckpoint([12, 8, 4, 0][point]!),
+            recorded_at: fridayCheckpoint(15 - point),
             kind: 'checkpoint',
           })
         })

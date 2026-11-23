@@ -35,16 +35,50 @@ function smoothPath<T extends { value: number }>(
   if (!coordinates.length) {
     return ''
   }
+  if (coordinates.length === 1) {
+    return `M${coordinates[0]!.x} ${coordinates[0]!.y}`
+  }
+  const widths = coordinates.slice(0, -1).map((point, index) => {
+    return coordinates[index + 1]!.x - point.x
+  })
+  const slopes = coordinates.slice(0, -1).map((point, index) => {
+    const width = widths[index]!
+    return width === 0 ? 0 : (coordinates[index + 1]!.y - point.y) / width
+  })
+  const tangents = coordinates.map((_, index) => {
+    if (index === 0) {
+      return slopes[0]!
+    }
+    if (index === coordinates.length - 1) {
+      return slopes.at(-1)!
+    }
+    const previous = slopes[index - 1]!
+    const next = slopes[index]!
+    if (
+      previous === 0 ||
+      next === 0 ||
+      Math.sign(previous) !== Math.sign(next)
+    ) {
+      return 0
+    }
+    const previousWidth = Math.abs(widths[index - 1]!)
+    const nextWidth = Math.abs(widths[index]!)
+    const firstWeight = 2 * nextWidth + previousWidth
+    const secondWeight = nextWidth + 2 * previousWidth
+    return (
+      (firstWeight + secondWeight) /
+      (firstWeight / previous + secondWeight / next)
+    )
+  })
   let path = `M${coordinates[0]!.x} ${coordinates[0]!.y}`
   for (let index = 0; index < coordinates.length - 1; index += 1) {
-    const previous = coordinates[index - 1] ?? coordinates[index]!
     const start = coordinates[index]!
     const end = coordinates[index + 1]!
-    const next = coordinates[index + 2] ?? end
-    const controlOneX = start.x + (end.x - previous.x) / 6
-    const controlOneY = start.y + (end.y - previous.y) / 6
-    const controlTwoX = end.x - (next.x - start.x) / 6
-    const controlTwoY = end.y - (next.y - start.y) / 6
+    const width = widths[index]!
+    const controlOneX = start.x + width / 3
+    const controlOneY = start.y + (tangents[index]! * width) / 3
+    const controlTwoX = end.x - width / 3
+    const controlTwoY = end.y - (tangents[index + 1]! * width) / 3
     path += ` C${controlOneX} ${controlOneY},${controlTwoX} ${controlTwoY},${end.x} ${end.y}`
   }
   return path
