@@ -12,9 +12,20 @@ test.beforeEach(async ({ page }) => {
   await skipSplash(page)
 })
 
-async function openDynamics(page: Page) {
+async function openDynamics(page: Page, nickname?: string) {
   await page.goto('./#/roster')
-  await page.getByRole('button', { name: 'Динамика развития' }).first().click()
+  if (nickname) {
+    await page
+      .getByRole('heading', { name: nickname })
+      .locator('xpath=../../../')
+      .getByRole('button', { name: 'Динамика развития' })
+      .click()
+  } else {
+    await page
+      .getByRole('button', { name: 'Динамика развития' })
+      .first()
+      .click()
+  }
   const dialog = page.getByRole('dialog')
   await expect(
     dialog.getByRole('heading', { name: 'Динамика развития' }),
@@ -30,6 +41,13 @@ test('участник видит историю характеристик и �
     const [profile] = await db<{ class_id: number }[]>`
       select class_id from app.profiles where id = ${member.id}
     `
+    await db`insert into app.character_stat_history
+      (user_id, field, value, recorded_at, kind)
+      values
+        (${member.id}, 'pa', 120, '2026-11-06T20:59:00Z', 'baseline'),
+        (${member.id}, 'pa', 145, '2026-11-20T20:59:00Z', 'checkpoint'),
+        (${member.id}, 'pz', 80, '2026-11-06T20:59:00Z', 'baseline'),
+        (${member.id}, 'pz', 100, '2026-11-20T20:59:00Z', 'checkpoint')`
     const events = [
       {
         id: crypto.randomUUID(),
@@ -99,7 +117,7 @@ test('администратор открывает динамику и види
   )
   await signInUi(page, admin.email)
   await expectSignedIn(page)
-  const dialog = await openDynamics(page)
+  const dialog = await openDynamics(page, admin.nickname)
   await expect(dialog.getByText(/В клане с \d{2}\.\d{2}\.\d{4}/)).toBeVisible()
 })
 
