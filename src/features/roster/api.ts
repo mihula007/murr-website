@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -56,6 +57,7 @@ export function useRosterPages(filters: { classIds: number[] }) {
   const normalized = { classIds }
   return useInfiniteQuery({
     queryKey: rosterKeys.page(normalized),
+    placeholderData: keepPreviousData,
     queryFn: ({ pageParam }) =>
       callApi<RosterPageResponse>('roster/page', {
         ...(classIds.length > 0 ? { classIds } : {}),

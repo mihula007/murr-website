@@ -349,7 +349,6 @@ function MembersList({
   const paging = pagingOf(roster)
   return activeColumns === 1 ? (
     <VirtualList
-      key={classIds.join(',') || 'all'}
       items={members}
       getKey={(member) => member.id}
       renderItem={renderMember}
@@ -362,7 +361,6 @@ function MembersList({
     />
   ) : (
     <ScrollableVirtualList
-      key={classIds.join(',') || 'all'}
       items={members}
       getKey={(member) => member.id}
       renderItem={renderMember}

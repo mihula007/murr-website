@@ -262,6 +262,35 @@ describe('roster page', () => {
     ).toBeVisible()
   })
 
+  it('keeps the current cards mounted while a class filter loads', async () => {
+    let finishRequest: ((value: unknown) => void) | undefined
+    routes['roster/page'] = (body) => {
+      const request = body as { classIds?: number[] }
+      if (request.classIds?.length) {
+        return new Promise((resolve) => {
+          finishRequest = resolve
+        })
+      }
+      return { items: MEMBERS, nextCursor: null }
+    }
+    await renderApp({ role: 'member', path: '/roster' })
+    expect(await screen.findByRole('heading', { name: 'Альфа' })).toBeVisible()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Фильтр по классу Маг' }),
+    )
+    await waitFor(() => expect(finishRequest).toBeTypeOf('function'))
+
+    expect(screen.getByRole('heading', { name: 'Альфа' })).toBeVisible()
+    expect(screen.queryByText('Загружаем состав…')).toBeNull()
+
+    finishRequest?.({ items: MEMBERS.slice(1), nextCursor: null })
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Альфа' })).toBeNull(),
+    )
+    expect(screen.getByRole('heading', { name: 'Бета' })).toBeVisible()
+  })
+
   it('restores multiple class filters from the roster address', async () => {
     const { router } = await renderApp({
       role: 'member',
