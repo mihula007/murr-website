@@ -37,7 +37,7 @@ export type DynamicsStatPoint = {
   field: CharacterStatNumberField
   value: number | null
   recordedAt: string
-  kind: 'baseline' | 'change'
+  kind: 'baseline' | 'checkpoint'
 }
 export type DynamicsStatsResponse = Page<DynamicsStatPoint>
 export type DynamicsAttendancePoint = {

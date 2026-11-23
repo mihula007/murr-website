@@ -160,6 +160,25 @@ describe('api function over HTTP', () => {
     expect(await response.json()).toEqual({ error: 'forbidden' })
   })
 
+  it('rejects weekly dynamics checkpoint without the schedule secret', async () => {
+    const key = env('ANON_KEY')
+    const response = await fetch(
+      `${env('API_URL')}/functions/v1/api/roster/dynamics/checkpoint-weekly`,
+      {
+        method: 'POST',
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          'x-cron-secret': `wrong-${crypto.randomUUID()}`,
+        },
+        body: '{}',
+      },
+    )
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'forbidden' })
+  })
+
   it('serves the roster count to a guest', async () => {
     expect(await call('roster/count')).toEqual({
       status: 200,

@@ -11,6 +11,8 @@ import {
 } from '../contracts/roster-dynamics.ts'
 import { INTERNAL_ROLES, isInternalRole } from '../membership.ts'
 import { characterStatHistoryRepository } from '../character-stats/repository.ts'
+import { withTransaction } from '../db/client.ts'
+import { isValidCronSecret } from '../http/cron-secret.ts'
 import { decodeCursor, splitPage } from '../http/cursor.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
@@ -85,9 +87,47 @@ export async function dynamicsStats(
       field: row.field as CharacterStatNumberField,
       value: row.value === null ? null : Number(row.value),
       recordedAt: row.recorded_at,
-      kind: row.kind as 'baseline' | 'change',
+      kind: row.kind as 'baseline' | 'checkpoint',
     })),
   }
+}
+
+/** Записывает по пятницам неизменяемый снимок всех показателей текущего состава. */
+export async function recordWeeklyDynamicsCheckpoint(
+  deps: AppDeps,
+  cronSecret: string | null,
+) {
+  if (!isValidCronSecret(cronSecret, deps.cronSecret)) {
+    throw new ApiError('forbidden')
+  }
+  const moscowNow = new Date(deps.now().getTime() + 3 * 60 * 60 * 1000)
+  if (moscowNow.getUTCDay() !== 5) {
+    throw new ApiError('forbidden')
+  }
+  const checkpointDate = moscowNow.toISOString().slice(0, 10)
+  const recordedAt = `${checkpointDate}T20:59:00.000Z`
+  return withTransaction(deps.db, async (tx) => {
+    const profiles =
+      await rosterDynamicsRepository.currentStatsForCheckpoint(tx)
+    const rows = profiles.flatMap((profile) =>
+      (['pa', 'pz', 'bu', 'hp', 'bd'] as const).map((field) => ({
+        user_id: profile.id,
+        field,
+        value: profile[field] === null ? null : Number(profile[field]),
+        recorded_at: recordedAt,
+        kind: 'checkpoint' as const,
+      })),
+    )
+    const inserted = await characterStatHistoryRepository.insertCheckpoints(
+      tx,
+      rows,
+    )
+    return {
+      recordedAt,
+      members: profiles.length,
+      inserted: inserted.length,
+    }
+  })
 }
 
 export async function dynamicsAttendance(

@@ -2,7 +2,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(7);
+select plan(10);
 
 select has_table('app', 'character_stat_history', 'история характеристик существует');
 
@@ -41,13 +41,34 @@ select throws_ok(
 select throws_ok(
   $$insert into app.character_stat_history (user_id, field, value, kind)
     values ('00000000-0000-0000-0000-0000000021a1', 'pa', 1, 'import')$$,
-  '23514', null, 'тип точки ограничен исходным значением или изменением'
+  '23514', null, 'тип записи ограничен baseline, ручным изменением и checkpoint'
+);
+
+select lives_ok(
+  $$insert into app.character_stat_history (user_id, field, value, recorded_at, kind)
+    values ('00000000-0000-0000-0000-0000000021a1', 'pa', 100,
+      '2026-11-27T20:59:00Z', 'checkpoint')$$,
+  'пятничную контрольную точку можно сохранить'
+);
+
+select throws_ok(
+  $$insert into app.character_stat_history (user_id, field, value, recorded_at, kind)
+    values ('00000000-0000-0000-0000-0000000021a1', 'pa', 100,
+      '2026-11-27T20:59:00Z', 'checkpoint')$$,
+  '23505', null, 'повторный checkpoint за ту же дату не дублируется'
+);
+
+select is(
+  (select schedule::text from cron.job
+    where jobname = 'roster-dynamics-checkpoint-weekly'),
+  '59 20 * * 5',
+  'checkpoint запускается в пятницу в 23:59 по Москве'
 );
 
 select lives_ok(
   $$insert into app.character_stat_history (user_id, field, value, kind)
-    values ('00000000-0000-0000-0000-0000000021a1', 'pa', null, 'change')$$,
-  'очищенное значение можно сохранить как null'
+    values ('00000000-0000-0000-0000-0000000021a1', 'pz', null, 'change')$$,
+  'очищенное ручное значение можно сохранить как null'
 );
 
 delete from app.profiles where id = '00000000-0000-0000-0000-0000000021a1';

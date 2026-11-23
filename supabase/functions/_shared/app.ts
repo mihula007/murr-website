@@ -127,6 +127,7 @@ import {
   dynamicsAttendance,
   dynamicsProfile,
   dynamicsStats,
+  recordWeeklyDynamicsCheckpoint,
 } from './roster/dynamics-service.ts'
 import { createStorageGateway, type StorageGateway } from './storage/gateway.ts'
 import {
@@ -371,6 +372,8 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
       dynamicsStats(deps, actor, body),
     'roster/dynamics/attendance': ({ actor, body }) =>
       dynamicsAttendance(deps, actor, body),
+    'roster/dynamics/checkpoint-weekly': ({ headers }) =>
+      recordWeeklyDynamicsCheckpoint(deps, headers.get('x-cron-secret')),
     'roster/readers': ({ actor, body }) => listReaders(deps, actor, body),
     'accounts/list': ({ actor, body }) => listAccounts(deps, actor, body),
     'accounts/set-role': ({ actor, body }) => setRole(deps, actor, body),

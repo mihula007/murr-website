@@ -43,6 +43,7 @@ import { withTransaction, type Executor } from '../db/client.ts'
 import { decodeCursor, splitPage } from '../http/cursor.ts'
 import { withMessageCounts } from '../discussions/counts.ts'
 import { ApiError } from '../http/errors.ts'
+import { isValidCronSecret } from '../http/cron-secret.ts'
 import { parseBody } from '../http/validation.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
 import { groupRepository } from '../groups/repository.ts'
@@ -545,17 +546,6 @@ export async function closeEvent(
   return loadEventDetails(deps, manager, id)
 }
 
-/** Сравнение секрета без раннего выхода по первому несовпадению. */
-function sameSecret(given: string, expected: string) {
-  const a = new TextEncoder().encode(given)
-  const b = new TextEncoder().encode(expected)
-  let diff = a.length ^ b.length
-  for (let index = 0; index < b.length; index += 1) {
-    diff |= (a[index] ?? 0) ^ b[index]!
-  }
-  return diff === 0
-}
-
 /**
  * Кто запускает выпуск: офицер или администратор (кнопка) либо расписание
  * с верным `x-cron-secret` (Q-42). Без секрета у функции расписание не
@@ -567,7 +557,7 @@ async function weeklyCaller(
   cronSecret: string | null,
 ): Promise<AuditPerson | null> {
   if (cronSecret !== null) {
-    if (!deps.cronSecret || !sameSecret(cronSecret, deps.cronSecret)) {
+    if (!isValidCronSecret(cronSecret, deps.cronSecret)) {
       throw new ApiError('forbidden')
     }
     return null

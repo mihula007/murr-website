@@ -8,6 +8,10 @@ export type CharacterStatHistoryInsert = {
   recorded_at: string
   kind: 'change'
 }
+export type CharacterStatCheckpointInsert = Omit<
+  CharacterStatHistoryInsert,
+  'kind'
+> & { kind: 'checkpoint' }
 
 /** История закрыта от браузера и доступна только серверным операциям. */
 export const characterStatHistoryRepository = {
@@ -16,6 +20,23 @@ export const characterStatHistoryRepository = {
       return Promise.resolve()
     }
     return db.insertInto('app.character_stat_history').values(rows).execute()
+  },
+
+  insertCheckpoints(db: Executor, rows: CharacterStatCheckpointInsert[]) {
+    if (rows.length === 0) {
+      return Promise.resolve([])
+    }
+    return db
+      .insertInto('app.character_stat_history')
+      .values(rows)
+      .onConflict((conflict) =>
+        conflict
+          .columns(['user_id', 'field', 'recorded_at'])
+          .where('kind', '=', 'checkpoint')
+          .doNothing(),
+      )
+      .returning('id')
+      .execute()
   },
 
   listByUser(
@@ -31,6 +52,7 @@ export const characterStatHistoryRepository = {
       .select(['id', 'field', 'value', 'recorded_at', 'kind'])
       .where('user_id', '=', userId)
       .where('field', 'in', fields)
+      .where('kind', 'in', ['baseline', 'checkpoint'])
     if (cutoff) {
       query = query.where('recorded_at', '>=', cutoff)
     }

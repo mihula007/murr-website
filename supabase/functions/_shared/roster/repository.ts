@@ -1,5 +1,6 @@
 import type { Executor } from '../db/client.ts'
 import { sql } from 'kysely'
+import { INTERNAL_ROLES } from '../membership.ts'
 
 /** Ключ сортировки карточек: ник и `id` (последний ключ — для однозначности). */
 export type NicknameKey = { gameNickname: string; id: string }
@@ -110,6 +111,24 @@ export const rosterRepository = {
 
 /** Приватные данные только для операций динамики с серверной проверкой роли. */
 export const rosterDynamicsRepository = {
+  currentStatsForCheckpoint(db: Executor) {
+    return db
+      .selectFrom('app.profiles as p')
+      .select(['p.id', 'p.pa', 'p.pz', 'p.bu', 'p.hp', 'p.bd'])
+      .where('p.access_role', 'in', INTERNAL_ROLES)
+      .where((eb) =>
+        eb.not(
+          eb.exists(
+            eb
+              .selectFrom('app.user_deletions as d')
+              .select('d.user_id')
+              .whereRef('d.user_id', '=', 'p.id'),
+          ),
+        ),
+      )
+      .execute()
+  },
+
   profile(db: Executor, userId: string) {
     return db
       .selectFrom('app.profiles as p')

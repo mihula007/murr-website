@@ -6,6 +6,7 @@ import {
   dynamicsAttendance,
   dynamicsProfile,
   dynamicsStats,
+  recordWeeklyDynamicsCheckpoint,
 } from '../../supabase/functions/_shared/roster/dynamics-service.ts'
 import {
   actorOf,
@@ -26,6 +27,90 @@ async function actorFor(role: AccessRole) {
 }
 
 describe('roster dynamics', () => {
+  it('records one idempotent Friday checkpoint for every current member only via cron secret', async () => {
+    const target = await actorFor('member')
+    const applicant = await actorFor('applicant')
+    await db
+      .updateTable('app.profiles')
+      .set({ pa: 100, pz: 200, bu: 30, hp: 40000, bd: 5000 })
+      .where('id', '=', target.user.id)
+      .execute()
+    await db
+      .updateTable('app.profiles')
+      .set({ pa: 999, pz: 999, bu: 999, hp: 999, bd: 999 })
+      .where('id', '=', applicant.user.id)
+      .execute()
+    const fridayDeps = {
+      ...deps,
+      cronSecret: 'test-cron-secret',
+      now: () => new Date('2026-11-27T20:59:30.000Z'),
+    }
+    await expect(
+      recordWeeklyDynamicsCheckpoint(fridayDeps, 'wrong'),
+    ).rejects.toMatchObject({ code: 'forbidden' })
+    const first = await recordWeeklyDynamicsCheckpoint(
+      fridayDeps,
+      'test-cron-secret',
+    )
+    const second = await recordWeeklyDynamicsCheckpoint(
+      fridayDeps,
+      'test-cron-secret',
+    )
+    expect(first).toMatchObject({
+      recordedAt: '2026-11-27T20:59:00.000Z',
+      inserted: 5,
+    })
+    expect(second).toMatchObject({ inserted: 0 })
+    const rows = await db
+      .selectFrom('app.character_stat_history')
+      .select(['field', 'value', 'recorded_at', 'kind'])
+      .where('user_id', '=', target.user.id)
+      .orderBy('field')
+      .execute()
+    expect(rows).toEqual([
+      {
+        field: 'bd',
+        value: '5000.000',
+        recorded_at: '2026-11-27 20:59:00+00',
+        kind: 'checkpoint',
+      },
+      {
+        field: 'bu',
+        value: '30.000',
+        recorded_at: '2026-11-27 20:59:00+00',
+        kind: 'checkpoint',
+      },
+      {
+        field: 'hp',
+        value: '40000.000',
+        recorded_at: '2026-11-27 20:59:00+00',
+        kind: 'checkpoint',
+      },
+      {
+        field: 'pa',
+        value: '100.000',
+        recorded_at: '2026-11-27 20:59:00+00',
+        kind: 'checkpoint',
+      },
+      {
+        field: 'pz',
+        value: '200.000',
+        recorded_at: '2026-11-27 20:59:00+00',
+        kind: 'checkpoint',
+      },
+    ])
+    await expect(
+      db
+        .selectFrom('app.character_stat_history')
+        .selectAll()
+        .where('user_id', '=', applicant.user.id)
+        .execute(),
+    ).resolves.toEqual([])
+    await expect(
+      db.selectFrom('app.audit_log').selectAll().execute(),
+    ).resolves.toEqual([])
+  })
+
   it('allows only internal roles and only returns internal target headers', async () => {
     const target = await actorFor('member')
     await db
@@ -83,7 +168,7 @@ describe('roster dynamics', () => {
     }
   })
 
-  it('returns all selected stat points in stable cursor pages', async () => {
+  it('returns baseline and Friday checkpoints only in stable cursor pages', async () => {
     const viewer = await actorFor('officer')
     const target = await actorFor('member')
     await db
@@ -105,6 +190,13 @@ describe('roster dynamics', () => {
         },
         {
           user_id: target.user.id,
+          field: 'pa',
+          value: 20,
+          recorded_at: '2026-10-02T20:59:00Z',
+          kind: 'checkpoint',
+        },
+        {
+          user_id: target.user.id,
           field: 'pz',
           value: 30,
           recorded_at: '2026-10-02T00:00:00Z',
@@ -119,6 +211,7 @@ describe('roster dynamics', () => {
       period: 'all',
     })
     expect(first.items.map((item) => item.value)).toEqual([20])
+    expect(first.items[0]?.kind).toBe('checkpoint')
     expect(first.nextCursor).toBeTruthy()
     const second = await dynamicsStats(deps, viewer.actor, {
       userId: target.user.id,
@@ -128,6 +221,7 @@ describe('roster dynamics', () => {
       cursor: first.nextCursor,
     })
     expect(second.items.map((item) => item.value)).toEqual([10])
+    expect(second.items[0]?.kind).toBe('baseline')
     expect(second.nextCursor).toBeNull()
     expect(
       await dynamicsStats(deps, viewer.actor, {

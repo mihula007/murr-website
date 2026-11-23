@@ -210,15 +210,15 @@ export function MemberDynamicsDialog({
                 ))}
               </fieldset>
             )}
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              Период
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Период</span>
               <Select
                 aria-label="Период истории"
                 value={period}
                 onValueChange={(value) => setPeriod(value as DynamicsPeriod)}
                 options={PERIODS}
               />
-            </label>
+            </div>
           </div>
         </DialogHeader>
         <div className="grid gap-4">
@@ -243,10 +243,6 @@ export function MemberDynamicsDialog({
                 />
               )}
             </>
-          ) : attendance.isPending ? (
-            <p className="text-sm text-muted-foreground">
-              Загружаем посещения…
-            </p>
           ) : attendance.isError ? (
             <div className="grid gap-2 text-sm">
               <p>Не удалось загрузить посещения.</p>
@@ -259,7 +255,7 @@ export function MemberDynamicsDialog({
               </Button>
             </div>
           ) : (
-            <AttendanceChart points={weeks} />
+            <AttendanceChart points={weeks} loading={attendance.isPending} />
           )}
         </div>
       </DialogContent>

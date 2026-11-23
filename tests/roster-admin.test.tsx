@@ -586,7 +586,7 @@ describe('roster page', () => {
     expect(await screen.findByRole('heading', { name: 'Альфа' })).toBeVisible()
   })
 
-  it('opens member dynamics with name, guild date, filters and separated charts', async () => {
+  it('opens member dynamics with name, guild date, filters and one weekly chart', async () => {
     routes['roster/dynamics/profile'] = () => ({
       id: 'm1',
       gameNickname: 'Альфа',
@@ -595,9 +595,59 @@ describe('roster page', () => {
       displayName: 'Мурр',
       joinedOn: '2024-01-02',
     })
-    routes['roster/dynamics/stats'] = () => ({ items: [], nextCursor: null })
+    routes['roster/dynamics/stats'] = () => ({
+      items: [
+        {
+          id: 'base-pa',
+          field: 'pa',
+          value: 100,
+          recordedAt: '2026-10-30T20:59:00.000Z',
+          kind: 'baseline',
+        },
+        {
+          id: 'week1-pa',
+          field: 'pa',
+          value: 100,
+          recordedAt: '2026-11-06T20:59:00.000Z',
+          kind: 'checkpoint',
+        },
+        {
+          id: 'week2-pa',
+          field: 'pa',
+          value: 120,
+          recordedAt: '2026-11-13T20:59:00.000Z',
+          kind: 'checkpoint',
+        },
+        {
+          id: 'base-pz',
+          field: 'pz',
+          value: 80,
+          recordedAt: '2026-10-30T20:59:00.000Z',
+          kind: 'baseline',
+        },
+        {
+          id: 'week1-pz',
+          field: 'pz',
+          value: 80,
+          recordedAt: '2026-11-06T20:59:00.000Z',
+          kind: 'checkpoint',
+        },
+        {
+          id: 'week2-pz',
+          field: 'pz',
+          value: 90,
+          recordedAt: '2026-11-13T20:59:00.000Z',
+          kind: 'checkpoint',
+        },
+      ],
+      nextCursor: null,
+    })
     routes['roster/dynamics/attendance'] = () => ({
-      items: [],
+      items: [
+        { weekStart: '2026-11-02', visited: 2, missed: 1, unmarked: 0 },
+        { weekStart: '2026-11-09', visited: 2, missed: 1, unmarked: 0 },
+        { weekStart: '2026-11-16', visited: 3, missed: 0, unmarked: 1 },
+      ],
       nextCursor: null,
     })
     await renderApp({ role: 'member', path: '/roster' })
@@ -613,10 +663,29 @@ describe('roster page', () => {
     expect(
       await screen.findByRole('region', { name: 'График характеристик' }),
     ).toBeVisible()
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole('region', { name: 'График характеристик' })
+          .querySelectorAll('circle'),
+      ).toHaveLength(6),
+    )
     expect(
       screen.getAllByRole('region', { name: 'График характеристик' }),
     ).toHaveLength(1)
     expect(screen.getByRole('checkbox', { name: 'ПЗ' })).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Посещение ивентов' }))
+    const attendance = await screen.findByRole('region', {
+      name: 'Посещение ивентов по неделям',
+    })
+    await waitFor(() =>
+      expect(attendance.querySelectorAll('circle')).toHaveLength(9),
+    )
+    expect(
+      attendance.querySelectorAll('path[fill="none"][stroke-width="1.75"]'),
+    ).toHaveLength(3)
+    fireEvent.mouseEnter(attendance.querySelector('circle')!)
+    expect(screen.getByRole('status')).toHaveTextContent('посетил — 2')
     expect(
       callApi.mock.calls.some(([route]) => route === 'roster/dynamics/profile'),
     ).toBe(true)

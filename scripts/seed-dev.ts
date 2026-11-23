@@ -60,6 +60,27 @@ const HOUR = 3_600_000
 const iso = (ms: number) => new Date(ms).toISOString()
 const daysAgo = (days: number) => NOW - days * DAY
 const dateOnly = (ms: number) => iso(ms).slice(0, 10)
+function fridayCheckpoint(weeksAgo: number) {
+  const moscowNow = new Date(NOW + 3 * HOUR)
+  let daysSinceFriday = (moscowNow.getUTCDay() - 5 + 7) % 7
+  if (
+    daysSinceFriday === 0 &&
+    (moscowNow.getUTCHours() < 23 || moscowNow.getUTCMinutes() < 59)
+  ) {
+    daysSinceFriday = 7
+  }
+  const friday = new Date(
+    Date.UTC(
+      moscowNow.getUTCFullYear(),
+      moscowNow.getUTCMonth(),
+      moscowNow.getUTCDate(),
+      20,
+      59,
+    ),
+  )
+  friday.setUTCDate(friday.getUTCDate() - daysSinceFriday - weeksAgo * 7)
+  return friday.toISOString()
+}
 
 const NAMES = [
   'Анна',
@@ -359,7 +380,15 @@ await insert(
     if (hasCharacterStats) {
       for (const field of ['pa', 'pz', 'bu', 'hp', 'bd'] as const) {
         const current = Number(profile[field])
+        characterHistory.push({
+          user_id: u.id,
+          field,
+          value: Math.round(current * 0.72),
+          recorded_at: iso(NOW - 120 * DAY),
+          kind: 'baseline',
+        })
         const values = [
+          Math.round(current * 0.72),
           Math.round(current * 0.72),
           Math.round(current * 0.88),
           current,
@@ -369,8 +398,8 @@ await insert(
             user_id: u.id,
             field,
             value,
-            recorded_at: iso(NOW - [120, 55, 12][point]! * DAY),
-            kind: point === 0 ? 'baseline' : 'change',
+            recorded_at: fridayCheckpoint([12, 8, 4, 0][point]!),
+            kind: 'checkpoint',
           })
         })
         if (u.email === 'seed-member-1@example.test' && field === 'pz') {

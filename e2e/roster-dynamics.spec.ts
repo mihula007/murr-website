@@ -46,16 +46,11 @@ test('участник видит историю характеристик и �
   await expect(
     dialog.getByRole('region', { name: 'Посещение ивентов по неделям' }),
   ).toBeVisible()
-  await expect(
-    dialog
-      .getByRole('region', { name: 'Посещение ивентов по неделям' })
-      .locator('g'),
-  ).not.toHaveCount(0)
-  await dialog
-    .getByRole('region', { name: 'Посещение ивентов по неделям' })
-    .locator('g')
-    .first()
-    .hover()
+  const attendanceChart = dialog.getByRole('region', {
+    name: 'Посещение ивентов по неделям',
+  })
+  await expect(attendanceChart.locator('circle')).not.toHaveCount(0)
+  await attendanceChart.locator('circle').first().hover()
   await expect(dialog.getByRole('status')).toContainText('Неделя с')
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await hasHorizontalScroll(page)).toBe(false)
