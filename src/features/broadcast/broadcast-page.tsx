@@ -33,7 +33,6 @@ import { PageHeader } from '@/components/states/page-header'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
 import { Badge, Card, Notice } from '@/components/ui/surfaces'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { MEMBER_LIST_LIMIT } from '@contracts/paging'
@@ -61,7 +60,6 @@ import {
 export const broadcastSearchSchema = z.object({
   source: z.enum(BROADCAST_SOURCES).optional().catch(undefined),
   id: z.guid().optional().catch(undefined),
-  tab: z.enum(['prepare', 'subscriptions']).catch('prepare'),
   q: z.string().max(100).catch(''),
   unlinkedOnly: z.boolean().catch(false),
 })
@@ -613,230 +611,250 @@ function BroadcastForm({
     <div className="grid gap-5">
       <form
         noValidate
-        className={formGridClass}
+        className="grid min-w-0 grid-cols-1 items-start gap-5 min-[1200px]:grid-cols-2"
         onSubmit={(event) => {
           event.preventDefault()
           void form.handleSubmit()
         }}
       >
-        {eventId ? (
-          <Notice className="col-span-full">
-            Анонс события: в мессенджеры придёт с кнопками «Приду», «50/50» и
-            «Не приду».
-          </Notice>
-        ) : null}
-        {groupId ? (
-          <Notice className="col-span-full">
-            Анонс группы: получат только участники группы, привязавшие
-            мессенджеры, — текстом без кнопок.
-            {recipients ? ` Сейчас в группе: ${recipients.length}.` : null}
-          </Notice>
-        ) : null}
-        <form.Subscribe selector={(state) => state.submissionAttempts > 0}>
-          {(submitted) => (
-            <>
-              <form.Field name="subject">
-                {(field) => {
-                  const error = fieldError(
-                    field.state.meta,
-                    submitted,
-                    save.error?.fields.subject,
-                  )
-                  return (
-                    <FormField
-                      id="broadcast-subject"
-                      label="Тема (необязательно)"
-                      error={error}
-                      className="col-span-full"
-                    >
-                      <Input
-                        id="broadcast-subject"
-                        value={field.state.value}
-                        maxLength={BROADCAST_LIMITS.subject}
-                        onChange={(event) =>
-                          field.handleChange(event.target.value)
-                        }
-                        onBlur={field.handleBlur}
-                        aria-invalid={error ? true : undefined}
-                      />
-                    </FormField>
-                  )
-                }}
-              </form.Field>
-              <form.Field name="body">
-                {(field) => {
-                  const error = fieldError(
-                    field.state.meta,
-                    submitted,
-                    save.error?.fields.body,
-                  )
-                  return (
-                    <FormField
-                      id="broadcast-body"
-                      label="Текст рассылки"
-                      error={error}
-                      hint={
-                        currentBodyLimit < BROADCAST_LIMITS.body
-                          ? voteId
-                            ? `Лимит учитывает варианты голосования: не больше ${currentBodyLimit} символов. Сейчас: ${field.state.value.trim().length}.`
-                            : `Анонс придёт в мессенджеры с картинкой события, поэтому текст — не длиннее ${currentBodyLimit} символов. Сейчас: ${field.state.value.trim().length}.`
-                          : undefined
-                      }
-                      className="col-span-full"
-                    >
-                      <Textarea
-                        id="broadcast-body"
-                        rows={9}
-                        value={field.state.value}
-                        onChange={(event) =>
-                          field.handleChange(event.target.value)
-                        }
-                        onBlur={field.handleBlur}
-                        aria-invalid={error ? true : undefined}
-                        aria-describedby={
-                          [
-                            currentBodyLimit < BROADCAST_LIMITS.body
-                              ? 'broadcast-body-hint'
-                              : '',
-                            error ? 'broadcast-body-error' : '',
-                          ]
-                            .filter(Boolean)
-                            .join(' ') || undefined
-                        }
-                      />
-                    </FormField>
-                  )
-                }}
-              </form.Field>
-              <form.Field name="channels">
-                {(field) => {
-                  const error = fieldError(
-                    field.state.meta,
-                    submitted,
-                    save.error?.fields.channels,
-                  )
-                  return (
-                    <fieldset className="col-span-full m-0 grid gap-2 border-0 p-0">
-                      <legend className="mb-2 text-sm font-semibold">
-                        Каналы
-                      </legend>
-                      <div className="flex flex-wrap gap-4">
-                        {BROADCAST_CHANNELS.map((channel) => {
-                          const connected = CONNECTED_CHANNELS.includes(channel)
-                          return (
-                            <label
-                              key={channel}
-                              className={cn(
-                                checkboxClass,
-                                !connected &&
-                                  'cursor-not-allowed text-muted-foreground',
-                              )}
-                            >
-                              <input
-                                type="checkbox"
-                                disabled={!connected}
-                                checked={
-                                  connected &&
-                                  field.state.value.includes(channel)
-                                }
-                                onChange={(event) =>
-                                  field.handleChange(
-                                    event.target.checked
-                                      ? [...field.state.value, channel]
-                                      : field.state.value.filter(
-                                          (item) => item !== channel,
-                                        ),
-                                  )
-                                }
-                              />
-                              {BROADCAST_CHANNEL_LABELS[channel]}
-                              {connected ? null : (
-                                <span className="-ml-1 text-xs">
-                                  — не подключено
-                                </span>
-                              )}
-                            </label>
-                          )
-                        })}
-                      </div>
-                      {error ? (
-                        <span role="alert" className="text-xs text-destructive">
-                          Выберите хотя бы один канал
-                        </span>
-                      ) : null}
-                    </fieldset>
-                  )
-                }}
-              </form.Field>
-            </>
-          )}
-        </form.Subscribe>
-        <form.Field name="excludedRecipients">
-          {(field) => (
-            <RecipientExclusions
-              selectedChannels={chosen}
-              groupId={groupId}
-              eventId={eventId}
-              excludedRecipients={field.state.value}
-              onChange={field.handleChange}
-            />
-          )}
-        </form.Field>
-        <div className="col-span-full grid gap-3">
-          <FormError
-            message={
-              save.error && !save.error.fields.body
-                ? formErrorMessage(save.error)
-                : null
-            }
-          />
-          {canSend ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <form.Subscribe selector={(state) => state.isSubmitting}>
-                {(submitting) => (
-                  <Button
-                    type="submit"
-                    disabled={submitting}
-                    onClick={() => {
-                      intent.current = 'save'
-                    }}
-                  >
-                    {submitting && intent.current === 'save'
-                      ? 'Сохраняем…'
-                      : 'Сохранить черновик'}
-                  </Button>
-                )}
-              </form.Subscribe>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={chosen.length === 0 || checking}
-                aria-describedby="broadcast-send-hint"
-                onClick={() => {
-                  intent.current = 'send'
-                  void form.handleSubmit()
-                }}
-              >
-                <Send size={16} aria-hidden="true" />
-                {checking ? 'Проверяем…' : 'Отправить анонс'}
-              </Button>
-            </div>
+        <Card className={cn('grid min-w-0 gap-4', formGridClass)}>
+          {source ? (
+            <p className="col-span-full m-0 text-sm text-muted-foreground">
+              Заполнено из контекста: {SOURCE_LABELS[source.kind]}. Текст можно
+              изменить.
+            </p>
           ) : null}
-          <FormError message={sendError} />
-          <p
-            id="broadcast-send-hint"
-            className="m-0 text-xs text-muted-foreground"
-          >
-            {groupId
-              ? 'Анонс получат участники группы — члены, офицеры и администраторы, привязавшие выбранные мессенджеры.'
-              : eventId
-                ? 'Анонс получат члены, офицеры и администраторы, привязавшие выбранные мессенджеры, кроме уже ответивших на событие.'
-                : 'Анонс получат члены, офицеры и администраторы, привязавшие выбранные мессенджеры.'}{' '}
-            После отправки текст не изменить. Черновик при отправке не
-            сохраняется.
-          </p>
-        </div>
-        {dialog}
+          {voteId ? (
+            <Notice className="col-span-full">
+              Анонс голосования: участники смогут выбрать вариант кнопкой в
+              мессенджере или открыть голосование на сайте. Текст ниже можно
+              изменить.
+            </Notice>
+          ) : null}
+          {eventId ? (
+            <Notice className="col-span-full">
+              Анонс события: в мессенджеры придёт с кнопками «Приду», «50/50» и
+              «Не приду».
+            </Notice>
+          ) : null}
+          {groupId ? (
+            <Notice className="col-span-full">
+              Анонс группы: получат только участники группы, привязавшие
+              мессенджеры, — текстом без кнопок.
+              {recipients ? ` Сейчас в группе: ${recipients.length}.` : null}
+            </Notice>
+          ) : null}
+          <form.Subscribe selector={(state) => state.submissionAttempts > 0}>
+            {(submitted) => (
+              <>
+                <form.Field name="subject">
+                  {(field) => {
+                    const error = fieldError(
+                      field.state.meta,
+                      submitted,
+                      save.error?.fields.subject,
+                    )
+                    return (
+                      <FormField
+                        id="broadcast-subject"
+                        label="Тема (необязательно)"
+                        error={error}
+                        className="col-span-full"
+                      >
+                        <Input
+                          id="broadcast-subject"
+                          value={field.state.value}
+                          maxLength={BROADCAST_LIMITS.subject}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          onBlur={field.handleBlur}
+                          aria-invalid={error ? true : undefined}
+                        />
+                      </FormField>
+                    )
+                  }}
+                </form.Field>
+                <form.Field name="body">
+                  {(field) => {
+                    const error = fieldError(
+                      field.state.meta,
+                      submitted,
+                      save.error?.fields.body,
+                    )
+                    return (
+                      <FormField
+                        id="broadcast-body"
+                        label="Текст рассылки"
+                        error={error}
+                        hint={
+                          currentBodyLimit < BROADCAST_LIMITS.body
+                            ? voteId
+                              ? `Лимит учитывает варианты голосования: не больше ${currentBodyLimit} символов. Сейчас: ${field.state.value.trim().length}.`
+                              : `Анонс придёт в мессенджеры с картинкой события, поэтому текст — не длиннее ${currentBodyLimit} символов. Сейчас: ${field.state.value.trim().length}.`
+                            : undefined
+                        }
+                        className="col-span-full"
+                      >
+                        <Textarea
+                          id="broadcast-body"
+                          rows={9}
+                          value={field.state.value}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          onBlur={field.handleBlur}
+                          aria-invalid={error ? true : undefined}
+                          aria-describedby={
+                            [
+                              currentBodyLimit < BROADCAST_LIMITS.body
+                                ? 'broadcast-body-hint'
+                                : '',
+                              error ? 'broadcast-body-error' : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ') || undefined
+                          }
+                        />
+                      </FormField>
+                    )
+                  }}
+                </form.Field>
+                <form.Field name="channels">
+                  {(field) => {
+                    const error = fieldError(
+                      field.state.meta,
+                      submitted,
+                      save.error?.fields.channels,
+                    )
+                    return (
+                      <fieldset className="col-span-full m-0 grid gap-2 border-0 p-0">
+                        <legend className="mb-2 text-sm font-semibold">
+                          Каналы
+                        </legend>
+                        <div className="flex flex-wrap gap-4">
+                          {BROADCAST_CHANNELS.map((channel) => {
+                            const connected =
+                              CONNECTED_CHANNELS.includes(channel)
+                            return (
+                              <label
+                                key={channel}
+                                className={cn(
+                                  checkboxClass,
+                                  !connected &&
+                                    'cursor-not-allowed text-muted-foreground',
+                                )}
+                              >
+                                <input
+                                  type="checkbox"
+                                  disabled={!connected}
+                                  checked={
+                                    connected &&
+                                    field.state.value.includes(channel)
+                                  }
+                                  onChange={(event) =>
+                                    field.handleChange(
+                                      event.target.checked
+                                        ? [...field.state.value, channel]
+                                        : field.state.value.filter(
+                                            (item) => item !== channel,
+                                          ),
+                                    )
+                                  }
+                                />
+                                {BROADCAST_CHANNEL_LABELS[channel]}
+                                {connected ? null : (
+                                  <span className="-ml-1 text-xs">
+                                    — не подключено
+                                  </span>
+                                )}
+                              </label>
+                            )
+                          })}
+                        </div>
+                        {error ? (
+                          <span
+                            role="alert"
+                            className="text-xs text-destructive"
+                          >
+                            Выберите хотя бы один канал
+                          </span>
+                        ) : null}
+                      </fieldset>
+                    )
+                  }}
+                </form.Field>
+              </>
+            )}
+          </form.Subscribe>
+          <div className="col-span-full grid gap-3">
+            <FormError
+              message={
+                save.error && !save.error.fields.body
+                  ? formErrorMessage(save.error)
+                  : null
+              }
+            />
+            {canSend ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <form.Subscribe selector={(state) => state.isSubmitting}>
+                  {(submitting) => (
+                    <Button
+                      type="submit"
+                      disabled={submitting}
+                      onClick={() => {
+                        intent.current = 'save'
+                      }}
+                    >
+                      {submitting && intent.current === 'save'
+                        ? 'Сохраняем…'
+                        : 'Сохранить черновик'}
+                    </Button>
+                  )}
+                </form.Subscribe>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={chosen.length === 0 || checking}
+                  aria-describedby="broadcast-send-hint"
+                  onClick={() => {
+                    intent.current = 'send'
+                    void form.handleSubmit()
+                  }}
+                >
+                  <Send size={16} aria-hidden="true" />
+                  {checking ? 'Проверяем…' : 'Отправить анонс'}
+                </Button>
+              </div>
+            ) : null}
+            <FormError message={sendError} />
+            <p
+              id="broadcast-send-hint"
+              className="m-0 text-xs text-muted-foreground"
+            >
+              {groupId
+                ? 'Анонс получат участники группы — члены, офицеры и администраторы, привязавшие выбранные мессенджеры.'
+                : eventId
+                  ? 'Анонс получат члены, офицеры и администраторы, привязавшие выбранные мессенджеры, кроме уже ответивших на событие.'
+                  : 'Анонс получат члены, офицеры и администраторы, привязавшие выбранные мессенджеры.'}{' '}
+              После отправки текст не изменить. Черновик при отправке не
+              сохраняется.
+            </p>
+          </div>
+        </Card>
+        <Card className="min-w-0">
+          <form.Field name="excludedRecipients">
+            {(field) => (
+              <RecipientExclusions
+                selectedChannels={chosen}
+                groupId={groupId}
+                eventId={eventId}
+                excludedRecipients={field.state.value}
+                onChange={field.handleChange}
+              />
+            )}
+          </form.Field>
+        </Card>
         <ConfirmActionDialog
           open={confirmCounts !== null}
           onOpenChange={(open) => {
@@ -880,6 +898,7 @@ function BroadcastForm({
             onSaved()
           }}
         />
+        {dialog}
       </form>
       <Templates
         canSend={canSend}
@@ -901,14 +920,13 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
   const navigate = useNavigate()
   const { hasOfficerPermission } = useAccess()
   const { source, id } = searchParams
-  const tab = searchParams.tab ?? 'prepare'
   const search = searchParams.q ?? ''
   const unlinkedOnly = searchParams.unlinkedOnly ?? false
   const canSend = hasOfficerPermission('broadcasts.send')
   const canManageTemplates = hasOfficerPermission('broadcasts.templates')
   const canViewSubscriptions = hasOfficerPermission('broadcasts.subscriptions')
   const target = source && id ? { source, id } : null
-  const prefill = usePrefill(tab === 'prepare' ? target : null)
+  const prefill = usePrefill(target)
   // Черновик сохранён — форма чистая: переход без вопроса о потере данных.
   const clearSource = () =>
     void navigate({ to: '/broadcast', search: {}, ignoreBlocker: true })
@@ -982,54 +1000,22 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
         title="Рассылка"
         description="Анонсы клана в Telegram, ВКонтакте и MAX: отдельные, событий и голосований с кнопками ответа."
       />
-      <Tabs
-        value={tab}
-        onValueChange={(value) =>
-          void navigate({
-            to: '/broadcast',
-            search: (previous) => ({
-              ...previous,
-              tab: value === 'subscriptions' ? 'subscriptions' : 'prepare',
-            }),
-          })
-        }
+      <div
+        className={cn(
+          'grid min-w-0 grid-cols-1 items-start gap-5',
+          canSend || canManageTemplates
+            ? 'min-[1100px]:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]'
+            : '',
+        )}
       >
-        <TabsList aria-label="Рассылка">
-          {canSend || canManageTemplates ? (
-            <TabsTrigger value="prepare">Подготовка</TabsTrigger>
-          ) : null}
+        <div className="grid min-w-0 content-start gap-5">
+          {canSend || canManageTemplates ? form : null}
+        </div>
+        <div className="grid min-w-0 content-start gap-5">
+          {canSend ? <Drafts /> : null}
           {canViewSubscriptions ? (
-            <TabsTrigger value="subscriptions">Подписки</TabsTrigger>
-          ) : null}
-        </TabsList>
-        {canSend || canManageTemplates ? (
-          <TabsContent value="prepare">
-            <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-5 max-[900px]:grid-cols-1">
-              {canSend || canManageTemplates ? (
-                <Card className="grid gap-4">
-                  {target ? (
-                    <p className="m-0 text-sm text-muted-foreground">
-                      Заполнено из контекста: {SOURCE_LABELS[target.source]}.
-                      Текст можно изменить.
-                    </p>
-                  ) : null}
-                  {target?.source === 'vote' ? (
-                    <Notice className="col-span-full">
-                      Анонс голосования: участники смогут выбрать вариант
-                      кнопкой в мессенджере или открыть голосование на сайте.
-                      Текст ниже можно изменить.
-                    </Notice>
-                  ) : null}
-                  {form}
-                </Card>
-              ) : null}
-              {canSend ? <Drafts /> : null}
-            </div>
-          </TabsContent>
-        ) : null}
-        {canViewSubscriptions ? (
-          <TabsContent value="subscriptions">
-            <Card>
+            <Card className="grid min-w-0 gap-3">
+              <h2 className="m-0 text-xl font-bold">Подписки</h2>
               <SubscriptionsPanel
                 key={search}
                 search={search}
@@ -1038,9 +1024,9 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
                 onUnlinkedOnlyChange={changeUnlinkedOnly}
               />
             </Card>
-          </TabsContent>
-        ) : null}
-      </Tabs>
+          ) : null}
+        </div>
+      </div>
     </section>
   )
 }

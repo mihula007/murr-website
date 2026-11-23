@@ -106,7 +106,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
     expect(await screen.findByText('Нет доступа')).toBeVisible()
   })
 
-  it('shows messenger subscription states and highlights unlinked members', async () => {
+  it('shows subscriptions as a separate block in preparation', async () => {
     routes['broadcasts/subscriptions'] = () => ({
       items: [
         {
@@ -129,15 +129,17 @@ describe('broadcast page (BRC, E2E-07)', () => {
       nextCursor: null,
     })
     await renderApp({ role: 'officer', path: '/broadcast' })
-    const subscriptionsTab = await screen.findByRole('tab', {
-      name: 'Подписки',
+    expect(screen.queryByRole('tab', { name: 'Подписки' })).toBeNull()
+    const subscriptions = await screen.findByRole('region', {
+      name: 'Подписки на рассылки',
     })
-    fireEvent.mouseDown(subscriptionsTab)
-    fireEvent.click(subscriptionsTab)
-    expect(screen.queryByRole('alertdialog')).toBeNull()
-    await waitFor(() =>
-      expect(subscriptionsTab).toHaveAttribute('data-state', 'active'),
-    )
+    const recipients = screen.getByRole('region', {
+      name: 'Исключения получателей',
+    })
+    expect(subscriptions).toBeVisible()
+    expect(recipients).toBeVisible()
+    expect(within(subscriptions).getByLabelText('Поиск по нику')).toBeVisible()
+    expect(within(recipients).getByLabelText('Поиск по нику')).toBeVisible()
     await waitFor(() =>
       expect(callApi).toHaveBeenCalledWith('broadcasts/subscriptions', {
         cursor: null,
@@ -174,9 +176,12 @@ describe('broadcast page (BRC, E2E-07)', () => {
     }
     const { router } = await renderApp({
       role: 'admin',
-      path: '/broadcast?tab=subscriptions',
+      path: '/broadcast?q=',
     })
-    fireEvent.change(await screen.findByLabelText('Поиск по нику'), {
+    const subscriptions = await screen.findByRole('region', {
+      name: 'Подписки на рассылки',
+    })
+    fireEvent.change(within(subscriptions).getByLabelText('Поиск по нику'), {
       target: { value: 'Мой ник' },
     })
     await waitFor(() =>
@@ -196,7 +201,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
     }
     const { router } = await renderApp({
       role: 'admin',
-      path: '/broadcast?tab=subscriptions&q=TestNick',
+      path: '/broadcast?q=TestNick',
     })
     const filter = await screen.findByRole('checkbox', {
       name: 'Показать без подписки',
@@ -499,9 +504,12 @@ describe('broadcast page (BRC, E2E-07)', () => {
     fireEvent.scroll(recipientScroller)
     expect(await screen.findByText('Продолжение')).toBeVisible()
 
-    fireEvent.change(screen.getByLabelText('Поиск по нику'), {
-      target: { value: 'Найденный' },
-    })
+    fireEvent.change(
+      within(
+        screen.getByRole('region', { name: 'Исключения получателей' }),
+      ).getByLabelText('Поиск по нику'),
+      { target: { value: 'Найденный' } },
+    )
     expect(await screen.findByText('Найденный')).toBeVisible()
     await waitFor(() =>
       expect(requests).toContainEqual(
