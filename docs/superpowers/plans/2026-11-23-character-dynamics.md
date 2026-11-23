@@ -87,8 +87,8 @@
 - [x] Добавить e2e `e2e/roster-dynamics.spec.ts`: member/admin открывают, reader/applicant не видят; фильтры периода, несколько характеристик и мобильная ширина; графики сверяются с данными.
 - [x] Обновить статусы DYN/ROS/ACT и модульные решения. Проверить все требования и список больших рядов.
 - [x] Запустить `npm run check:quick`, полный `npm run test:server` и `npm run supabase:test`; исправить найденные ошибки.
-- [ ] Подготовить `npm run review:prepare`; e2e пока не запускать.
-- [ ] Проверить `git diff --check`, `git status` и `npm run security:check`; сохранить результат отдельным Conventional Commit.
+- [x] Подготовить `npm run review:prepare`; e2e пока не запускать.
+- [x] Проверить `git diff --check`, `git status` и `npm run security:check`; сохранить результат отдельным Conventional Commit.
 
 ## Завершение
 
