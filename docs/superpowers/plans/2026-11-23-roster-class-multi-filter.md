@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make roster distribution chips filter the member list by any combination of selected classes while preserving the all-roster statistics.
+**Goal:** Make roster distribution chips filter the member list by any combination of selected classes, remove the roster text search, and keep card menus attached to their cards while scrolling.
 
-**Architecture:** Store selected class IDs in the roster URL and TanStack Query key. Extend the existing `roster/page` request compatibly with an optional `classIds` array while retaining `classId` for older clients. Apply the class selection and text search together in the existing server-side cursor query; render distribution chips as accessible toggle buttons.
+**Architecture:** Store selected class IDs in the roster URL and TanStack Query key. Extend the existing `roster/page` request compatibly with an optional `classIds` array while retaining `classId` for older clients. Apply class selection in the existing server-side cursor query. Render all class chips as larger accessible toggle buttons across the full panel width, and close an open card menu as soon as the list scrolls.
 
 **Tech Stack:** React 19, TanStack Router/Query, TypeScript, Zod, Supabase Edge Function, Kysely, Vitest.
 
-**Spec:** `docs/requirements/10-roster.md` (ROS-04, ROS-05, ROS-14); decision in `docs/requirements/17-open-questions.md`.
+**Spec:** `docs/requirements/10-roster.md` (ROS-04, ROS-05, ROS-14); decisions in `docs/requirements/17-open-questions.md`.
 
 ## Global Constraints
 
@@ -16,23 +16,25 @@
 - Keep the existing 24-row cursor paging, order, virtualization, and empty states.
 - Keep new request fields optional and preserve support for the old singular `classId` request.
 - Keep the shared statistics unchanged when classes are selected.
+- The roster page has no nickname or class text search.
 - Use the existing React, Router, Query, Zod, Tailwind, and Supabase patterns.
 
 ## Review Focus
 
 - No selected class IDs means no class filter and all members are returned.
-- Multiple IDs return the union of those classes; text search intersects with that result.
+- Multiple IDs return the union of those classes; the roster page has no text search.
 - Paging cursors and query caches stay separate for different selections.
 - Old singular `classId` calls continue to work.
 - Empty results and narrow layouts remain usable; toggle state is exposed to assistive technology.
+- All class chips fit without an inner scroll area; an open card menu closes during list scrolling.
 
 ## Files
 
-- Modify `src/features/roster/roster-page.tsx` for URL state and accessible statistic-chip toggles.
+- Modify `src/features/roster/roster-page.tsx` for URL state, accessible statistic-chip toggles, search removal, and scroll dismissal of card menus.
 - Modify `src/features/roster/api.ts` and `src/features/roster/query-keys.ts` for multi-ID request and cache identity.
 - Modify `supabase/functions/_shared/contracts/roster.ts`, `roster/service.ts`, and `roster/repository.ts` for validation and server-side union filtering.
 - Modify `tests/roster-admin.test.tsx` and `tests/server/roster.test.ts` to cover UI, URL restoration, compatibility, and server filtering.
-- Modify `e2e/roster.spec.ts` to cover real browser selection and clearing.
+- Modify `e2e/roster.spec.ts` to cover real browser selection and clearing without a text search field.
 
 ## Tasks
 
@@ -51,7 +53,7 @@
 **Files:** `roster-page.tsx`, `api.ts`, `query-keys.ts`, `tests/roster-admin.test.tsx`.
 
 - [ ] Add multi-value `classIds` URL parsing while accepting old singular `classId` links.
-- [ ] Add UI tests for selecting multiple chips, deselecting the final chip, search intersection, and URL restoration.
+- [ ] Add UI tests for selecting multiple chips, deselecting the final chip, legacy single-class links, and URL restoration.
 - [ ] Run the focused UI tests and confirm the new cases fail before implementation.
 - [ ] Make chips accessible toggle buttons with selected-state styling; remove the redundant single-class selector.
 - [ ] Send selected IDs in `roster/page`; ensure cache keys distinguish selections; keep stats request unfiltered.
