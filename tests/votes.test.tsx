@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ApplicationDetails } from '@contracts/applications'
 import type { VoteDetails, VoteListResponse } from '@contracts/votes'
@@ -61,6 +61,9 @@ function respond(routes: Record<string, (body: unknown) => unknown>) {
   callApi.mockImplementation((route, body) => {
     const handler = routes[route]
     if (!handler) {
+      if (route === 'notifications/summary') {
+        return Promise.resolve({ unreadCount: 0, sections: {} })
+      }
       return Promise.reject(new AppError('not_found'))
     }
     try {
@@ -73,10 +76,59 @@ function respond(routes: Record<string, (body: unknown) => unknown>) {
 
 beforeEach(() => {
   callApi.mockReset()
+  callApi.mockImplementation((route) =>
+    route === 'notifications/summary'
+      ? Promise.resolve({ unreadCount: 0, sections: {} })
+      : Promise.reject(new AppError('not_found')),
+  )
   toast.mockReset()
 })
 
 describe('votes list (VOT-01)', () => {
+  it('keeps the active total as plain text when there are no new votes', async () => {
+    respond({
+      'votes/list': () => list([vote()], { activeCount: 4 }),
+      'notifications/summary': () => ({
+        unreadCount: 0,
+        sections: { votes: 0 },
+      }),
+    })
+    await renderApp({ role: 'member', path: '/votes' })
+
+    const activeTab = await screen.findByRole('tab', { name: /Актуальные/ })
+    expect(within(activeTab).getByText('4')).toBeVisible()
+    expect(within(activeTab).queryByLabelText(/новых записей/)).toBeNull()
+  })
+
+  it('shows only new votes in red and clears them after the section is viewed', async () => {
+    let resolveSeen!: (value: { ok: true }) => void
+    const pendingSeen = new Promise<{ ok: true }>((resolve) => {
+      resolveSeen = resolve
+    })
+    respond({
+      'votes/list': () => list([vote()], { activeCount: 4 }),
+      'notifications/summary': () => ({
+        unreadCount: 0,
+        sections: { votes: 2 },
+      }),
+      'notifications/section-seen': () => pendingSeen,
+    })
+    await renderApp({ role: 'member', path: '/votes' })
+
+    const activeTab = await screen.findByRole('tab', { name: /Актуальные/ })
+    expect(within(activeTab).getByLabelText('2 новых записей')).toBeVisible()
+    expect(within(activeTab).getByText('4')).toBeVisible()
+
+    await act(async () => resolveSeen({ ok: true }))
+
+    await waitFor(() =>
+      expect(
+        within(activeTab).queryByLabelText('2 новых записей'),
+      ).not.toBeInTheDocument(),
+    )
+    expect(within(activeTab).getByText('4')).toBeVisible()
+  })
+
   it.each([
     ['Принять в клан', 'accept'],
     ['Отказать', 'reject'],

@@ -12,6 +12,7 @@ import { buttonVariants } from '@/components/ui/button'
 import { NavBadge } from '@/components/ui/nav-badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { pagingOf, VirtualList } from '@/components/virtual-list'
+import { useNotificationSummary } from '@/features/notifications/api'
 import { useActiveVotes, useVoteHistory } from './api'
 import { VoteCard } from './vote-card'
 
@@ -41,6 +42,7 @@ const EMPTY = {
 export function VotesPage({ tab = 'active' }: Partial<VotesSearch>) {
   const navigate = useNavigate()
   const { hasOfficerPermission } = useAccess()
+  const notifications = useNotificationSummary(true)
   // Счётчик актуальных нужен на обеих вкладках: список малый и кэшируется.
   const active = useActiveVotes()
   const history = useVoteHistory(tab === 'history')
@@ -124,7 +126,14 @@ export function VotesPage({ tab = 'active' }: Partial<VotesSearch>) {
             className="inline-flex items-center gap-2"
           >
             Актуальные
-            <NavBadge count={active.data?.activeCount} />
+            {active.data ? (
+              <>
+                <NavBadge count={notifications.data?.sections.votes} />
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {active.data.activeCount}
+                </span>
+              </>
+            ) : null}
           </TabsTrigger>
           <TabsTrigger value="history">История</TabsTrigger>
         </TabsList>
