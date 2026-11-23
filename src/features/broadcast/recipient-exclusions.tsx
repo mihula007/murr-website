@@ -43,7 +43,7 @@ function RecipientRow({
   return (
     <label
       className={cn(
-        'flex h-16 min-w-0 cursor-pointer items-center gap-3 overflow-hidden rounded-lg border border-border bg-surface-inset px-3 py-2.5',
+        'flex h-12 min-w-0 cursor-pointer items-center gap-3 overflow-hidden rounded-lg border border-border bg-surface-inset px-3 py-2.5',
         excluded && 'border-highlight-line bg-item-highlight!',
       )}
     >
@@ -55,12 +55,12 @@ function RecipientRow({
         disabled={disabled}
         onChange={() => onToggle(member)}
       />
-      <span className="grid min-w-0 flex-1 gap-1">
-        <strong className="min-w-0 truncate" title={member.gameNickname}>
+      <span className="flex min-w-0 flex-1 items-center gap-2">
+        <strong className="min-w-0 flex-1 truncate" title={member.gameNickname}>
           {member.gameNickname}
         </strong>
         <span
-          className="truncate text-xs text-muted-foreground"
+          className="max-w-[45%] shrink-0 truncate text-xs text-muted-foreground"
           aria-label={channelNames}
           title={channelNames}
         >
@@ -205,7 +205,7 @@ export function RecipientExclusions({
         label="Получатели объявления"
         items={items}
         getKey={(member) => member.id}
-        estimateSize={64}
+        estimateSize={48}
         endPadding={64}
         viewportRows={15}
         autoLoadMore={false}
@@ -229,7 +229,6 @@ export function RecipientExclusions({
       aria-label="Исключения получателей"
       className="col-span-full grid gap-3"
     >
-      <h2 className="m-0 text-base font-semibold">Кому отправить</h2>
       <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,18rem)_max-content] sm:items-end">
         <FormField
           id="broadcast-recipient-class"

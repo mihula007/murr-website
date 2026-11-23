@@ -668,7 +668,7 @@ describe('broadcast page (BRC, E2E-07)', () => {
     await waitFor(() => expect(row).not.toBeChecked())
   })
 
-  it('keeps the recipient heading and removes the explanatory copy', async () => {
+  it('omits the recipient heading and displays channel names beside nicknames', async () => {
     routes['broadcasts/recipients'] = () => ({
       ...recipients(1, 0),
       items: [
@@ -685,8 +685,8 @@ describe('broadcast page (BRC, E2E-07)', () => {
       name: 'Исключения получателей',
     })
     expect(
-      within(recipientPanel).getByRole('heading', { name: 'Кому отправить' }),
-    ).toBeVisible()
+      within(recipientPanel).queryByRole('heading', { name: 'Кому отправить' }),
+    ).toBeNull()
     expect(
       within(recipientPanel).queryByText(/Все подходящие участники отмечены/),
     ).toBeNull()
@@ -699,6 +699,13 @@ describe('broadcast page (BRC, E2E-07)', () => {
     expect(
       within(recipientPanel).getByRole('button', { name: 'Отметить всех' }),
     ).toBeVisible()
+    const nickname = within(recipientPanel).getByText('Получатель')
+    const channelName = within(recipientPanel).getByLabelText('Telegram', {
+      selector: 'span',
+    })
+    expect(nickname.parentElement).toBe(channelName.parentElement)
+    expect(nickname.parentElement).toHaveClass('flex', 'items-center')
+    expect(nickname.closest('label')).toHaveClass('h-12')
   })
 
   it('paginates recipients without a nickname search field', async () => {
