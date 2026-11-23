@@ -15,11 +15,9 @@ test.beforeEach(async ({ page }) => {
 async function openDynamics(page: Page, nickname?: string) {
   await page.goto('./#/roster')
   if (nickname) {
-    await page
-      .getByRole('heading', { name: nickname })
-      .locator('xpath=../../..')
-      .getByRole('button', { name: 'Динамика развития' })
-      .click()
+    await page.getByLabel('Поиск').fill(nickname)
+    await expect(page.getByRole('heading', { name: nickname })).toBeVisible()
+    await page.getByRole('button', { name: 'Динамика развития' }).click()
   } else {
     await page
       .getByRole('button', { name: 'Динамика развития' })
