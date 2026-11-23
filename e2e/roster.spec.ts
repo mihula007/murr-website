@@ -48,7 +48,7 @@ test('неограниченный состав фильтрует классы 
   const prefix = `R${Date.now().toString(36).slice(-3)}`
   const created = await seedMembers(26, prefix)
   const excluded = await createMember('member')
-  excluded.nickname = `Excluded${prefix}`
+  excluded.nickname = `X${prefix}`
   await sql(
     (db) =>
       db`update app.profiles set game_nickname = ${excluded.nickname}, class_id = 8 where id = ${excluded.id}`,

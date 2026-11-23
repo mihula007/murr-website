@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { hasHorizontalScroll, skipSplash } from './helpers'
+import { hasHorizontalScroll, scrollUntilVisible, skipSplash } from './helpers'
 import { createMember, expectSignedIn, signInUi, sql } from './supabase'
 
 test.skip(
@@ -15,9 +15,13 @@ test.beforeEach(async ({ page }) => {
 async function openDynamics(page: Page, nickname?: string) {
   await page.goto('./#/roster')
   if (nickname) {
-    await page.getByLabel('Поиск').fill(nickname)
-    await expect(page.getByRole('heading', { name: nickname })).toBeVisible()
-    await page.getByRole('button', { name: 'Динамика развития' }).click()
+    const heading = page.getByRole('heading', { name: nickname })
+    await scrollUntilVisible(page, heading)
+    const card = page
+      .getByRole('list', { name: 'Участники' })
+      .getByRole('listitem')
+      .filter({ has: heading })
+    await card.getByRole('button', { name: 'Динамика развития' }).click()
   } else {
     await page
       .getByRole('button', { name: 'Динамика развития' })
