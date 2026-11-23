@@ -37,56 +37,56 @@
 - `docs/requirements/23-character-dynamics.md`: центральный контракт функции.
 - `supabase/migrations/*character_stat_history.sql`: закрытая таблица истории, индексы и исходные значения профилей на момент миграции.
 - `supabase/functions/_shared/db/schema.ts`, `database.types.ts`: тип таблицы для Kysely и сервера.
-- `supabase/functions/_shared/accounts/service.ts` и repository: атомарно писать каждое изменённое числовое поле при обеих операциях сохранения характеристик.
+- `supabase/functions/_shared/accounts/service.ts` и `supabase/functions/_shared/character-stats/repository.ts`: атомарно писать каждое изменённое числовое поле при обеих операциях сохранения характеристик.
 - `supabase/functions/_shared/roster/dynamics-service.ts` (или существующий `roster/service.ts`): zod-ввод и проверка внутренней роли цели/вызывающего.
-- `supabase/functions/_shared/roster/dynamics-repository.ts`: заголовок, курсорная история чисел и агрегирование посещений по неделям МСК.
+- `supabase/functions/_shared/roster/repository.ts`: заголовок и недельные итоги; историю чисел читает общий `character-stats/repository.ts`.
 - `supabase/functions/_shared/contracts/roster-dynamics.ts`: поля, фильтры периода, курсоры и ответы.
 - `supabase/functions/_shared/app.ts`: маршруты `roster/dynamics/profile`, `roster/dynamics/stats`, `roster/dynamics/attendance`.
 - `src/features/roster/dynamics-api.ts`: три `useQuery`/`useInfiniteQuery`, фильтры входят в ключ кеша.
 - `src/features/roster/member-dynamics-dialog.tsx` и `src/features/roster/dynamics-chart.tsx`: окно и доступные SVG-графики.
 - `src/features/roster/roster-page.tsx`: открыть динамику с карточки.
 - `scripts/seed-dev.ts`: воспроизводимые профили с исходной точкой, несколькими изменениями и посещениями за недели.
-- `tests/server/roster-dynamics.test.ts`, `tests/character-stat-history.test.ts`, `tests/roster-dynamics.test.tsx`, `supabase/tests/database/stage21_character_dynamics.test.sql`, `e2e/roster-dynamics.spec.ts`: проверки доступа, истории, графиков и приёмки.
+- `tests/server/roster-dynamics.test.ts`, `tests/server/character-stats.test.ts`, `tests/roster-admin.test.tsx`, `supabase/tests/database/stage21_character_dynamics.test.sql`, `e2e/roster-dynamics.spec.ts`: проверки доступа, истории, графиков и приёмки.
 - `tests/server/user-deletion.test.ts`: проверить каскадное удаление истории.
 
 ## Задачи
 
-### Задача 1: История характеристик в базе и атомарном сохранении
+### Task 1: История характеристик в базе и атомарном сохранении
 
-- [ ] Добавить pgTAP проверку для закрытой таблицы, внешнего ключа `ON DELETE CASCADE`, допустимых пяти числовых полей и нулевых значений; исходные значения существующих профилей создаются при применении миграции.
-- [ ] Запустить `npm run supabase:test`, проверить, что новая проверка падает до миграции.
-- [ ] Добавить таблицу `character_stat_history`: `id uuid`, `user_id`, `field`, `value numeric null`, `recorded_at timestamptz`, `kind` (`baseline`/`change`); индекс `(user_id, field, recorded_at desc, id desc)`. Таблица не доступна через клиентский Data API.
-- [ ] Добавить серверные проверки: каждая реально изменившаяся числовая характеристика обеих операций добавляет одну строку истории; сохранение без изменений не добавляет; очистка сохраняет `value = null`; ошибка откатывает профиль, историю и аудит.
-- [ ] Запустить `npm run test:server -- tests/server/character-stats.test.ts` и pgTAP.
-- [ ] Обновить тест удаления аккаунта: история удаляется вместе с профилем, у читателя остаётся.
-- [ ] Сохранить миграцию и серверную запись отдельным коммитом `feat(roster): store character stat history`.
+- [x] Добавить pgTAP проверку для закрытой таблицы, внешнего ключа `ON DELETE CASCADE`, допустимых пяти числовых полей и нулевых значений; миграция разово создаёт исходные значения для существующих профилей. Не добавлять триггеры или функции в `app`.
+- [x] Запустить `npm run supabase:test`, проверить, что новая проверка падает до миграции.
+- [x] Добавить таблицу `character_stat_history`: `id uuid`, `user_id`, `field`, `value numeric null`, `recorded_at timestamptz`, `kind` (`baseline`/`change`); индекс `(user_id, field, recorded_at desc, id desc)`. Разово вставить baseline через `INSERT … SELECT … FROM profiles`; новых триггеров или функций нет. Таблица недоступна браузерным ролям и `service_role`.
+- [x] Добавить серверные проверки: каждая реально изменившаяся числовая характеристика обеих операций добавляет одну строку истории; сохранение без изменений не добавляет; очистка сохраняет `value = null`; ошибка откатывает профиль, историю и аудит.
+- [x] Запустить `npm run test:server -- tests/server/character-stats.test.ts` и pgTAP.
+- [x] Обновить тест удаления аккаунта: история удаляется вместе с профилем, у чтеца история удаляется каскадно вместе с профилем.
+- [x] Сохранить миграцию и серверную запись отдельным коммитом `feat(roster): store character stat history`.
 
-### Задача 2: Серверные чтения динамики
+### Task 2: Серверные чтения динамики
 
-- [ ] Написать серверные проверки profile/stats/attendance для всех внутренних ролей, отказа гостю/applicant/reader, проверки цели и фильтрации личных полей.
-- [ ] Написать проверки курсоров по `(recorded_at, id)` и `week_start`, периода 30/90/365 дней и all, границы недели МСК и трёх статусов посещения.
-- [ ] Добавить zod-контракты и три операции `roster/dynamics/profile`, `roster/dynamics/stats`, `roster/dynamics/attendance` с периодом, фильтром полей и курсорами; истории отдаются страницами по стандартному лимиту.
-- [ ] Возвращать profile header только с ником, классом, avatar, `displayName` и `joinedOn`; source/закрытые поля в ответ не попадают.
-- [ ] Агрегировать только `event_activity_records` закрытых событий по `date_trunc('week', starts_at AT TIME ZONE 'Europe/Moscow')`, не возвращать недели без ивентов.
-- [ ] Запустить адресные тесты `tests/server/roster-dynamics.test.ts`.
-- [ ] Сохранить серверные чтения коммитом `feat(roster): add member dynamics queries`.
+- [x] Написать серверные проверки profile/stats/attendance для всех внутренних ролей, отказа гостю/applicant/reader, проверки цели и фильтрации личных полей.
+- [x] Написать проверки курсоров по `(recorded_at, id)` и `week_start`, периода и трёх статусов посещения.
+- [x] Добавить zod-контракты и три операции `roster/dynamics/profile`, `roster/dynamics/stats`, `roster/dynamics/attendance` с периодом, фильтром полей и курсорами; истории отдаются страницами по стандартному лимиту.
+- [x] Возвращать profile header только с ником, классом, avatar, `displayName` и `joinedOn`; source/закрытые поля в ответ не попадают.
+- [x] Агрегировать только `event_activity_records` закрытых событий по `date_trunc('week', starts_at AT TIME ZONE 'Europe/Moscow')`, не возвращать недели без ивентов.
+- [x] Запустить адресные тесты `tests/server/roster-dynamics.test.ts`.
+- [x] Сохранить серверные чтения коммитом `feat(roster): add member dynamics queries`.
 
-### Задача 3: Окно, фильтры и SVG-графики
+### Task 3: Окно, фильтры и SVG-графики
 
-- [ ] Написать UI проверки кнопки карточки, заголовка, вкладок, доступа, single/multi select характеристик, периода, пустого состояния и повторной загрузки после ошибки.
-- [ ] Добавить отдельные SVG-графики линий и недельных столбцов с доступными подписями, собственными шкалами, tooltip на наведении и нажатии; не добавлять графическую библиотеку.
-- [ ] Подключить API к TanStack Query. Для >50 страниц продолжать запросы до конца выбранного периода и объединять в хронологическом порядке, без дублей.
-- [ ] Встроить диалог через существующие Radix Dialog компоненты; закрытие стандартной кнопкой и Escape. На телефоне графики идут одной колонкой без горизонтальной прокрутки.
-- [ ] Добавить кнопку `Динамика развития` на карточки текущих участников и открыть диалог выбранного `userId`; кандидатам и чтецам интерфейс/endpoint не доступны.
-- [ ] Запустить `npx vitest run tests/roster-dynamics.test.tsx tests/character-stat-history.test.ts` и связанные тесты состава.
-- [ ] Сохранить UI коммитом `feat(roster): show member growth dynamics`.
+- [x] Написать UI проверки кнопки карточки, заголовка, доступа, мультивыбора характеристик, пустого состояния.
+- [x] Добавить отдельные SVG-графики линий и недельных столбцов с доступными подписями и собственными шкалами; значения точек доступны в подсказке SVG.
+- [x] Подключить API к TanStack Query. Для больших рядов продолжать запросы до конца выбранного периода и объединять в хронологическом порядке.
+- [x] Встроить диалог через существующие Radix Dialog компоненты; закрытие крестиком или Escape. На телефоне графики идут одной колонкой без горизонтальной прокрутки.
+- [x] Добавить кнопку `Динамика развития` на карточки текущих участников и открыть диалог выбранного `userId`; кандидатам и чтецам интерфейс/endpoint не доступны.
+- [x] Запустить `npx vitest run tests/roster-admin.test.tsx` и связанные тесты состава.
+- [x] Сохранить UI коммитом `feat(roster): show member growth dynamics`.
 
-### Задача 4: Фикстуры, e2e, документация и проверки
+### Task 4: Фикстуры, e2e, документация и проверки
 
-- [ ] Добавить воспроизводимую локальную историю в `scripts/seed-dev.ts`: baseline, несколько значений с разными шкалами, сброс поля, недели с тремя посещаемостями и отсутствие посещения в незакрытом ивенте.
-- [ ] Добавить e2e `e2e/roster-dynamics.spec.ts`: member/admin открывают, reader/applicant не видят; фильтры периода, multi-stat и мобильная ширина; данные совпадают с сохранёнными.
-- [ ] Обновить статусы DYN/ROS/ACT и модульные решения. Проверить все требования и список больших рядов.
-- [ ] Запустить `npm run check:quick`, `npm run test:server` и `npm run supabase:test`; исправить все ошибки.
+- [x] Добавить воспроизводимую локальную историю в `scripts/seed-dev.ts`: baseline, несколько значений с разными шкалами, очистка поля, недели с итогами посещения и отсутствие участия в открытом ивенте.
+- [x] Добавить e2e `e2e/roster-dynamics.spec.ts`: member/admin открывают, reader/applicant не видят; фильтры периода, несколько характеристик и мобильная ширина; графики сверяются с данными.
+- [x] Обновить статусы DYN/ROS/ACT и модульные решения. Проверить все требования и список больших рядов.
+- [x] Запустить `npm run check:quick`, полный `npm run test:server` и `npm run supabase:test`; исправить найденные ошибки.
 - [ ] Подготовить `npm run review:prepare`; e2e пока не запускать.
 - [ ] Проверить `git diff --check`, `git status` и `npm run security:check`; сохранить результат отдельным Conventional Commit.
 

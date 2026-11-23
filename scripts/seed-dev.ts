@@ -227,6 +227,7 @@ const APP_TABLES = [
   'broadcast_templates',
   'broadcast_drafts',
   'user_deletions',
+  'character_stat_history',
   'profiles',
 ]
 
@@ -312,6 +313,7 @@ const byRole = (...roles: Role[]) => users.filter((u) => roles.includes(u.role))
 const staff = byRole('officer', 'master', 'admin')
 const clan = byRole('member', 'officer', 'master', 'admin')
 const registered = users
+const characterHistory: Record<string, unknown>[] = []
 
 console.log('Вставка данных:')
 await insert(
@@ -320,7 +322,7 @@ await insert(
     const hasCharacterStats = ['member', 'officer', 'master', 'admin'].includes(
       u.role,
     )
-    return {
+    const profile = {
       id: u.id,
       display_name: pick(NAMES),
       game_nickname: u.nickname,
@@ -354,8 +356,38 @@ await insert(
       created_at: iso(u.createdAt),
       updated_at: iso(u.createdAt + int(0, 30) * DAY),
     }
+    if (hasCharacterStats) {
+      for (const field of ['pa', 'pz', 'bu', 'hp', 'bd'] as const) {
+        const current = Number(profile[field])
+        const values = [
+          Math.round(current * 0.72),
+          Math.round(current * 0.88),
+          current,
+        ]
+        values.forEach((value, point) => {
+          characterHistory.push({
+            user_id: u.id,
+            field,
+            value,
+            recorded_at: iso(NOW - [120, 55, 12][point]! * DAY),
+            kind: point === 0 ? 'baseline' : 'change',
+          })
+        })
+        if (u.email === 'seed-member-1@example.test' && field === 'pz') {
+          characterHistory.push({
+            user_id: u.id,
+            field,
+            value: null,
+            recorded_at: iso(NOW - 20 * DAY),
+            kind: 'change',
+          })
+        }
+      }
+    }
+    return profile
   }),
 )
+await insert('character_stat_history', characterHistory)
 
 // Для ручной проверки: первый офицер — с несколькими правами, остальные —
 // без дополнительных прав по умолчанию.
