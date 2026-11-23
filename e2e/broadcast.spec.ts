@@ -29,6 +29,51 @@ function moscowDate(days = 0) {
 const prepare = (page: Page) =>
   page.getByRole('link', { name: 'Подготовить рассылку' })
 
+async function findRecipientCheckbox(page: Page, nickname: string) {
+  const recipients = page.getByRole('region', {
+    name: 'Исключения получателей',
+  })
+  const scroller = recipients.getByRole('region', {
+    name: 'Прокручиваемый список: Получатели объявления',
+  })
+  const checkbox = recipients.getByRole('checkbox', {
+    name: `Получит: ${nickname}`,
+  })
+  const loadMore = recipients.getByRole('button', { name: 'Показать ещё' })
+
+  for (let pageIndex = 0; pageIndex < 12; pageIndex++) {
+    if (await checkbox.count()) {
+      await expect(checkbox).toBeVisible()
+      return checkbox
+    }
+
+    const { top, max } = await scroller.evaluate((element) => ({
+      top: element.scrollTop,
+      max: element.scrollHeight - element.clientHeight,
+    }))
+    if (top < max) {
+      await scroller.hover()
+      await page.mouse.wheel(0, Math.min(600, max - top))
+      await expect
+        .poll(() => scroller.evaluate((element) => element.scrollTop))
+        .toBeGreaterThan(top)
+      continue
+    }
+
+    if (!(await loadMore.isVisible())) {
+      break
+    }
+    const nextPage = page.waitForResponse((response) =>
+      response.url().includes('/functions/v1/api/broadcasts/recipients'),
+    )
+    await loadMore.click()
+    await nextPage
+  }
+
+  await expect(checkbox).toBeVisible()
+  return checkbox
+}
+
 /** Черновик сохранён, а интерфейс нигде не говорит «отправлено» (BRC-13). */
 async function saveAndExpectDraft(page: Page, text: RegExp) {
   await page.getByRole('button', { name: 'Сохранить черновик' }).click()
@@ -241,12 +286,14 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
       request.search === prefix
     )
   })
-  await page.goto('./#/broadcast?tab=subscriptions')
-  await expect(page.getByRole('tab', { name: 'Подписки' })).toHaveAttribute(
-    'data-state',
-    'active',
+  await page.goto(`./#/broadcast?q=${prefix}`)
+  const subscriptionsPanel = page.getByRole('region', {
+    name: 'Подписки на рассылки',
+  })
+  await expect(subscriptionsPanel).toBeVisible()
+  await expect(subscriptionsPanel.getByLabel('Поиск по нику')).toHaveValue(
+    prefix,
   )
-  await page.getByLabel('Поиск по нику').fill(prefix)
   const first = (await (await firstResponse).json()) as {
     items: { id: string; gameNickname: string }[]
     nextCursor: string | null
@@ -323,9 +370,12 @@ test('BRC-17: subscription list filters profiles without any messenger link', as
 
   await signInUi(page, officer.email)
   await expectSignedIn(page)
-  await page.goto(`./#/broadcast?tab=subscriptions&q=${prefix}`)
-  await expect(page.getByText(`${prefix}1`)).toBeVisible()
-  await expect(page.getByText(`${prefix}2`)).toBeVisible()
+  await page.goto(`./#/broadcast?q=${prefix}`)
+  const subscriptionsPanel = page.getByRole('region', {
+    name: 'Подписки на рассылки',
+  })
+  await expect(subscriptionsPanel.getByText(`${prefix}1`)).toBeVisible()
+  await expect(subscriptionsPanel.getByText(`${prefix}2`)).toBeVisible()
 
   const filteredResponse = page.waitForResponse((response) => {
     if (
@@ -341,8 +391,8 @@ test('BRC-17: subscription list filters profiles without any messenger link', as
   })
   await page.getByRole('checkbox', { name: 'Показать без подписки' }).check()
   await filteredResponse
-  await expect(page.getByText(`${prefix}1`)).toBeVisible()
-  await expect(page.getByText(`${prefix}2`)).toHaveCount(0)
+  await expect(subscriptionsPanel.getByText(`${prefix}1`)).toBeVisible()
+  await expect(subscriptionsPanel.getByText(`${prefix}2`)).toHaveCount(0)
 
   const reloadResponse = page.waitForResponse((response) => {
     if (
@@ -361,11 +411,11 @@ test('BRC-17: subscription list filters profiles without any messenger link', as
   await expect(
     page.getByRole('checkbox', { name: 'Показать без подписки' }),
   ).toBeChecked()
-  await expect(page.getByText(`${prefix}1`)).toBeVisible()
-  await expect(page.getByText(`${prefix}2`)).toHaveCount(0)
+  await expect(subscriptionsPanel.getByText(`${prefix}1`)).toBeVisible()
+  await expect(subscriptionsPanel.getByText(`${prefix}2`)).toHaveCount(0)
 })
 
-test('BRC-15: subscription tab shows messenger links to managers only', async ({
+test('BRC-15: subscription list shows messenger links to managers only', async ({
   page,
 }) => {
   const [officer, linked, unlinked] = await Promise.all([
@@ -393,24 +443,26 @@ test('BRC-15: subscription tab shows messenger links to managers only', async ({
 
   await signInUi(page, officer.email)
   await expectSignedIn(page)
-  await page.goto(
-    `./#/broadcast?tab=subscriptions&q=${encodeURIComponent(linked.nickname)}`,
-  )
-  await expect(page.getByRole('tab', { name: 'Подписки' })).toHaveAttribute(
-    'data-state',
-    'active',
-  )
-  await expect(page.getByText(linked.nickname)).toBeVisible()
+  await page.goto(`./#/broadcast?q=${encodeURIComponent(linked.nickname)}`)
+  const subscriptionsPanel = page.getByRole('region', {
+    name: 'Подписки на рассылки',
+  })
+  await expect(subscriptionsPanel).toBeVisible()
+  await expect(subscriptionsPanel.getByText(linked.nickname)).toBeVisible()
   await expect(
-    page.getByRole('group', { name: 'Telegram: привязан' }),
+    subscriptionsPanel.getByRole('group', { name: 'Telegram: привязан' }),
   ).toBeVisible()
   await expect(
-    page.getByRole('group', { name: 'ВКонтакте: сообщения недоступны' }),
+    subscriptionsPanel.getByRole('group', {
+      name: 'ВКонтакте: сообщения недоступны',
+    }),
   ).toBeVisible()
-  await expect(page.getByRole('group', { name: 'MAX: привязан' })).toBeVisible()
+  await expect(
+    subscriptionsPanel.getByRole('group', { name: 'MAX: привязан' }),
+  ).toBeVisible()
 
-  await page.getByLabel('Поиск по нику').fill(unlinked.nickname)
-  await expect(page.getByText(unlinked.nickname)).toBeVisible()
+  await subscriptionsPanel.getByLabel('Поиск по нику').fill(unlinked.nickname)
+  await expect(subscriptionsPanel.getByText(unlinked.nickname)).toBeVisible()
   await page.setViewportSize({ width: 375, height: 812 })
   expect(await hasHorizontalScroll(page)).toBe(false)
 
@@ -453,12 +505,22 @@ test('BRC-16: excludes a recipient from one announcement only', async ({
     .getByLabel('Текст рассылки')
     .fill('Сообщение для оставшегося участника')
   await page.getByRole('checkbox', { name: 'ВКонтакте' }).uncheck()
+  const recipientsResponse = page.waitForResponse((response) => {
+    if (!response.url().includes('/functions/v1/api/broadcasts/recipients')) {
+      return false
+    }
+    const request = JSON.parse(response.request().postData() ?? '{}') as {
+      channels?: string[]
+    }
+    return request.channels?.length === 1 && request.channels[0] === 'telegram'
+  })
   await page.getByRole('checkbox', { name: 'MAX' }).uncheck()
-  await page.getByLabel('Поиск по нику').fill(excluded.nickname)
-  const recipientsResponse = await page.waitForResponse((response) =>
-    response.url().includes('/broadcasts/recipients'),
-  )
-  expect(recipientsResponse.ok()).toBe(true)
+  expect((await recipientsResponse).ok()).toBe(true)
+  await expect(
+    page
+      .getByRole('region', { name: 'Исключения получателей' })
+      .getByLabel('Поиск по нику'),
+  ).toHaveCount(0)
   const recipientSummary = page.getByText(/^Получателей по каналам:/)
   await expect(recipientSummary).toBeVisible()
   const initialTelegramCountText = (
@@ -466,9 +528,7 @@ test('BRC-16: excludes a recipient from one announcement only', async ({
   )?.match(/Telegram: (\d+)/)?.[1]
   expect(initialTelegramCountText).toBeDefined()
   const initialTelegramCount = Number(initialTelegramCountText)
-  await page
-    .getByRole('checkbox', { name: `Получит: ${excluded.nickname}` })
-    .uncheck()
+  await (await findRecipientCheckbox(page, excluded.nickname)).uncheck()
   await expect(recipientSummary).toHaveText(
     `Получателей по каналам: Telegram: ${initialTelegramCount - 1}`,
   )
@@ -497,8 +557,7 @@ test('BRC-16: excludes a recipient from one announcement only', async ({
     })
   expect(sendBody).not.toHaveProperty('recipientNicknames')
   await expect(page.getByText('Отправлено — Telegram: 1')).toBeVisible()
-  await page.getByLabel('Поиск по нику').fill(included.nickname)
   await expect(
-    page.getByRole('checkbox', { name: `Получит: ${included.nickname}` }),
+    await findRecipientCheckbox(page, included.nickname),
   ).toBeChecked()
 })
