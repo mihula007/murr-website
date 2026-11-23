@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { AlertTriangle, Check } from 'lucide-react'
 import type {
   BroadcastSubscription,
@@ -106,13 +107,22 @@ export function SubscriptionsPanel({
   onUnlinkedOnlyChange: (unlinkedOnly: boolean) => void
 }) {
   const subscriptions = useBroadcastSubscriptions(unlinkedOnly)
+  const [lastGoodItems, setLastGoodItems] = useState<BroadcastSubscription[]>(
+    [],
+  )
+  const members = subscriptions.data ?? lastGoodItems
+
+  const handleUnlinkedOnlyChange = (value: boolean) => {
+    setLastGoodItems(subscriptions.data ?? lastGoodItems)
+    onUnlinkedOnlyChange(value)
+  }
 
   let content
-  if (subscriptions.isPending) {
+  if (subscriptions.isPending && members.length === 0) {
     content = <LoadingState label="Загружаем подписки…" rows={3} />
-  } else if (subscriptions.isError) {
+  } else if (subscriptions.isError && members.length === 0) {
     content = <ErrorState onRetry={() => void subscriptions.refetch()} />
-  } else if (subscriptions.data.length === 0) {
+  } else if (members.length === 0) {
     content = unlinkedOnly ? (
       <EmptyState
         title="Людей без привязки не нашли"
@@ -142,7 +152,7 @@ export function SubscriptionsPanel({
         </div>
         <ScrollableVirtualList
           label="Участники и привязки мессенджеров"
-          items={subscriptions.data}
+          items={members}
           getKey={(member) => member.id}
           estimateSize={62}
           viewportRows={15}
@@ -165,11 +175,19 @@ export function SubscriptionsPanel({
           type="checkbox"
           className="size-4 flex-none accent-primary"
           checked={unlinkedOnly}
-          onChange={(event) => onUnlinkedOnlyChange(event.target.checked)}
+          onChange={(event) => handleUnlinkedOnlyChange(event.target.checked)}
         />
         Показать без подписки
       </label>
-      {content}
+      <div>
+        {subscriptions.isError && members.length > 0 ? (
+          <ErrorState
+            className="mb-3 p-4"
+            onRetry={() => void subscriptions.refetch()}
+          />
+        ) : null}
+      </div>
+      <div>{content}</div>
     </section>
   )
 }

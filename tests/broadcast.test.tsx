@@ -168,6 +168,48 @@ describe('broadcast page (BRC, E2E-07)', () => {
     ).toHaveClass('min-w-0', 'break-words')
   })
 
+  it('keeps the subscriptions list mounted when the filter request fails', async () => {
+    const requests: unknown[] = []
+    routes['broadcasts/subscriptions'] = (body) => {
+      requests.push(body)
+      if ((body as { unlinkedOnly?: boolean }).unlinkedOnly) {
+        throw new Error('offline')
+      }
+      return {
+        items: Array.from({ length: 24 }, (_, index) => ({
+          id: `member-error-${index}`,
+          gameNickname: `Участник ошибки ${index}`,
+          role: 'member',
+          telegram: { linked: true, blocked: false },
+          vk: { linked: false, blocked: false },
+          max: { linked: false, blocked: false },
+        })),
+        nextCursor: null,
+      }
+    }
+    await renderApp({ role: 'admin', path: '/broadcast' })
+    const filter = await screen.findByRole('checkbox', {
+      name: 'Показать без подписки',
+    })
+    expect(await screen.findByText('Участник ошибки 0')).toBeVisible()
+    const scrollRegion = await screen.findByRole('region', {
+      name: 'Прокручиваемый список: Участники и привязки мессенджеров',
+    })
+    scrollRegion.scrollTop = 160
+
+    fireEvent.click(filter)
+    await waitFor(() =>
+      expect(requests).toContainEqual({ cursor: null, unlinkedOnly: true }),
+    )
+
+    expect(
+      await screen.findByRole('alert', {}, { timeout: 10_000 }),
+    ).toBeVisible()
+    expect(screen.getByText('Участник ошибки 0')).toBeVisible()
+    expect(scrollRegion).toBeInTheDocument()
+    expect(scrollRegion.scrollTop).toBe(160)
+  }, 15_000)
+
   it('ignores an obsolete nickname search parameter', async () => {
     const requests: unknown[] = []
     routes['broadcasts/subscriptions'] = (body) => {
@@ -577,6 +619,49 @@ describe('broadcast page (BRC, E2E-07)', () => {
         screen.getByText(/Получателей по каналам: Telegram: 0/),
       ).toBeVisible(),
     )
+  })
+
+  it('disables recipient toggles while loading pages for a bulk update', async () => {
+    let finishPage: (response: unknown) => void = () => undefined
+    routes['broadcasts/recipients'] = (body) => {
+      const request = body as Record<string, unknown>
+      if (request.cursor) {
+        return new Promise((resolve) => {
+          finishPage = resolve
+        })
+      }
+      return {
+        ...recipients(2, 0),
+        items: [
+          {
+            id: '00000000-0000-4000-8000-000000000041',
+            gameNickname: 'Первая страница',
+            channels: ['telegram'],
+          },
+        ],
+        nextCursor: 'page-2',
+      }
+    }
+
+    await renderApp({ role: 'officer', path: '/broadcast' })
+    const row = await screen.findByRole('checkbox', {
+      name: 'Получит: Первая страница',
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Снять отметки' }))
+    await waitFor(() => expect(row).toBeDisabled())
+    expect(row).toBeChecked()
+    finishPage({
+      ...recipients(2, 0),
+      items: [
+        {
+          id: '00000000-0000-4000-8000-000000000042',
+          gameNickname: 'Вторая страница',
+          channels: ['telegram'],
+        },
+      ],
+      nextCursor: null,
+    })
+    await waitFor(() => expect(row).not.toBeChecked())
   })
 
   it('keeps the recipient heading and removes the explanatory copy', async () => {

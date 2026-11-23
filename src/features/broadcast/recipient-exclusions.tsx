@@ -26,11 +26,13 @@ function RecipientRow({
   member,
   selectedChannels,
   excluded,
+  disabled,
   onToggle,
 }: {
   member: BroadcastRecipientOption
   selectedChannels: SendableChannel[]
   excluded: boolean
+  disabled: boolean
   onToggle: (member: BroadcastRecipientOption) => void
 }) {
   const channelNames = member.channels
@@ -50,6 +52,7 @@ function RecipientRow({
         className="size-4 flex-none accent-primary"
         aria-label={`Получит: ${member.gameNickname}`}
         checked={!excluded}
+        disabled={disabled}
         onChange={() => onToggle(member)}
       />
       <span className="grid min-w-0 flex-1 gap-1">
@@ -213,6 +216,7 @@ export function RecipientExclusions({
             member={member}
             selectedChannels={selectedChannels}
             excluded={excludedIds.has(member.id)}
+            disabled={isBulkUpdating || recipients.isFetchingNextPage}
             onToggle={toggle}
           />
         )}
