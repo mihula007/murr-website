@@ -17,7 +17,7 @@ async function openDynamics(page: Page, nickname?: string) {
   if (nickname) {
     await page
       .getByRole('heading', { name: nickname })
-      .locator('xpath=../../../')
+      .locator('xpath=../../..')
       .getByRole('button', { name: 'Динамика развития' })
       .click()
   } else {
@@ -76,7 +76,7 @@ test('участник видит историю характеристик и �
   })
   await signInUi(page, member.email)
   await expectSignedIn(page)
-  const dialog = await openDynamics(page)
+  const dialog = await openDynamics(page, member.nickname)
   await expect(dialog.getByRole('checkbox', { name: 'ПА' })).toBeChecked()
   await dialog.getByRole('checkbox', { name: 'ПЗ' }).check()
   const statChart = dialog.getByRole('region', {
