@@ -947,6 +947,7 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
       }),
       replace: true,
       resetScroll: false,
+      ignoreBlocker: true,
     })
 
   let form

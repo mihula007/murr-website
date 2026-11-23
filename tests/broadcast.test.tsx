@@ -264,6 +264,8 @@ describe('broadcast page (BRC, E2E-07)', () => {
     const scrollRegion = await screen.findByRole('region', {
       name: 'Прокручиваемый список: Участники и привязки мессенджеров',
     })
+    const subject = screen.getByLabelText('Тема (необязательно)')
+    fireEvent.change(subject, { target: { value: 'Не терять эту тему' } })
     scrollRegion.scrollTop = 180
     const pageScroll = vi
       .spyOn(window, 'scrollTo')
@@ -284,6 +286,8 @@ describe('broadcast page (BRC, E2E-07)', () => {
           unlinkedOnly: true,
         }),
       )
+      expect(screen.queryByRole('alertdialog')).toBeNull()
+      expect(subject).toHaveValue('Не терять эту тему')
       expect(pageScroll).not.toHaveBeenCalled()
       expect(scrollRegion).toBeInTheDocument()
       expect(scrollRegion.scrollTop).toBe(180)
