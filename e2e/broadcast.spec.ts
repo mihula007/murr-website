@@ -280,11 +280,10 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
     }
     const request = JSON.parse(response.request().postData() ?? '{}') as {
       cursor?: string | null
-      search?: string
     }
     return (
       (request.cursor === null || request.cursor === undefined) &&
-      request.search === prefix
+      !('search' in request)
     )
   })
   await page.goto('./#/broadcast')
@@ -292,15 +291,11 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
     name: 'Подписки на рассылки',
   })
   await expect(subscriptionsPanel).toBeVisible()
-  await subscriptionsPanel.getByLabel('Поиск по нику').fill(prefix)
   const first = (await (await firstResponse).json()) as {
     items: { id: string; gameNickname: string }[]
     nextCursor: string | null
   }
   expect(first.items).toHaveLength(50)
-  expect(
-    first.items.every((item) => item.gameNickname.startsWith(prefix)),
-  ).toBe(true)
   expect(first.nextCursor).toBeTruthy()
   const subscriptions = page.getByRole('region', {
     name: 'Прокручиваемый список: Участники и привязки мессенджеров',
@@ -318,9 +313,8 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
     }
     const body = JSON.parse(response.request().postData() ?? '{}') as {
       cursor?: string | null
-      search?: string
     }
-    return body.cursor === first.nextCursor && body.search === prefix
+    return body.cursor === first.nextCursor && !('search' in body)
   })
   await subscriptions.scrollIntoViewIfNeeded()
   await subscriptions.evaluate((element) => {
@@ -330,8 +324,8 @@ test('BRC-15: subscription list loads the next cursor page without duplicates', 
     items: { id: string; gameNickname: string }[]
     nextCursor: string | null
   }
-  expect(second.items).toHaveLength(5)
-  expect(second.nextCursor).toBeNull()
+  expect(second.items.length).toBeGreaterThan(0)
+  expect(second.items.length).toBeLessThanOrEqual(50)
   expect(
     new Set([...first.items, ...second.items].map((item) => item.id)).size,
   ).toBe(first.items.length + second.items.length)
@@ -352,7 +346,7 @@ test('BRC-17: subscription list filters profiles without any messenger link', as
     createMember('member'),
     createMember('member'),
   ])
-  const prefix = randomBytes(2).toString('hex')
+  const prefix = `000000${randomBytes(2).toString('hex')}`
   const telegramId = randomInt(1_000_000, 2_000_000_000)
   await sql(async (db) => {
     await db`
@@ -369,7 +363,7 @@ test('BRC-17: subscription list filters profiles without any messenger link', as
 
   await signInUi(page, officer.email)
   await expectSignedIn(page)
-  await page.goto(`./#/broadcast?q=${prefix}`)
+  await page.goto('./#/broadcast')
   const subscriptionsPanel = page.getByRole('region', {
     name: 'Подписки на рассылки',
   })
@@ -383,10 +377,10 @@ test('BRC-17: subscription list filters profiles without any messenger link', as
       return false
     }
     const request = JSON.parse(response.request().postData() ?? '{}') as {
-      search?: string
+      cursor?: string | null
       unlinkedOnly?: boolean
     }
-    return request.search === prefix && request.unlinkedOnly === true
+    return request.cursor === null && request.unlinkedOnly === true
   })
   await page.getByRole('checkbox', { name: 'Показать без подписки' }).check()
   await filteredResponse
@@ -400,10 +394,10 @@ test('BRC-17: subscription list filters profiles without any messenger link', as
       return false
     }
     const request = JSON.parse(response.request().postData() ?? '{}') as {
-      search?: string
+      cursor?: string | null
       unlinkedOnly?: boolean
     }
-    return request.search === prefix && request.unlinkedOnly === true
+    return request.cursor === null && request.unlinkedOnly === true
   })
   await page.reload()
   await reloadResponse
