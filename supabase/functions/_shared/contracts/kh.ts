@@ -38,7 +38,7 @@ export const KH_QUEUE_LABELS: Record<KhQueueId, string> = {
 
 export const khQueueKeySchema = z.enum(KH_QUEUE_IDS)
 
-const cursorSchema = z.string().min(1).max(512).nullable().optional()
+const cursorSchema = z.string().min(1).max(512).optional()
 const cursorShape = Object.fromEntries(
   KH_QUEUE_IDS.map((queueId) => [queueId, cursorSchema]),
 ) as Record<KhQueueId, typeof cursorSchema>
@@ -47,10 +47,13 @@ export const khQueuesRequestSchema = z.object({
   cursors: z.object(cursorShape).strict().optional(),
 })
 
-const entryIdSchema = z.string().regex(/^[1-9]\d{0,18}$/)
+export const khQueueEntryIdSchema = z
+  .string()
+  .regex(/^[1-9]\d{0,18}$/)
+  .refine((value) => BigInt(value) <= 9_223_372_036_854_775_807n)
 
 export const khQueueEntrySchema = z.object({
-  id: entryIdSchema,
+  id: khQueueEntryIdSchema,
   userId: z.string().uuid(),
   gameNickname: z.string().min(1).max(9),
 })
@@ -73,7 +76,7 @@ export const khQueueActionSchema = z.object({
 })
 
 export const khQueueEntryActionSchema = khQueueActionSchema.extend({
-  entryId: entryIdSchema,
+  entryId: khQueueEntryIdSchema,
 })
 
 export type KhQueuesRequest = z.input<typeof khQueuesRequestSchema>

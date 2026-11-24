@@ -125,6 +125,12 @@ import {
 } from './roster/service.ts'
 import { listForgeCatalog } from './forge/service.ts'
 import {
+  issueKhReward,
+  joinKhQueue,
+  leaveKhQueue,
+  listKhQueues,
+} from './kh/service.ts'
+import {
   dynamicsAttendance,
   dynamicsProfile,
   dynamicsStats,
@@ -368,6 +374,10 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'roster/list': ({ actor }) => listRoster(deps, actor),
     'roster/page': ({ actor, body }) => listRosterPage(deps, actor, body),
     'forge/catalog': ({ actor, body }) => listForgeCatalog(actor, body),
+    'kh/queues': ({ actor, body }) => listKhQueues(deps, actor, body),
+    'kh/join': ({ actor, body }) => joinKhQueue(deps, actor, body),
+    'kh/leave': ({ actor, body }) => leaveKhQueue(deps, actor, body),
+    'kh/issue': ({ actor, body }) => issueKhReward(deps, actor, body),
     'roster/dynamics/profile': ({ actor, body }) =>
       dynamicsProfile(deps, actor, body),
     'roster/dynamics/stats': ({ actor, body }) =>

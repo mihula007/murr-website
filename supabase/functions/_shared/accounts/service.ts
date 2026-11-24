@@ -17,6 +17,7 @@ import {
 } from '../contracts/officer-permissions.ts'
 import { officerPermissionsRepository } from '../officer-permissions/repository.ts'
 import { userRepository } from '../auth/repository.ts'
+import { khQueueRepository } from '../kh/repository.ts'
 import type { AccessRole, ApplicationStatus } from '../contracts/account.ts'
 import {
   accountIdSchema,
@@ -487,6 +488,9 @@ async function applyRole(
     joined_on: joinedOn,
     updated_at: now.toISOString(),
   })
+  if (!['member', 'officer', 'master', 'admin'].includes(role)) {
+    await khQueueRepository.deleteForUser(tx, target.id)
+  }
   const user = await userRepository.findById(tx, target.id)
   await writeAudit(tx, {
     category: 'participants',

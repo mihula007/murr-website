@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   KH_QUEUE_IDS,
   KH_QUEUE_LABELS,
+  khQueueEntryActionSchema,
   khQueueKeySchema,
   khQueuesRequestSchema,
   khQueuesResponseSchema,
@@ -48,12 +49,30 @@ describe('KH queue contracts', () => {
     expect(khQueueKeySchema.safeParse('unknown').success).toBe(false)
   })
 
+  it('accepts only positive PostgreSQL entry IDs for queue actions', () => {
+    expect(
+      khQueueEntryActionSchema.safeParse({
+        queueKey: 'summons',
+        entryId: '9223372036854775807',
+      }).success,
+    ).toBe(true)
+    expect(
+      khQueueEntryActionSchema.safeParse({
+        queueKey: 'summons',
+        entryId: '9223372036854775808',
+      }).success,
+    ).toBe(false)
+  })
+
   it('accepts one independent cursor per queue and rejects unknown cursor keys', () => {
     expect(
       khQueuesRequestSchema.safeParse({
-        cursors: { summons: 'eyJpZCI6IjIifQ', pet: null },
+        cursors: { summons: 'eyJpZCI6IjIifQ', pet: 'eyJpZCI6IjMifQ' },
       }).success,
     ).toBe(true)
+    expect(
+      khQueuesRequestSchema.safeParse({ cursors: { summons: null } }).success,
+    ).toBe(false)
     expect(
       khQueuesRequestSchema.safeParse({
         cursors: { unknown: 'eyJpZCI6IjIifQ' },
@@ -63,9 +82,7 @@ describe('KH queue contracts', () => {
 
   it('accepts fourteen independently paged queues with string IDs', () => {
     const emptyPage = { items: [], nextCursor: null }
-    const queues = Object.fromEntries(
-      KH_QUEUE_IDS.map((id) => [id, emptyPage]),
-    )
+    const queues = Object.fromEntries(KH_QUEUE_IDS.map((id) => [id, emptyPage]))
     const result = khQueuesResponseSchema.safeParse({ queues })
     expect(result.success).toBe(true)
     expect(
