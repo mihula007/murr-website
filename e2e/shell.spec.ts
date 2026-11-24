@@ -7,20 +7,25 @@ test.beforeEach(async ({ page }) => {
   await skipSplash(page)
 })
 
-test('гость видит «Вход» и разделы Кузни', async ({ page, isMobile }) => {
+test('гость видит «Вход», но не разделы Кузни', async ({ page, isMobile }) => {
   await page.goto('./#/')
   const header = page.getByRole('banner')
   await expect(header.getByRole('link', { name: 'Вход' })).toBeVisible()
   if (isMobile) {
-    await header.getByRole('button', { name: 'Открыть меню' }).click()
-    const nav = page.getByRole('navigation', { name: 'Мобильная навигация' })
-    await expect(nav.getByRole('heading', { name: 'Кузня' })).toBeVisible()
-    await expect(nav.getByRole('link', { name: 'Боги' })).toBeVisible()
-    await expect(nav.getByRole('heading', { name: 'Клан' })).toHaveCount(0)
+    await expect(
+      header.getByRole('button', { name: 'Открыть меню' }),
+    ).toHaveCount(0)
   } else {
-    await header.getByRole('button', { name: 'Кузня', exact: true }).click()
-    await expect(page.getByRole('menuitem', { name: 'Боги' })).toBeVisible()
+    await expect(
+      header.getByRole('button', { name: 'Кузня', exact: true }),
+    ).toHaveCount(0)
   }
+})
+
+test('гость не открывает раздел Кузни по прямой ссылке', async ({ page }) => {
+  await page.goto('./#/forge/gods')
+  await expect(page.getByRole('heading', { name: 'Нет доступа' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Боги' })).toHaveCount(0)
 })
 
 test('прямая ссылка на закрытый раздел показывает «Нет доступа» и после перезагрузки', async ({

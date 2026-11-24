@@ -26,9 +26,9 @@ const FORGE_SECTIONS = [
 const OFFICER_SECTIONS = [...MEMBER_SECTIONS, ...FORGE_SECTIONS]
 
 const expected: Record<AccessRole, string[]> = {
-  guest: [...FORGE_SECTIONS],
-  applicant: [...FORGE_SECTIONS],
-  reader: [...FORGE_SECTIONS],
+  guest: [],
+  applicant: [],
+  reader: [],
   member: [...MEMBER_SECTIONS, ...FORGE_SECTIONS],
   officer: OFFICER_SECTIONS,
   master: [
@@ -70,7 +70,7 @@ describe('visibleNavigation', () => {
   })
 
   it('группирует разделы по категориям HOM-02', () => {
-    expect(visibleNavigation('guest').map((c) => c.label)).toEqual(['Кузня'])
+    expect(visibleNavigation('guest').map((c) => c.label)).toEqual([])
     expect(visibleNavigation('member').map((c) => c.label)).toEqual([
       'Клан',
       'Сообщество',
@@ -139,7 +139,7 @@ describe('конфигурация разделов', () => {
 })
 
 describe('категория Кузня', () => {
-  it('показывает семь разделов всем ролям', () => {
+  it('показывает семь разделов членам клана и старше', () => {
     expect(
       visibleNavigation('member')
         .find((x) => x.id === 'forge')
@@ -153,12 +153,17 @@ describe('категория Кузня', () => {
       'Мирозданки',
       'Жребия',
     ])
-    for (const role of ACCESS_ROLES) {
+    for (const role of ['member', 'officer', 'master', 'admin'] as const) {
       expect(visibleNavigation(role).some((x) => x.id === 'forge')).toBe(true)
     }
+    for (const role of ['guest', 'applicant', 'reader'] as const) {
+      expect(visibleNavigation(role).some((x) => x.id === 'forge')).toBe(false)
+    }
   })
-  it('разрешает открыть ссылку, чтобы показать заглушку неадминистратору', () => {
-    expect(canAccessPath('guest', '/forge/gods')).toBe(true)
+  it('закрывает прямую ссылку гостям и оставляет заглушку внутренним ролям', () => {
+    expect(canAccessPath('guest', '/forge/gods')).toBe(false)
+    expect(canAccessPath('applicant', '/forge/gods')).toBe(false)
+    expect(canAccessPath('reader', '/forge/gods')).toBe(false)
     expect(canAccessPath('member', '/forge/gods')).toBe(true)
   })
 })

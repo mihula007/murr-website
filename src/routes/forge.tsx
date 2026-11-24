@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { createRoute } from '@tanstack/react-router'
 import { z } from 'zod'
-import { ACCESS_ROLES, useAccess } from '@/app/access'
+import { INTERNAL_ROLES, useAccess } from '@/app/access'
 import { ErrorState } from '@/components/states/error-state'
 import { RouteGate } from '@/components/route-gate'
 import { SectionPlaceholder } from '@/features/sections/section-placeholder'
@@ -48,7 +48,7 @@ function ForgeRoute(): ReactNode {
   const search = forgeRoute.useSearch()
   const navigate = forgeRoute.useNavigate()
   return (
-    <RouteGate roles={ACCESS_ROLES}>
+    <RouteGate roles={INTERNAL_ROLES}>
       <ForgeRouteContent
         calculator={calculator}
         search={search.search}

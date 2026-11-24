@@ -28,31 +28,25 @@ describe('оболочка приложения', () => {
     expect(screen.queryByLabelText('Уровень')).not.toBeInTheDocument()
   })
 
-  it('гость видит «Вход» и категорию кузни', async () => {
+  it('гость видит «Вход», но не категорию кузни', async () => {
     await renderApp({ role: 'guest' })
     const banner = await screen.findByRole('banner')
     expect(within(banner).getByRole('link', { name: 'Вход' })).toHaveAttribute(
       'href',
       '/login',
     )
-    expect(categoryButtons().map((button) => button.textContent)).toEqual([
-      'Кузня',
-    ])
-    expect(
-      screen.queryByRole('button', { name: 'Открыть меню' }),
-    ).toBeInTheDocument()
+    expect(categoryButtons()).toHaveLength(0)
+    expect(screen.queryByRole('button', { name: 'Открыть меню' })).toBeNull()
   })
 
   it.each(['applicant', 'reader'] as const)(
-    'роль %s видит категорию кузни',
+    'роль %s не видит категорию кузни',
     async (role) => {
       await renderApp({ role })
       expect(
         await screen.findByRole('link', { name: 'Аккаунт' }),
       ).toBeInTheDocument()
-      expect(categoryButtons().map((button) => button.textContent)).toEqual([
-        'Кузня',
-      ])
+      expect(categoryButtons()).toHaveLength(0)
     },
   )
 
