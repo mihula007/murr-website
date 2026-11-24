@@ -19,7 +19,7 @@ test('гость видит «Вход» и разделы Кузни', async ({
     await expect(nav.getByRole('heading', { name: 'Клан' })).toHaveCount(0)
   } else {
     await header.getByRole('button', { name: 'Кузня', exact: true }).click()
-    await expect(page.getByRole('link', { name: 'Боги' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Боги' })).toBeVisible()
   }
 })
 
