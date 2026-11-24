@@ -26,27 +26,27 @@ const FORGE_SECTIONS = [
 const OFFICER_SECTIONS = [...MEMBER_SECTIONS, ...FORGE_SECTIONS]
 
 const expected: Record<AccessRole, string[]> = {
-  guest: [],
-  applicant: [],
-  reader: [],
+  guest: [...FORGE_SECTIONS],
+  applicant: [...FORGE_SECTIONS],
+  reader: [...FORGE_SECTIONS],
   member: [...MEMBER_SECTIONS, ...FORGE_SECTIONS],
   officer: OFFICER_SECTIONS,
   master: [
     ...MEMBER_SECTIONS,
+    ...FORGE_SECTIONS,
     'applications',
     'activity',
     'broadcast',
     'permissions',
-    ...FORGE_SECTIONS,
   ],
   admin: [
     ...MEMBER_SECTIONS,
+    ...FORGE_SECTIONS,
     'applications',
     'activity',
     'broadcast',
     'permissions',
     'admin',
-    ...FORGE_SECTIONS,
   ],
 }
 
@@ -70,7 +70,7 @@ describe('visibleNavigation', () => {
   })
 
   it('группирует разделы по категориям HOM-02', () => {
-    expect(visibleNavigation('guest')).toEqual([])
+    expect(visibleNavigation('guest').map((c) => c.label)).toEqual(['Кузня'])
     expect(visibleNavigation('member').map((c) => c.label)).toEqual([
       'Клан',
       'Сообщество',
@@ -84,19 +84,19 @@ describe('visibleNavigation', () => {
     expect(officer.map((c) => c.label)).toEqual([
       'Клан',
       'Сообщество',
-      'Управление',
       'Кузня',
+      'Управление',
     ])
-    expect(officer[2]?.sections.map((s) => s.label)).toEqual([
+    expect(officer[3]?.sections.map((s) => s.label)).toEqual([
       'Заявки',
       'Учёт активности',
       'Рассылка',
     ])
     expect(
-      visibleNavigation('admin', [])[2]?.sections.map((s) => s.label),
+      visibleNavigation('admin', [])[3]?.sections.map((s) => s.label),
     ).toContain('Администрирование')
     expect(
-      visibleNavigation('master', [])[2]?.sections.map((s) => s.label),
+      visibleNavigation('master', [])[3]?.sections.map((s) => s.label),
     ).toContain('Мастерка')
   })
 })
@@ -139,7 +139,7 @@ describe('конфигурация разделов', () => {
 })
 
 describe('категория Кузня', () => {
-  it('показывает семь разделов внутренним ролям и скрывает от остальных', () => {
+  it('показывает семь разделов всем ролям', () => {
     expect(
       visibleNavigation('member')
         .find((x) => x.id === 'forge')
@@ -153,12 +153,12 @@ describe('категория Кузня', () => {
       'Мирозданки',
       'Жребия',
     ])
-    for (const role of ['guest', 'applicant', 'reader'] as const) {
-      expect(visibleNavigation(role).some((x) => x.id === 'forge')).toBe(false)
+    for (const role of ACCESS_ROLES) {
+      expect(visibleNavigation(role).some((x) => x.id === 'forge')).toBe(true)
     }
   })
-  it('закрывает прямые ссылки не внутренним ролям', () => {
-    expect(canAccessPath('guest', '/forge/gods')).toBe(false)
+  it('разрешает открыть ссылку, чтобы показать заглушку неадминистратору', () => {
+    expect(canAccessPath('guest', '/forge/gods')).toBe(true)
     expect(canAccessPath('member', '/forge/gods')).toBe(true)
   })
 })

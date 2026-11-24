@@ -8,7 +8,7 @@ afterAll(() => db.destroy())
 
 describe('forge/catalog', () => {
   it('returns title catalog in stable cursor pages without gaps', async () => {
-    const user = await createProfiledUser(db, 'member')
+    const user = await createProfiledUser(db, 'admin')
     const actor = await actorOf(db, user.id)
     const items = []
     let cursor: string | null = null
@@ -37,8 +37,16 @@ describe('forge/catalog', () => {
       ).rejects.toMatchObject({ code: 'forbidden' })
     }
   })
+  it('allows catalog access only to administrators', async () => {
+    for (const role of ['member', 'officer', 'master'] as const) {
+      const user = await createProfiledUser(db, role)
+      await expect(
+        listForgeCatalog(await actorOf(db, user.id), { kind: 'titles' }),
+      ).rejects.toMatchObject({ code: 'forbidden' })
+    }
+  })
   it('applies search and equipment-slot filters before paging', async () => {
-    const user = await createProfiledUser(db, 'member')
+    const user = await createProfiledUser(db, 'admin')
     const actor = await actorOf(db, user.id)
     const equipment = await listForgeCatalog(actor, {
       kind: 'equipment',

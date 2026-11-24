@@ -12,7 +12,7 @@ function categoryButtons() {
 
 describe('оболочка приложения', () => {
   it('показывает калькулятор кузни на широкой оболочке', async () => {
-    await renderApp({ role: 'member', path: '/forge/gods' })
+    await renderApp({ role: 'admin', path: '/forge/gods' })
     expect(
       await screen.findByRole('heading', { name: 'Боги' }),
     ).toBeInTheDocument()
@@ -20,30 +20,39 @@ describe('оболочка приложения', () => {
     expect(screen.getByRole('main')).toHaveClass('max-w-none')
   })
 
-  it('гость видит «Вход» и ни одной категории', async () => {
+  it('показывает заглушку кузни неадминистратору', async () => {
+    await renderApp({ role: 'member', path: '/forge/gods' })
+    expect(
+      await screen.findByRole('heading', { name: 'Раздел в разработке' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText('Уровень')).not.toBeInTheDocument()
+  })
+
+  it('гость видит «Вход» и категорию кузни', async () => {
     await renderApp({ role: 'guest' })
     const banner = await screen.findByRole('banner')
     expect(within(banner).getByRole('link', { name: 'Вход' })).toHaveAttribute(
       'href',
       '/login',
     )
-    expect(categoryButtons()).toHaveLength(0)
+    expect(categoryButtons().map((button) => button.textContent)).toEqual([
+      'Кузня',
+    ])
     expect(
       screen.queryByRole('button', { name: 'Открыть меню' }),
-    ).not.toBeInTheDocument()
+    ).toBeInTheDocument()
   })
 
   it.each(['applicant', 'reader'] as const)(
-    'роль %s видит пустое меню без бургера',
+    'роль %s видит категорию кузни',
     async (role) => {
       await renderApp({ role })
       expect(
         await screen.findByRole('link', { name: 'Аккаунт' }),
       ).toBeInTheDocument()
-      expect(categoryButtons()).toHaveLength(0)
-      expect(
-        screen.queryByRole('button', { name: 'Открыть меню' }),
-      ).not.toBeInTheDocument()
+      expect(categoryButtons().map((button) => button.textContent)).toEqual([
+        'Кузня',
+      ])
     },
   )
 
@@ -63,8 +72,8 @@ describe('оболочка приложения', () => {
     expect(categoryButtons().map((button) => button.textContent)).toEqual([
       'Клан',
       'Сообщество',
-      'Управление',
       'Кузня',
+      'Управление',
     ])
   })
 

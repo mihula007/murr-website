@@ -4,7 +4,6 @@ import {
   forgeCatalogRequestSchema,
   type ForgeCatalogResponse,
 } from '../contracts/forge.ts'
-import { INTERNAL_ROLES } from '../membership.ts'
 import { decodeCursor, encodeCursor } from '../http/cursor.ts'
 import { parseBody } from '../http/validation.ts'
 import { FORGE_CATALOGS } from '../../../../shared/forge/catalogs.ts'
@@ -23,7 +22,7 @@ export async function listForgeCatalog(
   actor: Actor,
   body: unknown,
 ): Promise<ForgeCatalogResponse> {
-  requireRole(actor, INTERNAL_ROLES)
+  requireRole(actor, ['admin'])
   const input = parseBody(forgeCatalogRequestSchema, body)
   const query = normalize(input.search)
   const rows = FORGE_CATALOGS[input.kind]

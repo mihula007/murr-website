@@ -5,7 +5,7 @@ import { createMember, expectSignedIn, signInUi } from './supabase'
 test('Кузня занимает доступную ширину и подстраивается под экран', async ({
   page,
 }) => {
-  const member = await createMember('member')
+  const member = await createMember('admin')
   await skipSplash(page)
   await signInUi(page, member.email)
   await expectSignedIn(page)
@@ -22,7 +22,7 @@ test('Кузня занимает доступную ширину и подст�
 })
 
 test('сброс отметок Жребиев можно отменить', async ({ page }) => {
-  const member = await createMember('member')
+  const member = await createMember('admin')
   await skipSplash(page)
   await signInUi(page, member.email)
   await expectSignedIn(page)
@@ -35,11 +35,23 @@ test('сброс отметок Жребиев можно отменить', asy
 })
 
 test('первый грейд кольца показывает эталонный рецепт', async ({ page }) => {
-  const member = await createMember('member')
+  const member = await createMember('admin')
   await skipSplash(page)
   await signInUi(page, member.email)
   await expectSignedIn(page)
   await page.goto('./#/forge/rings')
   await expect(page.getByText(/Кварц: 25/)).toBeVisible()
   await expect(page.getByText(/Полярные кольца: 1/)).toBeVisible()
+})
+
+test('участник видит заглушку Кузни, а не калькулятор', async ({ page }) => {
+  const member = await createMember('member')
+  await skipSplash(page)
+  await signInUi(page, member.email)
+  await expectSignedIn(page)
+  await page.goto('./#/forge/gods')
+  await expect(
+    page.getByRole('heading', { name: 'Раздел в разработке' }),
+  ).toBeVisible()
+  await expect(page.getByLabel('Уровень').first()).toHaveCount(0)
 })

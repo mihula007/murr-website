@@ -1,4 +1,5 @@
 import {
+  ACCESS_ROLES,
   ADMIN_ROLES,
   INTERNAL_ROLES,
   MANAGER_ROLES,
@@ -31,8 +32,8 @@ export type NavCategory = {
 export const NAV_CATEGORIES: readonly { id: NavCategoryId; label: string }[] = [
   { id: 'clan', label: 'Клан' },
   { id: 'community', label: 'Сообщество' },
-  { id: 'management', label: 'Управление' },
   { id: 'forge', label: 'Кузня' },
+  { id: 'management', label: 'Управление' },
 ]
 
 // Единая таблица видимости меню и доступа к маршрутам (ACL, HOM-02).
@@ -42,49 +43,49 @@ export const NAV_SECTIONS = [
     path: '/forge/gods',
     label: 'Боги',
     category: 'forge',
-    roles: INTERNAL_ROLES,
+    roles: ACCESS_ROLES,
   },
   {
     id: 'rings',
     path: '/forge/rings',
     label: 'Кольца',
     category: 'forge',
-    roles: INTERNAL_ROLES,
+    roles: ACCESS_ROLES,
   },
   {
     id: 'robe',
     path: '/forge/robe',
     label: 'Плащ',
     category: 'forge',
-    roles: INTERNAL_ROLES,
+    roles: ACCESS_ROLES,
   },
   {
     id: 'equipment',
     path: '/forge/equipment',
     label: 'Эквип',
     category: 'forge',
-    roles: INTERNAL_ROLES,
+    roles: ACCESS_ROLES,
   },
   {
     id: 'night-weapon',
     path: '/forge/night-weapon',
     label: 'Пуха',
     category: 'forge',
-    roles: INTERNAL_ROLES,
+    roles: ACCESS_ROLES,
   },
   {
     id: 'chienkun',
     path: '/forge/chienkun',
     label: 'Мирозданки',
     category: 'forge',
-    roles: INTERNAL_ROLES,
+    roles: ACCESS_ROLES,
   },
   {
     id: 'titles',
     path: '/forge/titles',
     label: 'Жребия',
     category: 'forge',
-    roles: INTERNAL_ROLES,
+    roles: ACCESS_ROLES,
   },
   {
     id: 'events',
