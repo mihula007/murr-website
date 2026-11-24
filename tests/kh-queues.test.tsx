@@ -57,8 +57,8 @@ describe('KhQueueBoard', () => {
 
     for (const queueKey of KH_QUEUE_IDS) {
       expect(
-        screen.getByRole('heading', { name: KH_QUEUE_LABELS[queueKey] }),
-      ).toBeInTheDocument()
+        screen.getAllByRole('heading', { name: KH_QUEUE_LABELS[queueKey] }),
+      ).toHaveLength(queueKey === 'summons' ? 2 : 1)
       expect(
         desktopList.getByRole('button', {
           name: `Встать в очередь «${KH_QUEUE_LABELS[queueKey]}»`,
@@ -168,6 +168,27 @@ describe('KhQueueBoard', () => {
         name: 'Встать в очередь «призывы»',
       }),
     ).not.toBeInTheDocument()
+    expect(screen.queryByText('Свободно')).not.toBeInTheDocument()
+  })
+
+  it('hides the personal join cell after joining and numbers queue positions', () => {
+    const queues = boardData({
+      summons: {
+        items: [entry('1', OTHER, 'Тест2'), entry('2', SELF, 'Тест1')],
+        hasMore: false,
+      },
+    })
+    renderBoard('member', queues)
+    const phoneList = within(
+      screen.getByRole('list', { name: 'Очередь КХ на телефоне' }),
+    )
+    expect(
+      phoneList.queryByRole('button', {
+        name: 'Встать в очередь «призывы»',
+      }),
+    ).not.toBeInTheDocument()
+    expect(phoneList.getByLabelText('Место 1')).toHaveTextContent('1')
+    expect(phoneList.getByLabelText('Место 2')).toHaveTextContent('2')
   })
 
   it('shows one selected queue in the phone view without hiding other queues from the selector', async () => {

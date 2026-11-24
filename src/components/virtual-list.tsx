@@ -332,8 +332,8 @@ export function LoadMore({ paging }: { paging: Paging }) {
   )
 }
 
-const GAP = { sm: 8, md: 12 } as const
-const gapClass = { sm: 'gap-2', md: 'gap-3' } as const
+const GAP = { none: 0, sm: 8, md: 12 } as const
+const gapClass = { none: '', sm: 'gap-2', md: 'gap-3' } as const
 
 type VirtualListProps<T> = {
   items: readonly T[]

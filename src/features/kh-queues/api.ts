@@ -54,7 +54,8 @@ function useKhAction(route: string) {
         queueKey: input.queueKey,
         ...(input.entryId ? { entryId: input.entryId } : {}),
       }),
-    onSuccess: () => queryClient.resetQueries({ queryKey: ['kh', 'queues'] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['kh', 'queues'] }),
   })
 }
 
