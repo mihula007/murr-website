@@ -24,6 +24,7 @@ export type DB = {
   'app.profiles': KyselyTable<Generated['profiles']>
   'app.character_stat_history': KyselyTable<Generated['character_stat_history']>
   'app.join_applications': KyselyTable<Generated['join_applications']>
+  'app.kh_queue_entries': KyselyTable<Generated['kh_queue_entries']>
   'app.application_equipment_links': KyselyTable<
     Generated['application_equipment_links']
   >

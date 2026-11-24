@@ -853,6 +853,36 @@ export type Database = {
           },
         ]
       }
+      kh_queue_entries: {
+        Row: {
+          created_at: string
+          id: number
+          queue_key: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          id?: never
+          queue_key: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          queue_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'kh_queue_entries_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       market_listings: {
         Row: {
           author_id: string | null
