@@ -40,6 +40,13 @@ const IMPLEMENTED: readonly string[] = [
   'market',
   'broadcast',
   'permissions',
+  'gods',
+  'rings',
+  'robe',
+  'equipment',
+  'night-weapon',
+  'chienkun',
+  'titles',
 ]
 
 export const sectionRoutes = NAV_SECTIONS.filter(

@@ -16,6 +16,7 @@ describe('оболочка приложения', () => {
     expect(
       await screen.findByRole('heading', { name: 'Боги' }),
     ).toBeInTheDocument()
+    expect(await screen.findAllByLabelText('Уровень')).toHaveLength(6)
     expect(screen.getByRole('main')).toHaveClass('max-w-none')
   })
 
