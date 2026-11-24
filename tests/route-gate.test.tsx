@@ -46,6 +46,13 @@ describe('контроль доступа к маршрутам', () => {
     ).toBeVisible()
   })
 
+  it('чтец не открывает КХ по прямой ссылке', async () => {
+    await renderApp({ role: 'reader', path: '/kh' })
+    expect(
+      await screen.findByRole('heading', { name: 'Нет доступа' }),
+    ).toBeVisible()
+  })
+
   it.each(ACCESS_ROLES)(
     'роль %s получает доступ ровно к разделам из таблицы',
     async (role) => {
@@ -58,7 +65,7 @@ describe('контроль доступа к маршрутам', () => {
           officerPermissions: permissions,
         })
         const allowed = canAccessPath(role, section.path, permissions)
-        if (section.id === 'permissions') {
+        if (section.id === 'permissions' || section.id === 'kh') {
           view.unmount()
           continue
         }

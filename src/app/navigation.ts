@@ -94,6 +94,13 @@ export const NAV_SECTIONS = [
     roles: INTERNAL_ROLES,
   },
   {
+    id: 'kh',
+    path: '/kh',
+    label: 'КХ',
+    category: 'clan',
+    roles: INTERNAL_ROLES,
+  },
+  {
     id: 'votes',
     path: '/votes',
     label: 'Голосование',

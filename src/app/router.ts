@@ -29,6 +29,7 @@ import {
 } from '@/routes/publications'
 import { rosterRoute } from '@/routes/roster'
 import { forgeRoute } from '@/routes/forge'
+import { khRoute } from '@/routes/kh'
 import { sectionRoutes } from '@/routes/sections'
 import { createVoteRoute, voteRoute, votesRoute } from '@/routes/votes'
 import {
@@ -60,6 +61,7 @@ export const routeTree = rootRoute.addChildren([
   applicationRoute,
   rosterRoute,
   forgeRoute,
+  khRoute,
   adminRoute,
   permissionsRoute,
   broadcastRoute,

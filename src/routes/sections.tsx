@@ -34,6 +34,7 @@ const IMPLEMENTED: readonly string[] = [
   'admin',
   'votes',
   'events',
+  'kh',
   'activity',
   'rating',
   'publications',

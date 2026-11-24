@@ -8,6 +8,7 @@ import {
 
 const MEMBER_SECTIONS = [
   'events',
+  'kh',
   'votes',
   'roster',
   'publications',
@@ -106,6 +107,8 @@ describe('canAccessPath', () => {
     expect(canAccessPath('guest', '/votes')).toBe(false)
     expect(canAccessPath('reader', '/events')).toBe(false)
     expect(canAccessPath('member', '/votes')).toBe(true)
+    expect(canAccessPath('reader', '/kh')).toBe(false)
+    expect(canAccessPath('member', '/kh')).toBe(true)
     expect(canAccessPath('member', '/admin')).toBe(false)
     expect(canAccessPath('officer', '/applications', [])).toBe(false)
     expect(
