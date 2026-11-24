@@ -416,6 +416,13 @@ test('BRC-15: subscription list shows messenger links to managers only', async (
     createMember('member'),
     createMember('member'),
   ])
+  // Keep the linked fixture on the first cursor page even when the roster is
+  // larger than the page size and nicknames are otherwise generated randomly.
+  linked.nickname = `00000${randomBytes(2).toString('hex')}`
+  await sql(
+    (db) =>
+      db`update app.profiles set game_nickname = ${linked.nickname} where id = ${linked.id}`,
+  )
   const telegramId = randomInt(1_000_000, 2_000_000_000)
   const vkId = randomInt(1_000_000, 2_000_000_000)
   const maxId = randomInt(1_000_000, 2_000_000_000)
