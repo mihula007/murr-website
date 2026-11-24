@@ -346,7 +346,7 @@ test('BRC-17: subscription list filters profiles without any messenger link', as
     createMember('member'),
     createMember('member'),
   ])
-  const prefix = `000000${randomBytes(2).toString('hex')}`
+  const prefix = `0${randomBytes(2).toString('hex')}`
   const telegramId = randomInt(1_000_000, 2_000_000_000)
   await sql(async (db) => {
     await db`

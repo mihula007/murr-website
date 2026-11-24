@@ -102,7 +102,12 @@ test('неограниченный состав фильтрует классы 
   const artworkPaths = await artwork.evaluateAll((images) =>
     images.map((image) => image.getAttribute('src')),
   )
-  expect(new Set(artworkPaths).size).toBeLessThanOrEqual(1)
+  expect(
+    artworkPaths.every(
+      (path) => path?.includes('werebeast-v1') || path?.includes('mage-v1'),
+    ),
+  ).toBe(true)
+  expect(new Set(artworkPaths).size).toBeLessThanOrEqual(2)
   await scrollUntilVisible(
     page,
     desktopCards.getByRole('heading', { name: lastNickname }),
