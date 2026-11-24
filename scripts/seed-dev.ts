@@ -249,6 +249,7 @@ const APP_TABLES = [
   'broadcast_drafts',
   'user_deletions',
   'character_stat_history',
+  'kh_queue_entries',
   'profiles',
 ]
 
@@ -423,6 +424,24 @@ await insert(
     return profile
   }),
 )
+const demoMember = byRole('member')[0]
+const demoOfficer = byRole('officer')[0]
+const demoAdmin = byRole('admin')[0]
+await insert('kh_queue_entries', [
+  ...(demoMember
+    ? [
+        { queue_key: 'summons', user_id: demoMember.id },
+        { queue_key: 'pet', user_id: demoMember.id },
+      ]
+    : []),
+  ...(demoOfficer
+    ? [
+        { queue_key: 'summons', user_id: demoOfficer.id },
+        { queue_key: 'meteorites', user_id: demoOfficer.id },
+      ]
+    : []),
+  ...(demoAdmin ? [{ queue_key: 'summons', user_id: demoAdmin.id }] : []),
+])
 await insert('character_stat_history', characterHistory)
 
 // Для ручной проверки: первый офицер — с несколькими правами, остальные —
