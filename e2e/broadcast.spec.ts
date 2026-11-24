@@ -448,18 +448,19 @@ test('BRC-15: subscription list shows messenger links to managers only', async (
     name: 'Подписки на рассылки',
   })
   await expect(subscriptionsPanel).toBeVisible()
-  await expect(subscriptionsPanel.getByText(linked.nickname)).toBeVisible()
+  const linkedRow = subscriptionsPanel.getByText(linked.nickname).locator('..')
+  await expect(linkedRow).toBeVisible()
   await expect(subscriptionsPanel.getByLabel('Поиск по нику')).toHaveCount(0)
   await expect(
-    subscriptionsPanel.getByRole('group', { name: 'Telegram: привязан' }),
+    linkedRow.getByRole('group', { name: 'Telegram: привязан' }),
   ).toBeVisible()
   await expect(
-    subscriptionsPanel.getByRole('group', {
+    linkedRow.getByRole('group', {
       name: 'ВКонтакте: сообщения недоступны',
     }),
   ).toBeVisible()
   await expect(
-    subscriptionsPanel.getByRole('group', { name: 'MAX: привязан' }),
+    linkedRow.getByRole('group', { name: 'MAX: привязан' }),
   ).toBeVisible()
 
   await subscriptionsPanel
