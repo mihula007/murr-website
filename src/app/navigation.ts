@@ -7,7 +7,7 @@ import {
 } from './access'
 import type { OfficerPermissionCode } from '@contracts/officer-permissions'
 
-export type NavCategoryId = 'clan' | 'community' | 'management'
+export type NavCategoryId = 'clan' | 'community' | 'management' | 'forge'
 
 export type NavSection = {
   id: string
@@ -32,10 +32,60 @@ export const NAV_CATEGORIES: readonly { id: NavCategoryId; label: string }[] = [
   { id: 'clan', label: 'Клан' },
   { id: 'community', label: 'Сообщество' },
   { id: 'management', label: 'Управление' },
+  { id: 'forge', label: 'Кузня' },
 ]
 
 // Единая таблица видимости меню и доступа к маршрутам (ACL, HOM-02).
 export const NAV_SECTIONS = [
+  {
+    id: 'gods',
+    path: '/forge/gods',
+    label: 'Боги',
+    category: 'forge',
+    roles: INTERNAL_ROLES,
+  },
+  {
+    id: 'rings',
+    path: '/forge/rings',
+    label: 'Кольца',
+    category: 'forge',
+    roles: INTERNAL_ROLES,
+  },
+  {
+    id: 'robe',
+    path: '/forge/robe',
+    label: 'Плащ',
+    category: 'forge',
+    roles: INTERNAL_ROLES,
+  },
+  {
+    id: 'equipment',
+    path: '/forge/equipment',
+    label: 'Эквип',
+    category: 'forge',
+    roles: INTERNAL_ROLES,
+  },
+  {
+    id: 'night-weapon',
+    path: '/forge/night-weapon',
+    label: 'Пуха',
+    category: 'forge',
+    roles: INTERNAL_ROLES,
+  },
+  {
+    id: 'chienkun',
+    path: '/forge/chienkun',
+    label: 'Мирозданки',
+    category: 'forge',
+    roles: INTERNAL_ROLES,
+  },
+  {
+    id: 'titles',
+    path: '/forge/titles',
+    label: 'Жребия',
+    category: 'forge',
+    roles: INTERNAL_ROLES,
+  },
   {
     id: 'events',
     path: '/events',

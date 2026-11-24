@@ -14,28 +14,39 @@ const MEMBER_SECTIONS = [
   'market',
   'rating',
 ]
-const OFFICER_SECTIONS = [...MEMBER_SECTIONS]
+const FORGE_SECTIONS = [
+  'gods',
+  'rings',
+  'robe',
+  'equipment',
+  'night-weapon',
+  'chienkun',
+  'titles',
+]
+const OFFICER_SECTIONS = [...MEMBER_SECTIONS, ...FORGE_SECTIONS]
 
 const expected: Record<AccessRole, string[]> = {
   guest: [],
   applicant: [],
   reader: [],
-  member: MEMBER_SECTIONS,
+  member: [...MEMBER_SECTIONS, ...FORGE_SECTIONS],
   officer: OFFICER_SECTIONS,
   master: [
-    ...OFFICER_SECTIONS,
+    ...MEMBER_SECTIONS,
     'applications',
     'activity',
     'broadcast',
     'permissions',
+    ...FORGE_SECTIONS,
   ],
   admin: [
-    ...OFFICER_SECTIONS,
+    ...MEMBER_SECTIONS,
     'applications',
     'activity',
     'broadcast',
     'permissions',
     'admin',
+    ...FORGE_SECTIONS,
   ],
 }
 
@@ -63,6 +74,7 @@ describe('visibleNavigation', () => {
     expect(visibleNavigation('member').map((c) => c.label)).toEqual([
       'Клан',
       'Сообщество',
+      'Кузня',
     ])
     const officer = visibleNavigation('officer', [
       'applications.review',
@@ -73,6 +85,7 @@ describe('visibleNavigation', () => {
       'Клан',
       'Сообщество',
       'Управление',
+      'Кузня',
     ])
     expect(officer[2]?.sections.map((s) => s.label)).toEqual([
       'Заявки',
@@ -122,5 +135,30 @@ describe('конфигурация разделов', () => {
   it('id разделов уникальны', () => {
     const ids = NAV_SECTIONS.map((section) => section.id)
     expect(new Set(ids).size).toBe(ids.length)
+  })
+})
+
+describe('категория Кузня', () => {
+  it('показывает семь разделов внутренним ролям и скрывает от остальных', () => {
+    expect(
+      visibleNavigation('member')
+        .find((x) => x.id === 'forge')
+        ?.sections.map((x) => x.label),
+    ).toEqual([
+      'Боги',
+      'Кольца',
+      'Плащ',
+      'Эквип',
+      'Пуха',
+      'Мирозданки',
+      'Жребия',
+    ])
+    for (const role of ['guest', 'applicant', 'reader'] as const) {
+      expect(visibleNavigation(role).some((x) => x.id === 'forge')).toBe(false)
+    }
+  })
+  it('закрывает прямые ссылки не внутренним ролям', () => {
+    expect(canAccessPath('guest', '/forge/gods')).toBe(false)
+    expect(canAccessPath('member', '/forge/gods')).toBe(true)
   })
 })

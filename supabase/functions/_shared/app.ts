@@ -123,6 +123,7 @@ import {
   listRosterPage,
   rosterStats,
 } from './roster/service.ts'
+import { listForgeCatalog } from './forge/service.ts'
 import {
   dynamicsAttendance,
   dynamicsProfile,
@@ -366,6 +367,7 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'roster/stats': ({ actor }) => rosterStats(deps, actor),
     'roster/list': ({ actor }) => listRoster(deps, actor),
     'roster/page': ({ actor, body }) => listRosterPage(deps, actor, body),
+    'forge/catalog': ({ actor, body }) => listForgeCatalog(actor, body),
     'roster/dynamics/profile': ({ actor, body }) =>
       dynamicsProfile(deps, actor, body),
     'roster/dynamics/stats': ({ actor, body }) =>

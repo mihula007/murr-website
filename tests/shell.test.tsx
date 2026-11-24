@@ -11,6 +11,14 @@ function categoryButtons() {
 }
 
 describe('оболочка приложения', () => {
+  it('показывает калькулятор кузни на широкой оболочке', async () => {
+    await renderApp({ role: 'member', path: '/forge/gods' })
+    expect(
+      await screen.findByRole('heading', { name: 'Боги' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('main')).toHaveClass('max-w-none')
+  })
+
   it('гость видит «Вход» и ни одной категории', async () => {
     await renderApp({ role: 'guest' })
     const banner = await screen.findByRole('banner')
@@ -38,29 +46,31 @@ describe('оболочка приложения', () => {
     },
   )
 
-  it('член клана видит две категории', async () => {
+  it('член клана видит категорию кузни', async () => {
     await renderApp({ role: 'member' })
     await screen.findByRole('link', { name: 'Аккаунт' })
     expect(categoryButtons().map((button) => button.textContent)).toEqual([
       'Клан',
       'Сообщество',
+      'Кузня',
     ])
   })
 
-  it('администратор видит три категории', async () => {
+  it('администратор видит четыре категории', async () => {
     await renderApp({ role: 'admin' })
     await screen.findByRole('link', { name: 'Аккаунт' })
     expect(categoryButtons().map((button) => button.textContent)).toEqual([
       'Клан',
       'Сообщество',
       'Управление',
+      'Кузня',
     ])
   })
 
   it('категории не показывают рамку клавиатурного фокуса', async () => {
     await renderApp({ role: 'admin' })
     await screen.findByRole('link', { name: 'Аккаунт' })
-    expect(categoryButtons()).toHaveLength(3)
+    expect(categoryButtons()).toHaveLength(4)
     for (const button of categoryButtons()) {
       expect(button).toHaveClass('focus-visible:outline-none')
     }
