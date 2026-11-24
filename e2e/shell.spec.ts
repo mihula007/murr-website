@@ -7,17 +7,19 @@ test.beforeEach(async ({ page }) => {
   await skipSplash(page)
 })
 
-test('гость видит «Вход» и пустое меню', async ({ page }) => {
+test('гость видит «Вход» и разделы Кузни', async ({ page, isMobile }) => {
   await page.goto('./#/')
   const header = page.getByRole('banner')
   await expect(header.getByRole('link', { name: 'Вход' })).toBeVisible()
-  await expect(
-    header.getByRole('button', { name: 'Открыть меню' }),
-  ).toHaveCount(0)
-  for (const category of ['Клан', 'Сообщество', 'Управление']) {
-    await expect(
-      header.getByRole('button', { name: category, exact: true }),
-    ).toHaveCount(0)
+  if (isMobile) {
+    await header.getByRole('button', { name: 'Открыть меню' }).click()
+    const nav = page.getByRole('navigation', { name: 'Мобильная навигация' })
+    await expect(nav.getByRole('heading', { name: 'Кузня' })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Боги' })).toBeVisible()
+    await expect(nav.getByRole('heading', { name: 'Клан' })).toHaveCount(0)
+  } else {
+    await header.getByRole('button', { name: 'Кузня', exact: true }).click()
+    await expect(page.getByRole('link', { name: 'Боги' })).toBeVisible()
   }
 })
 

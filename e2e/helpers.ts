@@ -90,7 +90,7 @@ export async function hasHorizontalScroll(page: Page) {
 
 /**
  * Внутреннее меню: на десктопе — категория «Клан», на мобильном — кнопка
- * открытия меню. Гость, кандидат и чтец меню разделов не видят.
+ * открытия меню. Гость, кандидат и чтец видят только «Кузню».
  */
 export async function expectInternalMenu(page: Page, visible: boolean) {
   const trigger = page
@@ -100,7 +100,12 @@ export async function expectInternalMenu(page: Page, visible: boolean) {
   if (visible) {
     await expect(trigger.first()).toBeVisible({ timeout: 15_000 })
   } else {
-    await expect(trigger).toHaveCount(0)
+    await expect(
+      page.getByRole('banner').getByRole('button', {
+        name: 'Клан',
+        exact: true,
+      }),
+    ).toHaveCount(0)
   }
 }
 
