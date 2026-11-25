@@ -15,7 +15,6 @@ import {
   Scale,
   Sparkles,
   Trophy,
-  UserRound,
   X,
   Check,
   type LucideIcon,
@@ -38,7 +37,6 @@ export type KhQueueBoardData = Record<
 type QueueCell = {
   key: string
   queueKey: KhQueueId
-  position?: number
   entry?: KhQueueEntry
 }
 
@@ -89,10 +87,9 @@ export function KhQueueBoard({
     !queues[queueKey].hasMore &&
     !queues[queueKey].items.some((entry) => entry.userId === userId)
   const cellsInQueue = (queueKey: KhQueueId): QueueCell[] => [
-    ...queues[queueKey].items.map((entry, index) => ({
+    ...queues[queueKey].items.map((entry) => ({
       key: `${queueKey}:${entry.id}`,
       queueKey,
-      position: index + 1,
       entry,
     })),
     ...(canSeeFreeCell(queueKey)
@@ -120,16 +117,6 @@ export function KhQueueBoard({
     }
     return (
       <div className="group/kh-entry flex min-h-9 min-w-0 items-center gap-0.5 rounded-lg border border-border-strong/80 bg-linear-145/srgb from-surface-inset/75 to-card/65 px-1 py-1 shadow-md backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-primary/70 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none">
-        <span
-          aria-label={`Место ${cell.position}`}
-          className="grid size-5 shrink-0 place-items-center rounded-full border border-primary/40 bg-primary/10 text-[10px] font-bold text-highlight shadow-sm"
-        >
-          {cell.position}
-        </span>
-        <UserRound
-          aria-hidden="true"
-          className="size-3 shrink-0 text-primary"
-        />
         <span className="min-w-0 flex-1 break-all text-center text-xs leading-tight">
           {entry.gameNickname}
         </span>

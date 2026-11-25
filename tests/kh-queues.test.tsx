@@ -173,7 +173,7 @@ describe('KhQueueBoard', () => {
     expect(screen.queryByText('Свободно')).not.toBeInTheDocument()
   })
 
-  it('hides the personal join cell after joining and numbers queue positions', async () => {
+  it('hides the personal join cell without numbering occupied positions', async () => {
     const queues = boardData({
       summons: {
         items: [entry('1', OTHER, 'Тест2'), entry('2', SELF, 'Тест1')],
@@ -194,8 +194,10 @@ describe('KhQueueBoard', () => {
         name: 'Встать в очередь «призывы»',
       }),
     ).not.toBeInTheDocument()
-    expect(within(phoneList).getByLabelText('Место 1')).toHaveTextContent('1')
-    expect(within(phoneList).getByLabelText('Место 2')).toHaveTextContent('2')
+    expect(within(phoneList).queryByLabelText(/Место/)).not.toBeInTheDocument()
+    expect(
+      phoneList.querySelector('.lucide-user-round'),
+    ).not.toBeInTheDocument()
   })
 
   it('opens one queue at a time in the phone view', async () => {
