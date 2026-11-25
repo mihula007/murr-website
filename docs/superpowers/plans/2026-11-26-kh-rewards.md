@@ -123,5 +123,5 @@
 - [x] **Step 1: Add Playwright scenarios** for cap enforcement, repeat after issue, date-filtered history, role visibility, master removal, and phone/desktop layouts.
 - [x] **Step 2: Run `npm run check:quick`, `npm run test:server`, `npm run supabase:test`** and fix all failures.
 - [x] **Step 3: Commit implementation with a Conventional Commit message** before manual review, as required by the project workflow.
-- [ ] **Step 4: Run `npm run review:prepare`** after server checks to restore review data.
+- [x] **Step 4: Run `npm run review:prepare`** after server checks to restore review data.
 - [x] **Step 5: Do not run local e2e**; CI runs all e2e after the release step 6 push.

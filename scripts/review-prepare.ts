@@ -35,6 +35,11 @@ if (existsSync(START_PID)) {
   if (isProcessAlive(pid)) {
     report.note('Жду фоновый запуск Supabase…')
     for (let waited = 0; isProcessAlive(pid); waited += 3_000) {
+      // На Windows detached shell может оставить conhost после того, как
+      // Supabase уже готов. Проверяем сам стек, а не только оболочку.
+      if (localStackRunning()) {
+        break
+      }
       if (waited > 15 * 60_000) {
         stop(
           `Фоновый запуск Supabase идёт больше 15 минут; журнал ${START_LOG}`,
