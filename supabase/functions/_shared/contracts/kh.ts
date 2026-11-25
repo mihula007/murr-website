@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { Page } from './paging.ts'
 
 export const KH_QUEUE_IDS = [
   'summons',
@@ -93,6 +94,47 @@ export const khQueueRepeatSchema = khQueueEntryActionSchema.extend({
   autoRejoin: z.boolean(),
 })
 
+export const KH_REWARD_HISTORY_PAGE_SIZE = 20
+
+const nullableDate = z.iso
+  .date()
+  .nullish()
+  .transform((value) => value ?? null)
+
+export const khRewardHistoryRequestSchema = z
+  .object({
+    dateFrom: nullableDate,
+    dateTo: nullableDate,
+    cursor: z
+      .string()
+      .max(512, 'invalid')
+      .nullish()
+      .transform((value) => value || null),
+  })
+  .superRefine((value, ctx) => {
+    if (value.dateFrom && value.dateTo && value.dateFrom > value.dateTo) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['dateTo'],
+        message: 'invalid',
+      })
+    }
+  })
+
+export const khRewardHistoryRowSchema = z.object({
+  id: khQueueEntryIdSchema,
+  queueKey: khQueueKeySchema,
+  rewardName: z.string().min(1).max(80),
+  userId: z.string().uuid().nullable(),
+  gameNickname: z.string().min(1).max(40),
+  issuedAt: z.iso.datetime({ offset: true }),
+})
+
+export const khRewardHistoryResponseSchema = z.object({
+  items: z.array(khRewardHistoryRowSchema),
+  nextCursor: z.string().min(1).max(512).nullable(),
+})
+
 export type KhQueuesRequest = z.input<typeof khQueuesRequestSchema>
 export type KhQueueEntry = z.infer<typeof khQueueEntrySchema>
 export type KhQueuePage = z.infer<typeof khQueuePageSchema>
@@ -104,3 +146,11 @@ export type KhQueueSettingsResponse = z.infer<
   typeof khQueueSettingsResponseSchema
 >
 export type KhQueueRepeat = z.infer<typeof khQueueRepeatSchema>
+export type KhRewardHistoryRequest = z.input<
+  typeof khRewardHistoryRequestSchema
+>
+export type KhRewardHistoryResponse = z.infer<
+  typeof khRewardHistoryResponseSchema
+>
+export type KhRewardHistoryRow = z.infer<typeof khRewardHistoryRowSchema>
+export type KhRewardHistoryPage = Page<KhRewardHistoryRow>

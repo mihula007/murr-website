@@ -11,6 +11,7 @@ import {
   removeKhQueueEntry,
   setKhQueueLimit,
   setKhQueueRepeat,
+  khRewardHistory,
 } from '../../supabase/functions/_shared/kh/service.ts'
 import { setRole } from '../../supabase/functions/_shared/accounts/service.ts'
 import { KH_QUEUE_IDS } from '../../supabase/functions/_shared/contracts/kh.ts'
@@ -19,6 +20,7 @@ import { actorOf, createProfiledUser, testDb, testDeps } from './support.ts'
 const db = testDb()
 const deps = testDeps(db)
 beforeEach(async () => {
+  await db.deleteFrom('app.kh_reward_history').execute()
   await db.deleteFrom('app.kh_queue_rejoin_waitlist').execute()
   await db.deleteFrom('app.kh_queue_entries').execute()
   await db
@@ -447,5 +449,127 @@ describe('kh/queues', () => {
         .where('user_id', '=', member.id)
         .execute(),
     ).toHaveLength(0)
+  })
+
+  it('records a master issue and exposes history only to administrators and masters', async () => {
+    const member = await createProfiledUser(db, 'member')
+    const officer = await createProfiledUser(db, 'officer')
+    const admin = await createProfiledUser(db, 'admin')
+    const master = await createProfiledUser(db, 'master')
+    const memberActor = await actorOf(db, member.id)
+    const entry = await joinKhQueue(deps, memberActor, { queueKey: 'summons' })
+
+    await issueKhReward(deps, await actorOf(db, master.id), {
+      queueKey: 'summons',
+      entryId: entry.entryId,
+    })
+
+    for (const user of [member, officer]) {
+      await expect(
+        khRewardHistory(deps, await actorOf(db, user.id), {}),
+      ).rejects.toMatchObject({ code: 'forbidden' })
+    }
+    for (const user of [admin, master]) {
+      const history = await khRewardHistory(
+        deps,
+        await actorOf(db, user.id),
+        {},
+      )
+      expect(history.items[0]).toMatchObject({
+        queueKey: 'summons',
+        rewardName: 'призывы',
+        userId: member.id,
+        gameNickname: member.nickname,
+      })
+      expect(history.items[0]?.issuedAt).toMatch(/^\d{4}-\d\d-\d\dT/)
+    }
+  })
+
+  it('filters history by inclusive Moscow calendar dates', async () => {
+    const admin = await createProfiledUser(db, 'admin')
+    await db
+      .insertInto('app.kh_reward_history')
+      .values([
+        {
+          queue_key: 'summons',
+          user_id: null,
+          issued_by: null,
+          game_nickname: 'До начала',
+          issued_at: '2026-11-25T20:59:59.999Z',
+        },
+        {
+          queue_key: 'pet',
+          user_id: null,
+          issued_by: null,
+          game_nickname: 'Внутри периода',
+          issued_at: '2026-11-25T21:00:00.000Z',
+        },
+        {
+          queue_key: 'disc',
+          user_id: null,
+          issued_by: null,
+          game_nickname: 'До конца дня',
+          issued_at: '2026-11-26T20:59:59.999Z',
+        },
+        {
+          queue_key: 'disc',
+          user_id: null,
+          issued_by: null,
+          game_nickname: 'После конца',
+          issued_at: '2026-11-26T21:00:00.000Z',
+        },
+      ])
+      .execute()
+
+    const history = await khRewardHistory(deps, await actorOf(db, admin.id), {
+      dateFrom: '2026-11-26',
+      dateTo: '2026-11-26',
+    })
+    expect(history.items.map((row) => row.gameNickname)).toEqual([
+      'До конца дня',
+      'Внутри периода',
+    ])
+  })
+
+  it('pages history by issue time and ID without duplicates', async () => {
+    const admin = await createProfiledUser(db, 'admin')
+    await db
+      .insertInto('app.kh_reward_history')
+      .values(
+        Array.from({ length: 21 }, (_, index) => ({
+          queue_key: 'summons' as const,
+          user_id: null,
+          issued_by: null,
+          game_nickname: `Запись ${index}`,
+          issued_at: '2026-11-10T12:00:00.000Z',
+        })),
+      )
+      .execute()
+
+    const actor = await actorOf(db, admin.id)
+    const first = await khRewardHistory(deps, actor, {
+      dateFrom: '2026-11-01',
+      dateTo: '2026-11-30',
+    })
+    expect(first.items).toHaveLength(20)
+    expect(first.nextCursor).toBeTruthy()
+    const second = await khRewardHistory(deps, actor, {
+      dateFrom: '2026-11-01',
+      dateTo: '2026-11-30',
+      cursor: first.nextCursor,
+    })
+    expect(second.items).toHaveLength(1)
+    expect(second.nextCursor).toBeNull()
+    expect(first.items.at(-1)?.id).not.toBe(second.items[0]?.id)
+  })
+
+  it('rejects an inverted history date range', async () => {
+    const admin = await createProfiledUser(db, 'admin')
+    await expect(
+      khRewardHistory(deps, await actorOf(db, admin.id), {
+        dateFrom: '2026-11-27',
+        dateTo: '2026-11-26',
+      }),
+    ).rejects.toMatchObject({ code: 'validation_failed' })
   })
 })

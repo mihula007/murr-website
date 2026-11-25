@@ -2,12 +2,16 @@ import type { Actor } from '../auth/actor.ts'
 import { requireRole } from '../auth/actor.ts'
 import {
   KH_QUEUE_IDS,
+  KH_QUEUE_LABELS,
+  KH_REWARD_HISTORY_PAGE_SIZE,
   khQueueActionSchema,
   khQueueEntryActionSchema,
   khQueueEntryIdSchema,
   khQueueLimitSchema,
   khQueueRepeatSchema,
   khQueuesRequestSchema,
+  khRewardHistoryRequestSchema,
+  type KhRewardHistoryResponse,
   type KhQueuesResponse,
 } from '../contracts/kh.ts'
 import { PAGE_SIZE } from '../contracts/paging.ts'
@@ -23,6 +27,7 @@ const cursorSchema = z.tuple([khQueueEntryIdSchema])
 const READ_ROLES = ['member', 'officer', 'master', 'admin'] as const
 const JOIN_ROLES = ['member', 'officer', 'admin'] as const
 const MANAGE_ROLES = ['master', 'admin'] as const
+const historyCursor = z.tuple([z.string().min(1).max(64), khQueueEntryIdSchema])
 
 export async function listKhQueues(
   deps: AppDeps,
@@ -181,7 +186,7 @@ export async function issueKhReward(
   actor: Actor,
   body: unknown,
 ) {
-  requireRole(actor, ['master'])
+  const master = requireRole(actor, ['master'])
   const { queueKey, entryId } = parseBody(khQueueEntryActionSchema, body)
   return withTransaction(deps.db, async (tx) => {
     const cap = await khQueueRepository.lockSettings(tx, 'share')
@@ -196,10 +201,46 @@ export async function issueKhReward(
     if (!entry) {
       throw new ApiError('not_found')
     }
+    await khQueueRepository.recordIssue(tx, entry, master.userId)
     const row = await khQueueRepository.issue(tx, entry, cap)
     if (!row) {
       throw new ApiError('not_found')
     }
     return { ok: true }
   })
+}
+
+/** История выдач КХ: новые сверху, московский период и курсор `(date, id)`. */
+export async function khRewardHistory(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<KhRewardHistoryResponse> {
+  requireRole(actor, ['admin', 'master'])
+  const input = parseBody(khRewardHistoryRequestSchema, body ?? {})
+  const after = input.cursor ? decodeCursor(historyCursor, input.cursor) : null
+  const rows = await khQueueRepository.history(deps.db, {
+    dateFrom: input.dateFrom,
+    dateTo: input.dateTo,
+    after: after ? { issuedAt: after[0], id: after[1] } : null,
+    limit: KH_REWARD_HISTORY_PAGE_SIZE + 1,
+  })
+  const page = splitPage(rows, KH_REWARD_HISTORY_PAGE_SIZE, (row) => [
+    row.issued_at,
+    String(row.id),
+  ])
+  return {
+    items: page.rows.map((row) => {
+      const queueKey = row.queue_key as (typeof KH_QUEUE_IDS)[number]
+      return {
+        id: String(row.id),
+        queueKey,
+        rewardName: KH_QUEUE_LABELS[queueKey],
+        userId: row.user_id,
+        gameNickname: row.game_nickname,
+        issuedAt: new Date(row.issued_at).toISOString(),
+      }
+    }),
+    nextCursor: page.nextCursor,
+  }
 }

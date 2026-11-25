@@ -8,11 +8,13 @@ const WAITLIST = 'app.kh_queue_rejoin_waitlist' as const
 
 type QueueEntryRow = {
   id: number
-  queue_key: KhQueueId
+  queue_key: string
   user_id: string | null
   game_nickname: string
   auto_rejoin: boolean
 }
+
+type HistoryKey = { issuedAt: string; id: string }
 
 async function lockSettings(db: Executor, mode: 'share' | 'update') {
   const query = db
@@ -116,21 +118,92 @@ export const khQueueRepository = {
 
   async entryById(db: Executor, queueKey: KhQueueId, entryId: string) {
     return db
-      .selectFrom(ENTRIES)
-      .select(['id', 'queue_key', 'user_id', 'game_nickname', 'auto_rejoin'])
-      .where('queue_key', '=', queueKey)
-      .where('id', '=', sql<number>`cast(${entryId} as bigint)`)
+      .selectFrom(`${ENTRIES} as e`)
+      .leftJoin('app.profiles as p', 'p.id', 'e.user_id')
+      .select([
+        'e.id',
+        'e.queue_key',
+        'e.user_id',
+        sql<string>`coalesce(p.game_nickname, e.game_nickname)`.as(
+          'game_nickname',
+        ),
+        'e.auto_rejoin',
+      ])
+      .where('e.queue_key', '=', queueKey)
+      .where('e.id', '=', sql<number>`cast(${entryId} as bigint)`)
       .executeTakeFirst()
   },
 
   async lockEntryById(db: Executor, queueKey: KhQueueId, entryId: string) {
     return db
-      .selectFrom(ENTRIES)
-      .select(['id', 'queue_key', 'user_id', 'game_nickname', 'auto_rejoin'])
-      .where('queue_key', '=', queueKey)
-      .where('id', '=', sql<number>`cast(${entryId} as bigint)`)
-      .forUpdate()
+      .selectFrom(`${ENTRIES} as e`)
+      .leftJoin('app.profiles as p', 'p.id', 'e.user_id')
+      .select([
+        'e.id',
+        'e.queue_key',
+        'e.user_id',
+        sql<string>`coalesce(p.game_nickname, e.game_nickname)`.as(
+          'game_nickname',
+        ),
+        'e.auto_rejoin',
+      ])
+      .where('e.queue_key', '=', queueKey)
+      .where('e.id', '=', sql<number>`cast(${entryId} as bigint)`)
+      .forUpdate('e')
       .executeTakeFirst()
+  },
+
+  async recordIssue(db: Executor, entry: QueueEntryRow, issuedBy: string) {
+    return db
+      .insertInto('app.kh_reward_history')
+      .values({
+        queue_key: entry.queue_key,
+        user_id: entry.user_id,
+        game_nickname: entry.game_nickname,
+        issued_by: issuedBy,
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow()
+  },
+
+  async history(
+    db: Executor,
+    options: {
+      dateFrom: string | null
+      dateTo: string | null
+      after: HistoryKey | null
+      limit: number
+    },
+  ) {
+    let query = db
+      .selectFrom('app.kh_reward_history')
+      .select(['id', 'queue_key', 'user_id', 'game_nickname', 'issued_at'])
+    if (options.dateFrom) {
+      query = query.where(
+        sql<boolean>`issued_at >= (${options.dateFrom}::date::timestamp at time zone 'Europe/Moscow')`,
+      )
+    }
+    if (options.dateTo) {
+      query = query.where(
+        sql<boolean>`issued_at < ((${options.dateTo}::date + interval '1 day')::timestamp at time zone 'Europe/Moscow')`,
+      )
+    }
+    if (options.after) {
+      query = query.where((eb) =>
+        eb.or([
+          eb('issued_at', '<', options.after!.issuedAt),
+          eb.and([
+            eb('issued_at', '=', options.after!.issuedAt),
+            eb('id', '<', sql<number>`cast(${options.after!.id} as bigint)`),
+          ]),
+        ]),
+      )
+    }
+    return query
+      .orderBy('issued_at', 'desc')
+      .orderBy('id', 'desc')
+      .limit(options.limit)
+      .execute()
   },
 
   async join(
