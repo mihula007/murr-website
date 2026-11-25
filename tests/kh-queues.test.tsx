@@ -60,7 +60,7 @@ describe('KhQueueBoard', () => {
       )
       expect(
         screen.getAllByRole('heading', { name: KH_QUEUE_LABELS[queueKey] }),
-      ).toHaveLength(queueKey === 'summons' ? 2 : 1)
+      ).toHaveLength(2)
       expect(
         queueList.getByRole('button', {
           name: `Встать в очередь «${KH_QUEUE_LABELS[queueKey]}»`,
@@ -181,8 +181,10 @@ describe('KhQueueBoard', () => {
       },
     })
     renderBoard('member', queues)
+    await userEvent.click(screen.getByRole('button', { name: 'призывы' }))
+    const phoneRegion = within(screen.getByRole('region', { name: 'призывы' }))
     const phoneList = within(
-      screen.getByRole('list', { name: 'Очередь КХ на телефоне' }),
+      phoneRegion.getByRole('list', { name: 'Очередь КХ: призывы' }),
     )
     expect(
       phoneList.queryByRole('button', {
@@ -193,7 +195,7 @@ describe('KhQueueBoard', () => {
     expect(phoneList.getByLabelText('Место 2')).toHaveTextContent('2')
   })
 
-  it('shows one selected queue in the phone view without hiding other queues from the selector', async () => {
+  it('opens one queue at a time in the phone view', async () => {
     Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', {
       configurable: true,
       value: () => false,
@@ -218,25 +220,26 @@ describe('KhQueueBoard', () => {
     })
     renderBoard('member', queues)
 
-    const phoneList = screen.getByRole('list', {
-      name: 'Очередь КХ на телефоне',
-    })
-    expect(within(phoneList).getByText('Тест1')).toBeInTheDocument()
-
-    await userEvent.click(
-      screen.getByRole('combobox', { name: 'Выбрать очередь КХ' }),
+    await userEvent.click(screen.getByRole('button', { name: 'призывы' }))
+    const summonsRegion = within(
+      screen.getByRole('region', { name: 'призывы' }),
     )
-    await userEvent.click(screen.getByRole('option', { name: 'пет' }))
-
     expect(
       within(
-        screen.getByRole('list', { name: 'Очередь КХ на телефоне' }),
-      ).queryByText('Тест1'),
+        summonsRegion.getByRole('list', {
+          name: 'Очередь КХ: призывы',
+        }),
+      ).getByText('Тест1'),
+    ).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'пет' }))
+    expect(
+      summonsRegion.queryByRole('list', { name: 'Очередь КХ: призывы' }),
     ).not.toBeInTheDocument()
     expect(
-      within(
-        screen.getByRole('list', { name: 'Очередь КХ на телефоне' }),
-      ).getByRole('button', { name: 'Встать в очередь «пет»' }),
+      within(screen.getByRole('region', { name: 'пет' })).getByRole('button', {
+        name: 'Встать в очередь «пет»',
+      }),
     ).toBeInTheDocument()
   })
 })

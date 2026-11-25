@@ -209,6 +209,7 @@ export function KhQueueBoard({
           return (
             <section
               key={queueKey}
+              aria-labelledby={`kh-mobile-title-${queueKey}`}
               className={`overflow-hidden rounded-xl border bg-surface-from/70 shadow-md backdrop-blur-sm transition-[border-color,box-shadow] duration-300 ${isExpanded ? 'border-primary/80 shadow-lg' : 'border-border-accent/70'}`}
             >
               <div className="group/kh-mobile relative isolate min-h-14 overflow-hidden bg-linear-145/srgb from-surface-inset/80 to-card/65 transition-[background,filter] duration-200 hover:brightness-110 motion-reduce:transition-none">
