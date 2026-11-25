@@ -1,0 +1,118 @@
+# Очереди наград КХ Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Расширить очереди КХ картинками наград, общим лимитом, автоповтором, заменённым списком участников и закрытой историей выдач.
+
+**Architecture:** Сохранить единую серверную очередь в модуле `kh` и расширить его таблицы, контракты, серверные операции и экран. Все права и лимиты проверяются внутри транзакций одной Edge Function; история выдач хранит снимки ника и награды, а картинки остаются статическими файлами сайта.
+
+**Tech Stack:** TypeScript strict, React, TanStack Query, zod, Kysely, Supabase Postgres, Vitest, pgTAP и Playwright; существующие UI компоненты и иконки из `public`.
+
+**Spec:** `docs/requirements/25-kh-queue.md` (KHQ-01–14), решение Q-127 в `docs/requirements/17-open-questions.md`.
+
+## Global Constraints
+
+- Одна функция Supabase `api`; клиент вызывает её через `callApi`.
+- Правила платформы, секретов, ролей, стилей и стека из `AGENTS.md` обязательны.
+- Новые поля ответа необязательны либо добавляются совместимыми операциями.
+- Миграции только вперёд; секреты не попадают в файлы сайта.
+- Все новые списки свыше 50 строк используют курсорную загрузку и виртуализацию.
+
+## Review Focus
+
+- Одновременная запись не может превысить лимит — серверная проверка блокирует настройки/счётчики участника в общей транзакции.
+- Пониженный лимит не удаляет уже активные записи и не запускает автоповтор до освобождения места.
+- Выдача, история и повтор не расходятся при сбое — одна транзакция сохраняет все части.
+- Снимок ника остаётся видимым в истории после удаления аккаунта; записи без аккаунта нельзя снять от чужого имени.
+- История недоступна ролям member/officer, даже при прямом вызове `api`.
+
+---
+
+### Task 1: Модель данных и начальный список
+
+**Files:**
+- Create: `supabase/migrations/<timestamp>_kh_reward_history_and_limits.sql`
+- Modify: `supabase/functions/_shared/db/database.types.ts`, `supabase/functions/_shared/db/schema.ts`
+- Modify: `scripts/seed-dev.ts`
+- Create: `public/kh-rewards/1.png` … `public/kh-rewards/14.png`
+- Test: `supabase/tests/database/kh_queues.test.sql`
+
+**Interfaces:**
+- Add nullable `user_id` and required nickname snapshot to `kh_queue_entries`; keep queue order by identity ID.
+- Add one-row global setting (default 14), durable pending rejoin rows, and immutable `kh_reward_history` with queue, nickname snapshot, nullable actor/recipient references and timestamp.
+- Migration replaces current active rows with the approved 14-column list, matching only exact or explicitly reviewed obvious account nicknames; unmatched rows remain nickname-only.
+
+- [ ] **Step 1: Add failing pgTAP assertions** for nullable nickname-only entries, settings default/range, unique active memberships, persisted issue history, and history surviving profile deletion.
+- [ ] **Step 2: Run `npm run supabase:test`** and confirm failures are for missing schema objects/constraints.
+- [ ] **Step 3: Add forward-only schema and replacement-data migration**, using alias values checked against production account nicknames before release; copy 14 square source images into `public/kh-rewards/`.
+- [ ] **Step 4: Extend database types and deterministic local seed fixtures**, including queue entries that test both linked and nickname-only rows plus varied auto-repeat state.
+- [ ] **Step 5: Re-run `npm run supabase:test`** and confirm the new assertions pass.
+
+### Task 2: Server rules for limits, entries and repeat
+
+**Files:**
+- Modify: `supabase/functions/_shared/contracts/kh.ts`
+- Modify: `supabase/functions/_shared/kh/service.ts`, `supabase/functions/_shared/kh/repository.ts`
+- Modify: `supabase/functions/_shared/app.ts`
+- Modify: `tests/server/kh.test.ts`
+
+**Interfaces:**
+- Add operations `kh/settings`, `kh/set-limit`, `kh/set-repeat`, and master-only `kh/remove`.
+- Queue pages return nullable `userId`, nickname snapshot, and repeat flag; settings response returns the shared cap.
+- The repository checks current occupancy and the configured cap inside a per-user transaction lock. Pending repeats are ordered by request time and appended only after a spot becomes available.
+
+- [ ] **Step 1: Add failing server tests** for cap 1/14, officers/admins sharing the cap, setting rights, atomic concurrent joins, lowering cap, self/master removal, nickname-only entries, enabled/disabled repeat, pending repeats, and loss-of-role cleanup.
+- [ ] **Step 2: Run the focused server tests** and confirm expected permission/state failures.
+- [ ] **Step 3: Implement zod contracts, repository operations and service checks** with every write in `useMutation` client callers and one SQL transaction.
+- [ ] **Step 4: Re-run focused server tests** and confirm pass, including concurrent requests and retry after leaving another queue.
+
+### Task 3: Private paged reward history
+
+**Files:**
+- Modify: `supabase/functions/_shared/contracts/kh.ts`
+- Modify: `supabase/functions/_shared/kh/service.ts`, `supabase/functions/_shared/kh/repository.ts`
+- Modify: `supabase/functions/_shared/app.ts`
+- Modify: `tests/server/kh.test.ts`, `supabase/tests/database/kh_queues.test.sql`
+
+**Interfaces:**
+- Add `kh/history` with `dateFrom`, `dateTo`, cursor `(issued_at, id)`, and page limit 20.
+- Return issue time in Moscow date/time, nickname and reward label snapshots.
+- Only `admin` and `master` can read history; only `master` can issue. Issue writes the history record and removes/requeues the entry atomically.
+
+- [ ] **Step 1: Add failing tests** for admin/master access, member/officer denial, date bounds, stable cursor order, history after profile deletion, and atomic issue plus repeat.
+- [ ] **Step 2: Run focused server and pgTAP tests** to verify they fail for missing operations/schema.
+- [ ] **Step 3: Implement paged repository query and `kh/history` service**, inclusive Moscow calendar dates, with oldest/newest ordering chosen consistently with the UI.
+- [ ] **Step 4: Re-run focused server tests and pgTAP**, confirming authorization and boundaries.
+
+### Task 4: KХ screen and management controls
+
+**Files:**
+- Modify: `src/features/kh-queues/api.ts`, `src/features/kh-queues/kh-queues-page.tsx`, `src/features/kh-queues/kh-queue-board.tsx`
+- Create: `src/features/kh-queues/kh-history-panel.tsx`, `src/features/kh-queues/kh-management-panel.tsx`
+- Modify: `tests/kh-queues.test.tsx`
+
+**Interfaces:**
+- Read settings and queue data with `useQuery`/`useInfiniteQuery`; all writes use `useMutation` and invalidate `['kh', …]` caches in `onSuccess`.
+- The queue board receives cap, occupancy, role, `userId`, and handlers for all controls.
+- History panel receives period dates and paginated results; only admin/master render management tabs and history.
+
+- [ ] **Step 1: Add failing component tests** for 14 image/name pairs, cap feedback, repeat toggle, master remove/issue controls, admin/master-only tabs, 30-day default, date filters, and a fixed-height internal list showing 20 rows.
+- [ ] **Step 2: Run the focused component tests** and confirm they fail for missing UI.
+- [ ] **Step 3: Implement responsive controls and history panel** using theme tokens, existing FormField/VirtualList patterns, and static images.
+- [ ] **Step 4: Re-run focused component tests**, including mobile layout assertions.
+
+### Task 5: End-to-end acceptance and checks
+
+**Files:**
+- Modify: `e2e/kh-queues.spec.ts`
+- Modify as required by results: files listed above.
+
+**Interfaces:**
+- E2E uses real local Auth/database through the existing helpers; no live Telegram bot or production service.
+
+- [ ] **Step 1: Add Playwright scenarios** for cap enforcement, repeat after issue, date-filtered history visible to admin/master and denied to member, master removal, and both viewport sizes.
+- [ ] **Step 2: Run `npm run check:quick`, `npm run test:server`, `npm run supabase:test`** and fix all failures.
+- [ ] **Step 3: Run `npm run review:prepare`** after destructive server/e2e checks to restore review data.
+- [ ] **Step 4: Do not run local e2e**; CI runs all e2e after the release step 6 push.
+- [ ] **Step 5: Commit implementation with a Conventional Commit message** and confirm `git status` is clean.
+
