@@ -54,8 +54,9 @@ export const khQueueEntryIdSchema = z
 
 export const khQueueEntrySchema = z.object({
   id: khQueueEntryIdSchema,
-  userId: z.string().uuid(),
-  gameNickname: z.string().min(1).max(9),
+  userId: z.string().uuid().nullable(),
+  gameNickname: z.string().min(1).max(40),
+  autoRejoin: z.boolean(),
 })
 
 export const khQueuePageSchema = z.object({
@@ -79,9 +80,27 @@ export const khQueueEntryActionSchema = khQueueActionSchema.extend({
   entryId: khQueueEntryIdSchema,
 })
 
+export const khQueueLimitSchema = z.object({
+  maxActiveQueues: z.number().int().min(1).max(14),
+})
+
+export const khQueueSettingsResponseSchema = z.object({
+  maxActiveQueues: z.number().int().min(1).max(14),
+  activeQueueCount: z.number().int().min(0).max(14),
+})
+
+export const khQueueRepeatSchema = khQueueEntryActionSchema.extend({
+  autoRejoin: z.boolean(),
+})
+
 export type KhQueuesRequest = z.input<typeof khQueuesRequestSchema>
 export type KhQueueEntry = z.infer<typeof khQueueEntrySchema>
 export type KhQueuePage = z.infer<typeof khQueuePageSchema>
 export type KhQueuesResponse = z.infer<typeof khQueuesResponseSchema>
 export type KhQueueAction = z.infer<typeof khQueueActionSchema>
 export type KhQueueEntryAction = z.infer<typeof khQueueEntryActionSchema>
+export type KhQueueLimit = z.infer<typeof khQueueLimitSchema>
+export type KhQueueSettingsResponse = z.infer<
+  typeof khQueueSettingsResponseSchema
+>
+export type KhQueueRepeat = z.infer<typeof khQueueRepeatSchema>

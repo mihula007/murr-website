@@ -4,9 +4,13 @@ import { sql } from 'kysely'
 import { GUEST } from '../../supabase/functions/_shared/auth/actor.ts'
 import {
   issueKhReward,
+  getKhQueueSettings,
   joinKhQueue,
   leaveKhQueue,
   listKhQueues,
+  removeKhQueueEntry,
+  setKhQueueLimit,
+  setKhQueueRepeat,
 } from '../../supabase/functions/_shared/kh/service.ts'
 import { setRole } from '../../supabase/functions/_shared/accounts/service.ts'
 import { KH_QUEUE_IDS } from '../../supabase/functions/_shared/contracts/kh.ts'
@@ -15,7 +19,13 @@ import { actorOf, createProfiledUser, testDb, testDeps } from './support.ts'
 const db = testDb()
 const deps = testDeps(db)
 beforeEach(async () => {
+  await db.deleteFrom('app.kh_queue_rejoin_waitlist').execute()
   await db.deleteFrom('app.kh_queue_entries').execute()
+  await db
+    .updateTable('app.kh_queue_settings')
+    .set({ max_active_queues: 14 })
+    .where('id', '=', true)
+    .execute()
 })
 afterAll(() => db.destroy())
 
@@ -76,11 +86,21 @@ describe('kh/queues', () => {
     const users = await createPageMembers(51)
     await db
       .insertInto('app.kh_queue_entries')
-      .values(users.map((user) => ({ queue_key: 'summons', user_id: user.id })))
+      .values(
+        users.map((user) => ({
+          queue_key: 'summons',
+          user_id: user.id,
+          game_nickname: user.nickname,
+        })),
+      )
       .execute()
     await db
       .insertInto('app.kh_queue_entries')
-      .values({ queue_key: 'pet', user_id: users[0]!.id })
+      .values({
+        queue_key: 'pet',
+        user_id: users[0]!.id,
+        game_nickname: users[0]!.nickname,
+      })
       .execute()
 
     const actor = await actorOf(db, viewer.id)
@@ -220,5 +240,212 @@ describe('kh/queues', () => {
       .where('user_id', '=', member.id)
       .execute()
     expect(rows).toHaveLength(0)
+  })
+
+  it('defaults to fourteen entries and applies the shared cap to every join role', async () => {
+    const member = await createProfiledUser(db, 'member')
+    const officer = await createProfiledUser(db, 'officer')
+    const admin = await createProfiledUser(db, 'admin')
+    const adminActor = await actorOf(db, admin.id)
+    const memberActor = await actorOf(db, member.id)
+    const officerActor = await actorOf(db, officer.id)
+
+    await expect(getKhQueueSettings(deps, adminActor)).resolves.toEqual({
+      maxActiveQueues: 14,
+      activeQueueCount: 0,
+    })
+    await setKhQueueLimit(deps, adminActor, { maxActiveQueues: 1 })
+    await joinKhQueue(deps, memberActor, { queueKey: 'summons' })
+    await joinKhQueue(deps, officerActor, { queueKey: 'pet' })
+    await joinKhQueue(deps, adminActor, { queueKey: 'meteorites' })
+
+    await expect(
+      joinKhQueue(deps, memberActor, { queueKey: 'pet' }),
+    ).rejects.toMatchObject({ code: 'state_conflict' })
+    await expect(
+      joinKhQueue(deps, officerActor, { queueKey: 'summons' }),
+    ).rejects.toMatchObject({ code: 'state_conflict' })
+    await expect(
+      joinKhQueue(deps, adminActor, { queueKey: 'pet' }),
+    ).rejects.toMatchObject({ code: 'state_conflict' })
+  })
+
+  it('allows only administrators and masters to view and change the global cap', async () => {
+    const member = await createProfiledUser(db, 'member')
+    const officer = await createProfiledUser(db, 'officer')
+    const master = await createProfiledUser(db, 'master')
+    const admin = await createProfiledUser(db, 'admin')
+
+    for (const user of [member, officer]) {
+      const actor = await actorOf(db, user.id)
+      await expect(
+        setKhQueueLimit(deps, actor, { maxActiveQueues: 3 }),
+      ).rejects.toMatchObject({ code: 'forbidden' })
+    }
+    await expect(
+      setKhQueueLimit(deps, await actorOf(db, master.id), {
+        maxActiveQueues: 14,
+      }),
+    ).resolves.toEqual({ maxActiveQueues: 14 })
+    await expect(
+      setKhQueueLimit(deps, await actorOf(db, admin.id), {
+        maxActiveQueues: 1,
+      }),
+    ).resolves.toEqual({ maxActiveQueues: 1 })
+  })
+
+  it('does not remove existing entries when the cap is lowered', async () => {
+    const admin = await createProfiledUser(db, 'admin')
+    const member = await createProfiledUser(db, 'member')
+    const adminActor = await actorOf(db, admin.id)
+    const memberActor = await actorOf(db, member.id)
+    await setKhQueueLimit(deps, adminActor, { maxActiveQueues: 2 })
+    await joinKhQueue(deps, memberActor, { queueKey: 'summons' })
+    await joinKhQueue(deps, memberActor, { queueKey: 'pet' })
+
+    await setKhQueueLimit(deps, adminActor, { maxActiveQueues: 1 })
+    await expect(
+      joinKhQueue(deps, memberActor, { queueKey: 'meteorites' }),
+    ).rejects.toMatchObject({ code: 'state_conflict' })
+    const queues = await listKhQueues(deps, memberActor, {})
+    expect(queues.queues.summons.items).toHaveLength(1)
+    expect(queues.queues.pet.items).toHaveLength(1)
+  })
+
+  it('serializes concurrent joins to different queues against the same cap', async () => {
+    const admin = await createProfiledUser(db, 'admin')
+    const member = await createProfiledUser(db, 'member')
+    const adminActor = await actorOf(db, admin.id)
+    const memberActor = await actorOf(db, member.id)
+    await setKhQueueLimit(deps, adminActor, { maxActiveQueues: 1 })
+
+    const results = await Promise.allSettled([
+      joinKhQueue(deps, memberActor, { queueKey: 'summons' }),
+      joinKhQueue(deps, memberActor, { queueKey: 'pet' }),
+    ])
+    expect(
+      results.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(1)
+    expect(
+      results.filter((result) => result.status === 'rejected'),
+    ).toHaveLength(1)
+    const rows = await db
+      .selectFrom('app.kh_queue_entries')
+      .select('id')
+      .where('user_id', '=', member.id)
+      .execute()
+    expect(rows).toHaveLength(1)
+  })
+
+  it('shows nickname-only rows without an account', async () => {
+    const member = await createProfiledUser(db, 'member')
+    await db
+      .insertInto('app.kh_queue_entries')
+      .values({
+        queue_key: 'summons',
+        user_id: null,
+        game_nickname: 'Вне аккаунта',
+      })
+      .execute()
+
+    const queues = await listKhQueues(deps, await actorOf(db, member.id), {})
+    expect(queues.queues.summons.items).toContainEqual(
+      expect.objectContaining({ userId: null, gameNickname: 'Вне аккаунта' }),
+    )
+  })
+
+  it('lets a master remove another participant but not an administrator', async () => {
+    const admin = await createProfiledUser(db, 'admin')
+    const master = await createProfiledUser(db, 'master')
+    const member = await createProfiledUser(db, 'member')
+    const entry = await joinKhQueue(deps, await actorOf(db, member.id), {
+      queueKey: 'summons',
+    })
+
+    await expect(
+      removeKhQueueEntry(deps, await actorOf(db, admin.id), {
+        queueKey: 'summons',
+        entryId: entry.entryId,
+      }),
+    ).rejects.toMatchObject({ code: 'forbidden' })
+    await expect(
+      removeKhQueueEntry(deps, await actorOf(db, master.id), {
+        queueKey: 'summons',
+        entryId: entry.entryId,
+      }),
+    ).resolves.toEqual({ ok: true })
+  })
+
+  it('preserves enabled repeat and appends the member after an issue', async () => {
+    const member = await createProfiledUser(db, 'member')
+    const master = await createProfiledUser(db, 'master')
+    const memberActor = await actorOf(db, member.id)
+    const entry = await joinKhQueue(deps, memberActor, { queueKey: 'summons' })
+    await setKhQueueRepeat(deps, memberActor, {
+      queueKey: 'summons',
+      entryId: entry.entryId,
+      autoRejoin: true,
+    })
+
+    await issueKhReward(deps, await actorOf(db, master.id), {
+      queueKey: 'summons',
+      entryId: entry.entryId,
+    })
+    const queues = await listKhQueues(deps, memberActor, {})
+    expect(queues.queues.summons.items).toContainEqual(
+      expect.objectContaining({
+        userId: member.id,
+        gameNickname: member.nickname,
+        autoRejoin: true,
+      }),
+    )
+  })
+
+  it('holds auto-repeat until the member is under the lowered cap', async () => {
+    const admin = await createProfiledUser(db, 'admin')
+    const member = await createProfiledUser(db, 'member')
+    const master = await createProfiledUser(db, 'master')
+    const adminActor = await actorOf(db, admin.id)
+    const memberActor = await actorOf(db, member.id)
+    await setKhQueueLimit(deps, adminActor, { maxActiveQueues: 2 })
+    const summons = await joinKhQueue(deps, memberActor, {
+      queueKey: 'summons',
+    })
+    await joinKhQueue(deps, memberActor, { queueKey: 'pet' })
+    await setKhQueueRepeat(deps, memberActor, {
+      queueKey: 'summons',
+      entryId: summons.entryId,
+      autoRejoin: true,
+    })
+    await setKhQueueLimit(deps, adminActor, { maxActiveQueues: 1 })
+
+    await issueKhReward(deps, await actorOf(db, master.id), {
+      queueKey: 'summons',
+      entryId: summons.entryId,
+    })
+    expect(
+      await db
+        .selectFrom('app.kh_queue_rejoin_waitlist')
+        .select('id')
+        .where('user_id', '=', member.id)
+        .execute(),
+    ).toHaveLength(1)
+
+    await leaveKhQueue(deps, memberActor, {
+      queueKey: 'pet',
+      entryId: (await listKhQueues(deps, memberActor, {})).queues.pet.items[0]!
+        .id,
+    })
+    const queues = await listKhQueues(deps, memberActor, {})
+    expect(queues.queues.summons.items).toContainEqual(
+      expect.objectContaining({ userId: member.id, autoRejoin: true }),
+    )
+    expect(
+      await db
+        .selectFrom('app.kh_queue_rejoin_waitlist')
+        .select('id')
+        .where('user_id', '=', member.id)
+        .execute(),
+    ).toHaveLength(0)
   })
 })

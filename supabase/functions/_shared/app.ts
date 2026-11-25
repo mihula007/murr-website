@@ -131,6 +131,10 @@ import {
   joinKhQueue,
   leaveKhQueue,
   listKhQueues,
+  getKhQueueSettings,
+  removeKhQueueEntry,
+  setKhQueueLimit,
+  setKhQueueRepeat,
 } from './kh/service.ts'
 import {
   dynamicsAttendance,
@@ -381,8 +385,12 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'roster/page': ({ actor, body }) => listRosterPage(deps, actor, body),
     'forge/catalog': ({ actor, body }) => listForgeCatalog(actor, body),
     'kh/queues': ({ actor, body }) => listKhQueues(deps, actor, body),
+    'kh/settings': ({ actor }) => getKhQueueSettings(deps, actor),
+    'kh/set-limit': ({ actor, body }) => setKhQueueLimit(deps, actor, body),
     'kh/join': ({ actor, body }) => joinKhQueue(deps, actor, body),
     'kh/leave': ({ actor, body }) => leaveKhQueue(deps, actor, body),
+    'kh/set-repeat': ({ actor, body }) => setKhQueueRepeat(deps, actor, body),
+    'kh/remove': ({ actor, body }) => removeKhQueueEntry(deps, actor, body),
     'kh/issue': ({ actor, body }) => issueKhReward(deps, actor, body),
     'roster/dynamics/profile': ({ actor, body }) =>
       dynamicsProfile(deps, actor, body),
