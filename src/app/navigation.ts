@@ -96,7 +96,7 @@ export const NAV_SECTIONS = [
   {
     id: 'kh',
     path: '/kh',
-    label: 'КХ',
+    label: 'Клан Холл',
     category: 'clan',
     roles: INTERNAL_ROLES,
   },
