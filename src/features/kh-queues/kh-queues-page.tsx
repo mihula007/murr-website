@@ -1,30 +1,44 @@
 import { PackageOpen, Sparkles } from 'lucide-react'
+import { useState } from 'react'
 import { useAccess } from '@/app/access'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
 import { pagingOf } from '@/components/virtual-list'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useSession } from '@/features/auth/session'
 import {
   useIssueKhReward,
   useJoinKhQueue,
   useKhQueues,
   useLeaveKhQueue,
+  useKhQueueSettings,
+  useRemoveKhQueueEntry,
+  useSetKhQueueLimit,
+  useSetKhQueueRepeat,
 } from './api'
 import { KhQueueBoard, type KhQueueBoardData } from './kh-queue-board'
+import { KhHistoryPanel } from './kh-history-panel'
+import { KhManagementPanel } from './kh-management-panel'
 
 export function KhQueuesPage() {
   const { role } = useAccess()
   const session = useSession()
   const queues = useKhQueues()
+  const settings = useKhQueueSettings()
   const join = useJoinKhQueue()
   const leave = useLeaveKhQueue()
   const issue = useIssueKhReward()
+  const remove = useRemoveKhQueueEntry()
+  const repeat = useSetKhQueueRepeat()
+  const setLimit = useSetKhQueueLimit()
+  const [tab, setTab] = useState('queues')
+  const canManage = role === 'admin' || role === 'master'
 
-  if (queues.isPending) {
+  if (queues.isPending || settings.isPending) {
     return <LoadingState label="Загружаем очереди КХ…" />
   }
-  if (queues.isError || !queues.data) {
+  if (queues.isError || settings.isError || !queues.data || !settings.data) {
     return (
       <ErrorState
         title="Не удалось загрузить очереди КХ"
@@ -34,6 +48,7 @@ export function KhQueuesPage() {
   }
   const paging = pagingOf(queues)
   const data = queues.data as KhQueueBoardData
+  const settingData = settings.data
   return (
     <div className="space-y-7">
       <PageHeader
@@ -54,7 +69,12 @@ export function KhQueuesPage() {
         }
         description="Нажмите на свободный слот, чтобы встать в очередь на награду. Свою запись можно убрать до выдачи."
       />
-      {join.isError || leave.isError || issue.isError ? (
+      {join.isError ||
+      leave.isError ||
+      issue.isError ||
+      remove.isError ||
+      repeat.isError ||
+      setLimit.isError ? (
         <ErrorState
           title="Не удалось обновить очередь"
           message="Изменение не сохранено. Обновите список и попробуйте ещё раз."
@@ -67,15 +87,46 @@ export function KhQueuesPage() {
           onRetry={paging.onLoadMore}
         />
       ) : null}
+      {canManage ? (
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList aria-label="Раздел КХ">
+            <TabsTrigger value="queues">Очередь</TabsTrigger>
+            <TabsTrigger value="history">История выдачи</TabsTrigger>
+          </TabsList>
+          <TabsContent value="queues">
+            <KhManagementPanel
+              value={settingData.maxActiveQueues}
+              onSave={(maxActiveQueues) => setLimit.mutate({ maxActiveQueues })}
+            />
+            <QueueBoard />
+          </TabsContent>
+          <TabsContent value="history">
+            <KhHistoryPanel />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <QueueBoard />
+      )}
+    </div>
+  )
+
+  function QueueBoard() {
+    return (
       <KhQueueBoard
         queues={data}
         accessRole={role}
         {...(session.session ? { userId: session.session.user.id } : {})}
         paging={paging}
+        maxActiveQueues={settingData.maxActiveQueues}
+        activeQueueCount={settingData.activeQueueCount}
         onJoin={(queueKey) => join.mutate({ queueKey })}
         onLeave={(queueKey, entryId) => leave.mutate({ queueKey, entryId })}
         onIssue={(queueKey, entryId) => issue.mutate({ queueKey, entryId })}
+        onRemove={(queueKey, entryId) => remove.mutate({ queueKey, entryId })}
+        onRepeat={(queueKey, entryId, autoRejoin) =>
+          repeat.mutate({ queueKey, entryId, autoRejoin })
+        }
       />
-    </div>
-  )
+    )
+  }
 }

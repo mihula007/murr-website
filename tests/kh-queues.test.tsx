@@ -23,7 +23,7 @@ function boardData(
 }
 
 function entry(id: string, userId: string, gameNickname: string): KhQueueEntry {
-  return { id, userId, gameNickname }
+  return { id, userId, gameNickname, autoRejoin: false }
 }
 
 function renderBoard(
@@ -252,5 +252,86 @@ describe('KhQueueBoard', () => {
         name: 'Встать в очередь «пет»',
       }),
     ).toBeInTheDocument()
+  })
+
+  it('uses the fourteen numbered reward images in queue order', () => {
+    const { container } = renderBoard()
+    const images = Array.from(container.querySelectorAll('img'))
+    for (let index = 1; index <= 14; index += 1) {
+      expect(
+        images.some(
+          (image) => image.getAttribute('src') === `/kh-rewards/${index}.png`,
+        ),
+      ).toBe(true)
+    }
+  })
+
+  it('shows the repeat checkbox for the participant and respects their active limit', async () => {
+    const onRepeat =
+      vi.fn<
+        (queueKey: KhQueueId, entryId: string, autoRejoin: boolean) => void
+      >()
+    const queues = boardData({
+      summons: { items: [entry('7', SELF, 'Тест1')], hasMore: false },
+    })
+    render(
+      <KhQueueBoard
+        queues={queues}
+        accessRole="member"
+        userId={SELF}
+        maxActiveQueues={1}
+        activeQueueCount={1}
+        paging={{
+          hasMore: false,
+          loadingMore: false,
+          loadError: false,
+          onLoadMore: () => undefined,
+        }}
+        onJoin={() => undefined}
+        onLeave={() => undefined}
+        onIssue={() => undefined}
+        onRepeat={onRepeat}
+      />,
+    )
+    const checkbox = screen.getAllByRole('checkbox', {
+      name: 'После выдачи снова встать в очередь',
+    })[0]!
+    await userEvent.click(checkbox)
+    expect(onRepeat).toHaveBeenCalledWith('summons', '7', true)
+    expect(
+      screen.getByText('Занято ячеек: 1 из 1 · лимит достигнут'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Встать в очередь «пет»' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('lets the master remove another participant from the queue', async () => {
+    const onRemove = vi.fn<(queueKey: KhQueueId, entryId: string) => void>()
+    const queues = boardData({
+      summons: { items: [entry('8', OTHER, 'Тест2')], hasMore: false },
+    })
+    render(
+      <KhQueueBoard
+        queues={queues}
+        accessRole="master"
+        onRemove={onRemove}
+        paging={{
+          hasMore: false,
+          loadingMore: false,
+          loadError: false,
+          onLoadMore: () => undefined,
+        }}
+        onJoin={() => undefined}
+        onLeave={() => undefined}
+        onIssue={() => undefined}
+      />,
+    )
+    await userEvent.click(
+      screen.getAllByRole('button', {
+        name: 'Удалить Тест2 из очереди «призывы»',
+      })[0]!,
+    )
+    expect(onRemove).toHaveBeenCalledWith('summons', '8')
   })
 })

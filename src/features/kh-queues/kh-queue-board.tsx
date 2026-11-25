@@ -1,24 +1,5 @@
 import { useState } from 'react'
-import {
-  ChevronDown,
-  CircleDot,
-  Coins,
-  CreditCard,
-  Crown,
-  Disc3,
-  DoorOpen,
-  Gem,
-  Hand,
-  Megaphone,
-  PawPrint,
-  Plus,
-  Scale,
-  Sparkles,
-  Trophy,
-  X,
-  Check,
-  type LucideIcon,
-} from 'lucide-react'
+import { ChevronDown, Plus, X, Check } from 'lucide-react'
 import {
   KH_QUEUE_IDS,
   KH_QUEUE_LABELS,
@@ -48,23 +29,10 @@ type KhQueueBoardProps = {
   onJoin: (queueKey: KhQueueId) => void
   onLeave: (queueKey: KhQueueId, entryId: string) => void
   onIssue: (queueKey: KhQueueId, entryId: string) => void
-}
-
-const KH_QUEUE_ICONS: Record<KhQueueId, LucideIcon> = {
-  summons: Megaphone,
-  kh_hands: Hand,
-  scale_buyout: Scale,
-  highest_buyout: Crown,
-  highest: Trophy,
-  meteorites: Sparkles,
-  uf_passes: DoorOpen,
-  essence: CircleDot,
-  scale: Gem,
-  dobi_stones: Coins,
-  s_cards: CreditCard,
-  kh_passes: DoorOpen,
-  disc: Disc3,
-  pet: PawPrint,
+  onRemove?: (queueKey: KhQueueId, entryId: string) => void
+  onRepeat?: (queueKey: KhQueueId, entryId: string, autoRejoin: boolean) => void
+  maxActiveQueues?: number
+  activeQueueCount?: number
 }
 
 export function KhQueueBoard({
@@ -75,6 +43,10 @@ export function KhQueueBoard({
   onJoin,
   onLeave,
   onIssue,
+  onRemove = () => undefined,
+  onRepeat = () => undefined,
+  maxActiveQueues = 14,
+  activeQueueCount = 0,
 }: KhQueueBoardProps) {
   const [expandedQueue, setExpandedQueue] = useState<KhQueueId | null>(null)
   const canJoin =
@@ -82,8 +54,10 @@ export function KhQueueBoard({
     accessRole === 'officer' ||
     accessRole === 'admin'
   const canIssue = accessRole === 'master'
+  const canRemove = accessRole === 'master'
   const canSeeFreeCell = (queueKey: KhQueueId) =>
     canJoin &&
+    activeQueueCount < maxActiveQueues &&
     !queues[queueKey].hasMore &&
     !queues[queueKey].items.some((entry) => entry.userId === userId)
   const cellsInQueue = (queueKey: KhQueueId): QueueCell[] => [
@@ -120,7 +94,7 @@ export function KhQueueBoard({
         <span className="min-w-0 flex-1 break-all text-center text-xs leading-tight">
           {entry.gameNickname}
         </span>
-        {canIssue || entry.userId === userId ? (
+        {canIssue || canRemove || entry.userId === userId ? (
           <span className="absolute right-0.5 flex -translate-y-1/2 items-center gap-0.5 top-1/2">
             {canIssue ? (
               <Button
@@ -146,14 +120,42 @@ export function KhQueueBoard({
                 <X aria-hidden="true" size={14} />
               </Button>
             ) : null}
+            {canRemove ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-6 shrink-0 text-destructive"
+                aria-label={`Удалить ${entry.gameNickname} из очереди «${label}»`}
+                onClick={() => onRemove(queueKey, entry.id)}
+              >
+                <X aria-hidden="true" size={14} />
+              </Button>
+            ) : null}
           </span>
+        ) : null}
+        {entry.userId === userId ? (
+          <label
+            className="absolute -top-1 -left-1 z-10 flex size-5 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-xs shadow"
+            title="После выдачи снова встать в очередь"
+          >
+            <input
+              type="checkbox"
+              className="size-3 accent-primary"
+              aria-label="После выдачи снова встать в очередь"
+              checked={entry.autoRejoin}
+              onChange={(event) =>
+                onRepeat(queueKey, entry.id, event.currentTarget.checked)
+              }
+            />
+          </label>
         ) : null}
       </div>
     )
   }
 
   const renderColumn = (queueKey: KhQueueId) => {
-    const Icon = KH_QUEUE_ICONS[queueKey]
+    const imageNumber = KH_QUEUE_IDS.indexOf(queueKey) + 1
     const queue = queues[queueKey]
     return (
       <section
@@ -166,9 +168,11 @@ export function KhQueueBoard({
           className="relative isolate mb-2 flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border border-border-accent/70 bg-linear-145/srgb from-surface-inset/75 to-card/75 px-1 py-2 text-center text-xs leading-tight font-bold text-highlight shadow-md backdrop-blur-sm"
         >
           <span className="pointer-events-none absolute inset-x-2 top-0 h-px bg-primary/70 shadow-sm" />
-          <span className="grid size-8 shrink-0 place-items-center rounded-full border border-primary/50 bg-primary/10 text-primary shadow-sm transition-[transform,box-shadow] duration-300 group-hover/kh-column:rotate-6 group-hover/kh-column:scale-110 group-hover/kh-column:shadow-md motion-reduce:transition-none">
-            <Icon aria-hidden="true" className="size-4" />
-          </span>
+          <img
+            src={`/kh-rewards/${imageNumber}.png`}
+            alt=""
+            className="size-12 shrink-0 object-contain drop-shadow-md"
+          />
           <span className="min-w-0 break-words drop-shadow-sm">
             {KH_QUEUE_LABELS[queueKey]}
           </span>
@@ -192,9 +196,15 @@ export function KhQueueBoard({
 
   return (
     <section aria-label="Очереди КХ" className="space-y-5">
+      <p className="text-sm text-muted-foreground" aria-live="polite">
+        Занято ячеек: {activeQueueCount} из {maxActiveQueues}
+        {activeQueueCount >= maxActiveQueues && canJoin
+          ? ' · лимит достигнут'
+          : ''}
+      </p>
       <div className="space-y-2 lg:hidden">
         {KH_QUEUE_IDS.map((queueKey) => {
-          const Icon = KH_QUEUE_ICONS[queueKey]
+          const imageNumber = KH_QUEUE_IDS.indexOf(queueKey) + 1
           const isExpanded = expandedQueue === queueKey
           const queue = queues[queueKey]
           return (
@@ -206,9 +216,10 @@ export function KhQueueBoard({
                 <div className="pointer-events-none relative flex min-h-14 items-center gap-3 px-3 py-2">
                   <span className="pointer-events-none absolute inset-y-2 left-0 w-1 rounded-full bg-linear-180/srgb from-highlight to-primary shadow-sm" />
                   <span className="relative grid size-10 shrink-0 place-items-center rounded-xl border border-primary/55 bg-primary/10 text-highlight shadow-md transition-[transform,box-shadow] duration-300 group-hover/kh-mobile:rotate-3 group-hover/kh-mobile:scale-105 group-hover/kh-mobile:shadow-lg motion-reduce:transition-none">
-                    <Icon
-                      aria-hidden="true"
-                      className="size-5 drop-shadow-sm"
+                    <img
+                      src={`/kh-rewards/${imageNumber}.png`}
+                      alt=""
+                      className="size-10 object-contain drop-shadow-sm"
                     />
                   </span>
                   <div className="min-w-0 flex-1">

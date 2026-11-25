@@ -1,9 +1,11 @@
 import {
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
 import type { KhQueueId, KhQueuePage, KhQueuesResponse } from '@contracts/kh'
+import type { KhRewardHistoryResponse } from '@contracts/kh'
 import { KH_QUEUE_IDS } from '@contracts/kh'
 import { callApi } from '@/lib/supabase/api'
 
@@ -69,4 +71,58 @@ export function useLeaveKhQueue() {
 
 export function useIssueKhReward() {
   return useKhAction('kh/issue')
+}
+
+export function useKhQueueSettings() {
+  return useQuery({
+    queryKey: ['kh', 'settings'],
+    queryFn: () =>
+      callApi<{ maxActiveQueues: number; activeQueueCount: number }>(
+        'kh/settings',
+      ),
+  })
+}
+
+function useKhSettingsMutation(route: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: Record<string, unknown>) => callApi(route, input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['kh', 'settings'] }),
+        queryClient.invalidateQueries({ queryKey: ['kh', 'queues'] }),
+      ])
+    },
+  })
+}
+
+export function useSetKhQueueLimit() {
+  return useKhSettingsMutation('kh/set-limit')
+}
+
+export function useSetKhQueueRepeat() {
+  return useKhSettingsMutation('kh/set-repeat')
+}
+
+export function useRemoveKhQueueEntry() {
+  return useKhSettingsMutation('kh/remove')
+}
+
+export function useKhRewardHistory(dateFrom: string, dateTo: string) {
+  return useInfiniteQuery({
+    queryKey: ['kh', 'history', dateFrom, dateTo],
+    enabled: dateFrom <= dateTo,
+    queryFn: ({ pageParam }) =>
+      callApi<KhRewardHistoryResponse>('kh/history', {
+        dateFrom,
+        dateTo,
+        ...(pageParam ? { cursor: pageParam } : {}),
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    select: (data) => ({
+      items: data.pages.flatMap((page) => page.items),
+      hasNextPage: data.pages.at(-1)?.nextCursor !== null,
+    }),
+  })
 }

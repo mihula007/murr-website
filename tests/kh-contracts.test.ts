@@ -95,6 +95,7 @@ describe('KH queue contracts', () => {
                 id: '9007199254740993',
                 userId: '00000000-0000-4000-8000-000000000001',
                 gameNickname: 'СуперНик9',
+                autoRejoin: false,
               },
             ],
             nextCursor: null,
