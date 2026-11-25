@@ -173,7 +173,7 @@ describe('KhQueueBoard', () => {
     expect(screen.queryByText('Свободно')).not.toBeInTheDocument()
   })
 
-  it('hides the personal join cell after joining and numbers queue positions', () => {
+  it('hides the personal join cell after joining and numbers queue positions', async () => {
     const queues = boardData({
       summons: {
         items: [entry('1', OTHER, 'Тест2'), entry('2', SELF, 'Тест1')],
