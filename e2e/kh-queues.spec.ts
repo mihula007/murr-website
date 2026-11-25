@@ -30,6 +30,7 @@ test('участник записывается в конец, снимаетс�
   await expect(
     memberPage.getByRole('heading', { name: 'Очередь наград КХ' }),
   ).toBeVisible()
+  await memberPage.getByRole('button', { name: /^призывы/ }).click()
   const summonsJoin = memberPage.getByRole('button', {
     name: 'Встать в очередь «призывы»',
   })
@@ -43,8 +44,7 @@ test('участник записывается в конец, снимаетс�
     }),
   ).toBeVisible()
 
-  await memberPage.getByRole('combobox', { name: 'Выбрать очередь КХ' }).click()
-  await memberPage.getByRole('option', { name: 'пет' }).click()
+  await memberPage.getByRole('button', { name: /^пет/ }).click()
   await memberPage
     .getByRole('button', { name: 'Встать в очередь «пет»' })
     .click()
@@ -77,9 +77,11 @@ test('участник записывается в конец, снимаетс�
   await expect(
     memberPage.getByRole('heading', { name: 'Очередь наград КХ' }),
   ).toBeVisible()
+  await memberPage.getByRole('button', { name: /^призывы/ }).click()
   await expect(
     memberPage.getByRole('button', { name: 'Встать в очередь «призывы»' }),
   ).toBeVisible()
+  await memberPage.getByRole('button', { name: /^пет/ }).click()
   await memberPage
     .getByRole('button', {
       name: `Убрать ${member.nickname} из очереди «пет»`,
@@ -109,6 +111,7 @@ test('кандидат не открывает КХ, а потерявший д�
   const master = await createMember('master')
   const applicant = await createMember('applicant')
   const memberPage = await signedIn(browser, member.email, 375)
+  await memberPage.getByRole('button', { name: /^призывы/ }).click()
   await memberPage
     .getByRole('button', { name: 'Встать в очередь «призывы»' })
     .click()
