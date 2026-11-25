@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test'
 import { hasHorizontalScroll, skipSplash } from './helpers'
-import { accessToken, callApi, createMember, signInUi, sql } from './supabase'
+import {
+  accessToken,
+  callApi,
+  createMember,
+  expectSignedIn,
+  signInUi,
+  sql,
+} from './supabase'
 
 test.skip(
   ({ baseURL }) => Boolean(baseURL?.includes('/repository/')),
@@ -88,6 +95,7 @@ test('E2E-18: мастер выдаёт отдельные права и кор�
 
   await skipSplash(page)
   await signInUi(page, master.email)
+  await expectSignedIn(page)
   await page.goto('./#/permissions')
   await expect(page.getByRole('heading', { name: 'Мастерка' })).toBeVisible()
   const officerSelect = page.getByRole('combobox', {
@@ -113,6 +121,7 @@ test('E2E-18: мастер выдаёт отдельные права и кор�
   const officerPage = await browser.newPage()
   await skipSplash(officerPage)
   await signInUi(officerPage, officer.email)
+  await expectSignedIn(officerPage)
   await officerPage.goto('./#/rating')
   const ratingTable = officerPage.getByRole('table', {
     name: 'Рейтинг посещения',

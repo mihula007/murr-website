@@ -30,7 +30,7 @@ test('OFP: администратор настраивает права офиц
   await page.getByRole('option', { name: officer.nickname }).click()
 
   const switches = page.getByRole('switch')
-  await expect(switches).toHaveCount(20)
+  await expect(switches).toHaveCount(22)
   for (const permission of await switches.all()) {
     await expect(permission).not.toBeChecked()
   }
