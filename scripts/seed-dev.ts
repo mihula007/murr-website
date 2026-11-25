@@ -249,7 +249,10 @@ const APP_TABLES = [
   'broadcast_drafts',
   'user_deletions',
   'character_stat_history',
+  'kh_reward_history',
+  'kh_queue_rejoin_waitlist',
   'kh_queue_entries',
+  'kh_queue_settings',
   'profiles',
 ]
 
@@ -427,21 +430,163 @@ await insert(
 const demoMember = byRole('member')[0]
 const demoOfficer = byRole('officer')[0]
 const demoAdmin = byRole('admin')[0]
+const demoMaster = byRole('master')[0]
+await sql`insert into app.kh_queue_settings (id, max_active_queues)
+  values (true, 14)`
+
+const importedQueueNicknames = {
+  summons: ['~KiCa~', 'Бафка!', '~EKstazi~', 'отБога', 'МойЁжик', 'АсакураЙо'],
+  kh_hands: [
+    'Healicava',
+    'RMKYN',
+    'отбога',
+    'мойежик',
+    'О,Белка!',
+    'C a r r i o n',
+    'p@м3e(',
+    'МякишШШ',
+  ],
+  scale_buyout: ['Ypokoitel', 'МойЁжик', 'ScepticX'],
+  highest_buyout: ['МякишШШ', 'KotKokos'],
+  highest: ['XromM', 'RMKYN', 'мисси', 'сет'],
+  meteorites: [
+    'Erbe',
+    'rud`alive',
+    'RMKYN',
+    'fulmen',
+    'sprngvoid',
+    'мисси',
+    'чечня',
+    'JINX',
+    'LoO',
+    'SmIlLe',
+    'P@ndor@',
+    'Креста',
+    'МякишШШ',
+    "Let'splay",
+  ],
+  uf_passes: [
+    'Ypokoitel',
+    'Fox9',
+    '~EKstazi~',
+    'отБога',
+    'мойежик',
+    'чечня',
+    'Котина',
+    'JINX',
+    'Мускат',
+    'KotKokos',
+    'Сучамба',
+    '~KiCa~',
+    'МякишШШ',
+    "Let'splay",
+    'XromM',
+    'RMKYN',
+  ],
+  essence: ['RMKYN', 'Бафка', 'KotKokos', 'Сучамба', '~KiCa~', 'МякишШШ'],
+  scale: ['RMKYN', 'мисси', 'чечня', 'мойежик'],
+  dobi_stones: [
+    'упокоитель',
+    'чечня\\сет',
+    'Креста',
+    'fury',
+    'sprngvoid',
+    'мисси',
+    'О,Белка!',
+    "Let'splay",
+    'RMKYN',
+  ],
+  s_cards: [
+    'мойежик',
+    'бафка',
+    'JINX',
+    '~KiCa~',
+    'АсакураЙо',
+    "Let'splay",
+    'МякишШШ',
+    'RMKYN',
+  ],
+  kh_passes: ['Мускат', 'RMKYN', 'Miracle'],
+  disc: ['batasay'],
+  pet: ['P@ndor@'],
+} as const
+const importedQueueEntries = Object.entries(importedQueueNicknames).flatMap(
+  ([queue_key, nicknames]) =>
+    nicknames.map((game_nickname) => ({
+      queue_key,
+      user_id: null,
+      game_nickname,
+      auto_rejoin: false,
+    })),
+)
 await insert('kh_queue_entries', [
+  ...importedQueueEntries,
   ...(demoMember
     ? [
-        { queue_key: 'summons', user_id: demoMember.id },
-        { queue_key: 'pet', user_id: demoMember.id },
+        {
+          queue_key: 'summons',
+          user_id: demoMember.id,
+          game_nickname: demoMember.nickname,
+          auto_rejoin: true,
+        },
+        {
+          queue_key: 'pet',
+          user_id: demoMember.id,
+          game_nickname: demoMember.nickname,
+          auto_rejoin: false,
+        },
       ]
     : []),
   ...(demoOfficer
     ? [
-        { queue_key: 'summons', user_id: demoOfficer.id },
-        { queue_key: 'meteorites', user_id: demoOfficer.id },
+        {
+          queue_key: 'summons',
+          user_id: demoOfficer.id,
+          game_nickname: demoOfficer.nickname,
+          auto_rejoin: false,
+        },
+        {
+          queue_key: 'meteorites',
+          user_id: demoOfficer.id,
+          game_nickname: demoOfficer.nickname,
+          auto_rejoin: false,
+        },
       ]
     : []),
-  ...(demoAdmin ? [{ queue_key: 'summons', user_id: demoAdmin.id }] : []),
+  ...(demoAdmin
+    ? [
+        {
+          queue_key: 'summons',
+          user_id: demoAdmin.id,
+          game_nickname: demoAdmin.nickname,
+          auto_rejoin: false,
+        },
+      ]
+    : []),
 ])
+if (demoMember) {
+  await insert('kh_queue_rejoin_waitlist', [
+    {
+      queue_key: 'scale_buyout',
+      user_id: demoMember.id,
+      game_nickname: demoMember.nickname,
+      requested_at: iso(NOW - 2 * DAY),
+    },
+  ])
+}
+if (demoMember) {
+  const historyQueueKeys = Object.keys(importedQueueNicknames)
+  await insert(
+    'kh_reward_history',
+    Array.from({ length: 65 }, (_, index) => ({
+      queue_key: historyQueueKeys[index % historyQueueKeys.length]!,
+      user_id: demoMember.id,
+      game_nickname: demoMember.nickname,
+      issued_by: demoMaster?.id ?? demoAdmin?.id ?? null,
+      issued_at: iso(daysAgo(index < 60 ? index % 29 : 35 + (index % 20))),
+    })),
+  )
+}
 await insert('character_stat_history', characterHistory)
 
 // Для ручной проверки: первый офицер — с несколькими правами, остальные —

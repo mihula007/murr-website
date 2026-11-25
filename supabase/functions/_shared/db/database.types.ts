@@ -894,27 +894,128 @@ export type Database = {
       }
       kh_queue_entries: {
         Row: {
+          auto_rejoin: boolean
           created_at: string
+          game_nickname: string
           id: number
           queue_key: string
-          user_id: string
+          user_id: string | null
         }
         ComputedFields: never
         Insert: {
+          auto_rejoin?: boolean
           created_at?: string
+          game_nickname: string
           id?: never
           queue_key: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
+          auto_rejoin?: boolean
           created_at?: string
+          game_nickname?: string
           id?: never
           queue_key?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
             foreignKeyName: 'kh_queue_entries_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      kh_queue_rejoin_waitlist: {
+        Row: {
+          game_nickname: string
+          id: number
+          queue_key: string
+          requested_at: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          game_nickname: string
+          id?: never
+          queue_key: string
+          requested_at?: string
+          user_id: string
+        }
+        Update: {
+          game_nickname?: string
+          id?: never
+          queue_key?: string
+          requested_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'kh_queue_rejoin_waitlist_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      kh_queue_settings: {
+        Row: {
+          id: boolean
+          max_active_queues: number
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          id?: boolean
+          max_active_queues?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: boolean
+          max_active_queues?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      kh_reward_history: {
+        Row: {
+          game_nickname: string
+          id: number
+          issued_at: string
+          issued_by: string | null
+          queue_key: string
+          user_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          game_nickname: string
+          id?: never
+          issued_at?: string
+          issued_by?: string | null
+          queue_key: string
+          user_id?: string | null
+        }
+        Update: {
+          game_nickname?: string
+          id?: never
+          issued_at?: string
+          issued_by?: string | null
+          queue_key?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'kh_reward_history_issued_by_fkey'
+            columns: ['issued_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'kh_reward_history_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'profiles'

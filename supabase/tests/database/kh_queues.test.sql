@@ -12,21 +12,23 @@ values
   ('00000000-0000-0000-0000-000000000125', 'КХ1', 'КХНик', 1, 'member'),
   ('00000000-0000-0000-0000-000000000126', 'КХ2', 'КХНик2', 1, 'officer');
 
+delete from app.kh_queue_entries;
+
 select lives_ok(
-  $$insert into app.kh_queue_entries (queue_key, user_id)
-    values ('summons', '00000000-0000-0000-0000-000000000125')$$,
+  $$insert into app.kh_queue_entries (queue_key, user_id, game_nickname)
+    values ('summons', '00000000-0000-0000-0000-000000000125', 'КХНик')$$,
   'активная запись в очереди создаётся'
 );
 
 select throws_ok(
-  $$insert into app.kh_queue_entries (queue_key, user_id)
-    values ('unknown', '00000000-0000-0000-0000-000000000126')$$,
+  $$insert into app.kh_queue_entries (queue_key, user_id, game_nickname)
+    values ('unknown', '00000000-0000-0000-0000-000000000126', 'КХНик2')$$,
   '23514', null, 'неизвестный ключ очереди отклоняется'
 );
 
 select throws_ok(
-  $$insert into app.kh_queue_entries (queue_key, user_id)
-    values ('summons', '00000000-0000-0000-0000-000000000125')$$,
+  $$insert into app.kh_queue_entries (queue_key, user_id, game_nickname)
+    values ('summons', '00000000-0000-0000-0000-000000000125', 'КХНик')$$,
   '23505', null, 'повторная активная запись в одну очередь отклоняется'
 );
 
