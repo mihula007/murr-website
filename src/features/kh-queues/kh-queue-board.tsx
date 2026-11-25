@@ -211,35 +211,45 @@ export function KhQueueBoard({
               key={queueKey}
               className={`overflow-hidden rounded-xl border bg-surface-from/70 shadow-md backdrop-blur-sm transition-[border-color,box-shadow] duration-300 ${isExpanded ? 'border-primary/80 shadow-lg' : 'border-border-accent/70'}`}
             >
-              <button
-                type="button"
-                aria-expanded={isExpanded}
-                aria-controls={`kh-mobile-list-${queueKey}`}
-                className="group/kh-mobile relative isolate flex min-h-14 w-full items-center gap-3 overflow-hidden bg-linear-145/srgb from-surface-inset/80 to-card/65 px-3 py-2 text-left transition-[background,filter] duration-200 hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
-                onClick={() => setExpandedQueue(isExpanded ? null : queueKey)}
-              >
-                <span className="pointer-events-none absolute inset-y-2 left-0 w-1 rounded-full bg-linear-180/srgb from-highlight to-primary shadow-sm" />
-                <span className="relative grid size-10 shrink-0 place-items-center rounded-xl border border-primary/55 bg-primary/10 text-highlight shadow-md transition-[transform,box-shadow] duration-300 group-hover/kh-mobile:rotate-3 group-hover/kh-mobile:scale-105 group-hover/kh-mobile:shadow-lg motion-reduce:transition-none">
-                  <Icon aria-hidden="true" className="size-5 drop-shadow-sm" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span
-                    role="heading"
-                    aria-level={2}
-                    className="block text-sm font-bold text-highlight drop-shadow-sm"
-                  >
-                    {KH_QUEUE_LABELS[queueKey]}
+              <div className="group/kh-mobile relative isolate min-h-14 overflow-hidden bg-linear-145/srgb from-surface-inset/80 to-card/65 transition-[background,filter] duration-200 hover:brightness-110 motion-reduce:transition-none">
+                <div className="pointer-events-none relative flex min-h-14 items-center gap-3 px-3 py-2">
+                  <span className="pointer-events-none absolute inset-y-2 left-0 w-1 rounded-full bg-linear-180/srgb from-highlight to-primary shadow-sm" />
+                  <span className="relative grid size-10 shrink-0 place-items-center rounded-xl border border-primary/55 bg-primary/10 text-highlight shadow-md transition-[transform,box-shadow] duration-300 group-hover/kh-mobile:rotate-3 group-hover/kh-mobile:scale-105 group-hover/kh-mobile:shadow-lg motion-reduce:transition-none">
+                    <Icon
+                      aria-hidden="true"
+                      className="size-5 drop-shadow-sm"
+                    />
                   </span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
-                    {queue.items.length}
-                    {queue.hasMore ? '+' : ''} в очереди
-                  </span>
-                </span>
-                <ChevronDown
-                  aria-hidden="true"
-                  className={`size-5 shrink-0 text-primary transition-transform duration-300 motion-reduce:transition-none ${isExpanded ? 'rotate-180' : ''}`}
+                  <div className="min-w-0 flex-1">
+                    <h2
+                      id={`kh-mobile-title-${queueKey}`}
+                      className="block text-sm font-bold text-highlight drop-shadow-sm"
+                    >
+                      {KH_QUEUE_LABELS[queueKey]}
+                    </h2>
+                    <span
+                      id={`kh-mobile-count-${queueKey}`}
+                      className="mt-0.5 block text-xs text-muted-foreground"
+                    >
+                      {queue.items.length}
+                      {queue.hasMore ? '+' : ''} в очереди
+                    </span>
+                  </div>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className={`size-5 shrink-0 text-primary transition-transform duration-300 motion-reduce:transition-none ${isExpanded ? 'rotate-180' : ''}`}
+                  />
+                </div>
+                <button
+                  type="button"
+                  aria-labelledby={`kh-mobile-title-${queueKey}`}
+                  aria-describedby={`kh-mobile-count-${queueKey}`}
+                  aria-expanded={isExpanded}
+                  aria-controls={`kh-mobile-list-${queueKey}`}
+                  className="absolute inset-0 z-10 size-full rounded-xl bg-transparent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  onClick={() => setExpandedQueue(isExpanded ? null : queueKey)}
                 />
-              </button>
+              </div>
               {isExpanded ? (
                 <div
                   id={`kh-mobile-list-${queueKey}`}

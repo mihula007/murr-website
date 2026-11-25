@@ -36,7 +36,9 @@ test('участник записывается в конец, снимаетс�
   })
   await summonsJoin.click()
   await expect(
-    memberPage.getByText(member.nickname, { exact: true }),
+    memberPage
+      .getByRole('list', { name: 'Очередь КХ: призывы' })
+      .getByText(member.nickname, { exact: true }),
   ).toBeVisible()
   await expect(
     memberPage.getByRole('button', {
@@ -49,7 +51,9 @@ test('участник записывается в конец, снимаетс�
     .getByRole('button', { name: 'Встать в очередь «пет»' })
     .click()
   await expect(
-    memberPage.getByText(member.nickname, { exact: true }),
+    memberPage
+      .getByRole('list', { name: 'Очередь КХ: пет' })
+      .getByText(member.nickname, { exact: true }),
   ).toBeVisible()
   expect(await hasHorizontalScroll(memberPage)).toBe(false)
 
@@ -116,7 +120,9 @@ test('кандидат не открывает КХ, а потерявший д�
     .getByRole('button', { name: 'Встать в очередь «призывы»' })
     .click()
   await expect(
-    memberPage.getByText(member.nickname, { exact: true }),
+    memberPage
+      .getByRole('list', { name: 'Очередь КХ: призывы' })
+      .getByText(member.nickname, { exact: true }),
   ).toBeVisible()
 
   const masterToken = await accessToken(master.email)
