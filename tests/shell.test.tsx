@@ -50,13 +50,13 @@ describe('оболочка приложения', () => {
     },
   )
 
-  it('член клана видит категорию кузни', async () => {
+  it('член клана видит категорию калькулятора', async () => {
     await renderApp({ role: 'member' })
     await screen.findByRole('link', { name: 'Аккаунт' })
     expect(categoryButtons().map((button) => button.textContent)).toEqual([
       'Клан',
       'Сообщество',
-      'Кузня',
+      'Калькулятор',
     ])
   })
 
@@ -66,7 +66,7 @@ describe('оболочка приложения', () => {
     expect(categoryButtons().map((button) => button.textContent)).toEqual([
       'Клан',
       'Сообщество',
-      'Кузня',
+      'Калькулятор',
       'Управление',
     ])
   })

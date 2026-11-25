@@ -1933,7 +1933,7 @@ function ForgeResult({
         </div>
       )
     }
-    return 'Выберите калькулятор в меню Кузни.'
+    return 'Выберите калькулятор в меню «Калькулятор».'
   })()
   return (
     <div className="m-0 break-words text-lg font-semibold tabular-nums text-foreground">

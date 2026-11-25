@@ -75,7 +75,7 @@ describe('visibleNavigation', () => {
     expect(visibleNavigation('member').map((c) => c.label)).toEqual([
       'Клан',
       'Сообщество',
-      'Кузня',
+      'Калькулятор',
     ])
     const officer = visibleNavigation('officer', [
       'applications.review',
@@ -85,7 +85,7 @@ describe('visibleNavigation', () => {
     expect(officer.map((c) => c.label)).toEqual([
       'Клан',
       'Сообщество',
-      'Кузня',
+      'Калькулятор',
       'Управление',
     ])
     expect(officer[3]?.sections.map((s) => s.label)).toEqual([
@@ -141,7 +141,7 @@ describe('конфигурация разделов', () => {
   })
 })
 
-describe('категория Кузня', () => {
+describe('категория Калькулятор', () => {
   it('показывает семь разделов членам клана и старше', () => {
     expect(
       visibleNavigation('member')

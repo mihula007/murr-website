@@ -31,7 +31,7 @@ export type NavCategory = {
 export const NAV_CATEGORIES: readonly { id: NavCategoryId; label: string }[] = [
   { id: 'clan', label: 'Клан' },
   { id: 'community', label: 'Сообщество' },
-  { id: 'forge', label: 'Кузня' },
+  { id: 'forge', label: 'Калькулятор' },
   { id: 'management', label: 'Управление' },
 ]
 
