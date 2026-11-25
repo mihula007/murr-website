@@ -78,6 +78,27 @@ describe('officer-permissions/list and save', () => {
     ])
   })
 
+  it('keeps rating and summary correction permissions independent', async () => {
+    const { user: officer } = await profiled('officer')
+    const { actor: master } = await profiled('master')
+
+    await saveOfficerPermissions(deps, master, {
+      officerId: officer.id,
+      permissions: ['activity.correct_rating'],
+    })
+    await expect(listOfficerPermissions(deps, master)).resolves.toMatchObject({
+      officers: [{ id: officer.id, permissions: ['activity.correct_rating'] }],
+    })
+
+    await saveOfficerPermissions(deps, master, {
+      officerId: officer.id,
+      permissions: ['activity.correct_summary'],
+    })
+    await expect(listOfficerPermissions(deps, master)).resolves.toMatchObject({
+      officers: [{ id: officer.id, permissions: ['activity.correct_summary'] }],
+    })
+  })
+
   it('rejects application action permissions without queue access', async () => {
     const { user: officer } = await profiled('officer')
     const { actor } = await profiled('admin')

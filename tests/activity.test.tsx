@@ -61,6 +61,7 @@ const CLASSES = {
 const rating: RatingResponse = {
   eventCount: 3,
   truncated: false,
+  canCorrect: false,
   items: [
     {
       userId: 'u1',
@@ -104,6 +105,7 @@ const rating: RatingResponse = {
 const summary: ActivitySummaryResponse = {
   eventCount: 2,
   truncated: false,
+  canCorrect: false,
   items: [
     {
       userId: 'u1',
@@ -239,6 +241,38 @@ describe('attendance rating (ACT-14, ACT-15)', () => {
     expect(rowNames(table)).toEqual(['Анна', 'Вера'])
   })
 
+  it('lets an authorized actor enter rating totals while keeping percent automatic', async () => {
+    respond({
+      'activity/rating': () => ({ ...rating, canCorrect: true }),
+      'activity/correct-rating': (body) => body,
+    })
+    await renderApp({ role: 'member', path: '/rating' })
+    const actions = await screen.findAllByRole('button', {
+      name: 'Корректировка',
+    })
+    fireEvent.click(actions[0]!)
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Процент пересчитается автоматически.')
+    expect(screen.queryByLabelText('Посещения')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Пати-лидерство')).toHaveValue(2)
+
+    fireEvent.change(screen.getByLabelText('Посетил'), {
+      target: { value: '5' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('activity/correct-rating', {
+        userId: 'u1',
+        visited: 5,
+        missed: 0,
+        unmarked: 0,
+        leaderCount: 2,
+        daysInGuild: 40,
+      }),
+    )
+  })
+
   it('is closed to readers and applicants', async () => {
     for (const role of ['reader', 'applicant'] as const) {
       const { unmount } = await renderApp({ role, path: '/rating' })
@@ -284,6 +318,56 @@ describe('activity tracking (ACT-04–11, Q-25)', () => {
     expect(
       screen.getByText('Участников: 2 · событий в периоде: 2'),
     ).toBeVisible()
+  })
+
+  it('shows but disables correction when a date period is selected', async () => {
+    respond({
+      'catalog/classes': () => CLASSES,
+      'activity/summary': () => ({ ...summary, canCorrect: true }),
+    })
+    await renderApp({
+      role: 'officer',
+      path: '/activity?from=2026-11-01&to=2026-11-30',
+    })
+
+    const actions = await screen.findAllByRole('button', {
+      name: 'Корректировка',
+    })
+    expect(actions).toHaveLength(2)
+    expect(
+      actions.every((button) => (button as HTMLButtonElement).disabled),
+    ).toBe(true)
+    expect(actions[0]).toHaveAttribute(
+      'title',
+      'Сбросьте период, чтобы изменить общий итог.',
+    )
+  })
+
+  it('saves exact summary counts through the separate operation', async () => {
+    respond({
+      'catalog/classes': () => CLASSES,
+      'activity/summary': () => ({ ...summary, canCorrect: true }),
+      'activity/correct-summary': (body) => body,
+    })
+    await renderApp({ role: 'officer', path: '/activity' })
+    const actions = await screen.findAllByRole('button', {
+      name: 'Корректировка',
+    })
+    fireEvent.click(actions[0]!)
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Участник: Борис')
+    fireEvent.change(screen.getByLabelText('Посетил'), {
+      target: { value: '4' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('activity/correct-summary', {
+        userId: 'u1',
+        visited: 4,
+        missed: 0,
+        unmarked: 0,
+      }),
+    )
   })
 
   it('does not query a period that ends before it starts', async () => {

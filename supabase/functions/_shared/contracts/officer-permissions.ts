@@ -20,6 +20,8 @@ export const OFFICER_PERMISSION_CODES = [
   'votes.view_ballots',
   'roster.reader_roles',
   'activity.view_export',
+  'activity.correct_rating',
+  'activity.correct_summary',
   'publications.manage_own',
 ] as const
 
@@ -49,6 +51,8 @@ export const OFFICER_PERMISSION_LABELS: Record<OfficerPermissionCode, string> =
       'Присваивать роль чтеца и возвращать чтеца в члены клана',
     'activity.view_export':
       'Просматривать учёт активности, сводки и выгружать Excel',
+    'activity.correct_rating': 'Корректировать рейтинг посещения',
+    'activity.correct_summary': 'Корректировать сводку учёта активности',
     'publications.manage_own': 'Управлять своими публикациями',
   }
 

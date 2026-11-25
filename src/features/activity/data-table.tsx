@@ -79,6 +79,8 @@ type DataTableProps<T extends RowData> = {
   numbered?: boolean
   /** ID строки текущего пользователя, если её нужно подсветить. */
   highlightRowId?: string | undefined
+  /** Действие без сортировки, отображаемое последним столбцом. */
+  rowAction?: ((row: T) => ReactNode) | undefined
   /** Внутренняя прокрутка на широком экране, без неё на телефоне. */
   scrollable?: boolean
   empty: ReactNode
@@ -93,6 +95,7 @@ export function DataTable<T extends RowData>({
   sortable = false,
   numbered = false,
   highlightRowId,
+  rowAction,
   scrollable = false,
   empty,
 }: DataTableProps<T>) {
@@ -154,6 +157,7 @@ export function DataTable<T extends RowData>({
                 </th>
               )
             })}
+            {rowAction ? <th scope="col">Действие</th> : null}
           </tr>
         ))}
       </thead>
@@ -184,6 +188,9 @@ export function DataTable<T extends RowData>({
                 <tableModel.FlexRender cell={cell} />
               </td>
             ))}
+            {rowAction ? (
+              <td data-title="Действие">{rowAction(row.original)}</td>
+            ) : null}
           </tr>
         ))}
       </tbody>
@@ -212,7 +219,9 @@ export function VirtualDataTable<T extends RowData>({
   getRowId,
   paging,
   empty,
-}: Omit<DataTableProps<T>, 'sortable' | 'numbered'> & { paging: Paging }) {
+}: Omit<DataTableProps<T>, 'sortable' | 'numbered' | 'rowAction'> & {
+  paging: Paging
+}) {
   const table = useTable({
     features: activityTableFeatures,
     columns,

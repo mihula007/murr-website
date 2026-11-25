@@ -1,8 +1,13 @@
 import { z } from 'zod'
 import type { AppDeps } from '../app.ts'
 import { requireRole, type Actor } from '../auth/actor.ts'
-import { requireOfficerPermission } from '../officer-permissions/service.ts'
 import {
+  hasOfficerPermission,
+  requireOfficerPermission,
+} from '../officer-permissions/service.ts'
+import {
+  activityCorrectRatingSchema,
+  activityCorrectSummarySchema,
   activityEventSchema,
   activityEventsSchema,
   activityHistorySchema,
@@ -32,6 +37,7 @@ import { decodeCursor, splitPage } from '../http/cursor.ts'
 import { ApiError } from '../http/errors.ts'
 import { parseBody } from '../http/validation.ts'
 import { INTERNAL_ROLES, moscowDate } from '../membership.ts'
+import { withTransaction } from '../db/client.ts'
 import { activityRepository, type Period } from './repository.ts'
 
 /** Учёт активности и Excel — офицер и администратор (01-roles, Q-25). */
@@ -75,13 +81,31 @@ type AggregateRow = Awaited<
 >[number]
 
 function countsOf(row: AggregateRow) {
+  const visited = Number(row.visited)
+  const missed = Number(row.missed)
+  const unmarked = Number(row.unmarked)
   return {
-    visited: Number(row.visited),
-    missed: Number(row.missed),
-    unmarked: Number(row.unmarked),
-    total: Number(row.total),
+    visited,
+    missed,
+    unmarked,
+    total: visited + missed + unmarked,
     leaders: Number(row.leaders),
   }
+}
+
+function daysWithCorrection(
+  joinedOn: string | null,
+  delta: number | null,
+  setOn: string | null,
+  today: string,
+) {
+  if (delta === null || setOn === null) {
+    return daysInGuild(joinedOn, today)
+  }
+  const baseline = joinedOn
+    ? daysInGuild(joinedOn, today)
+    : daysInGuild(setOn, today)
+  return Math.max(0, (baseline ?? 0) + delta)
 }
 
 /**
@@ -97,16 +121,23 @@ export async function activitySummary(
   await requireOfficerPermission(deps, actor, 'activity.view_export')
   const input = parseBody(activitySummarySchema, body ?? {})
   const period = periodOf(input)
+  const allTime = input.from === null && input.to === null
   const [rows, eventCount] = await Promise.all([
     activityRepository.aggregate(deps.db, {
       period,
       roles: INTERNAL_ROLES,
       withRecorded: true,
+      applyAdjustments: allTime,
       classId: input.classId,
       limit: MEMBER_LIST_LIMIT + 1,
     }),
     activityRepository.countEvents(deps.db, period),
   ])
+  const canCorrect = await hasOfficerPermission(
+    deps,
+    actor,
+    'activity.correct_summary',
+  )
   const items = rows.slice(0, MEMBER_LIST_LIMIT).map((row) => {
     const counts = countsOf(row)
     return {
@@ -122,7 +153,87 @@ export async function activitySummary(
     }
   })
   items.sort(compareAttendance)
-  return { items, truncated: rows.length > MEMBER_LIST_LIMIT, eventCount }
+  return {
+    items,
+    truncated: rows.length > MEMBER_LIST_LIMIT,
+    eventCount,
+    canCorrect,
+  }
+}
+
+/** Сохраняет итоговые числа сводки как поправку к закрытым событиям. */
+export async function correctActivitySummary(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<{ userId: string }> {
+  await requireOfficerPermission(deps, actor, 'activity.correct_summary')
+  const input = parseBody(activityCorrectSummarySchema, body)
+  return withTransaction(deps.db, async (tx) => {
+    const profile = await activityRepository.correctionProfile(
+      tx,
+      input.userId,
+      true,
+    )
+    if (!profile) {
+      throw new ApiError('not_found')
+    }
+    const [base, existing] = await Promise.all([
+      activityRepository.correctionBase(tx, profile.id),
+      activityRepository.findAdjustment(tx, profile.id),
+    ])
+    await activityRepository.saveAdjustment(tx, {
+      user_id: profile.id,
+      visited_delta: input.visited - base.visited,
+      missed_delta: input.missed - base.missed,
+      unmarked_delta: input.unmarked - base.unmarked,
+      leader_count_delta: Number(existing?.leader_count_delta ?? 0),
+      days_in_guild_delta: Number(existing?.days_in_guild_delta ?? 0),
+      days_in_guild_set_on: existing?.days_in_guild_set_on ?? null,
+    })
+    return { userId: profile.id }
+  })
+}
+
+/** Сохраняет итоговые числа рейтинга как поправку к закрытым событиям. */
+export async function correctActivityRating(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<{ userId: string }> {
+  await requireOfficerPermission(deps, actor, 'activity.correct_rating')
+  const input = parseBody(activityCorrectRatingSchema, body)
+  return withTransaction(deps.db, async (tx) => {
+    const profile = await activityRepository.correctionProfile(
+      tx,
+      input.userId,
+      true,
+    )
+    if (!profile) {
+      throw new ApiError('not_found')
+    }
+    const [base, existing] = await Promise.all([
+      activityRepository.correctionBase(tx, profile.id),
+      activityRepository.findAdjustment(tx, profile.id),
+    ])
+    const today = moscowDate(deps.now())
+    const daysBase =
+      daysInGuild(profile.joined_on, today) ??
+      (existing?.days_in_guild_set_on
+        ? daysInGuild(existing.days_in_guild_set_on, today)
+        : 0) ??
+      0
+    await activityRepository.saveAdjustment(tx, {
+      user_id: profile.id,
+      visited_delta: input.visited - base.visited,
+      missed_delta: input.missed - base.missed,
+      unmarked_delta: input.unmarked - base.unmarked,
+      leader_count_delta: input.leaderCount - base.leaderCount,
+      days_in_guild_delta: input.daysInGuild - daysBase,
+      days_in_guild_set_on: today,
+    })
+    return { userId: profile.id }
+  })
 }
 
 /** Курсор истории: `[starts_at, event_id, nickname, user_id]`. */
@@ -312,12 +423,18 @@ export async function attendanceRating(
       period: all,
       roles: INTERNAL_ROLES,
       withRecorded: false,
+      applyAdjustments: true,
       classId: null,
       limit: MEMBER_LIST_LIMIT + 1,
     }),
     activityRepository.countEvents(deps.db, all),
   ])
   const today = moscowDate(deps.now())
+  const canCorrect = await hasOfficerPermission(
+    deps,
+    actor,
+    'activity.correct_rating',
+  )
   const items = rows.slice(0, MEMBER_LIST_LIMIT).map((row) => {
     const counts = countsOf(row)
     return {
@@ -333,11 +450,21 @@ export async function attendanceRating(
           ? attendancePercent(counts.visited, counts.total)
           : null,
       leaderCount: counts.leaders,
-      daysInGuild: daysInGuild(row.joined_on, today),
+      daysInGuild: daysWithCorrection(
+        row.joined_on,
+        row.days_in_guild_delta,
+        row.days_in_guild_set_on,
+        today,
+      ),
     }
   })
   items.sort(compareAttendance)
-  return { items, truncated: rows.length > MEMBER_LIST_LIMIT, eventCount }
+  return {
+    items,
+    truncated: rows.length > MEMBER_LIST_LIMIT,
+    eventCount,
+    canCorrect,
+  }
 }
 
 /**

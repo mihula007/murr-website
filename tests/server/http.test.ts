@@ -112,6 +112,8 @@ describe('api function over HTTP', () => {
       'activity/event',
       'activity/member',
       'activity/rating',
+      'activity/correct-rating',
+      'activity/correct-summary',
       'activity/month-top',
       'publications/list',
       'publications/get',

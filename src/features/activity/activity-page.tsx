@@ -46,6 +46,7 @@ import {
   VirtualDataTable,
   type ActivityColumns,
 } from './data-table'
+import { ActivityCorrectionDialog } from './correction-dialog'
 import { exportActivityWorkbook, matchesSearch } from './export-workbook'
 
 const VIEWS = ['summary', 'history', 'event', 'member'] as const
@@ -256,6 +257,7 @@ type PanelProps = { filters: ActivityFilters; search: string | null }
 
 function SummaryPanel({ filters, search }: PanelProps) {
   const summary = useActivitySummary(filters)
+  const [correction, setCorrection] = useState<ActivitySummaryRow | null>(null)
   if (summary.isPending) {
     return <LoadingState label="Считаем сводку…" />
   }
@@ -263,29 +265,60 @@ function SummaryPanel({ filters, search }: PanelProps) {
     return <ErrorState onRetry={() => void summary.refetch()} />
   }
   const rows = summary.data.items.filter((row) => matchesSearch(row, search))
+  const periodSelected = Boolean(filters.from || filters.to)
   return (
-    <div className="grid gap-3">
-      <p className="m-0 text-sm text-muted-foreground">
-        Участников: {rows.length} · событий в периоде: {summary.data.eventCount}
-      </p>
-      <DataTable
-        label="Сводка участников"
-        columns={summaryColumns}
-        data={rows}
-        getRowId={(row) => row.userId}
-        empty={
-          <EmptyState
-            title="Нет данных"
-            description="Пока нет участников или записей для выбранных фильтров."
-          />
-        }
-      />
-      {summary.data.truncated ? (
-        <output className="text-sm text-muted-foreground">
-          Показаны первые {MEMBER_LIST_LIMIT} участников.
-        </output>
+    <>
+      <div className="grid gap-3">
+        <p className="m-0 text-sm text-muted-foreground">
+          Участников: {rows.length} · событий в периоде:{' '}
+          {summary.data.eventCount}
+        </p>
+        <DataTable
+          label="Сводка участников"
+          columns={summaryColumns}
+          data={rows}
+          getRowId={(row) => row.userId}
+          rowAction={
+            summary.data.canCorrect
+              ? (row) => (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={periodSelected}
+                    title={
+                      periodSelected
+                        ? 'Сбросьте период, чтобы изменить общий итог.'
+                        : undefined
+                    }
+                    onClick={() => setCorrection(row)}
+                  >
+                    Корректировка
+                  </Button>
+                )
+              : undefined
+          }
+          empty={
+            <EmptyState
+              title="Нет данных"
+              description="Пока нет участников или записей для выбранных фильтров."
+            />
+          }
+        />
+        {summary.data.truncated ? (
+          <output className="text-sm text-muted-foreground">
+            Показаны первые {MEMBER_LIST_LIMIT} участников.
+          </output>
+        ) : null}
+      </div>
+      {correction && !periodSelected ? (
+        <ActivityCorrectionDialog
+          key={`summary-${correction.userId}`}
+          kind="summary"
+          row={correction}
+          onClose={() => setCorrection(null)}
+        />
       ) : null}
-    </div>
+    </>
   )
 }
 

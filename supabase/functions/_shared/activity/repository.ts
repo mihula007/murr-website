@@ -1,4 +1,5 @@
 import type { Executor } from '../db/client.ts'
+import { sql } from 'kysely'
 
 /** Период по времени начала события, UTC: `[from, to)`. */
 export type Period = { from: string | null; to: string | null }
@@ -54,6 +55,7 @@ export const activityRepository = {
       period: Period
       roles: readonly string[]
       withRecorded: boolean
+      applyAdjustments?: boolean
       classId: number | null
       limit: number
     },
@@ -65,13 +67,86 @@ export const activityRepository = {
       .selectFrom('app.profiles as p')
       .innerJoin('app.character_classes as c', 'c.id', 'p.class_id')
       .leftJoin(records, 'r.user_id', 'p.id')
-      .select((eb) => [
+      .leftJoin('app.activity_stat_adjustments as a', 'a.user_id', 'p.id')
+      .select((eb) => {
+        const count = (status: string) =>
+          eb.fn.count<string>('r.user_id').filterWhere('r.status', '=', status)
+        const withDelta = (base: ReturnType<typeof count>, column: string) =>
+          sql<string>`${base} + case when ${options.applyAdjustments ?? false} then coalesce(${sql.ref(column)}, 0) else 0 end`
+        const visited = count('visited')
+        const missed = count('missed')
+        const unmarked = count('unmarked')
+        const leaders = eb.fn
+          .count<string>('r.user_id')
+          .filterWhere('r.is_leader', '=', true)
+        return [
+          'p.id',
+          'p.game_nickname',
+          'p.class_id',
+          'c.name as class_name',
+          'p.access_role',
+          'p.joined_on',
+          'a.days_in_guild_delta',
+          'a.days_in_guild_set_on',
+          withDelta(visited, 'a.visited_delta').as('visited'),
+          withDelta(missed, 'a.missed_delta').as('missed'),
+          withDelta(unmarked, 'a.unmarked_delta').as('unmarked'),
+          withDelta(leaders, 'a.leader_count_delta').as('leaders'),
+          eb.fn.count<string>('r.user_id').as('total'),
+        ]
+      })
+      .where((eb) =>
+        options.withRecorded
+          ? eb.or([
+              eb('p.access_role', 'in', options.roles),
+              eb('r.user_id', 'is not', null),
+              ...(options.applyAdjustments
+                ? [eb('a.user_id', 'is not', null)]
+                : []),
+            ])
+          : eb('p.access_role', 'in', options.roles),
+      )
+    if (options.classId !== null) {
+      query = query.where('p.class_id', '=', options.classId)
+    }
+    return query
+      .groupBy([
         'p.id',
-        'p.game_nickname',
-        'p.class_id',
-        'c.name as class_name',
-        'p.access_role',
-        'p.joined_on',
+        'c.name',
+        'a.user_id',
+        'a.visited_delta',
+        'a.missed_delta',
+        'a.unmarked_delta',
+        'a.leader_count_delta',
+        'a.days_in_guild_delta',
+        'a.days_in_guild_set_on',
+      ])
+      .orderBy((eb) => {
+        const visited = eb.fn
+          .count('r.user_id')
+          .filterWhere('r.status', '=', 'visited')
+        return sql<number>`${visited} + case when ${options.applyAdjustments ?? false} then coalesce(a.visited_delta, 0) else 0 end`
+      }, 'desc')
+      .orderBy('p.game_nickname')
+      .orderBy('p.id')
+      .limit(options.limit)
+      .execute()
+  },
+
+  async correctionProfile(db: Executor, userId: string, lock = false) {
+    let query = db
+      .selectFrom('app.profiles')
+      .select(['id', 'joined_on'])
+      .where('id', '=', userId)
+    if (lock) {
+      query = query.forUpdate()
+    }
+    return query.executeTakeFirst()
+  },
+
+  async correctionBase(db: Executor, userId: string) {
+    const row = await periodRecords(db, { from: null, to: null })
+      .select((eb) => [
         eb.fn
           .count<string>('r.user_id')
           .filterWhere('r.status', '=', 'visited')
@@ -88,29 +163,50 @@ export const activityRepository = {
           .count<string>('r.user_id')
           .filterWhere('r.is_leader', '=', true)
           .as('leaders'),
-        eb.fn.count<string>('r.user_id').as('total'),
       ])
-      .where((eb) =>
-        options.withRecorded
-          ? eb.or([
-              eb('p.access_role', 'in', options.roles),
-              eb('r.user_id', 'is not', null),
-            ])
-          : eb('p.access_role', 'in', options.roles),
-      )
-    if (options.classId !== null) {
-      query = query.where('p.class_id', '=', options.classId)
+      .where('r.user_id', '=', userId)
+      .executeTakeFirstOrThrow()
+    return {
+      visited: Number(row.visited),
+      missed: Number(row.missed),
+      unmarked: Number(row.unmarked),
+      leaderCount: Number(row.leaders),
     }
-    return query
-      .groupBy(['p.id', 'c.name'])
-      .orderBy(
-        (eb) =>
-          eb.fn.count('r.user_id').filterWhere('r.status', '=', 'visited'),
-        'desc',
+  },
+
+  findAdjustment(db: Executor, userId: string) {
+    return db
+      .selectFrom('app.activity_stat_adjustments')
+      .selectAll()
+      .where('user_id', '=', userId)
+      .executeTakeFirst()
+  },
+
+  saveAdjustment(
+    db: Executor,
+    input: {
+      user_id: string
+      visited_delta: number
+      missed_delta: number
+      unmarked_delta: number
+      leader_count_delta: number
+      days_in_guild_delta: number
+      days_in_guild_set_on: string | null
+    },
+  ) {
+    return db
+      .insertInto('app.activity_stat_adjustments')
+      .values(input)
+      .onConflict((conflict) =>
+        conflict.column('user_id').doUpdateSet({
+          visited_delta: input.visited_delta,
+          missed_delta: input.missed_delta,
+          unmarked_delta: input.unmarked_delta,
+          leader_count_delta: input.leader_count_delta,
+          days_in_guild_delta: input.days_in_guild_delta,
+          days_in_guild_set_on: input.days_in_guild_set_on,
+        }),
       )
-      .orderBy('p.game_nickname')
-      .orderBy('p.id')
-      .limit(options.limit)
       .execute()
   },
 

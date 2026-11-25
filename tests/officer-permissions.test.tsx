@@ -82,7 +82,15 @@ describe('Мастерка', () => {
   it('starts with every switch off and the save button disabled', async () => {
     await renderPage()
 
-    expect(screen.getAllByRole('switch')).toHaveLength(20)
+    expect(screen.getAllByRole('switch')).toHaveLength(22)
+    expect(
+      screen.getByRole('switch', { name: 'Корректировать рейтинг посещения' }),
+    ).not.toBeChecked()
+    expect(
+      screen.getByRole('switch', {
+        name: 'Корректировать сводку учёта активности',
+      }),
+    ).not.toBeChecked()
     expect(
       screen.getByRole('switch', { name: 'Разбирать новые заявки' }),
     ).not.toBeChecked()

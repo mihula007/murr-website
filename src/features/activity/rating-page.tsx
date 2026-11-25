@@ -5,11 +5,13 @@ import { EmptyState } from '@/components/states/empty-state'
 import { ErrorState } from '@/components/states/error-state'
 import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/surfaces'
 import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
 import { useAttendanceRating } from './api'
+import { ActivityCorrectionDialog } from './correction-dialog'
 import {
   activityColumns,
   DataTable,
@@ -75,6 +77,7 @@ export function RatingPage() {
   const rating = useAttendanceRating()
   const currentUserId = useSession().session?.user.id
   const [search, setSearch] = useState('')
+  const [correction, setCorrection] = useState<RatingRow | null>(null)
 
   let content
   if (rating.isPending) {
@@ -119,6 +122,19 @@ export function RatingPage() {
           sortable
           numbered
           scrollable
+          rowAction={
+            rating.data.canCorrect
+              ? (row) => (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setCorrection(row)}
+                  >
+                    Корректировка
+                  </Button>
+                )
+              : undefined
+          }
           empty={
             <EmptyState
               title={query ? 'Никого не нашли' : 'Участников пока нет'}
@@ -147,6 +163,14 @@ export function RatingPage() {
         className="-mt-6 mb-3 max-[900px]:mt-0 max-[900px]:mb-6"
       />
       {content}
+      {correction ? (
+        <ActivityCorrectionDialog
+          key={`rating-${correction.userId}`}
+          kind="rating"
+          row={correction}
+          onClose={() => setCorrection(null)}
+        />
+      ) : null}
     </section>
   )
 }

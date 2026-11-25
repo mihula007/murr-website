@@ -90,7 +90,12 @@ const PERMISSION_GROUPS: ReadonlyArray<{
   },
   {
     title: 'Состав и активность',
-    permissions: ['roster.reader_roles', 'activity.view_export'],
+    permissions: [
+      'roster.reader_roles',
+      'activity.view_export',
+      'activity.correct_rating',
+      'activity.correct_summary',
+    ],
   },
   {
     title: 'Публикации и рынок',
@@ -100,7 +105,7 @@ const PERMISSION_GROUPS: ReadonlyArray<{
 
 const emptyPermissions: OfficerPermissionCode[] = []
 
-/** Настройка индивидуальных полномочий офицеров (OFP-01–11). */
+/** Настройка индивидуальных полномочий офицеров (OFP-01–13). */
 export function OfficerPermissionsPage() {
   const roster = useOfficerPermissionsRoster()
   const save = useSaveOfficerPermissions()

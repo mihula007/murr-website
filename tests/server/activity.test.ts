@@ -9,6 +9,7 @@ import {
   monthTop,
 } from '../../supabase/functions/_shared/activity/service.ts'
 import type { AppDeps } from '../../supabase/functions/_shared/app.ts'
+import { createRoutes } from '../../supabase/functions/_shared/app.ts'
 import {
   GUEST,
   type Actor,
@@ -151,6 +152,214 @@ describe('activity: access (01-roles, Q-25)', () => {
       (await activityHistory(deps, master.actor, {})).items.length,
     ).toBeGreaterThan(0)
     expect((await activityEvents(deps, master.actor, {})).items).toHaveLength(1)
+  })
+
+  it('registers separate correction routes and reports their permissions', async () => {
+    const user = await createProfiledUser(db, 'officer', {
+      officerPermissions: ['activity.view_export'],
+    })
+    const actor = await actorOf(db, user.id)
+    const routes = createRoutes(deps)
+
+    expect(routes).toHaveProperty('activity/correct-rating')
+    expect(routes).toHaveProperty('activity/correct-summary')
+
+    const rating = await attendanceRating(deps, actor)
+    const summary = await activitySummary(deps, actor, {})
+    expect(rating).toHaveProperty('canCorrect', false)
+    expect(summary).toHaveProperty('canCorrect', false)
+  })
+
+  it('synchronizes corrected counts and keeps the event history unchanged', async () => {
+    const officer = await roleActor('officer')
+    const target = await roleActor('member', 'Поправка')
+    await db
+      .updateTable('app.profiles')
+      .set({ joined_on: '2026-11-01' })
+      .where('id', '=', target.user.id)
+      .execute()
+    const event = await closedEvent(officer, '2026-11-02', {
+      visit: [target],
+    })
+    const routes = createRoutes(deps)
+    const beforeAudit = await db
+      .selectFrom('app.audit_log')
+      .select((eb) => eb.fn.countAll<number>().as('count'))
+      .executeTakeFirstOrThrow()
+    const beforeNotifications = await db
+      .selectFrom('app.user_notifications')
+      .select((eb) => eb.fn.countAll<number>().as('count'))
+      .executeTakeFirstOrThrow()
+
+    await routes['activity/correct-summary']!({
+      actor: officer.actor,
+      body: {
+        userId: target.user.id,
+        visited: 3,
+        missed: 1,
+        unmarked: 0,
+      },
+      headers: new Headers(),
+    })
+
+    let summary = await activitySummary(deps, officer.actor, {})
+    let row = summary.items.find((item) => item.userId === target.user.id)
+    expect(row).toMatchObject({
+      visited: 3,
+      missed: 1,
+      unmarked: 0,
+      percent: 75,
+    })
+    let rating = await attendanceRating(deps, officer.actor)
+    let ratingRow = rating.items.find((item) => item.userId === target.user.id)
+    expect(ratingRow).toMatchObject({
+      visited: 3,
+      missed: 1,
+      unmarked: 0,
+      percent: 75,
+      leaderCount: 1,
+      daysInGuild: 11,
+    })
+
+    const period = await activitySummary(deps, officer.actor, {
+      from: '2026-11-02',
+      to: '2026-11-02',
+    })
+    expect(
+      period.items.find((item) => item.userId === target.user.id),
+    ).toMatchObject({
+      visited: 1,
+      missed: 0,
+      unmarked: 0,
+      percent: 100,
+    })
+    expect(period.canCorrect).toBe(true)
+
+    await routes['activity/correct-rating']!({
+      actor: officer.actor,
+      body: {
+        userId: target.user.id,
+        visited: 2,
+        missed: 1,
+        unmarked: 0,
+        leaderCount: 5,
+        daysInGuild: 7,
+      },
+      headers: new Headers(),
+    })
+    summary = await activitySummary(deps, officer.actor, {})
+    row = summary.items.find((item) => item.userId === target.user.id)
+    expect(row).toMatchObject({
+      visited: 2,
+      missed: 1,
+      unmarked: 0,
+      percent: 67,
+    })
+    rating = await attendanceRating(deps, officer.actor)
+    ratingRow = rating.items.find((item) => item.userId === target.user.id)
+    expect(ratingRow).toMatchObject({
+      visited: 2,
+      missed: 1,
+      unmarked: 0,
+      percent: 67,
+      leaderCount: 5,
+      daysInGuild: 7,
+    })
+
+    now = moscowToUtc('2026-11-13', '12:00')
+    rating = await attendanceRating(deps, officer.actor)
+    expect(
+      rating.items.find((item) => item.userId === target.user.id)?.daysInGuild,
+    ).toBe(8)
+
+    const history = await activityHistory(deps, officer.actor, {
+      search: 'Поправка',
+    })
+    expect(history.items).toMatchObject([
+      { eventId: event.id, status: 'visited', isLeader: true },
+    ])
+    expect(
+      Number(
+        (
+          await db
+            .selectFrom('app.audit_log')
+            .select((eb) => eb.fn.countAll<number>().as('count'))
+            .executeTakeFirstOrThrow()
+        ).count,
+      ),
+    ).toBe(Number(beforeAudit.count))
+    expect(
+      Number(
+        (
+          await db
+            .selectFrom('app.user_notifications')
+            .select((eb) => eb.fn.countAll<number>().as('count'))
+            .executeTakeFirstOrThrow()
+        ).count,
+      ),
+    ).toBe(Number(beforeNotifications.count))
+
+    await closedEvent(officer, '2026-11-03', { visit: [target] })
+    summary = await activitySummary(deps, officer.actor, {})
+    expect(
+      summary.items.find((item) => item.userId === target.user.id),
+    ).toMatchObject({
+      visited: 3,
+      missed: 1,
+      unmarked: 0,
+      percent: 75,
+    })
+  })
+
+  it('validates exact correction values and denies officers without the matching right', async () => {
+    const unprivileged = await createProfiledUser(db, 'officer', {
+      officerPermissions: ['activity.view_export'],
+    })
+    const actor = await actorOf(db, unprivileged.id)
+    const target = await roleActor('member')
+    const routes = createRoutes(deps)
+
+    await rejects(
+      routes['activity/correct-summary']!({
+        actor,
+        body: { userId: target.user.id, visited: 1, missed: 0, unmarked: 0 },
+        headers: new Headers(),
+      }),
+      'forbidden',
+    )
+    await rejects(
+      routes['activity/correct-rating']!({
+        actor,
+        body: {
+          userId: target.user.id,
+          visited: -1,
+          missed: 0,
+          unmarked: 0,
+          leaderCount: 0,
+          daysInGuild: 0,
+        },
+        headers: new Headers(),
+      }),
+      'forbidden',
+    )
+
+    const master = await roleActor('master')
+    await rejects(
+      routes['activity/correct-summary']!({
+        actor: master.actor,
+        body: { userId: target.user.id, visited: 0.5, missed: 0, unmarked: 0 },
+        headers: new Headers(),
+      }),
+      'validation_failed',
+    )
+    await rejects(
+      routes['activity/correct-summary']!({
+        actor: master.actor,
+        body: { userId: target.user.id, visited: -1, missed: 0, unmarked: 0 },
+        headers: new Headers(),
+      }),
+      'validation_failed',
+    )
   })
 })
 

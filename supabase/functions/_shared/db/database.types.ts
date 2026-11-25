@@ -9,6 +9,45 @@ export type Json =
 export type Database = {
   app: {
     Tables: {
+      activity_stat_adjustments: {
+        Row: {
+          days_in_guild_delta: number
+          days_in_guild_set_on: string | null
+          leader_count_delta: number
+          missed_delta: number
+          unmarked_delta: number
+          user_id: string
+          visited_delta: number
+        }
+        ComputedFields: never
+        Insert: {
+          days_in_guild_delta?: number
+          days_in_guild_set_on?: string | null
+          leader_count_delta?: number
+          missed_delta?: number
+          unmarked_delta?: number
+          user_id: string
+          visited_delta?: number
+        }
+        Update: {
+          days_in_guild_delta?: number
+          days_in_guild_set_on?: string | null
+          leader_count_delta?: number
+          missed_delta?: number
+          unmarked_delta?: number
+          user_id?: string
+          visited_delta?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'activity_stat_adjustments_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       application_equipment_links: {
         Row: {
           application_id: string

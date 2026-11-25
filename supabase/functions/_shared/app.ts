@@ -79,6 +79,8 @@ import {
   activityMember,
   activitySummary,
   attendanceRating,
+  correctActivityRating,
+  correctActivitySummary,
   monthTop,
 } from './activity/service.ts'
 import {
@@ -330,6 +332,10 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'activity/event': ({ actor, body }) => activityEvent(deps, actor, body),
     'activity/member': ({ actor, body }) => activityMember(deps, actor, body),
     'activity/rating': ({ actor }) => attendanceRating(deps, actor),
+    'activity/correct-rating': ({ actor, body }) =>
+      correctActivityRating(deps, actor, body),
+    'activity/correct-summary': ({ actor, body }) =>
+      correctActivitySummary(deps, actor, body),
     'activity/month-top': ({ actor }) => monthTop(deps, actor),
     'publications/list': ({ actor, body }) =>
       listPublications(deps, actor, body),

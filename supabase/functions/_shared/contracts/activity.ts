@@ -78,6 +78,30 @@ const searchSchema = z
 export const activitySummarySchema = z.object(activityFilterShape)
 export type ActivitySummaryRequest = z.input<typeof activitySummarySchema>
 
+const correctionInteger = z
+  .number()
+  .int('invalid_number')
+  .min(0, 'invalid_number')
+  .max(2_147_483_647, 'invalid_number')
+
+export const activityCorrectSummarySchema = z.object({
+  userId: z.guid('not_found'),
+  visited: correctionInteger,
+  missed: correctionInteger,
+  unmarked: correctionInteger,
+})
+export type ActivityCorrectSummaryRequest = z.input<
+  typeof activityCorrectSummarySchema
+>
+
+export const activityCorrectRatingSchema = activityCorrectSummarySchema.extend({
+  leaderCount: correctionInteger,
+  daysInGuild: correctionInteger,
+})
+export type ActivityCorrectRatingRequest = z.input<
+  typeof activityCorrectRatingSchema
+>
+
 export const activityHistorySchema = z.object({
   ...activityFilterShape,
   search: searchSchema,
@@ -126,6 +150,8 @@ export type ActivitySummaryRow = AttendanceCounts & {
 export type ActivitySummaryResponse = MemberList<ActivitySummaryRow> & {
   /** Закрытых мероприятий в периоде. */
   eventCount: number
+  /** У актора есть право; интерфейс выключает действие при фильтре периода. */
+  canCorrect: boolean
 }
 
 /** Строка истории (ACT-06): ник и класс — из итога закрытия. */
@@ -187,7 +213,10 @@ export type RatingRow = AttendanceCounts & {
   daysInGuild: number | null
 }
 
-export type RatingResponse = MemberList<RatingRow> & { eventCount: number }
+export type RatingResponse = MemberList<RatingRow> & {
+  eventCount: number
+  canCorrect: boolean
+}
 
 /** Топ-5 текущего месяца МСК для главной (ACT-12, ACT-13). */
 export type MonthTopResponse = {

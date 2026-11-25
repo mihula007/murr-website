@@ -1,5 +1,12 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import type {
+  ActivityCorrectRatingRequest,
+  ActivityCorrectSummaryRequest,
   ActivityEventResponse,
   ActivityEventsResponse,
   ActivityHistoryResponse,
@@ -98,6 +105,26 @@ export function useAttendanceRating() {
   return useQuery({
     queryKey: activityKeys.rating,
     queryFn: () => callApi<RatingResponse>('activity/rating'),
+  })
+}
+
+export function useCorrectActivityRating() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: ActivityCorrectRatingRequest) =>
+      callApi('activity/correct-rating', input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: activityKeys.all }),
+  })
+}
+
+export function useCorrectActivitySummary() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: ActivityCorrectSummaryRequest) =>
+      callApi('activity/correct-summary', input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: activityKeys.all }),
   })
 }
 
