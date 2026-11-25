@@ -27,7 +27,9 @@ test('участник записывается в конец, снимаетс�
   const master = await createMember('master')
 
   const memberPage = await signedIn(browser, member.email, 375)
-  await expect(memberPage.getByRole('heading', { name: 'КХ' })).toBeVisible()
+  await expect(
+    memberPage.getByRole('heading', { name: 'Очередь наград КХ' }),
+  ).toBeVisible()
   const summonsJoin = memberPage.getByRole('button', {
     name: 'Встать в очередь «призывы»',
   })
@@ -72,7 +74,9 @@ test('участник записывается в конец, снимаетс�
   ).toHaveCount(0)
 
   await memberPage.reload()
-  await expect(memberPage.getByRole('heading', { name: 'КХ' })).toBeVisible()
+  await expect(
+    memberPage.getByRole('heading', { name: 'Очередь наград КХ' }),
+  ).toBeVisible()
   await expect(
     memberPage.getByRole('button', { name: 'Встать в очередь «призывы»' }),
   ).toBeVisible()

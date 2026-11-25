@@ -348,6 +348,8 @@ type VirtualListProps<T> = {
   columns?: number
   gridClassName?: string
   gap?: keyof typeof GAP
+  /** Скрыть внутреннюю догрузку, когда она общая для нескольких колонок. */
+  showLoadMore?: boolean
 }
 
 /** Виртуализированный список или сетка карточек с догрузкой страниц. */
@@ -361,6 +363,7 @@ export function VirtualList<T>({
   columns = 1,
   gridClassName,
   gap = 'sm',
+  showLoadMore = true,
 }: VirtualListProps<T>) {
   const rowCount = Math.ceil(items.length / columns)
   const {
@@ -416,7 +419,7 @@ export function VirtualList<T>({
           </li>
         ))}
       </ul>
-      <LoadMore paging={paging} />
+      {showLoadMore ? <LoadMore paging={paging} /> : null}
     </div>
   )
 }

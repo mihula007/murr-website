@@ -51,16 +51,18 @@ function renderBoard(
 describe('KhQueueBoard', () => {
   it('shows all fourteen approved queue titles and a free cell for each empty queue', () => {
     renderBoard()
-    const desktopList = within(
-      screen.getByRole('list', { name: 'Все очереди КХ' }),
-    )
 
     for (const queueKey of KH_QUEUE_IDS) {
+      const queueList = within(
+        screen.getByRole('list', {
+          name: `Очередь КХ: ${KH_QUEUE_LABELS[queueKey]}`,
+        }),
+      )
       expect(
         screen.getAllByRole('heading', { name: KH_QUEUE_LABELS[queueKey] }),
       ).toHaveLength(queueKey === 'summons' ? 2 : 1)
       expect(
-        desktopList.getByRole('button', {
+        queueList.getByRole('button', {
           name: `Встать в очередь «${KH_QUEUE_LABELS[queueKey]}»`,
         }),
       ).toBeInTheDocument()
