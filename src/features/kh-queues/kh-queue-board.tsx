@@ -116,33 +116,37 @@ export function KhQueueBoard({
       )
     }
     return (
-      <div className="group/kh-entry flex min-h-9 min-w-0 items-center gap-0.5 rounded-lg border border-border-strong/80 bg-linear-145/srgb from-surface-inset/75 to-card/65 px-1 py-1 shadow-md backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-primary/70 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none">
+      <div className="group/kh-entry relative flex min-h-9 min-w-0 items-center gap-0.5 rounded-lg border border-border-strong/80 bg-linear-145/srgb from-surface-inset/75 to-card/65 px-1 py-1 shadow-md backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-primary/70 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none">
         <span className="min-w-0 flex-1 break-all text-center text-xs leading-tight">
           {entry.gameNickname}
         </span>
-        {canIssue ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-6 shrink-0 text-live transition-[transform,background] duration-200 hover:scale-110 hover:bg-live-surface motion-reduce:transition-none motion-reduce:hover:transform-none"
-            aria-label={`Отметить выдачу: ${entry.gameNickname} в очереди «${label}»`}
-            onClick={() => onIssue(queueKey, entry.id)}
-          >
-            <Check aria-hidden="true" size={15} />
-          </Button>
-        ) : null}
-        {entry.userId === userId ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-6 shrink-0 text-muted-foreground transition-[transform,background] duration-200 hover:scale-110 hover:bg-secondary motion-reduce:transition-none motion-reduce:hover:transform-none"
-            aria-label={`Убрать ${entry.gameNickname} из очереди «${label}»`}
-            onClick={() => onLeave(queueKey, entry.id)}
-          >
-            <X aria-hidden="true" size={14} />
-          </Button>
+        {canIssue || entry.userId === userId ? (
+          <span className="absolute right-0.5 flex -translate-y-1/2 items-center gap-0.5 top-1/2">
+            {canIssue ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-6 shrink-0 text-live transition-[transform,background] duration-200 hover:scale-110 hover:bg-live-surface motion-reduce:transition-none motion-reduce:hover:transform-none"
+                aria-label={`Отметить выдачу: ${entry.gameNickname} в очереди «${label}»`}
+                onClick={() => onIssue(queueKey, entry.id)}
+              >
+                <Check aria-hidden="true" size={15} />
+              </Button>
+            ) : null}
+            {entry.userId === userId ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-6 shrink-0 text-muted-foreground transition-[transform,background] duration-200 hover:scale-110 hover:bg-secondary motion-reduce:transition-none motion-reduce:hover:transform-none"
+                aria-label={`Убрать ${entry.gameNickname} из очереди «${label}»`}
+                onClick={() => onLeave(queueKey, entry.id)}
+              >
+                <X aria-hidden="true" size={14} />
+              </Button>
+            ) : null}
+          </span>
         ) : null}
       </div>
     )
