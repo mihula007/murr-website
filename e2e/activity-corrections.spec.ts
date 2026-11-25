@@ -106,15 +106,14 @@ test('E2E-18: мастер выдаёт отдельные права и кор�
   const ratingRight = page.getByRole('switch', {
     name: 'Корректировать рейтинг посещения',
   })
-  const viewActivity = page.getByRole('switch', {
-    name: 'Просматривать учёт активности, сводки и выгружать Excel',
-  })
   const summaryRight = page.getByRole('switch', {
     name: 'Корректировать сводку учёта активности',
   })
   await expect(ratingRight).not.toBeChecked()
   await expect(summaryRight).not.toBeChecked()
-  await ratingRight.click()
+  await page
+    .getByText('Корректировать рейтинг посещения', { exact: true })
+    .click()
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click()
   await expect(page.getByText('Права сохранены')).toBeVisible()
 
@@ -145,8 +144,14 @@ test('E2E-18: мастер выдаёт отдельные права и кор�
   await page.bringToFront()
   await officerSelect.click()
   await page.getByRole('option', { name: officer.nickname }).click()
-  await viewActivity.click()
-  await summaryRight.click()
+  await page
+    .getByText('Просматривать учёт активности, сводки и выгружать Excel', {
+      exact: true,
+    })
+    .click()
+  await page
+    .getByText('Корректировать сводку учёта активности', { exact: true })
+    .click()
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click()
   await expect(page.getByText('Права сохранены')).toBeVisible()
   await officerPage.reload()
