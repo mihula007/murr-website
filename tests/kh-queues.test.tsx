@@ -182,17 +182,20 @@ describe('KhQueueBoard', () => {
     })
     renderBoard('member', queues)
     await userEvent.click(screen.getByRole('button', { name: 'призывы' }))
-    const phoneRegion = within(screen.getByRole('region', { name: 'призывы' }))
-    const phoneList = within(
-      phoneRegion.getByRole('list', { name: 'Очередь КХ: призывы' }),
-    )
+    const phoneSection = screen
+      .getByRole('button', { name: 'призывы' })
+      .closest('section')
+    expect(phoneSection).not.toBeNull()
+    const phoneList = within(phoneSection!).getByRole('list', {
+      name: 'Очередь КХ: призывы',
+    })
     expect(
-      phoneList.queryByRole('button', {
+      within(phoneList).queryByRole('button', {
         name: 'Встать в очередь «призывы»',
       }),
     ).not.toBeInTheDocument()
-    expect(phoneList.getByLabelText('Место 1')).toHaveTextContent('1')
-    expect(phoneList.getByLabelText('Место 2')).toHaveTextContent('2')
+    expect(within(phoneList).getByLabelText('Место 1')).toHaveTextContent('1')
+    expect(within(phoneList).getByLabelText('Место 2')).toHaveTextContent('2')
   })
 
   it('opens one queue at a time in the phone view', async () => {
@@ -221,12 +224,14 @@ describe('KhQueueBoard', () => {
     renderBoard('member', queues)
 
     await userEvent.click(screen.getByRole('button', { name: 'призывы' }))
-    const summonsRegion = within(
-      screen.getByRole('region', { name: 'призывы' }),
-    )
+    const summonsSection = screen
+      .getByRole('button', { name: 'призывы' })
+      .closest('section')
+    expect(summonsSection).not.toBeNull()
+    const summonsCard = within(summonsSection!)
     expect(
       within(
-        summonsRegion.getByRole('list', {
+        summonsCard.getByRole('list', {
           name: 'Очередь КХ: призывы',
         }),
       ).getByText('Тест1'),
@@ -234,10 +239,14 @@ describe('KhQueueBoard', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'пет' }))
     expect(
-      summonsRegion.queryByRole('list', { name: 'Очередь КХ: призывы' }),
+      summonsCard.queryByRole('list', { name: 'Очередь КХ: призывы' }),
     ).not.toBeInTheDocument()
+    const petSection = screen
+      .getByRole('button', { name: 'пет' })
+      .closest('section')
+    expect(petSection).not.toBeNull()
     expect(
-      within(screen.getByRole('region', { name: 'пет' })).getByRole('button', {
+      within(petSection!).getByRole('button', {
         name: 'Встать в очередь «пет»',
       }),
     ).toBeInTheDocument()
