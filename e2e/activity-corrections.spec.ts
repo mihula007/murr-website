@@ -175,7 +175,7 @@ test('E2E-18: мастер выдаёт отдельные права и кор�
   await officerPage.goto('./#/rating')
   await expect(ratingRow).toBeVisible()
   const beforeCorrectionActions = await actionCounts()
-  const ratingVisited = ratingRow.getByRole('cell').nth(2)
+  const ratingVisited = ratingRow.getByRole('cell').nth(3)
   await ratingRow.getByRole('button', { name: 'Корректировка' }).click()
   dialog = officerPage.getByRole('dialog')
   await dialog.getByLabel('Посетил', { exact: true }).fill('5')
@@ -184,9 +184,9 @@ test('E2E-18: мастер выдаёт отдельные права и кор�
   await dialog.getByRole('button', { name: 'Сохранить' }).click()
   await expect(dialog).toBeHidden()
   await expect(ratingVisited).toHaveText(/(?:^|\D)5$/)
-  await expect(ratingRow.getByRole('cell').nth(5)).toHaveText(/83%$/)
-  await expect(ratingRow.getByRole('cell').nth(6)).toHaveText(/(?:^|\D)4$/)
-  await expect(ratingRow.getByRole('cell').nth(7)).toHaveText(/(?:^|\D)8$/)
+  await expect(ratingRow.getByRole('cell').nth(6)).toHaveText(/83%$/)
+  await expect(ratingRow.getByRole('cell').nth(7)).toHaveText(/(?:^|\D)4$/)
+  await expect(ratingRow.getByRole('cell').nth(8)).toHaveText(/(?:^|\D)8$/)
   await officerPage.goto('./#/activity')
   await expect(summaryRow).toBeVisible()
   await expect(summaryRow.getByRole('cell').nth(2)).toHaveText(/(?:^|\D)5$/)
@@ -203,17 +203,18 @@ test('E2E-18: мастер выдаёт отдельные права и кор�
     { eventId: firstEventId, status: 'visited', isLeader: true },
   ])
 
-  await officerPage.goto(`./#/activity?from=${firstDate}`)
-  const periodButtons = officerPage.getByRole('button', {
-    name: 'Корректировка',
-  })
-  await expect(periodButtons.first()).toBeVisible()
-  await expect(periodButtons.first()).toBeDisabled()
-  const periodButtonCount = await periodButtons.count()
-  expect(periodButtonCount).toBeGreaterThan(0)
-  for (const button of await periodButtons.all()) {
-    await expect(button).toBeDisabled()
-  }
+  await officerPage.goto('./#/activity')
+  const dateFrom = officerPage.getByLabel('Период с (МСК)')
+  await dateFrom.fill(firstDate)
+  await expect(dateFrom).toHaveValue(firstDate)
+  const periodButton = officerPage
+    .getByRole('table', { name: 'Сводка участников' })
+    .getByRole('row')
+    .filter({ hasText: member.nickname })
+    .getByRole('button', {
+      name: 'Корректировка',
+    })
+  await expect(periodButton).toBeDisabled()
 
   const secondEventId = await closeWithLeader(
     masterToken,
