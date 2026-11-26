@@ -123,10 +123,12 @@ export function useKhQueueSettings() {
 }
 
 type KhSettings = { maxActiveQueues: number; activeQueueCount: number }
+type KhQueuesCache = { pages: KhQueuesResponse[]; pageParams: unknown[] }
 
 type KhSettingsMutationContext = {
   scrollPosition: WindowScrollPosition
   previousSettings: KhSettings | undefined
+  previousQueues: KhQueuesCache | undefined
 }
 
 function useKhSettingsMutation(route: string) {
@@ -136,9 +138,14 @@ function useKhSettingsMutation(route: string) {
     onMutate: async (input) => {
       const scrollPosition = captureWindowScrollPosition()
       await queryClient.cancelQueries({ queryKey: ['kh', 'settings'] })
+      await queryClient.cancelQueries({ queryKey: ['kh', 'queues'] })
       const previousSettings = queryClient.getQueryData<KhSettings>([
         'kh',
         'settings',
+      ])
+      const previousQueues = queryClient.getQueryData<KhQueuesCache>([
+        'kh',
+        'queues',
       ])
       if (
         previousSettings &&
@@ -150,14 +157,52 @@ function useKhSettingsMutation(route: string) {
           maxActiveQueues: input.maxActiveQueues,
         })
       }
+      if (
+        previousQueues &&
+        route === 'kh/set-repeat' &&
+        typeof input.queueKey === 'string' &&
+        typeof input.entryId === 'string' &&
+        typeof input.autoRejoin === 'boolean' &&
+        KH_QUEUE_IDS.includes(input.queueKey as KhQueueId)
+      ) {
+        const queueKey = input.queueKey as KhQueueId
+        queryClient.setQueryData<KhQueuesCache>(['kh', 'queues'], (current) =>
+          current
+            ? {
+                ...current,
+                pages: current.pages.map((page) => ({
+                  ...page,
+                  queues: {
+                    ...page.queues,
+                    [queueKey]: {
+                      ...page.queues[queueKey],
+                      items: page.queues[queueKey].items.map((entry) =>
+                        entry.id === input.entryId
+                          ? {
+                              ...entry,
+                              autoRejoin: input.autoRejoin as boolean,
+                            }
+                          : entry,
+                      ),
+                    },
+                  },
+                })),
+              }
+            : current,
+        )
+      }
       return {
         scrollPosition,
         previousSettings,
+        previousQueues,
       } satisfies KhSettingsMutationContext
     },
     onError: (_error, _input, context) => {
       if (context?.previousSettings) {
         queryClient.setQueryData(['kh', 'settings'], context.previousSettings)
+      }
+      if (context?.previousQueues) {
+        queryClient.setQueryData(['kh', 'queues'], context.previousQueues)
       }
     },
     onSuccess: async () => {

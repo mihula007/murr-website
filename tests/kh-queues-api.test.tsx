@@ -2,7 +2,12 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { useJoinKhQueue, useLeaveKhQueue } from '@/features/kh-queues/api'
+import { KH_QUEUE_IDS, type KhQueuesResponse } from '@contracts/kh'
+import {
+  useJoinKhQueue,
+  useLeaveKhQueue,
+  useSetKhQueueRepeat,
+} from '@/features/kh-queues/api'
 
 const mocks = vi.hoisted(() => ({
   callApi: vi.fn<(route: string, body: unknown) => Promise<unknown>>(),
@@ -33,6 +38,20 @@ function Actions() {
   )
 }
 
+function RepeatAction() {
+  const repeat = useSetKhQueueRepeat()
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        repeat.mutate({ queueKey: 'summons', entryId: '1', autoRejoin: true })
+      }
+    >
+      Повторять
+    </button>
+  )
+}
+
 function renderActions(client: QueryClient) {
   return render(
     <QueryClientProvider client={client}>
@@ -46,6 +65,46 @@ afterEach(() => {
 })
 
 describe('КХ queue actions', () => {
+  it('updates automatic rejoin immediately while saving', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const queues: KhQueuesResponse = {
+      queues: Object.fromEntries(
+        KH_QUEUE_IDS.map((queueKey) => [
+          queueKey,
+          { items: [], nextCursor: null },
+        ]),
+      ) as unknown as KhQueuesResponse['queues'],
+    }
+    queues.queues.summons.items.push({
+      id: '1',
+      userId: '00000000-0000-4000-8000-000000000001',
+      gameNickname: 'Участник',
+      autoRejoin: false,
+    })
+    client.setQueryData(['kh', 'queues'], {
+      pages: [queues],
+      pageParams: [null],
+    })
+    mocks.callApi.mockImplementation(() => new Promise(() => undefined))
+    render(
+      <QueryClientProvider client={client}>
+        <RepeatAction />
+      </QueryClientProvider>,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Повторять' }))
+
+    expect(
+      client.getQueryData<{
+        pages: KhQueuesResponse[]
+        pageParams: unknown[]
+      }>(['kh', 'queues'])?.pages[0]?.queues.summons.items[0]?.autoRejoin,
+    ).toBe(true)
+    client.clear()
+  })
+
   it('updates occupied cells immediately and restores the page scroll after joining', async () => {
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
