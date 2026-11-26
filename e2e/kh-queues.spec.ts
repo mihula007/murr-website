@@ -104,6 +104,8 @@ test('участник записывается в конец, снимаетс�
   await expect(
     masterPage
       .getByLabel('История выдачи наград КХ')
+      .getByRole('listitem')
+      .filter({ hasText: member.nickname })
       .getByText(`выдана награда «призывы»`),
   ).toBeVisible()
 
