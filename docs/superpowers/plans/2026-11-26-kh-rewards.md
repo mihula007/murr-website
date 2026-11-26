@@ -143,3 +143,14 @@
 - [x] Add focused tests for immediate occupancy updates, scroll preservation, non-overlapping queue controls, and compact limit placement.
 - [x] Fix scroll correction in the queue virtualizers, mutation cache updates, control layout, and tab-row placement.
 - [x] Run focused Vitest checks, type/style checks, lint and secret checks; do not run local e2e.
+
+### Task 7: Расположение отметки повтора и движение колонок
+
+**Files:**
+
+- Modify: `src/features/kh-queues/kh-queue-board.tsx`, `tests/kh-queues.test.tsx`
+- Update: `docs/requirements/25-kh-queue.md`, `docs/architecture/module-decisions.md`
+
+- [x] Move the repeat checkbox to the left edge of its control row and keep action buttons on the right.
+- [x] Remove the hover bounce from queue columns.
+- [x] Run focused queue component tests, type/style/format checks; do not run local e2e.

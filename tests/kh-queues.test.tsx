@@ -298,9 +298,9 @@ describe('KhQueueBoard', () => {
     })[0]!
     const cell = checkbox.closest('[data-queue-entry]')
     expect(cell).toHaveClass('grid')
-    expect(cell?.querySelector('[data-entry-controls]')).toContainElement(
-      checkbox,
-    )
+    const controls = cell?.querySelector('[data-entry-controls]')
+    expect(controls).toContainElement(checkbox)
+    expect(controls?.firstElementChild).toBe(checkbox.parentElement)
     expect(cell?.querySelector('[data-entry-nickname]')).not.toHaveClass(
       'absolute',
     )
@@ -341,5 +341,13 @@ describe('KhQueueBoard', () => {
       })[0]!,
     )
     expect(onRemove).toHaveBeenCalledWith('summons', '8')
+  })
+
+  it('keeps queue columns still when hovered', () => {
+    const { container } = renderBoard()
+    const column = container.querySelector(
+      '[aria-labelledby="kh-column-summons"]',
+    )
+    expect(column).not.toHaveClass('hover:-translate-y-0.5')
   })
 })

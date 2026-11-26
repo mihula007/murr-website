@@ -104,7 +104,7 @@ export function KhQueueBoard({
         {hasControls ? (
           <span
             data-entry-controls
-            className="flex min-h-6 items-center justify-end gap-0.5"
+            className="flex min-h-6 items-center justify-between gap-0.5"
           >
             {entry.userId === userId ? (
               <label
@@ -122,42 +122,44 @@ export function KhQueueBoard({
                 />
               </label>
             ) : null}
-            {canIssue ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-6 shrink-0 text-live transition-[transform,background] duration-200 hover:scale-110 hover:bg-live-surface motion-reduce:transition-none motion-reduce:hover:transform-none"
-                aria-label={`Отметить выдачу: ${entry.gameNickname} в очереди «${label}»`}
-                onClick={() => onIssue(queueKey, entry.id)}
-              >
-                <Check aria-hidden="true" size={15} />
-              </Button>
-            ) : null}
-            {entry.userId === userId ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-6 shrink-0 text-muted-foreground transition-[transform,background] duration-200 hover:scale-110 hover:bg-secondary motion-reduce:transition-none motion-reduce:hover:transform-none"
-                aria-label={`Убрать ${entry.gameNickname} из очереди «${label}»`}
-                onClick={() => onLeave(queueKey, entry.id)}
-              >
-                <X aria-hidden="true" size={14} />
-              </Button>
-            ) : null}
-            {canRemove ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-6 shrink-0 text-destructive"
-                aria-label={`Удалить ${entry.gameNickname} из очереди «${label}»`}
-                onClick={() => onRemove(queueKey, entry.id)}
-              >
-                <X aria-hidden="true" size={14} />
-              </Button>
-            ) : null}
+            <span className="flex items-center gap-0.5">
+              {canIssue ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-6 shrink-0 text-live transition-[transform,background] duration-200 hover:scale-110 hover:bg-live-surface motion-reduce:transition-none motion-reduce:hover:transform-none"
+                  aria-label={`Отметить выдачу: ${entry.gameNickname} в очереди «${label}»`}
+                  onClick={() => onIssue(queueKey, entry.id)}
+                >
+                  <Check aria-hidden="true" size={15} />
+                </Button>
+              ) : null}
+              {entry.userId === userId ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-6 shrink-0 text-muted-foreground transition-[transform,background] duration-200 hover:scale-110 hover:bg-secondary motion-reduce:transition-none motion-reduce:hover:transform-none"
+                  aria-label={`Убрать ${entry.gameNickname} из очереди «${label}»`}
+                  onClick={() => onLeave(queueKey, entry.id)}
+                >
+                  <X aria-hidden="true" size={14} />
+                </Button>
+              ) : null}
+              {canRemove ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-6 shrink-0 text-destructive"
+                  aria-label={`Удалить ${entry.gameNickname} из очереди «${label}»`}
+                  onClick={() => onRemove(queueKey, entry.id)}
+                >
+                  <X aria-hidden="true" size={14} />
+                </Button>
+              ) : null}
+            </span>
           </span>
         ) : null}
       </div>
@@ -171,7 +173,7 @@ export function KhQueueBoard({
       <section
         key={queueKey}
         aria-labelledby={`kh-column-${queueKey}`}
-        className="group/kh-column flex h-full min-w-0 flex-col rounded-xl border border-border-accent/70 bg-linear-145/srgb from-surface-from/80 to-surface-to/80 p-1.5 shadow-lg backdrop-blur-sm transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:border-primary/80 hover:shadow-xl motion-reduce:transition-none motion-reduce:hover:transform-none"
+        className="group/kh-column flex h-full min-w-0 flex-col rounded-xl border border-border-accent/70 bg-linear-145/srgb from-surface-from/80 to-surface-to/80 p-1.5 shadow-lg backdrop-blur-sm transition-[border-color,box-shadow] duration-300 hover:border-primary/80 hover:shadow-xl motion-reduce:transition-none"
       >
         <h2
           id={`kh-column-${queueKey}`}
