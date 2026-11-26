@@ -152,7 +152,8 @@ test('участник записывается в очередь, а масте
       .getByLabel('История выдачи наград КХ')
       .getByRole('listitem')
       .filter({ hasText: member.nickname })
-      .getByText(`выдана награда «призывы»`),
+      .getByText(`выдана награда «призывы»`)
+      .first(),
   ).toBeVisible()
 
   const queuedMember = await createMember('member')
