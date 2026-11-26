@@ -18,7 +18,7 @@ async function signedIn(browser: Browser, email: string, width: number) {
   return page
 }
 
-test('участник записывается в конец, снимается, а мастер отмечает выдачу', async ({
+test('участник записывается в очередь, а мастер и администратор управляют ею', async ({
   browser,
 }) => {
   test.setTimeout(120_000)
@@ -30,6 +30,9 @@ test('участник записывается в конец, снимаетс�
   await expect(
     memberPage.getByRole('heading', { name: 'Очередь наград КХ' }),
   ).toBeVisible()
+  await expect(
+    memberPage.locator('[data-testid="kh-hero"] img'),
+  ).toHaveAttribute('src', '/kh-rewards/kh-hall-background.png')
   await expect(
     memberPage.getByRole('tab', { name: 'История выдачи' }),
   ).toHaveCount(0)
@@ -47,6 +50,12 @@ test('участник записывается в конец, снимаетс�
     memberPage.getByRole('button', {
       name: `Убрать ${member.nickname} из очереди «призывы»`,
     }),
+  ).toBeVisible()
+  await expect(
+    memberPage
+      .locator('[data-own-entry]')
+      .filter({ hasText: member.nickname })
+      .first(),
   ).toBeVisible()
 
   await memberPage.getByRole('button', { name: /^пет/ }).click()
@@ -67,12 +76,53 @@ test('участник записывается в конец, снимаетс�
   await adminPage.getByRole('tab', { name: 'История выдачи' }).click()
   await expect(adminPage.getByLabel('С даты')).toBeVisible()
   await adminPage.getByRole('tab', { name: 'Очередь' }).click()
+  await memberPage.getByRole('button', { name: /^призывы/ }).click()
+  await memberPage
+    .getByRole('checkbox', { name: 'После выдачи снова встать в очередь' })
+    .check()
+  const adminIssue = adminPage.getByRole('button', {
+    name: `Отметить выдачу: ${member.nickname} в очереди «призывы»`,
+  })
+  await expect(adminIssue).toBeVisible()
+  await adminIssue.click()
   await expect(
     adminPage.getByRole('button', {
       name: `Отметить выдачу: ${member.nickname} в очереди «призывы»`,
     }),
-  ).toHaveCount(0)
+  ).toBeVisible()
+  await adminPage.getByRole('tab', { name: 'История выдачи' }).click()
+  await expect(adminPage.getByLabel('С даты')).toBeVisible()
+  const adminToday = await adminPage.getByLabel('По дату').inputValue()
+  await adminPage.getByLabel('С даты').fill(adminToday)
+  await expect(
+    adminPage
+      .getByLabel('История выдачи наград КХ')
+      .getByRole('listitem')
+      .filter({ hasText: member.nickname })
+      .getByText('выдана награда «призывы»'),
+  ).toBeVisible()
+  await adminPage.getByRole('tab', { name: 'Очередь' }).click()
   expect(await hasHorizontalScroll(adminPage)).toBe(false)
+
+  const adminRemovedMember = await createMember('member')
+  const adminRemovedMemberPage = await signedIn(
+    browser,
+    adminRemovedMember.email,
+    375,
+  )
+  await adminRemovedMemberPage
+    .getByRole('button', { name: /^высший выкуп/ })
+    .click()
+  await adminRemovedMemberPage
+    .getByRole('button', { name: 'Встать в очередь «высший выкуп»' })
+    .click()
+  await adminPage.reload()
+  const adminRemove = adminPage.getByRole('button', {
+    name: `Удалить ${adminRemovedMember.nickname} из очереди «высший выкуп»`,
+  })
+  await expect(adminRemove).toBeVisible()
+  await adminRemove.click()
+  await expect(adminRemove).toHaveCount(0)
 
   const masterPage = await signedIn(browser, master.email, 1280)
   await expect(
@@ -81,10 +131,6 @@ test('участник записывается в конец, снимаетс�
   await masterPage.getByRole('tab', { name: 'История выдачи' }).click()
   await expect(masterPage.getByLabel('С даты')).toBeVisible()
   await masterPage.getByRole('tab', { name: 'Очередь' }).click()
-  await memberPage.getByRole('button', { name: /^призывы/ }).click()
-  await memberPage
-    .getByRole('checkbox', { name: 'После выдачи снова встать в очередь' })
-    .check()
   const issue = masterPage.getByRole('button', {
     name: `Отметить выдачу: ${member.nickname} в очереди «призывы»`,
   })
@@ -153,6 +199,7 @@ test('участник записывается в конец, снимаетс�
 
   await memberPage.close()
   await queuedMemberPage.close()
+  await adminRemovedMemberPage.close()
   await adminPage.close()
   await masterPage.close()
 })
@@ -183,6 +230,7 @@ test('общий лимит настраивает администратор и
     await expect(
       firstPage.getByRole('button', { name: 'Встать в очередь «пет»' }),
     ).toHaveCount(0)
+    await expect(firstPage.locator('[data-queue-reserved]')).toHaveCount(0)
 
     secondPage = await signedIn(browser, second.email, 1280)
     await expect(

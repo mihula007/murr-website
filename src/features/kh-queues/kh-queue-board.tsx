@@ -19,7 +19,6 @@ type QueueCell = {
   key: string
   queueKey: KhQueueId
   entry?: KhQueueEntry
-  reserved?: boolean
 }
 
 type KhQueueBoardProps = {
@@ -61,11 +60,11 @@ export function KhQueueBoard({
     accessRole === 'member' ||
     accessRole === 'officer' ||
     accessRole === 'admin'
-  const canIssue = accessRole === 'master'
-  const canRemove = accessRole === 'master'
-  const canManageQueue = accessRole === 'admin' || accessRole === 'master'
+  const canIssue = accessRole === 'master' || accessRole === 'admin'
+  const canRemove = accessRole === 'master' || accessRole === 'admin'
   const canReserveCell = (queueKey: KhQueueId) =>
     canJoin &&
+    activeQueueCount < maxActiveQueues &&
     !queues[queueKey].hasMore &&
     !queues[queueKey].items.some((entry) => entry.userId === userId)
   const cellsInQueue = (queueKey: KhQueueId): QueueCell[] => [
@@ -75,30 +74,13 @@ export function KhQueueBoard({
       entry,
     })),
     ...(canReserveCell(queueKey)
-      ? [
-          activeQueueCount < maxActiveQueues
-            ? { key: `${queueKey}:free`, queueKey }
-            : {
-                key: `${queueKey}:reserved`,
-                queueKey,
-                reserved: true,
-              },
-        ]
+      ? [{ key: `${queueKey}:free`, queueKey }]
       : []),
   ]
 
   const renderCell = (cell: QueueCell) => {
     const { queueKey, entry } = cell
     const label = KH_QUEUE_LABELS[queueKey]
-    if (cell.reserved) {
-      return (
-        <span
-          data-queue-reserved
-          aria-hidden="true"
-          className="invisible block min-h-9 w-full"
-        />
-      )
-    }
     if (!entry) {
       return (
         <Button
@@ -115,55 +97,16 @@ export function KhQueueBoard({
       )
     }
     const hasControls = canIssue || canRemove || entry.userId === userId
-    const gridColumns = canManageQueue
-      ? 'grid-cols-[minmax(0,1fr)_auto]'
-      : 'grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)]'
     return (
       <div
         data-queue-entry
-        className={`group/kh-entry grid min-h-9 min-w-0 ${gridColumns} items-center gap-x-0.5 rounded-lg border border-border-strong/80 bg-linear-145/srgb from-surface-inset/75 to-card/65 px-1 py-1 shadow-md backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-primary/70 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none`}
+        {...(entry.userId === userId ? { 'data-own-entry': '' } : {})}
+        className={`group/kh-entry grid min-h-9 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-0.5 rounded-lg border border-border-strong/80 bg-linear-145/srgb from-surface-inset/75 to-card/65 px-1 py-1 shadow-md backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-primary/70 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none ${entry.userId === userId ? 'bg-item-highlight! border-2! border-highlight! ring-2 ring-highlight' : ''}`}
       >
-        {canManageQueue ? null : <span aria-hidden="true" />}
-        <span
-          data-entry-primary
-          className={
-            canManageQueue
-              ? 'min-w-0 text-left'
-              : 'flex min-w-0 items-center justify-center gap-1'
-          }
-        >
-          {!canManageQueue && entry.userId === userId ? (
-            <label
-              data-entry-repeat
-              className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-full border border-border bg-card text-xs shadow"
-              title="После выдачи снова встать в очередь"
-            >
-              <input
-                type="checkbox"
-                className="size-3 accent-primary"
-                aria-label="После выдачи снова встать в очередь"
-                checked={repeatOverrides[entry.id] ?? entry.autoRejoin}
-                onChange={(event) => {
-                  const autoRejoin = event.currentTarget.checked
-                  setRepeatOverrides((current) => ({
-                    ...current,
-                    [entry.id]: autoRejoin,
-                  }))
-                  void Promise.resolve(onRepeat(queueKey, entry.id, autoRejoin))
-                    .then(() => undefined)
-                    .catch(() => {
-                      setRepeatOverrides((current) => ({
-                        ...current,
-                        [entry.id]: entry.autoRejoin,
-                      }))
-                    })
-                }}
-              />
-            </label>
-          ) : null}
+        <span data-entry-primary className="min-w-0 text-left">
           <span
             data-entry-nickname
-            className={`min-w-0 break-all text-xs leading-tight ${canManageQueue ? 'text-left' : 'text-center'}`}
+            className="min-w-0 break-all text-left text-xs leading-tight"
           >
             {entry.gameNickname}
           </span>
@@ -179,7 +122,7 @@ export function KhQueueBoard({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-6 shrink-0 text-live transition-[transform,background] duration-200 hover:scale-110 hover:bg-live-surface motion-reduce:transition-none motion-reduce:hover:transform-none"
+                  className="size-5 shrink-0 text-live transition-[transform,background] duration-200 hover:scale-110 hover:bg-live-surface motion-reduce:transition-none motion-reduce:hover:transform-none"
                   aria-label={`Отметить выдачу: ${entry.gameNickname} в очереди «${label}»`}
                   onClick={() => onIssue(queueKey, entry.id)}
                 >
@@ -191,24 +134,55 @@ export function KhQueueBoard({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-6 shrink-0 text-muted-foreground transition-[transform,background] duration-200 hover:scale-110 hover:bg-secondary motion-reduce:transition-none motion-reduce:hover:transform-none"
+                  className="size-5 shrink-0 text-muted-foreground transition-[transform,background] duration-200 hover:scale-110 hover:bg-secondary motion-reduce:transition-none motion-reduce:hover:transform-none"
                   aria-label={`Убрать ${entry.gameNickname} из очереди «${label}»`}
                   onClick={() => onLeave(queueKey, entry.id)}
                 >
                   <X aria-hidden="true" size={14} />
                 </Button>
               ) : null}
-              {canRemove ? (
+              {canRemove && entry.userId !== userId ? (
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-6 shrink-0 text-destructive"
+                  className="size-5 shrink-0 text-destructive"
                   aria-label={`Удалить ${entry.gameNickname} из очереди «${label}»`}
                   onClick={() => onRemove(queueKey, entry.id)}
                 >
                   <X aria-hidden="true" size={14} />
                 </Button>
+              ) : null}
+              {entry.userId === userId ? (
+                <label
+                  data-entry-repeat
+                  className="grid size-5 shrink-0 cursor-pointer place-items-center rounded-full border border-primary/60 bg-primary/10 text-xs shadow"
+                  title="После выдачи снова встать в очередь"
+                >
+                  <input
+                    type="checkbox"
+                    className="size-3 accent-highlight"
+                    aria-label="После выдачи снова встать в очередь"
+                    checked={repeatOverrides[entry.id] ?? entry.autoRejoin}
+                    onChange={(event) => {
+                      const autoRejoin = event.currentTarget.checked
+                      setRepeatOverrides((current) => ({
+                        ...current,
+                        [entry.id]: autoRejoin,
+                      }))
+                      void Promise.resolve(
+                        onRepeat(queueKey, entry.id, autoRejoin),
+                      )
+                        .then(() => undefined)
+                        .catch(() => {
+                          setRepeatOverrides((current) => ({
+                            ...current,
+                            [entry.id]: entry.autoRejoin,
+                          }))
+                        })
+                    }}
+                  />
+                </label>
               ) : null}
             </span>
           </span>

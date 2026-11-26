@@ -158,7 +158,7 @@ export async function removeKhQueueEntry(
   actor: Actor,
   body: unknown,
 ) {
-  requireRole(actor, ['master'])
+  requireRole(actor, ['master', 'admin'])
   const { queueKey, entryId } = parseBody(khQueueEntryActionSchema, body)
   return withTransaction(deps.db, async (tx) => {
     const cap = await khQueueRepository.lockSettings(tx, 'share')
@@ -186,7 +186,7 @@ export async function issueKhReward(
   actor: Actor,
   body: unknown,
 ) {
-  const master = requireRole(actor, ['master'])
+  const issuer = requireRole(actor, ['master', 'admin'])
   const { queueKey, entryId } = parseBody(khQueueEntryActionSchema, body)
   return withTransaction(deps.db, async (tx) => {
     const cap = await khQueueRepository.lockSettings(tx, 'share')
@@ -201,7 +201,7 @@ export async function issueKhReward(
     if (!entry) {
       throw new ApiError('not_found')
     }
-    await khQueueRepository.recordIssue(tx, entry, master.userId)
+    await khQueueRepository.recordIssue(tx, entry, issuer.userId)
     const row = await khQueueRepository.issue(tx, entry, cap)
     if (!row) {
       throw new ApiError('not_found')

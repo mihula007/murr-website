@@ -8,6 +8,7 @@ import type { KhQueueId, KhQueuePage, KhQueuesResponse } from '@contracts/kh'
 import type { KhRewardHistoryResponse } from '@contracts/kh'
 import { KH_QUEUE_IDS } from '@contracts/kh'
 import { callApi } from '@/lib/supabase/api'
+import { toast } from '@/components/ui/toaster'
 import {
   captureWindowScrollPosition,
   restoreWindowScrollPosition,
@@ -84,9 +85,16 @@ function useKhAction(route: string) {
       }
       return { scrollPosition, previousSettings }
     },
-    onError: (_error, _input, context) => {
+    onError: async (error, _input, context) => {
       if (context?.previousSettings) {
         queryClient.setQueryData(['kh', 'settings'], context.previousSettings)
+      }
+      if (route === 'kh/join' && error.code === 'state_conflict') {
+        toast('Лимит очередей достигнут. Список обновлён.')
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['kh', 'queues'] }),
+          queryClient.invalidateQueries({ queryKey: ['kh', 'settings'] }),
+        ])
       }
     },
     onSuccess: async () => {

@@ -180,6 +180,26 @@ describe('KhQueueBoard', () => {
     expect(screen.queryByText('Свободно')).not.toBeInTheDocument()
   })
 
+  it('lets an administrator issue and remove someone else’s entry', () => {
+    const queues = boardData({
+      summons: {
+        items: [entry('9', OTHER, 'Тест2')],
+        hasMore: false,
+      },
+    })
+    renderBoard('admin', queues)
+    expect(
+      screen.getAllByRole('button', {
+        name: 'Отметить выдачу: Тест2 в очереди «призывы»',
+      }),
+    ).toHaveLength(1)
+    expect(
+      screen.getByRole('button', {
+        name: 'Удалить Тест2 из очереди «призывы»',
+      }),
+    ).toBeInTheDocument()
+  })
+
   it('hides the personal join cell without numbering occupied positions', async () => {
     const queues = boardData({
       summons: {
@@ -274,7 +294,7 @@ describe('KhQueueBoard', () => {
   })
 
   it.each(['member', 'officer'] as const)(
-    'centers the repeat checkbox with the nickname for a %s',
+    'keeps the repeat checkbox at the right of the nickname for a %s',
     async (role) => {
       const onRepeat =
         vi.fn<
@@ -310,13 +330,11 @@ describe('KhQueueBoard', () => {
       const primary = cell?.querySelector<HTMLElement>('[data-entry-primary]')
       const nickname = cell?.querySelector<HTMLElement>('[data-entry-nickname]')
       const controls = cell?.querySelector('[data-entry-controls]')
-      expect(cell?.children).toHaveLength(3)
-      expect(cell?.children[1]).toBe(primary)
-      expect(cell?.children[2]).toBe(controls)
-      expect(primary).toHaveClass('justify-center')
-      expect(
-        primary?.querySelector('[data-entry-repeat]') ?? null,
-      ).toContainElement(checkbox)
+      expect(cell?.children).toHaveLength(2)
+      expect(cell?.children[0]).toBe(primary)
+      expect(cell?.children[1]).toBe(controls)
+      expect(primary).toHaveClass('text-left')
+      expect(controls).toContainElement(checkbox)
       expect(primary).toContainElement(nickname ?? null)
       await userEvent.click(checkbox)
       expect(onRepeat).toHaveBeenCalledWith('summons', '7', true)
@@ -369,7 +387,7 @@ describe('KhQueueBoard', () => {
     expect(onRemove).toHaveBeenCalledWith('summons', '8')
   })
 
-  it('reserves hidden cells when the participant limit is full', () => {
+  it('removes free cells and their space when the participant limit is full', () => {
     const queues = boardData({
       summons: {
         items: [entry('9', SELF, 'Тест1')],
@@ -382,7 +400,86 @@ describe('KhQueueBoard', () => {
     expect(
       within(list).queryByRole('button', { name: 'Встать в очередь «пет»' }),
     ).not.toBeInTheDocument()
-    expect(list.querySelector('[data-queue-reserved]')).toHaveClass('invisible')
+    expect(list.querySelector('[data-queue-reserved]')).not.toBeInTheDocument()
+  })
+
+  it('highlights the current user row like a roster card', async () => {
+    const queues = boardData({
+      summons: { items: [entry('9', SELF, 'Тест1')], hasMore: false },
+    })
+    renderBoard('member', queues)
+    await userEvent.click(screen.getByRole('button', { name: 'призывы' }))
+    const row = screen
+      .getByRole('button', { name: 'призывы' })
+      .closest('section')
+      ?.querySelector('[data-queue-entry]')
+    expect(row).toHaveAttribute('data-own-entry')
+    expect(row).toHaveClass('bg-item-highlight!')
+    expect(row).toHaveClass('border-2!')
+    expect(row).toHaveClass('border-highlight!')
+    expect(row).toHaveClass('ring-2', 'ring-highlight')
+  })
+
+  it('makes the repeat checkbox easy to spot on the current user row', async () => {
+    const queues = boardData({
+      summons: {
+        items: [entry('9', SELF, 'Тест1'), entry('10', OTHER, 'Тест2')],
+        hasMore: false,
+      },
+    })
+    renderBoard('member', queues)
+    const checkboxes = screen.getAllByRole('checkbox', {
+      name: 'После выдачи снова встать в очередь',
+    })
+    expect(checkboxes).toHaveLength(1)
+    expect(checkboxes[0]).toHaveClass('size-3')
+    expect(checkboxes[0]?.closest('[data-entry-repeat]')).toHaveClass(
+      'border-primary/60',
+    )
+    const cell = checkboxes[0]?.closest('[data-queue-entry]')
+    expect(cell?.querySelector('[data-entry-nickname]')).toHaveClass(
+      'text-left',
+    )
+    expect(cell?.querySelector('[data-entry-controls]')).toContainElement(
+      checkboxes[0] ?? null,
+    )
+    expect(cell?.querySelector('[data-entry-controls]')).toHaveClass(
+      'justify-end',
+    )
+  })
+
+  it('lets an administrator turn on repeat for their own queue entry', async () => {
+    const onRepeat =
+      vi.fn<(queueKey: KhQueueId, entryId: string, value: boolean) => void>()
+    const queues = boardData({
+      summons: { items: [entry('11', SELF, 'Тест1')], hasMore: false },
+    })
+    render(
+      <KhQueueBoard
+        queues={queues}
+        accessRole="admin"
+        userId={SELF}
+        paging={{
+          hasMore: false,
+          loadingMore: false,
+          loadError: false,
+          onLoadMore: () => undefined,
+        }}
+        onJoin={() => undefined}
+        onLeave={() => undefined}
+        onIssue={() => undefined}
+        onRepeat={onRepeat}
+      />,
+    )
+
+    const checkbox = screen.getByRole('checkbox', {
+      name: 'После выдачи снова встать в очередь',
+    })
+    expect(checkbox.closest('[data-queue-entry]')).toHaveClass(
+      'grid-cols-[minmax(0,1fr)_auto]',
+    )
+    await userEvent.click(checkbox)
+    expect(onRepeat).toHaveBeenCalledWith('summons', '11', true)
   })
 
   it('keeps queue columns still when hovered', () => {

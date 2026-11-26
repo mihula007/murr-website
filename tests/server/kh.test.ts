@@ -198,7 +198,7 @@ describe('kh/queues', () => {
     expect(queues.queues.summons.items).toHaveLength(0)
   })
 
-  it('allows only the master to issue and removes the active entry', async () => {
+  it('allows the master and administrator to issue and removes the active entry', async () => {
     const member = await createProfiledUser(db, 'member')
     const officer = await createProfiledUser(db, 'officer')
     const admin = await createProfiledUser(db, 'admin')
@@ -208,7 +208,7 @@ describe('kh/queues', () => {
       queueKey: 'summons',
     })
 
-    for (const user of [member, officer, admin]) {
+    for (const user of [member, officer]) {
       await expect(
         issueKhReward(deps, await actorOf(db, user.id), {
           queueKey: 'summons',
@@ -217,12 +217,21 @@ describe('kh/queues', () => {
       ).rejects.toMatchObject({ code: 'forbidden' })
     }
 
-    await issueKhReward(deps, await actorOf(db, master.id), {
+    await issueKhReward(deps, await actorOf(db, admin.id), {
       queueKey: 'summons',
       entryId: entry.entryId,
     })
+    const secondEntry = await joinKhQueue(deps, memberActor, {
+      queueKey: 'summons',
+    })
+    await issueKhReward(deps, await actorOf(db, master.id), {
+      queueKey: 'summons',
+      entryId: secondEntry.entryId,
+    })
     const queues = await listKhQueues(deps, memberActor, {})
     expect(queues.queues.summons.items).toHaveLength(0)
+    const history = await khRewardHistory(deps, await actorOf(db, admin.id), {})
+    expect(history.items).toHaveLength(2)
   })
 
   it('removes queue entries in the same role change that removes access', async () => {
@@ -356,7 +365,7 @@ describe('kh/queues', () => {
     )
   })
 
-  it('lets a master remove another participant but not an administrator', async () => {
+  it('lets a master and administrator remove another participant', async () => {
     const admin = await createProfiledUser(db, 'admin')
     const master = await createProfiledUser(db, 'master')
     const member = await createProfiledUser(db, 'member')
@@ -369,11 +378,14 @@ describe('kh/queues', () => {
         queueKey: 'summons',
         entryId: entry.entryId,
       }),
-    ).rejects.toMatchObject({ code: 'forbidden' })
+    ).resolves.toEqual({ ok: true })
+    const nextEntry = await joinKhQueue(deps, await actorOf(db, member.id), {
+      queueKey: 'summons',
+    })
     await expect(
       removeKhQueueEntry(deps, await actorOf(db, master.id), {
         queueKey: 'summons',
-        entryId: entry.entryId,
+        entryId: nextEntry.entryId,
       }),
     ).resolves.toEqual({ ok: true })
   })

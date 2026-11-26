@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { KH_QUEUE_IDS, type KhQueuesResponse } from '@contracts/kh'
+import { AppError } from '@/lib/errors'
 import {
   useJoinKhQueue,
   useLeaveKhQueue,
@@ -11,9 +12,11 @@ import {
 
 const mocks = vi.hoisted(() => ({
   callApi: vi.fn<(route: string, body: unknown) => Promise<unknown>>(),
+  toast: vi.fn<(message: string) => void>(),
 }))
 
 vi.mock('@/lib/supabase/api', () => ({ callApi: mocks.callApi }))
+vi.mock('@/components/ui/toaster', () => ({ toast: mocks.toast }))
 
 const settingsKey = ['kh', 'settings']
 
@@ -62,6 +65,7 @@ function renderActions(client: QueryClient) {
 
 afterEach(() => {
   mocks.callApi.mockReset()
+  mocks.toast.mockReset()
 })
 
 describe('КХ queue actions', () => {
@@ -162,6 +166,45 @@ describe('КХ queue actions', () => {
       maxActiveQueues: 1,
       activeQueueCount: 0,
     })
+    client.clear()
+  })
+
+  it('refreshes the queue and settings after a join conflicts with the limit', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const queues: KhQueuesResponse = {
+      queues: Object.fromEntries(
+        KH_QUEUE_IDS.map((queueKey) => [
+          queueKey,
+          { items: [], nextCursor: null },
+        ]),
+      ) as unknown as KhQueuesResponse['queues'],
+    }
+    client.setQueryData(['kh', 'queues'], {
+      pages: [queues],
+      pageParams: [null],
+    })
+    client.setQueryData(settingsKey, {
+      maxActiveQueues: 1,
+      activeQueueCount: 0,
+    })
+    mocks.callApi.mockRejectedValue(new AppError('state_conflict'))
+    renderActions(client)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Встать' }))
+
+    await waitFor(() =>
+      expect(mocks.toast).toHaveBeenCalledWith(
+        'Лимит очередей достигнут. Список обновлён.',
+      ),
+    )
+    expect(client.getQueryData(settingsKey)).toEqual({
+      maxActiveQueues: 1,
+      activeQueueCount: 0,
+    })
+    expect(client.getQueryState(['kh', 'settings'])?.isInvalidated).toBe(true)
+    expect(client.getQueryState(['kh', 'queues'])?.isInvalidated).toBe(true)
     client.clear()
   })
 })
