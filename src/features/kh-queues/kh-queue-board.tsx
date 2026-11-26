@@ -31,7 +31,11 @@ type KhQueueBoardProps = {
   onLeave: (queueKey: KhQueueId, entryId: string) => void
   onIssue: (queueKey: KhQueueId, entryId: string) => void
   onRemove?: (queueKey: KhQueueId, entryId: string) => void
-  onRepeat?: (queueKey: KhQueueId, entryId: string, autoRejoin: boolean) => void
+  onRepeat?: (
+    queueKey: KhQueueId,
+    entryId: string,
+    autoRejoin: boolean,
+  ) => void | Promise<unknown>
   maxActiveQueues?: number
   activeQueueCount?: number
 }
@@ -50,6 +54,9 @@ export function KhQueueBoard({
   activeQueueCount = 0,
 }: KhQueueBoardProps) {
   const [expandedQueue, setExpandedQueue] = useState<KhQueueId | null>(null)
+  const [repeatOverrides, setRepeatOverrides] = useState<
+    Record<string, boolean>
+  >({})
   const canJoin =
     accessRole === 'member' ||
     accessRole === 'officer' ||
@@ -135,10 +142,22 @@ export function KhQueueBoard({
                 type="checkbox"
                 className="size-3 accent-primary"
                 aria-label="После выдачи снова встать в очередь"
-                checked={entry.autoRejoin}
-                onChange={(event) =>
-                  onRepeat(queueKey, entry.id, event.currentTarget.checked)
-                }
+                checked={repeatOverrides[entry.id] ?? entry.autoRejoin}
+                onChange={(event) => {
+                  const autoRejoin = event.currentTarget.checked
+                  setRepeatOverrides((current) => ({
+                    ...current,
+                    [entry.id]: autoRejoin,
+                  }))
+                  void Promise.resolve(onRepeat(queueKey, entry.id, autoRejoin))
+                    .then(() => undefined)
+                    .catch(() => {
+                      setRepeatOverrides((current) => ({
+                        ...current,
+                        [entry.id]: entry.autoRejoin,
+                      }))
+                    })
+                }}
               />
             </label>
           ) : null}

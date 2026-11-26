@@ -62,7 +62,7 @@ export function KhQueuesPage() {
       onIssue={(queueKey, entryId) => issue.mutate({ queueKey, entryId })}
       onRemove={(queueKey, entryId) => remove.mutate({ queueKey, entryId })}
       onRepeat={(queueKey, entryId, autoRejoin) =>
-        repeat.mutate({ queueKey, entryId, autoRejoin })
+        repeat.mutateAsync({ queueKey, entryId, autoRejoin })
       }
     />
   )

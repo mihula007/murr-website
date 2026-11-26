@@ -320,6 +320,7 @@ describe('KhQueueBoard', () => {
       expect(primary).toContainElement(nickname ?? null)
       await userEvent.click(checkbox)
       expect(onRepeat).toHaveBeenCalledWith('summons', '7', true)
+      expect(checkbox).toBeChecked()
       expect(
         screen.getByText('Занято ячеек: 1 из 1 · лимит достигнут'),
       ).toBeInTheDocument()
