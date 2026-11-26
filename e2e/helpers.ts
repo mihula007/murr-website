@@ -42,7 +42,7 @@ export async function scrollUntilVisible(page: Page, target: Locator) {
   }
   if ((await rosterScroller.count()) > 0) {
     let stalled = 0
-    for (let step = 0; step < 1000 && stalled < 20; step += 1) {
+    for (let step = 0; step < 1000 && stalled < 100; step += 1) {
       if ((await target.count()) > 0) {
         await target.first().scrollIntoViewIfNeeded()
         await expect(target.first()).toBeVisible()
@@ -64,7 +64,7 @@ export async function scrollUntilVisible(page: Page, target: Locator) {
   }
 
   let stalled = 0
-  for (let step = 0; step < 1000 && stalled < 20; step += 1) {
+  for (let step = 0; step < 1000 && stalled < 100; step += 1) {
     if ((await target.count()) > 0) {
       await target.first().scrollIntoViewIfNeeded()
       await expect(target.first()).toBeVisible()

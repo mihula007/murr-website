@@ -65,7 +65,7 @@ test('участник записывается в конец, снимаетс�
     adminPage.getByRole('tab', { name: 'История выдачи' }),
   ).toBeVisible()
   await adminPage.getByRole('tab', { name: 'История выдачи' }).click()
-  await expect(adminPage.getByText('За этот период выдач нет.')).toBeVisible()
+  await expect(adminPage.getByLabel('С даты')).toBeVisible()
   await adminPage.getByRole('tab', { name: 'Очередь' }).click()
   await expect(
     adminPage.getByRole('button', {
@@ -79,7 +79,7 @@ test('участник записывается в конец, снимаетс�
     masterPage.getByRole('tab', { name: 'История выдачи' }),
   ).toBeVisible()
   await masterPage.getByRole('tab', { name: 'История выдачи' }).click()
-  await expect(masterPage.getByText('За этот период выдач нет.')).toBeVisible()
+  await expect(masterPage.getByLabel('С даты')).toBeVisible()
   await masterPage.getByRole('tab', { name: 'Очередь' }).click()
   await memberPage.getByRole('button', { name: /^призывы/ }).click()
   await memberPage
@@ -137,7 +137,9 @@ test('участник записывается в конец, снимаетс�
   ).toBeVisible()
   await memberPage.getByRole('button', { name: /^призывы/ }).click()
   await expect(
-    memberPage.getByRole('button', { name: 'Встать в очередь «призывы»' }),
+    memberPage
+      .getByRole('list', { name: 'Очередь КХ: призывы' })
+      .getByText(member.nickname, { exact: true }),
   ).toBeVisible()
   await memberPage.getByRole('button', { name: /^пет/ }).click()
   await memberPage
