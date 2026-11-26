@@ -165,3 +165,35 @@
 - [x] Keep the repeat checkbox at the left, nickname in the middle, and issue/remove buttons at the right on one row.
 - [x] Allow long nicknames to wrap within their grid area without covering controls.
 - [x] Run focused queue component tests, type/style/format checks; do not run local e2e.
+
+### Task 9: Прокрутка и центрирование строки очереди
+
+**Files:**
+
+- Modify: `src/features/kh-queues/kh-queue-board.tsx`, `tests/kh-queues.test.tsx`
+- Update: `docs/requirements/25-kh-queue.md`, `docs/architecture/module-decisions.md`
+
+- [x] Prevent browser scroll anchoring from shifting the page when a queue entry changes.
+- [x] Center the member/officer nickname and repeat checkbox in the cell.
+- [x] Run focused queue checks; do not run local e2e.
+
+### Task 10: Устойчивость прокрутки и выравнивание действий
+
+**Files:**
+
+- Modify: `src/features/kh-queues/kh-queue-board.tsx`, `src/features/kh-queues/kh-queues-page.tsx`, `tests/kh-queues.test.tsx`
+- Update: `docs/requirements/25-kh-queue.md`, `docs/architecture/module-decisions.md`
+
+- [x] Keep list height stable while free buttons are hidden at the participant limit.
+- [x] Align administrator/master nicknames left and controls right.
+- [x] Run focused queue checks; do not run local e2e.
+
+### Task 11: Не менять прокрутку при любом нажатии
+
+**Files:**
+
+- Modify: `src/features/kh-queues/kh-queues-page.tsx`
+- Verify: queue component and queue mutation tests.
+
+- [x] Remove the page-wide click handler that schedules scroll restoration for every button.
+- [x] Keep scroll preservation scoped to queue mutations and verify focused checks.

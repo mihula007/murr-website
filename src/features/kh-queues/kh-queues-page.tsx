@@ -20,10 +20,6 @@ import {
 import { KhQueueBoard, type KhQueueBoardData } from './kh-queue-board'
 import { KhHistoryPanel } from './kh-history-panel'
 import { KhManagementPanel } from './kh-management-panel'
-import {
-  captureWindowScrollPosition,
-  restoreWindowScrollPosition,
-} from './scroll-position'
 
 export function KhQueuesPage() {
   const { role } = useAccess()
@@ -54,14 +50,7 @@ export function KhQueuesPage() {
   const data = queues.data as KhQueueBoardData
   const settingData = settings.data
   return (
-    <div
-      className="space-y-7"
-      onClickCapture={(event) => {
-        if ((event.target as HTMLElement).closest('button')) {
-          restoreWindowScrollPosition(captureWindowScrollPosition())
-        }
-      }}
-    >
+    <div className="[overflow-anchor:none] space-y-7">
       <PageHeader
         title={
           <span className="group/kh-hero flex items-center gap-3">
