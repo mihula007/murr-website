@@ -114,6 +114,7 @@ test('участник записывается в конец, снимаетс�
     .getByRole('button', { name: 'Встать в очередь «чешуя выкуп:»' })
     .click()
   await masterPage.getByRole('tab', { name: 'Очередь' }).click()
+  await masterPage.reload()
   await expect(
     masterPage.getByRole('button', {
       name: `Удалить ${queuedMember.nickname} из очереди «чешуя выкуп:»`,
