@@ -197,3 +197,13 @@
 
 - [x] Remove the page-wide click handler that schedules scroll restoration for every button.
 - [x] Keep scroll preservation scoped to queue mutations and verify focused checks.
+
+### Task 12: Сохранять раскрытую очередь на телефоне
+
+**Files:**
+
+- Modify: `src/features/kh-queues/kh-queues-page.tsx`
+- Update: `docs/requirements/25-kh-queue.md`, `docs/architecture/module-decisions.md`
+
+- [x] Keep the expanded mobile queue mounted when queue data or counts update.
+- [x] Run focused component, type, style, and format checks; do not run local e2e.

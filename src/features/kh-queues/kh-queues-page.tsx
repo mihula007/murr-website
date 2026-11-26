@@ -49,6 +49,23 @@ export function KhQueuesPage() {
   const paging = pagingOf(queues)
   const data = queues.data as KhQueueBoardData
   const settingData = settings.data
+  const queueBoard = (
+    <KhQueueBoard
+      queues={data}
+      accessRole={role}
+      {...(session.session ? { userId: session.session.user.id } : {})}
+      paging={paging}
+      maxActiveQueues={settingData.maxActiveQueues}
+      activeQueueCount={settingData.activeQueueCount}
+      onJoin={(queueKey) => join.mutate({ queueKey })}
+      onLeave={(queueKey, entryId) => leave.mutate({ queueKey, entryId })}
+      onIssue={(queueKey, entryId) => issue.mutate({ queueKey, entryId })}
+      onRemove={(queueKey, entryId) => remove.mutate({ queueKey, entryId })}
+      onRepeat={(queueKey, entryId, autoRejoin) =>
+        repeat.mutate({ queueKey, entryId, autoRejoin })
+      }
+    />
+  )
   return (
     <div className="[overflow-anchor:none] space-y-7">
       <PageHeader
@@ -99,36 +116,14 @@ export function KhQueuesPage() {
               onSave={(maxActiveQueues) => setLimit.mutate({ maxActiveQueues })}
             />
           </div>
-          <TabsContent value="queues">
-            <QueueBoard />
-          </TabsContent>
+          <TabsContent value="queues">{queueBoard}</TabsContent>
           <TabsContent value="history">
             <KhHistoryPanel />
           </TabsContent>
         </Tabs>
       ) : (
-        <QueueBoard />
+        queueBoard
       )}
     </div>
   )
-
-  function QueueBoard() {
-    return (
-      <KhQueueBoard
-        queues={data}
-        accessRole={role}
-        {...(session.session ? { userId: session.session.user.id } : {})}
-        paging={paging}
-        maxActiveQueues={settingData.maxActiveQueues}
-        activeQueueCount={settingData.activeQueueCount}
-        onJoin={(queueKey) => join.mutate({ queueKey })}
-        onLeave={(queueKey, entryId) => leave.mutate({ queueKey, entryId })}
-        onIssue={(queueKey, entryId) => issue.mutate({ queueKey, entryId })}
-        onRemove={(queueKey, entryId) => remove.mutate({ queueKey, entryId })}
-        onRepeat={(queueKey, entryId, autoRejoin) =>
-          repeat.mutate({ queueKey, entryId, autoRejoin })
-        }
-      />
-    )
-  }
 }
