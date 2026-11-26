@@ -65,10 +65,7 @@ test('участник записывается в конец, снимаетс�
     adminPage.getByRole('tab', { name: 'История выдачи' }),
   ).toBeVisible()
   await adminPage.getByRole('tab', { name: 'История выдачи' }).click()
-  await expect(adminPage.getByLabel('История выдачи наград КХ')).toBeVisible()
-  await expect(
-    adminPage.getByLabel('Прокручиваемый список: История выдачи наград КХ'),
-  ).toBeVisible()
+  await expect(adminPage.getByText('За этот период выдач нет.')).toBeVisible()
   await adminPage.getByRole('tab', { name: 'Очередь' }).click()
   await expect(
     adminPage.getByRole('button', {
@@ -82,7 +79,7 @@ test('участник записывается в конец, снимаетс�
     masterPage.getByRole('tab', { name: 'История выдачи' }),
   ).toBeVisible()
   await masterPage.getByRole('tab', { name: 'История выдачи' }).click()
-  await expect(masterPage.getByLabel('История выдачи наград КХ')).toBeVisible()
+  await expect(masterPage.getByText('За этот период выдач нет.')).toBeVisible()
   await masterPage.getByRole('tab', { name: 'Очередь' }).click()
   await memberPage.getByRole('button', { name: /^призывы/ }).click()
   await memberPage
@@ -101,6 +98,9 @@ test('участник записывается в конец, снимаетс�
   await masterPage.getByRole('tab', { name: 'История выдачи' }).click()
   const today = await masterPage.getByLabel('По дату').inputValue()
   await masterPage.getByLabel('С даты').fill(today)
+  await expect(
+    masterPage.getByLabel('Прокручиваемый список: История выдачи наград КХ'),
+  ).toBeVisible()
   await expect(
     masterPage
       .getByLabel('История выдачи наград КХ')
