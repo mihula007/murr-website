@@ -154,3 +154,14 @@
 - [x] Move the repeat checkbox to the left edge of its control row and keep action buttons on the right.
 - [x] Remove the hover bounce from queue columns.
 - [x] Run focused queue component tests, type/style/format checks; do not run local e2e.
+
+### Task 8: Ник и действия в одной строке
+
+**Files:**
+
+- Modify: `src/features/kh-queues/kh-queue-board.tsx`, `tests/kh-queues.test.tsx`
+- Update: `docs/requirements/25-kh-queue.md`, `docs/architecture/module-decisions.md`
+
+- [x] Keep the repeat checkbox at the left, nickname in the middle, and issue/remove buttons at the right on one row.
+- [x] Allow long nicknames to wrap within their grid area without covering controls.
+- [x] Run focused queue component tests, type/style/format checks; do not run local e2e.

@@ -93,8 +93,27 @@ export function KhQueueBoard({
     return (
       <div
         data-queue-entry
-        className="group/kh-entry grid min-h-9 min-w-0 grid-cols-[minmax(0,1fr)] gap-y-0.5 rounded-lg border border-border-strong/80 bg-linear-145/srgb from-surface-inset/75 to-card/65 px-1 py-1 shadow-md backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-primary/70 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none"
+        className="group/kh-entry grid min-h-9 min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-0.5 rounded-lg border border-border-strong/80 bg-linear-145/srgb from-surface-inset/75 to-card/65 px-1 py-1 shadow-md backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-primary/70 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none"
       >
+        {entry.userId === userId ? (
+          <label
+            data-entry-repeat
+            className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-full border border-border bg-card text-xs shadow"
+            title="После выдачи снова встать в очередь"
+          >
+            <input
+              type="checkbox"
+              className="size-3 accent-primary"
+              aria-label="После выдачи снова встать в очередь"
+              checked={entry.autoRejoin}
+              onChange={(event) =>
+                onRepeat(queueKey, entry.id, event.currentTarget.checked)
+              }
+            />
+          </label>
+        ) : (
+          <span aria-hidden="true" className="size-6" />
+        )}
         <span
           data-entry-nickname
           className="min-w-0 break-all text-center text-xs leading-tight"
@@ -104,24 +123,8 @@ export function KhQueueBoard({
         {hasControls ? (
           <span
             data-entry-controls
-            className="flex min-h-6 items-center justify-between gap-0.5"
+            className="flex min-h-6 items-center justify-end gap-0.5"
           >
-            {entry.userId === userId ? (
-              <label
-                className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-full border border-border bg-card text-xs shadow"
-                title="После выдачи снова встать в очередь"
-              >
-                <input
-                  type="checkbox"
-                  className="size-3 accent-primary"
-                  aria-label="После выдачи снова встать в очередь"
-                  checked={entry.autoRejoin}
-                  onChange={(event) =>
-                    onRepeat(queueKey, entry.id, event.currentTarget.checked)
-                  }
-                />
-              </label>
-            ) : null}
             <span className="flex items-center gap-0.5">
               {canIssue ? (
                 <Button

@@ -298,12 +298,14 @@ describe('KhQueueBoard', () => {
     })[0]!
     const cell = checkbox.closest('[data-queue-entry]')
     expect(cell).toHaveClass('grid')
+    const repeat = cell?.querySelector('[data-entry-repeat]')
+    const nickname = cell?.querySelector('[data-entry-nickname]')
     const controls = cell?.querySelector('[data-entry-controls]')
-    expect(controls).toContainElement(checkbox)
-    expect(controls?.firstElementChild).toBe(checkbox.parentElement)
-    expect(cell?.querySelector('[data-entry-nickname]')).not.toHaveClass(
-      'absolute',
-    )
+    expect(cell?.children).toHaveLength(3)
+    expect(cell?.children[0]).toBe(repeat)
+    expect(cell?.children[1]).toBe(nickname)
+    expect(cell?.children[2]).toBe(controls)
+    expect(repeat).toContainElement(checkbox)
     await userEvent.click(checkbox)
     expect(onRepeat).toHaveBeenCalledWith('summons', '7', true)
     expect(
