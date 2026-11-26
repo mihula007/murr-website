@@ -89,13 +89,39 @@ export function KhQueueBoard({
         </Button>
       )
     }
+    const hasControls = canIssue || canRemove || entry.userId === userId
     return (
-      <div className="group/kh-entry relative flex min-h-9 min-w-0 items-center gap-0.5 rounded-lg border border-border-strong/80 bg-linear-145/srgb from-surface-inset/75 to-card/65 px-1 py-1 shadow-md backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-primary/70 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none">
-        <span className="min-w-0 flex-1 break-all text-center text-xs leading-tight">
+      <div
+        data-queue-entry
+        className="group/kh-entry grid min-h-9 min-w-0 grid-cols-[minmax(0,1fr)] gap-y-0.5 rounded-lg border border-border-strong/80 bg-linear-145/srgb from-surface-inset/75 to-card/65 px-1 py-1 shadow-md backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-primary/70 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none"
+      >
+        <span
+          data-entry-nickname
+          className="min-w-0 break-all text-center text-xs leading-tight"
+        >
           {entry.gameNickname}
         </span>
-        {canIssue || canRemove || entry.userId === userId ? (
-          <span className="absolute right-0.5 flex -translate-y-1/2 items-center gap-0.5 top-1/2">
+        {hasControls ? (
+          <span
+            data-entry-controls
+            className="flex min-h-6 items-center justify-end gap-0.5"
+          >
+            {entry.userId === userId ? (
+              <label
+                className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-full border border-border bg-card text-xs shadow"
+                title="После выдачи снова встать в очередь"
+              >
+                <input
+                  type="checkbox"
+                  className="size-3 accent-primary"
+                  aria-label="После выдачи снова встать в очередь"
+                  checked={entry.autoRejoin}
+                  onChange={(event) =>
+                    onRepeat(queueKey, entry.id, event.currentTarget.checked)
+                  }
+                />
+              </label>
+            ) : null}
             {canIssue ? (
               <Button
                 type="button"
@@ -133,22 +159,6 @@ export function KhQueueBoard({
               </Button>
             ) : null}
           </span>
-        ) : null}
-        {entry.userId === userId ? (
-          <label
-            className="absolute -top-1 -left-1 z-10 flex size-5 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-xs shadow"
-            title="После выдачи снова встать в очередь"
-          >
-            <input
-              type="checkbox"
-              className="size-3 accent-primary"
-              aria-label="После выдачи снова встать в очередь"
-              checked={entry.autoRejoin}
-              onChange={(event) =>
-                onRepeat(queueKey, entry.id, event.currentTarget.checked)
-              }
-            />
-          </label>
         ) : null}
       </div>
     )
@@ -188,6 +198,7 @@ export function KhQueueBoard({
             hasMore: queue.hasMore,
           }}
           showLoadMore={false}
+          preserveWindowPositionOnResize={false}
           gap="sm"
         />
       </section>
@@ -263,6 +274,7 @@ export function KhQueueBoard({
                     renderItem={renderCell}
                     label={`Очередь КХ: ${KH_QUEUE_LABELS[queueKey]}`}
                     estimateSize={46}
+                    preserveWindowPositionOnResize={false}
                     paging={{ ...paging, hasMore: queue.hasMore }}
                   />
                 </div>

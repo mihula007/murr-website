@@ -125,3 +125,21 @@
 - [x] **Step 3: Commit implementation with a Conventional Commit message** before manual review, as required by the project workflow.
 - [x] **Step 4: Run `npm run review:prepare`** after server checks to restore review data.
 - [x] **Step 5: Do not run local e2e**; CI runs all e2e after the release step 6 push.
+
+### Task 6: Исправления по ручному просмотру
+
+**Files:**
+
+- Modify: `src/components/virtual-list.tsx`, `src/features/kh-queues/api.ts`, `src/features/kh-queues/kh-queue-board.tsx`, `src/features/kh-queues/kh-queues-page.tsx`, `src/features/kh-queues/kh-management-panel.tsx`
+- Modify: `tests/kh-queues-api.test.tsx`, `tests/kh-queues.test.tsx`, `tests/kh-management-panel.test.tsx`
+- Update: `docs/requirements/25-kh-queue.md`, `docs/architecture/module-decisions.md`
+
+**Confirmed feedback:**
+
+- Queue actions must keep the page scroll position. Queue counts and free cells update immediately after joining or leaving.
+- Long nicknames and their repeat/action controls must occupy separate rows.
+- The compact limit control belongs beside the tabs, directly after the page description.
+
+- [x] Add focused tests for immediate occupancy updates, scroll preservation, non-overlapping queue controls, and compact limit placement.
+- [x] Fix scroll correction in the queue virtualizers, mutation cache updates, control layout, and tab-row placement.
+- [x] Run focused Vitest checks, type/style checks, lint and secret checks; do not run local e2e.

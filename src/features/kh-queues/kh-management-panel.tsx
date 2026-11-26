@@ -3,7 +3,6 @@ import { z } from 'zod'
 import { focusFirstInvalid } from '@/components/form/focus-first-invalid'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
-import { Card } from '@/components/ui/surfaces'
 
 const capSchema = z.object({ value: z.number().int().min(1).max(14) })
 
@@ -22,9 +21,12 @@ export function KhManagementPanel({
       onSave(capSchema.parse(formValue).value),
   })
   return (
-    <Card className="my-4 flex flex-wrap items-end gap-3 p-4">
+    <section
+      aria-label="Настройка лимита очередей"
+      className="flex flex-wrap items-center rounded-lg border border-border/70 bg-surface-inset px-3 py-2"
+    >
       <form
-        className="flex flex-wrap items-end gap-3"
+        className="flex flex-wrap items-center gap-2"
         onSubmit={(event) => {
           event.preventDefault()
           void form.handleSubmit()
@@ -34,12 +36,13 @@ export function KhManagementPanel({
           {(field) => (
             <label
               htmlFor="kh-queue-cap"
-              className="flex flex-col gap-2 text-sm text-muted-foreground"
+              className="text-xs text-muted-foreground"
             >
               Ячеек на участника
               <Select
                 id="kh-queue-cap"
                 aria-label="Лимит очередей на участника"
+                className="w-16 min-h-9 px-2 py-1 text-sm"
                 value={String(field.state.value)}
                 onValueChange={(next) => field.handleChange(Number(next))}
                 options={Array.from({ length: 14 }, (_, index) => ({
@@ -50,8 +53,10 @@ export function KhManagementPanel({
             </label>
           )}
         </form.Field>
-        <Button type="submit">Сохранить лимит</Button>
+        <Button type="submit" size="sm">
+          Сохранить лимит
+        </Button>
       </form>
-    </Card>
+    </section>
   )
 }

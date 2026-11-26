@@ -8,6 +8,11 @@ import type { KhQueueId, KhQueuePage, KhQueuesResponse } from '@contracts/kh'
 import type { KhRewardHistoryResponse } from '@contracts/kh'
 import { KH_QUEUE_IDS } from '@contracts/kh'
 import { callApi } from '@/lib/supabase/api'
+import {
+  captureWindowScrollPosition,
+  restoreWindowScrollPosition,
+  type WindowScrollPosition,
+} from './scroll-position'
 
 type Cursors = Partial<Record<KhQueueId, string>>
 type PageParam = Cursors | null
@@ -56,8 +61,42 @@ function useKhAction(route: string) {
         queueKey: input.queueKey,
         ...(input.entryId ? { entryId: input.entryId } : {}),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['kh', 'queues'] }),
+    onMutate: async () => {
+      const scrollPosition = captureWindowScrollPosition()
+      await queryClient.cancelQueries({ queryKey: ['kh', 'settings'] })
+      const previousSettings = queryClient.getQueryData<KhSettings>([
+        'kh',
+        'settings',
+      ])
+      if (previousSettings && route === 'kh/join') {
+        queryClient.setQueryData<KhSettings>(['kh', 'settings'], {
+          ...previousSettings,
+          activeQueueCount: Math.min(
+            previousSettings.activeQueueCount + 1,
+            previousSettings.maxActiveQueues,
+          ),
+        })
+      } else if (previousSettings && route === 'kh/leave') {
+        queryClient.setQueryData<KhSettings>(['kh', 'settings'], {
+          ...previousSettings,
+          activeQueueCount: Math.max(previousSettings.activeQueueCount - 1, 0),
+        })
+      }
+      return { scrollPosition, previousSettings }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previousSettings) {
+        queryClient.setQueryData(['kh', 'settings'], context.previousSettings)
+      }
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['kh', 'queues'] }),
+        queryClient.invalidateQueries({ queryKey: ['kh', 'settings'] }),
+      ])
+    },
+    onSettled: (_data, _error, _input, context) =>
+      restoreWindowScrollPosition(context?.scrollPosition),
   })
 }
 
@@ -83,16 +122,52 @@ export function useKhQueueSettings() {
   })
 }
 
+type KhSettings = { maxActiveQueues: number; activeQueueCount: number }
+
+type KhSettingsMutationContext = {
+  scrollPosition: WindowScrollPosition
+  previousSettings: KhSettings | undefined
+}
+
 function useKhSettingsMutation(route: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: Record<string, unknown>) => callApi(route, input),
+    onMutate: async (input) => {
+      const scrollPosition = captureWindowScrollPosition()
+      await queryClient.cancelQueries({ queryKey: ['kh', 'settings'] })
+      const previousSettings = queryClient.getQueryData<KhSettings>([
+        'kh',
+        'settings',
+      ])
+      if (
+        previousSettings &&
+        route === 'kh/set-limit' &&
+        typeof input.maxActiveQueues === 'number'
+      ) {
+        queryClient.setQueryData<KhSettings>(['kh', 'settings'], {
+          ...previousSettings,
+          maxActiveQueues: input.maxActiveQueues,
+        })
+      }
+      return {
+        scrollPosition,
+        previousSettings,
+      } satisfies KhSettingsMutationContext
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previousSettings) {
+        queryClient.setQueryData(['kh', 'settings'], context.previousSettings)
+      }
+    },
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['kh', 'settings'] }),
         queryClient.invalidateQueries({ queryKey: ['kh', 'queues'] }),
       ])
     },
+    onSettled: (_data, _error, _input, context) =>
+      restoreWindowScrollPosition(context?.scrollPosition),
   })
 }
 

@@ -20,6 +20,10 @@ import {
 import { KhQueueBoard, type KhQueueBoardData } from './kh-queue-board'
 import { KhHistoryPanel } from './kh-history-panel'
 import { KhManagementPanel } from './kh-management-panel'
+import {
+  captureWindowScrollPosition,
+  restoreWindowScrollPosition,
+} from './scroll-position'
 
 export function KhQueuesPage() {
   const { role } = useAccess()
@@ -50,7 +54,14 @@ export function KhQueuesPage() {
   const data = queues.data as KhQueueBoardData
   const settingData = settings.data
   return (
-    <div className="space-y-7">
+    <div
+      className="space-y-7"
+      onClickCapture={(event) => {
+        if ((event.target as HTMLElement).closest('button')) {
+          restoreWindowScrollPosition(captureWindowScrollPosition())
+        }
+      }}
+    >
       <PageHeader
         title={
           <span className="group/kh-hero flex items-center gap-3">
@@ -89,15 +100,17 @@ export function KhQueuesPage() {
       ) : null}
       {canManage ? (
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList aria-label="Раздел КХ">
-            <TabsTrigger value="queues">Очередь</TabsTrigger>
-            <TabsTrigger value="history">История выдачи</TabsTrigger>
-          </TabsList>
-          <TabsContent value="queues">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border">
+            <TabsList aria-label="Раздел КХ" className="border-0">
+              <TabsTrigger value="queues">Очередь</TabsTrigger>
+              <TabsTrigger value="history">История выдачи</TabsTrigger>
+            </TabsList>
             <KhManagementPanel
               value={settingData.maxActiveQueues}
               onSave={(maxActiveQueues) => setLimit.mutate({ maxActiveQueues })}
             />
+          </div>
+          <TabsContent value="queues">
             <QueueBoard />
           </TabsContent>
           <TabsContent value="history">

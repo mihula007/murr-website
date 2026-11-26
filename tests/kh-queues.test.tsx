@@ -296,6 +296,14 @@ describe('KhQueueBoard', () => {
     const checkbox = screen.getAllByRole('checkbox', {
       name: 'После выдачи снова встать в очередь',
     })[0]!
+    const cell = checkbox.closest('[data-queue-entry]')
+    expect(cell).toHaveClass('grid')
+    expect(cell?.querySelector('[data-entry-controls]')).toContainElement(
+      checkbox,
+    )
+    expect(cell?.querySelector('[data-entry-nickname]')).not.toHaveClass(
+      'absolute',
+    )
     await userEvent.click(checkbox)
     expect(onRepeat).toHaveBeenCalledWith('summons', '7', true)
     expect(

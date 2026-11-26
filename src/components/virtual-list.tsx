@@ -105,12 +105,15 @@ export function useWindowList({
   gap,
   getItemKey,
   paging,
+  preserveWindowPositionOnResize = true,
 }: {
   count: number
   estimateSize: number
   gap: number
   getItemKey: (index: number) => string
   paging: Paging
+  /** Не корректировать глобальную прокрутку после изменения высоты строки. */
+  preserveWindowPositionOnResize?: boolean
 }) {
   const [element, setListElement] = useState<HTMLElement | null>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
@@ -142,6 +145,9 @@ export function useWindowList({
     overscan: 4,
     scrollMargin,
     getItemKey,
+    ...(preserveWindowPositionOnResize
+      ? {}
+      : { shouldAdjustScrollPositionOnItemSizeChange: () => false }),
   })
   const items = virtualizer.getVirtualItems()
   const first = items[0]
@@ -350,6 +356,8 @@ type VirtualListProps<T> = {
   gap?: keyof typeof GAP
   /** Скрыть внутреннюю догрузку, когда она общая для нескольких колонок. */
   showLoadMore?: boolean
+  /** Для нескольких списков на одной странице отключает взаимные поправки окна. */
+  preserveWindowPositionOnResize?: boolean
 }
 
 /** Виртуализированный список или сетка карточек с догрузкой страниц. */
@@ -364,6 +372,7 @@ export function VirtualList<T>({
   gridClassName,
   gap = 'sm',
   showLoadMore = true,
+  preserveWindowPositionOnResize = true,
 }: VirtualListProps<T>) {
   const rowCount = Math.ceil(items.length / columns)
   const {
@@ -381,6 +390,7 @@ export function VirtualList<T>({
       return item ? getKey(item) : String(index)
     },
     paging,
+    preserveWindowPositionOnResize,
   })
 
   // Список — CSS-сетка без обёрток строк: элементы видимых строк идут
