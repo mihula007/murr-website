@@ -322,6 +322,7 @@ test('шаблон редактируется, фильтруется по кл�
     }),
   ).toHaveText(free.nickname)
 
+  await editDialog.getByRole('button', { name: 'Отмена' }).click()
   await library.getByRole('button', { name: 'Закрыть' }).click()
   await page.setViewportSize({ width: 375, height: 812 })
   await page.getByRole('button', { name: 'Шаблоны групп' }).click()
