@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { EventDetails } from '@contracts/events'
 import {
   GROUP_LIMITS,
-  type GroupTemplate,
+  type GroupTemplateCatalogItem,
   type SaveGroupTemplateRequest,
 } from '@contracts/groups'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
@@ -21,9 +21,13 @@ import { errorMessage, type AppError } from '@/lib/errors'
 import {
   useApplyGroupTemplate,
   useDeleteGroupTemplate,
-  useGroupTemplates,
+  useGroupTemplateCatalog,
+  useGroupTemplate,
 } from '../groups-api'
-import { GroupTemplateBuilder } from './group-template-builder'
+import {
+  GroupTemplateBuilder,
+  type TemplateBuilderPerson,
+} from './group-template-builder'
 import { useAccess } from '@/app/access'
 
 type GroupTemplatesDialogProps = {
@@ -33,20 +37,34 @@ type GroupTemplatesDialogProps = {
   event?: EventDetails
 }
 
-function peopleCount(template: GroupTemplate) {
-  return template.groups.reduce((sum, group) => sum + group.members.length, 0)
+type BuildingState = {
+  initial: SaveGroupTemplateRequest
+  people: TemplateBuilderPerson[]
 }
 
 /** Текущее распределение события как начальные данные конструктора (GRP-14). */
-function fromEvent(event: EventDetails): SaveGroupTemplateRequest {
+function fromEvent(event: EventDetails): BuildingState {
   return {
-    name: event.title,
-    groups: event.groups.map((group) => ({
-      name: group.name,
-      members: group.members.map((member) => ({
-        userId: member.userId,
-        isLeader: member.isLeader,
+    initial: {
+      name: event.title,
+      groups: event.groups.map((group) => ({
+        name: group.name,
+        members: group.members.map((member) => ({
+          userId: member.userId,
+          isLeader: member.isLeader,
+        })),
       })),
+    },
+    people: event.participants.map((person) => ({
+      id: person.id,
+      gameNickname: person.gameNickname,
+      classId: person.classId,
+      className: person.className,
+      pa: person.pa ?? null,
+      pz: person.pz ?? null,
+      bu: person.bu ?? null,
+      hp: person.hp ?? null,
+      bd: person.bd ?? null,
     })),
   }
 }
@@ -63,18 +81,22 @@ export function GroupTemplatesDialog({
   const { hasOfficerPermission } = useAccess()
   const canManageTemplates = hasOfficerPermission('groups.templates')
   const canManageGroups = hasOfficerPermission('groups.manage')
-  const templates = useGroupTemplates(open)
+  const templates = useGroupTemplateCatalog(open)
   const apply = useApplyGroupTemplate()
   const remove = useDeleteGroupTemplate()
-  const [building, setBuilding] = useState<SaveGroupTemplateRequest | null>(
+  const [building, setBuilding] = useState<BuildingState | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const editing = useGroupTemplate(editingId, editingId !== null)
+  const [applying, setApplying] = useState<GroupTemplateCatalogItem | null>(
     null,
   )
-  const [applying, setApplying] = useState<GroupTemplate | null>(null)
-  const [deleting, setDeleting] = useState<GroupTemplate | null>(null)
+  const [deleting, setDeleting] = useState<GroupTemplateCatalogItem | null>(
+    null,
+  )
   const count = templates.data?.items.length ?? 0
   const full = count >= GROUP_LIMITS.templates
 
-  async function applyNow(template: GroupTemplate) {
+  async function applyNow(template: GroupTemplateCatalogItem) {
     if (!event) {
       return
     }
@@ -86,7 +108,7 @@ export function GroupTemplatesDialog({
     onOpenChange(false)
   }
 
-  function chooseApply(template: GroupTemplate) {
+  function chooseApply(template: GroupTemplateCatalogItem) {
     if (event && event.groups.length > 0) {
       setApplying(template)
       return
@@ -120,7 +142,7 @@ export function GroupTemplatesDialog({
               {template.name}
             </h3>
             <p className="m-0 text-sm text-muted-foreground">
-              Групп: {template.groups.length} · людей: {peopleCount(template)} ·
+              Групп: {template.groupCount} · людей: {template.memberCount} ·
               автор: {template.createdBy?.gameNickname ?? 'Пользователь удалён'}
             </p>
             <div className="grid grid-cols-2 gap-2 max-xs:grid-cols-1">
@@ -133,6 +155,16 @@ export function GroupTemplatesDialog({
                   onClick={() => chooseApply(template)}
                 >
                   Применить
+                </Button>
+              ) : null}
+              {canManageTemplates ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setEditingId(template.id)}
+                >
+                  Изменить
                 </Button>
               ) : null}
               {canManageTemplates ? (
@@ -155,7 +187,10 @@ export function GroupTemplatesDialog({
 
   return (
     <>
-      <Dialog open={open && building === null} onOpenChange={onOpenChange}>
+      <Dialog
+        open={open && building === null && editingId === null}
+        onOpenChange={onOpenChange}
+      >
         <DialogContent className="w-[min(calc(100vw-28px),560px)]">
           <DialogTitle>Шаблоны групп</DialogTitle>
           <DialogDescription>
@@ -168,7 +203,9 @@ export function GroupTemplatesDialog({
               <Button
                 type="button"
                 disabled={full}
-                onClick={() => setBuilding({ name: '', groups: [] })}
+                onClick={() =>
+                  setBuilding({ initial: { name: '', groups: [] }, people: [] })
+                }
               >
                 Новый шаблон
               </Button>
@@ -195,8 +232,54 @@ export function GroupTemplatesDialog({
       </Dialog>
       {building !== null ? (
         <GroupTemplateBuilder
-          initial={building}
+          initial={building.initial}
+          initialPeople={building.people}
           onClose={() => setBuilding(null)}
+        />
+      ) : null}
+      {editingId !== null && editing.isPending ? (
+        <Dialog open onOpenChange={(next) => !next && setEditingId(null)}>
+          <DialogContent>
+            <DialogTitle>Редактировать шаблон групп</DialogTitle>
+            <LoadingState label="Загружаем шаблон…" rows={2} />
+          </DialogContent>
+        </Dialog>
+      ) : null}
+      {editingId !== null && editing.isError ? (
+        <Dialog open onOpenChange={(next) => !next && setEditingId(null)}>
+          <DialogContent>
+            <DialogTitle>Не удалось открыть шаблон</DialogTitle>
+            <ErrorState onRetry={() => void editing.refetch()} />
+          </DialogContent>
+        </Dialog>
+      ) : null}
+      {editingId !== null && editing.data ? (
+        <GroupTemplateBuilder
+          initial={{
+            id: editing.data.id,
+            name: editing.data.name,
+            groups: editing.data.groups.map((group) => ({
+              name: group.name,
+              members: group.members.map((member) => ({
+                userId: member.userId,
+                isLeader: member.isLeader,
+              })),
+            })),
+          }}
+          initialPeople={editing.data.groups.flatMap((group) =>
+            group.members.map((member) => ({
+              id: member.userId,
+              gameNickname: member.gameNickname,
+              classId: member.classId,
+              className: member.className,
+              pa: member.pa ?? null,
+              pz: member.pz ?? null,
+              bu: member.bu ?? null,
+              hp: member.hp ?? null,
+              bd: member.bd ?? null,
+            })),
+          )}
+          onClose={() => setEditingId(null)}
         />
       ) : null}
       <ConfirmActionDialog

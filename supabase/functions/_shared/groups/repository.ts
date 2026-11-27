@@ -1,8 +1,42 @@
 import { sql } from 'kysely'
 import type { Executor } from '../db/client.ts'
+import { INTERNAL_ROLES } from '../membership.ts'
 
 /** Ключ блокировки создания шаблонов групп (лимит 20 не обходится гонкой). */
 const TEMPLATES_LOCK_KEY = 7_000_001
+
+type TemplateGroupInput = {
+  name: string
+  members: { userId: string; isLeader: boolean }[]
+}
+
+async function insertTemplateGroups(
+  tx: Executor,
+  templateId: string,
+  groups: TemplateGroupInput[],
+) {
+  for (const [position, group] of groups.entries()) {
+    const row = await tx
+      .insertInto('app.group_template_groups')
+      .values({ template_id: templateId, name: group.name, position })
+      .returning('id')
+      .executeTakeFirstOrThrow()
+    if (group.members.length > 0) {
+      await tx
+        .insertInto('app.group_template_members')
+        .values(
+          group.members.map((member, index) => ({
+            template_id: templateId,
+            group_id: row.id,
+            user_id: member.userId,
+            position: index,
+            is_leader: member.isLeader,
+          })),
+        )
+        .execute()
+    }
+  }
+}
 
 export type GroupMemberRow = {
   group_id: string
@@ -323,6 +357,41 @@ export const groupRepository = {
       .execute()
   },
 
+  template(db: Executor, id: string) {
+    return db
+      .selectFrom('app.group_templates as t')
+      .leftJoin('app.profiles as author', 'author.id', 't.created_by')
+      .select(['t.id', 't.name', 'author.game_nickname as author_nickname'])
+      .where('t.id', '=', id)
+      .executeTakeFirst()
+  },
+
+  templateGroupCounts(db: Executor, templateIds: readonly string[]) {
+    if (templateIds.length === 0) {
+      return Promise.resolve([])
+    }
+    return db
+      .selectFrom('app.group_template_groups')
+      .select((eb) => ['template_id', eb.fn.countAll<string>().as('count')])
+      .where('template_id', 'in', templateIds)
+      .groupBy('template_id')
+      .execute()
+  },
+
+  templateMemberCounts(db: Executor, templateIds: readonly string[]) {
+    if (templateIds.length === 0) {
+      return Promise.resolve([])
+    }
+    return db
+      .selectFrom('app.group_template_members as m')
+      .innerJoin('app.profiles as p', 'p.id', 'm.user_id')
+      .select((eb) => ['m.template_id', eb.fn.countAll<string>().as('count')])
+      .where('m.template_id', 'in', templateIds)
+      .where('p.access_role', 'in', INTERNAL_ROLES)
+      .groupBy('m.template_id')
+      .execute()
+  },
+
   templateGroups(db: Executor, templateIds: readonly string[]) {
     if (templateIds.length === 0) {
       return Promise.resolve([])
@@ -354,6 +423,11 @@ export const groupRepository = {
         'p.class_id',
         'c.name as class_name',
         'p.access_role',
+        'p.pa',
+        'p.pz',
+        'p.bu',
+        'p.hp',
+        'p.bd',
       ])
       .where('m.template_id', 'in', templateIds)
       .orderBy('m.group_id')
@@ -374,15 +448,21 @@ export const groupRepository = {
     await sql`select pg_advisory_xact_lock(${TEMPLATES_LOCK_KEY})`.execute(tx)
   },
 
+  lockTemplate(tx: Executor, id: string) {
+    return tx
+      .selectFrom('app.group_templates')
+      .select(['id', 'name'])
+      .where('id', '=', id)
+      .forUpdate()
+      .executeTakeFirst()
+  },
+
   async createTemplate(
     tx: Executor,
     value: {
       name: string
       createdBy: string
-      groups: {
-        name: string
-        members: { userId: string; isLeader: boolean }[]
-      }[]
+      groups: TemplateGroupInput[]
     },
   ) {
     const template = await tx
@@ -390,28 +470,25 @@ export const groupRepository = {
       .values({ name: value.name, created_by: value.createdBy })
       .returning('id')
       .executeTakeFirstOrThrow()
-    for (const [position, group] of value.groups.entries()) {
-      const row = await tx
-        .insertInto('app.group_template_groups')
-        .values({ template_id: template.id, name: group.name, position })
-        .returning('id')
-        .executeTakeFirstOrThrow()
-      if (group.members.length > 0) {
-        await tx
-          .insertInto('app.group_template_members')
-          .values(
-            group.members.map((member, index) => ({
-              template_id: template.id,
-              group_id: row.id,
-              user_id: member.userId,
-              position: index,
-              is_leader: member.isLeader,
-            })),
-          )
-          .execute()
-      }
-    }
+    await insertTemplateGroups(tx, template.id, value.groups)
     return template.id
+  },
+
+  async updateTemplate(
+    tx: Executor,
+    value: { id: string; name: string; groups: TemplateGroupInput[] },
+  ) {
+    await tx
+      .updateTable('app.group_templates')
+      .set({ name: value.name })
+      .where('id', '=', value.id)
+      .returning('id')
+      .executeTakeFirstOrThrow()
+    await tx
+      .deleteFrom('app.group_template_groups')
+      .where('template_id', '=', value.id)
+      .execute()
+    await insertTemplateGroups(tx, value.id, value.groups)
   },
 
   /** Удаляет шаблон; возвращает удалённую строку или undefined. */

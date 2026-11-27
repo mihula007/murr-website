@@ -1,11 +1,15 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
-import type { AppDeps } from '../../supabase/functions/_shared/app.ts'
+import {
+  createRoutes,
+  type AppDeps,
+} from '../../supabase/functions/_shared/app.ts'
 import {
   GUEST,
   type Actor,
 } from '../../supabase/functions/_shared/auth/actor.ts'
 import type { AccessRole } from '../../supabase/functions/_shared/contracts/account.ts'
 import { moscowToUtc } from '../../supabase/functions/_shared/contracts/moscow-time.ts'
+import { saveGroupTemplateSchema } from '../../supabase/functions/_shared/contracts/groups.ts'
 import {
   closeEvent,
   createEvent,
@@ -435,6 +439,150 @@ describe('groups: moves, order and leader (GRP-04–09)', () => {
 })
 
 describe('group templates (GRP-12–15)', () => {
+  it('lists concise cards and loads selected template details with current stats', async () => {
+    const { officer, a } = await setup()
+    await db
+      .updateTable('app.profiles')
+      .set({ pa: 125.5, pz: 80, bu: null, hp: 1000, bd: 25 })
+      .where('id', '=', a.user.id)
+      .execute()
+    const saved = await saveGroupTemplate(deps, officer.actor, {
+      name: 'Основа',
+      groups: [
+        {
+          name: 'Пати',
+          members: [{ userId: a.user.id, isLeader: true }],
+        },
+      ],
+    })
+    const routes = createRoutes(deps)
+    expect(routes).toHaveProperty('group-templates/catalog')
+    expect(routes).toHaveProperty('group-templates/get')
+    const input = { actor: officer.actor, headers: new Headers() }
+    const catalog = (await routes['group-templates/catalog']!({
+      ...input,
+      body: {},
+    })) as { items: unknown[] }
+    expect(catalog.items).toEqual([
+      {
+        id: saved.items[0]!.id,
+        name: 'Основа',
+        createdBy: { gameNickname: officer.user.nickname },
+        groupCount: 1,
+        memberCount: 1,
+      },
+    ])
+    const details = (await routes['group-templates/get']!({
+      ...input,
+      body: { id: saved.items[0]!.id },
+    })) as {
+      id: string
+      groups: { members: Record<string, unknown>[] }[]
+    }
+    expect(details.groups[0]!.members[0]).toMatchObject({
+      userId: a.user.id,
+      gameNickname: a.user.nickname,
+      pa: 125.5,
+      pz: 80,
+      bu: null,
+      hp: 1000,
+      bd: 25,
+      isLeader: true,
+    })
+  })
+
+  it('updates the shared template in place without changing existing event groups', async () => {
+    const { officer, event, a, b } = await setup()
+    await respondToEvent(deps, a.actor, { eventId: event.id, answer: 'yes' })
+    const created = await saveGroupTemplate(deps, officer.actor, {
+      name: 'Основа',
+      groups: [
+        { name: 'Старая', members: [{ userId: a.user.id, isLeader: true }] },
+      ],
+    })
+    const template = created.items[0]!
+    const prior = await db
+      .selectFrom('app.group_templates')
+      .select('created_at')
+      .where('id', '=', template.id)
+      .executeTakeFirstOrThrow()
+    const eventBefore = await applyGroupTemplate(deps, officer.actor, {
+      eventId: event.id,
+      templateId: template.id,
+    })
+
+    await saveGroupTemplate(deps, officer.actor, {
+      id: template.id,
+      name: 'Обновлённая основа',
+      groups: [
+        { name: 'Новая', members: [{ userId: b.user.id, isLeader: true }] },
+      ],
+    })
+
+    const existingApi = await listGroupTemplates(deps, officer.actor)
+    expect(existingApi.items).toHaveLength(1)
+    expect(existingApi.items[0]).toMatchObject({
+      id: template.id,
+      name: 'Обновлённая основа',
+    })
+    const after = await db
+      .selectFrom('app.group_templates')
+      .select('created_at')
+      .where('id', '=', template.id)
+      .executeTakeFirstOrThrow()
+    expect(after.created_at).toEqual(prior.created_at)
+    expect(eventBefore.groups[0]!.name).toBe('Старая')
+    expect(eventBefore.groups[0]!.members[0]!.userId).toBe(a.user.id)
+    const actions = await auditActions()
+    expect(actions).toEqual([
+      'event_created',
+      'group_template_created',
+      'group_template_updated',
+    ])
+  })
+
+  it('rejects a template group with more than 50 members', () => {
+    const members = Array.from({ length: 51 }, (_, index) => ({
+      userId: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+      isLeader: false,
+    }))
+    expect(
+      saveGroupTemplateSchema.safeParse({
+        name: 'Большая группа',
+        groups: [{ name: 'Пати', members }],
+      }).success,
+    ).toBe(false)
+  })
+
+  it('allows group managers to see the catalog but limits template details to template managers', async () => {
+    const user = await createProfiledUser(db, 'officer', {
+      officerPermissions: ['groups.manage'],
+    })
+    const manager = await actorOf(db, user.id)
+    const routes = createRoutes(deps)
+    expect(routes).toHaveProperty('group-templates/catalog')
+    expect(routes).toHaveProperty('group-templates/get')
+    const input = { actor: manager, headers: new Headers(), body: {} }
+    expect(await routes['group-templates/catalog']!(input)).toEqual({
+      items: [],
+    })
+    await rejects(routes['group-templates/get']!(input), 'forbidden')
+  })
+
+  it('returns not found when an authorized editor opens a missing template', async () => {
+    const editor = await roleActor('officer')
+    const routes = createRoutes(deps)
+    expect(routes).toHaveProperty('group-templates/get')
+    await rejects(
+      routes['group-templates/get']!({
+        actor: editor.actor,
+        headers: new Headers(),
+        body: { id: crypto.randomUUID() },
+      }),
+      'not_found',
+    )
+  })
+
   it('saves a copy, applies only «Приду» and a leader only if included', async () => {
     const { officer, event, a, b, c } = await setup()
     const saved = await saveGroupTemplate(deps, officer.actor, {

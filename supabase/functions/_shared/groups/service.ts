@@ -16,6 +16,7 @@ import {
   saveGroupTemplateSchema,
   setLeaderSchema,
   type EventGroupsResponse,
+  type GroupTemplateCatalogResponse,
   type GroupTemplate,
   type GroupTemplatesResponse,
 } from '../contracts/groups.ts'
@@ -254,15 +255,12 @@ function templateTarget(id: string) {
   return { kind: 'group_template', id }
 }
 
-/** Шаблоны с группами и участниками; выбывшие из состава не показываются. */
-async function loadTemplates(db: Executor): Promise<GroupTemplate[]> {
-  const rows = await groupRepository.templates(db, GROUP_LIMITS.templates)
-  const ids = rows.map((row) => row.id)
-  const [groups, members] = await Promise.all([
-    groupRepository.templateGroups(db, ids),
-    groupRepository.templateMembers(db, ids),
-  ])
-  return rows.map((row) => ({
+function toTemplate(
+  row: { id: string; name: string; author_nickname: string | null },
+  groups: Awaited<ReturnType<typeof groupRepository.templateGroups>>,
+  members: Awaited<ReturnType<typeof groupRepository.templateMembers>>,
+): GroupTemplate {
+  return {
     id: row.id,
     name: row.name,
     createdBy: row.author_nickname
@@ -282,10 +280,32 @@ async function loadTemplates(db: Executor): Promise<GroupTemplate[]> {
             gameNickname: member.game_nickname,
             classId: member.class_id,
             className: member.class_name,
+            pa: member.pa === null ? null : Number(member.pa),
+            pz: member.pz === null ? null : Number(member.pz),
+            bu: member.bu === null ? null : Number(member.bu),
+            hp: member.hp === null ? null : Number(member.hp),
+            bd: member.bd === null ? null : Number(member.bd),
             isLeader: member.is_leader,
           })),
       })),
-  }))
+  }
+}
+
+/** Шаблоны с группами и участниками; выбывшие из состава не показываются. */
+async function loadTemplates(db: Executor): Promise<GroupTemplate[]> {
+  const rows = await groupRepository.templates(db, GROUP_LIMITS.templates)
+  const ids = rows.map((row) => row.id)
+  const [groups, members] = await Promise.all([
+    groupRepository.templateGroups(db, ids),
+    groupRepository.templateMembers(db, ids),
+  ])
+  return rows.map((row) =>
+    toTemplate(
+      row,
+      groups.filter((group) => group.template_id === row.id),
+      members,
+    ),
+  )
 }
 
 export async function listGroupTemplates(
@@ -306,6 +326,68 @@ export async function listGroupTemplates(
     throw new ApiError('forbidden')
   }
   return { items: await loadTemplates(deps.db) }
+}
+
+/** Краткий каталог для нового клиента без загрузки участников всех шаблонов. */
+export async function listGroupTemplateCatalog(
+  deps: AppDeps,
+  actor: Actor,
+): Promise<GroupTemplateCatalogResponse> {
+  const canManageGroups = await hasOfficerPermission(
+    deps,
+    actor,
+    'groups.manage',
+  )
+  const canManageTemplates = await hasOfficerPermission(
+    deps,
+    actor,
+    'groups.templates',
+  )
+  if (!canManageGroups && !canManageTemplates) {
+    throw new ApiError('forbidden')
+  }
+  const rows = await groupRepository.templates(deps.db, GROUP_LIMITS.templates)
+  const ids = rows.map((row) => row.id)
+  const [groupCounts, memberCounts] = await Promise.all([
+    groupRepository.templateGroupCounts(deps.db, ids),
+    groupRepository.templateMemberCounts(deps.db, ids),
+  ])
+  const groupsByTemplate = new Map(
+    groupCounts.map((row) => [row.template_id, Number(row.count)]),
+  )
+  const membersByTemplate = new Map(
+    memberCounts.map((row) => [row.template_id, Number(row.count)]),
+  )
+  return {
+    items: rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      createdBy: row.author_nickname
+        ? { gameNickname: row.author_nickname }
+        : null,
+      groupCount: groupsByTemplate.get(row.id) ?? 0,
+      memberCount: membersByTemplate.get(row.id) ?? 0,
+    })),
+  }
+}
+
+/** Полные сведения одного шаблона с характеристиками для редактора. */
+export async function getGroupTemplate(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<GroupTemplate> {
+  await requireOfficerPermission(deps, actor, 'groups.templates')
+  const { id } = parseBody(groupTemplateIdSchema, body)
+  const row = await groupRepository.template(deps.db, id)
+  if (!row) {
+    throw new ApiError('not_found')
+  }
+  const [groups, members] = await Promise.all([
+    groupRepository.templateGroups(deps.db, [id]),
+    groupRepository.templateMembers(deps.db, [id]),
+  ])
+  return toTemplate(row, groups, members)
 }
 
 /**
@@ -332,22 +414,41 @@ export async function saveGroupTemplate(
     if (userIds.some((id) => !isInternal(roles.get(id)))) {
       throw new ApiError('validation_failed', { groups: 'not_member' })
     }
-    await groupRepository.lockTemplates(tx)
-    if ((await groupRepository.countTemplates(tx)) >= GROUP_LIMITS.templates) {
-      throw new ApiError('validation_failed', { limit: 'too_many' })
+    let id = input.id
+    let action = 'group_template_created'
+    let summary = 'Создание шаблона групп'
+    if (input.id) {
+      const current = await groupRepository.lockTemplate(tx, input.id)
+      if (!current) {
+        throw new ApiError('not_found')
+      }
+      await groupRepository.updateTemplate(tx, {
+        id: input.id,
+        name: input.name,
+        groups: input.groups,
+      })
+      action = 'group_template_updated'
+      summary = 'Изменение шаблона групп'
+    } else {
+      await groupRepository.lockTemplates(tx)
+      if (
+        (await groupRepository.countTemplates(tx)) >= GROUP_LIMITS.templates
+      ) {
+        throw new ApiError('validation_failed', { limit: 'too_many' })
+      }
+      id = await groupRepository.createTemplate(tx, {
+        name: input.name,
+        createdBy: manager.userId,
+        groups: input.groups,
+      })
     }
-    const id = await groupRepository.createTemplate(tx, {
-      name: input.name,
-      createdBy: manager.userId,
-      groups: input.groups,
-    })
     await writeAudit(tx, {
       category: 'events',
-      action: 'group_template_created',
-      summary: 'Создание шаблона групп',
+      action,
+      summary,
       actor: auditPerson(manager),
-      target: templateTarget(id),
-      details: { template_id: id, title: input.name },
+      target: templateTarget(id!),
+      details: { template_id: id!, title: input.name },
     })
   })
   return { items: await loadTemplates(deps.db) }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm, useStore } from '@tanstack/react-form'
 import { ArrowDown, ArrowUp, Crown, Plus, X } from 'lucide-react'
 import {
@@ -6,6 +6,10 @@ import {
   saveGroupTemplateSchema,
   type SaveGroupTemplateRequest,
 } from '@contracts/groups'
+import {
+  CHARACTER_STAT_FIELDS,
+  CHARACTER_STAT_LABELS,
+} from '@contracts/character-stats'
 import type { RosterMember } from '@contracts/roster'
 import { focusFirstInvalid } from '@/components/form/focus-first-invalid'
 import { FormError } from '@/components/form/form-error'
@@ -28,20 +32,71 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { toast } from '@/components/ui/toaster'
 import { ClassIcon } from '@/features/catalog/class-icon'
-import { useRoster } from '@/features/roster/api'
+import { useClasses } from '@/features/catalog/use-classes'
+import { pagingOf, ScrollableVirtualList } from '@/components/virtual-list'
+import { useTemplateRosterPages } from '@/features/roster/api'
+import { formatCharacterStat } from '@/features/roster/character-stats'
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard'
 import { errorMessage, fieldMessage, type AppError } from '@/lib/errors'
 import { useSaveGroupTemplate } from '../groups-api'
 
 type TemplateValues = {
+  id?: string | undefined
   name: string
   groups: { name: string; members: { userId: string; isLeader: boolean }[] }[]
 }
 
+export type TemplateBuilderPerson = Pick<
+  RosterMember,
+  | 'id'
+  | 'gameNickname'
+  | 'classId'
+  | 'className'
+  | 'pa'
+  | 'pz'
+  | 'bu'
+  | 'hp'
+  | 'bd'
+>
+
+function useDebouncedValue(value: string, delay: number) {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delay)
+    return () => window.clearTimeout(timer)
+  }, [value, delay])
+  return debounced
+}
+
+function StatValues({
+  person,
+  className,
+}: {
+  person: TemplateBuilderPerson
+  className?: string
+}) {
+  return (
+    <span
+      className={`grid grid-cols-5 gap-x-2 text-[10px] leading-tight text-muted-foreground ${className ?? ''}`}
+    >
+      {CHARACTER_STAT_FIELDS.map((field) => (
+        <span key={field} className="grid min-w-0">
+          <span>{CHARACTER_STAT_LABELS[field]}</span>
+          <strong className="font-medium text-foreground tabular-nums">
+            {formatCharacterStat(field, person[field])}
+          </strong>
+        </span>
+      ))}
+    </span>
+  )
+}
+
 function normalize(initial: SaveGroupTemplateRequest): TemplateValues {
   return {
+    id: initial.id,
     name: initial.name,
     groups: initial.groups.map((group) => ({
       name: group.name,
@@ -57,15 +112,25 @@ const iconButton = 'size-8 flex-none'
 
 type BuilderBodyProps = {
   initial: SaveGroupTemplateRequest
-  roster: RosterMember[]
+  initialPeople: TemplateBuilderPerson[]
   onClose: () => void
 }
 
-function BuilderBody({ initial, roster, onClose }: BuilderBodyProps) {
+function BuilderBody({ initial, initialPeople, onClose }: BuilderBodyProps) {
   const save = useSaveGroupTemplate()
   const [serverError, setServerError] = useState<AppError | null>(null)
   const [search, setSearch] = useState('')
-  const people = new Map(roster.map((member) => [member.id, member]))
+  const [classId, setClassId] = useState<number | null>(null)
+  const debouncedSearch = useDebouncedValue(search, 350)
+  const rosterQuery = useTemplateRosterPages({
+    classId,
+    search: debouncedSearch,
+  })
+  const classes = useClasses()
+  const roster = rosterQuery.data?.pages.flatMap((page) => page.items) ?? []
+  const people = new Map(
+    [...initialPeople, ...roster].map((member) => [member.id, member]),
+  )
 
   const form = useForm({
     defaultValues: normalize(initial),
@@ -75,7 +140,7 @@ function BuilderBody({ initial, roster, onClose }: BuilderBodyProps) {
       setServerError(null)
       try {
         await save.mutateAsync(saveGroupTemplateSchema.parse(value))
-        toast('Шаблон групп сохранён')
+        toast(initial.id ? 'Шаблон групп обновлён' : 'Шаблон групп сохранён')
         onClose()
       } catch (error) {
         setServerError(error as AppError)
@@ -93,17 +158,13 @@ function BuilderBody({ initial, roster, onClose }: BuilderBodyProps) {
   const assigned = new Set(
     groups.flatMap((group) => group.members.map((member) => member.userId)),
   )
-  const query = search.trim().toLocaleLowerCase('ru-RU')
-  const free = roster.filter(
-    (member) =>
-      !assigned.has(member.id) &&
-      (!query ||
-        `${member.gameNickname} ${member.className}`
-          .toLocaleLowerCase('ru-RU')
-          .includes(query)),
-  )
+  const free = roster.filter((member) => !assigned.has(member.id))
 
   function addTo(groupIndex: number, userId: string) {
+    if ((groups[groupIndex]?.members.length ?? 0) >= GROUP_LIMITS.members) {
+      toast(`В группе может быть не больше ${GROUP_LIMITS.members} участников`)
+      return
+    }
     update((current) =>
       current.map((group, index) =>
         index === groupIndex
@@ -210,7 +271,7 @@ function BuilderBody({ initial, roster, onClose }: BuilderBodyProps) {
             {submitted && groups.length === 0 ? (
               <FormError message="Добавьте хотя бы одну группу" />
             ) : null}
-            <div className="grid items-start gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+            <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
               <section aria-label="Группы шаблона" className="grid gap-3">
                 {groups.map((group, groupIndex) => (
                   <div
@@ -263,7 +324,10 @@ function BuilderBody({ initial, roster, onClose }: BuilderBodyProps) {
                         Добавьте участников из состава.
                       </p>
                     ) : (
-                      <ol className="m-0 grid list-none gap-1 p-0">
+                      <ol
+                        aria-label={`Участники группы ${group.name || groupIndex + 1}`}
+                        className="m-0 grid list-none gap-2 p-0"
+                      >
                         {group.members.map((member, index) => {
                           const person = people.get(member.userId)
                           const name =
@@ -271,77 +335,85 @@ function BuilderBody({ initial, roster, onClose }: BuilderBodyProps) {
                           return (
                             <li
                               key={member.userId}
-                              className="flex min-w-0 items-center gap-1.5"
+                              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-1.5 gap-y-1"
                             >
-                              <span className="w-6 text-sm font-bold text-primary tabular-nums">
-                                {index + 1}.
-                              </span>
+                              <div className="col-span-full flex min-w-0 items-center gap-1.5">
+                                <span className="w-6 flex-none text-sm font-bold text-primary tabular-nums">
+                                  {index + 1}.
+                                </span>
+                                {person ? (
+                                  <ClassIcon
+                                    classId={person.classId}
+                                    className={person.className}
+                                  />
+                                ) : null}
+                                <span className="min-w-0 flex-1 text-sm break-words">
+                                  {name}
+                                  {member.isLeader ? (
+                                    <span className="text-primary">
+                                      {' '}
+                                      — Пати лидер
+                                    </span>
+                                  ) : null}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={iconButton}
+                                  aria-pressed={member.isLeader}
+                                  aria-label={`Лидер: ${name}`}
+                                  onClick={() =>
+                                    toggleLeader(groupIndex, member.userId)
+                                  }
+                                >
+                                  <Crown size={14} aria-hidden="true" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={iconButton}
+                                  disabled={index === 0}
+                                  aria-label={`Выше: ${name}`}
+                                  onClick={() =>
+                                    moveWithin(groupIndex, index, index - 1)
+                                  }
+                                >
+                                  <ArrowUp size={14} aria-hidden="true" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={iconButton}
+                                  disabled={index === group.members.length - 1}
+                                  aria-label={`Ниже: ${name}`}
+                                  onClick={() =>
+                                    moveWithin(groupIndex, index, index + 1)
+                                  }
+                                >
+                                  <ArrowDown size={14} aria-hidden="true" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={iconButton}
+                                  aria-label={`Убрать: ${name}`}
+                                  onClick={() =>
+                                    removeMember(groupIndex, member.userId)
+                                  }
+                                >
+                                  <X size={14} aria-hidden="true" />
+                                </Button>
+                              </div>
                               {person ? (
-                                <ClassIcon
-                                  classId={person.classId}
-                                  className={person.className}
+                                <StatValues
+                                  person={person}
+                                  className="col-span-full ml-7"
                                 />
                               ) : null}
-                              <span className="min-w-0 flex-1 text-sm break-words">
-                                {name}
-                                {member.isLeader ? (
-                                  <span className="text-primary">
-                                    {' '}
-                                    — Пати лидер
-                                  </span>
-                                ) : null}
-                              </span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className={iconButton}
-                                aria-pressed={member.isLeader}
-                                aria-label={`Лидер: ${name}`}
-                                onClick={() =>
-                                  toggleLeader(groupIndex, member.userId)
-                                }
-                              >
-                                <Crown size={14} aria-hidden="true" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className={iconButton}
-                                disabled={index === 0}
-                                aria-label={`Выше: ${name}`}
-                                onClick={() =>
-                                  moveWithin(groupIndex, index, index - 1)
-                                }
-                              >
-                                <ArrowUp size={14} aria-hidden="true" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className={iconButton}
-                                disabled={index === group.members.length - 1}
-                                aria-label={`Ниже: ${name}`}
-                                onClick={() =>
-                                  moveWithin(groupIndex, index, index + 1)
-                                }
-                              >
-                                <ArrowDown size={14} aria-hidden="true" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className={iconButton}
-                                aria-label={`Убрать: ${name}`}
-                                onClick={() =>
-                                  removeMember(groupIndex, member.userId)
-                                }
-                              >
-                                <X size={14} aria-hidden="true" />
-                              </Button>
                             </li>
                           )
                         })}
@@ -363,35 +435,57 @@ function BuilderBody({ initial, roster, onClose }: BuilderBodyProps) {
                   <Plus size={16} aria-hidden="true" /> Добавить группу
                 </Button>
               </section>
-              <section aria-label="Состав клана" className="grid gap-2">
-                <Input
-                  type="search"
-                  aria-label="Поиск в составе"
-                  placeholder="Поиск по нику или классу"
-                  value={search}
-                  onChange={(change) => setSearch(change.target.value)}
-                />
-                {free.length === 0 ? (
+              <section aria-label="Состав клана" className="grid min-w-0 gap-2">
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_12rem]">
+                  <Input
+                    type="search"
+                    aria-label="Поиск в составе"
+                    placeholder="Поиск по нику или классу"
+                    value={search}
+                    onChange={(change) => setSearch(change.target.value)}
+                  />
+                  <Select
+                    aria-label="Фильтр по классу"
+                    value={classId === null ? 'all' : String(classId)}
+                    onValueChange={(value) =>
+                      setClassId(value === 'all' ? null : Number(value))
+                    }
+                    options={[
+                      { value: 'all', label: 'Все классы' },
+                      ...(classes.data ?? []).map((item) => ({
+                        value: String(item.id),
+                        label: item.name,
+                      })),
+                    ]}
+                  />
+                </div>
+                {rosterQuery.isPending ? (
+                  <LoadingState label="Загружаем состав…" rows={2} />
+                ) : rosterQuery.isError ? (
+                  <ErrorState onRetry={() => void rosterQuery.refetch()} />
+                ) : free.length === 0 && !rosterQuery.hasNextPage ? (
                   <p className="m-0 text-sm text-muted-foreground">
                     Никого нет.
                   </p>
                 ) : (
-                  <ul
-                    aria-label="Свободные участники"
-                    className="m-0 grid max-h-[360px] list-none gap-1 overflow-y-auto p-0"
-                  >
-                    {free.map((member) => (
-                      <li
-                        key={member.id}
-                        className="flex min-w-0 items-center gap-2 rounded-lg border border-border px-2 py-1"
-                      >
-                        <ClassIcon
-                          classId={member.classId}
-                          className={member.className}
-                        />
-                        <span className="min-w-0 flex-1 text-sm break-words">
-                          {member.gameNickname}
-                        </span>
+                  <ScrollableVirtualList
+                    items={free}
+                    getKey={(member) => member.id}
+                    label="Свободные участники"
+                    estimateSize={82}
+                    viewportRows={6}
+                    paging={pagingOf(rosterQuery)}
+                    renderItem={(member) => (
+                      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1 rounded-lg border border-border px-2 py-1.5">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <ClassIcon
+                            classId={member.classId}
+                            className={member.className}
+                          />
+                          <span className="min-w-0 text-sm break-words">
+                            {member.gameNickname}
+                          </span>
+                        </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -406,20 +500,27 @@ function BuilderBody({ initial, roster, onClose }: BuilderBodyProps) {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>В группу</DropdownMenuLabel>
-                            {groups.map((group, index) => (
-                              <DropdownMenuItem
-                                // oxlint-disable-next-line react/no-array-index-key
-                                key={index}
-                                onSelect={() => addTo(index, member.id)}
-                              >
-                                {group.name || `Группа ${index + 1}`}
-                              </DropdownMenuItem>
-                            ))}
+                            {groups.map((group, index) => {
+                              const full =
+                                group.members.length >= GROUP_LIMITS.members
+                              return (
+                                <DropdownMenuItem
+                                  // oxlint-disable-next-line react/no-array-index-key
+                                  key={index}
+                                  disabled={full}
+                                  onSelect={() => addTo(index, member.id)}
+                                >
+                                  {group.name || `Группа ${index + 1}`}
+                                  {full ? ' · максимум 50' : ''}
+                                </DropdownMenuItem>
+                              )
+                            })}
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      </li>
-                    ))}
-                  </ul>
+                        <StatValues person={member} className="col-span-full" />
+                      </div>
+                    )}
+                  />
                 )}
               </section>
             </div>
@@ -450,26 +551,13 @@ function BuilderBody({ initial, roster, onClose }: BuilderBodyProps) {
  */
 export function GroupTemplateBuilder({
   initial,
+  initialPeople,
   onClose,
 }: {
   initial: SaveGroupTemplateRequest
+  initialPeople: TemplateBuilderPerson[]
   onClose: () => void
 }) {
-  const roster = useRoster()
-  let content
-  if (roster.isPending) {
-    content = <LoadingState label="Загружаем состав…" rows={2} />
-  } else if (roster.isError) {
-    content = <ErrorState onRetry={() => void roster.refetch()} />
-  } else {
-    content = (
-      <BuilderBody
-        initial={initial}
-        roster={roster.data.items}
-        onClose={onClose}
-      />
-    )
-  }
   return (
     <Dialog
       open
@@ -479,13 +567,19 @@ export function GroupTemplateBuilder({
         }
       }}
     >
-      <DialogContent className="w-[min(calc(100vw-28px),880px)]">
-        <DialogTitle>Шаблон групп</DialogTitle>
+      <DialogContent className="w-[min(calc(100vw-28px),1440px)]">
+        <DialogTitle>
+          {initial.id ? 'Редактировать шаблон групп' : 'Шаблон групп'}
+        </DialogTitle>
         <DialogDescription>
           Нужны название и хотя бы одна группа. При применении шаблона в событие
           попадут только ответившие «Приду».
         </DialogDescription>
-        {content}
+        <BuilderBody
+          initial={initial}
+          initialPeople={initialPeople}
+          onClose={onClose}
+        />
       </DialogContent>
     </Dialog>
   )

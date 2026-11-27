@@ -7,4 +7,6 @@ export const eventKeys = {
   detail: (id: string) => ['events', 'detail', id] as const,
   templates: ['events', 'templates'] as const,
   groupTemplates: ['events', 'group-templates'] as const,
+  groupTemplateCatalog: ['events', 'group-template-catalog'] as const,
+  groupTemplate: (id: string) => ['events', 'group-template', id] as const,
 }

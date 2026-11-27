@@ -88,6 +88,8 @@ import {
   createGroup,
   deleteGroup,
   deleteGroupTemplate,
+  getGroupTemplate,
+  listGroupTemplateCatalog,
   listGroupTemplates,
   moveMember,
   renameGroup,
@@ -325,6 +327,10 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'groups/move': ({ actor, body }) => moveMember(deps, actor, body),
     'groups/set-leader': ({ actor, body }) => setGroupLeader(deps, actor, body),
     'group-templates/list': ({ actor }) => listGroupTemplates(deps, actor),
+    'group-templates/catalog': ({ actor }) =>
+      listGroupTemplateCatalog(deps, actor),
+    'group-templates/get': ({ actor, body }) =>
+      getGroupTemplate(deps, actor, body),
     'group-templates/save': ({ actor, body }) =>
       saveGroupTemplate(deps, actor, body),
     'group-templates/delete': ({ actor, body }) =>

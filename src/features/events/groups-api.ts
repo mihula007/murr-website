@@ -9,6 +9,8 @@ import type {
   ApplyGroupTemplateRequest,
   CreateGroupRequest,
   EventGroupsResponse,
+  GroupTemplate,
+  GroupTemplateCatalogResponse,
   GroupTemplatesResponse,
   MoveMemberRequest,
   RenameGroupRequest,
@@ -67,13 +69,36 @@ export function useGroupTemplates(enabled = true) {
   })
 }
 
+/** Краткая библиотека без загрузки составов всех шаблонов. */
+export function useGroupTemplateCatalog(enabled = true) {
+  return useQuery({
+    queryKey: eventKeys.groupTemplateCatalog,
+    queryFn: () =>
+      callApi<GroupTemplateCatalogResponse>('group-templates/catalog'),
+    enabled,
+  })
+}
+
+/** Подробности выбранного шаблона для редактирования. */
+export function useGroupTemplate(id: string | null, enabled = true) {
+  return useQuery({
+    queryKey: eventKeys.groupTemplate(id ?? ''),
+    queryFn: () => callApi<GroupTemplate>('group-templates/get', { id: id! }),
+    enabled: enabled && id !== null,
+  })
+}
+
 export function useSaveGroupTemplate() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: SaveGroupTemplateRequest) =>
       callApi<GroupTemplatesResponse>('group-templates/save', input),
-    onSuccess: (templates) =>
-      queryClient.setQueryData(eventKeys.groupTemplates, templates),
+    onSuccess: async (templates) => {
+      queryClient.setQueryData(eventKeys.groupTemplates, templates)
+      await queryClient.invalidateQueries({
+        queryKey: eventKeys.groupTemplateCatalog,
+      })
+    },
   })
 }
 
@@ -82,8 +107,12 @@ export function useDeleteGroupTemplate() {
   return useMutation({
     mutationFn: (id: string) =>
       callApi<GroupTemplatesResponse>('group-templates/delete', { id }),
-    onSuccess: (templates) =>
-      queryClient.setQueryData(eventKeys.groupTemplates, templates),
+    onSuccess: async (templates) => {
+      queryClient.setQueryData(eventKeys.groupTemplates, templates)
+      await queryClient.invalidateQueries({
+        queryKey: eventKeys.groupTemplateCatalog,
+      })
+    },
   })
 }
 

@@ -103,6 +103,8 @@ describe('api function over HTTP', () => {
       'groups/move',
       'groups/set-leader',
       'group-templates/list',
+      'group-templates/catalog',
+      'group-templates/get',
       'group-templates/save',
       'group-templates/delete',
       'group-templates/apply',

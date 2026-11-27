@@ -68,6 +68,26 @@ export function useRosterPages(filters: { classIds: number[] }) {
   })
 }
 
+/** Большой список участников конструктора шаблона с одиночным классом. */
+export function useTemplateRosterPages(filters: {
+  classId: number | null
+  search: string
+}) {
+  const search = filters.search.trim()
+  const normalized = { classId: filters.classId, search }
+  return useInfiniteQuery({
+    queryKey: rosterKeys.templatePage(normalized),
+    queryFn: ({ pageParam }) =>
+      callApi<RosterPageResponse>('roster/page', {
+        ...(normalized.classId !== null ? { classId: normalized.classId } : {}),
+        ...(search ? { search } : {}),
+        cursor: pageParam,
+      } satisfies RosterPageRequest),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+  })
+}
+
 /** Чтецы — большой список: страницы по курсору. */
 export function useReaders() {
   return useInfiniteQuery({

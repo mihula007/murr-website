@@ -246,6 +246,76 @@ test('перетаскивание участника в группу и обр�
   )
 })
 
+test('шаблон редактируется, фильтруется по классу и не меняет группы события', async ({
+  page,
+}) => {
+  test.skip(test.info().project.name !== 'chromium', 'Сценарий интерфейса')
+  const officer = await createMember('officer')
+  const [assigned, free] = await Promise.all([
+    createMember('member'),
+    createMember('member'),
+  ])
+  const event = await eventWithAnswers(officer, [[assigned, 'yes']])
+  await page.setViewportSize({ width: 1240, height: 900 })
+  await signInUi(page, officer.email)
+  await expectSignedIn(page)
+  await page.goto(`./#/events/${event.id}`)
+  await createGroup(page, 'Событийная группа')
+  await moveToGroup(page, assigned.nickname, 'Событийная группа')
+
+  await page.getByRole('button', { name: 'Шаблоны групп' }).click()
+  await page.getByRole('button', { name: 'Сохранить как шаблон' }).click()
+  const editor = page.getByRole('dialog', { name: 'Шаблон групп' })
+  await expect(editor.getByLabel('Название шаблона')).toHaveValue(event.title)
+  const desktopBox = await editor.boundingBox()
+  expect(desktopBox?.width).toBeGreaterThan(1100)
+  await expect(
+    editor.getByRole('list', {
+      name: `Участники группы Событийная группа`,
+    }),
+  ).toContainText(assigned.nickname)
+
+  await editor
+    .getByRole('searchbox', { name: 'Поиск в составе' })
+    .fill(free.nickname)
+  const classFilter = editor.getByRole('combobox', { name: 'Фильтр по классу' })
+  await classFilter.click()
+  await page.getByRole('option', { name: 'Оборотень' }).click()
+  const freePool = editor.getByRole('list', { name: 'Свободные участники' })
+  await expect(freePool).toContainText(free.nickname)
+  await expect(freePool).toContainText('ПА')
+
+  await editor.getByLabel('Название шаблона').fill('Шаблон после правки')
+  await editor
+    .getByRole('button', { name: `Добавить ${free.nickname} в группу` })
+    .click()
+  await page.getByRole('menuitem', { name: 'Событийная группа' }).click()
+  await editor.getByRole('button', { name: `Лидер: ${free.nickname}` }).click()
+  await editor.getByRole('button', { name: 'Сохранить шаблон' }).click()
+
+  const library = page.getByRole('dialog', { name: 'Шаблоны групп' })
+  await expect(library).toContainText('Шаблон после правки')
+  await library.getByRole('button', { name: 'Изменить' }).click()
+  const editDialog = page.getByRole('dialog', {
+    name: 'Редактировать шаблон групп',
+  })
+  await expect(editDialog.getByLabel('Название шаблона')).toHaveValue(
+    'Шаблон после правки',
+  )
+  await expect(
+    editDialog.getByRole('button', { name: `Лидер: ${free.nickname}` }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await expect(
+    page.getByRole('list', { name: 'Состав «Событийная группа»' }),
+  ).toContainText(assigned.nickname)
+
+  await page.setViewportSize({ width: 375, height: 812 })
+  await expect(editDialog).toBeVisible()
+  expect(await hasHorizontalScroll(page)).toBe(false)
+  const mobileBox = await editDialog.boundingBox()
+  expect(mobileBox?.width).toBeLessThanOrEqual(375)
+})
+
 test('прямые запрещённые вызовы групп и учёта отклоняются', async () => {
   test.skip(
     test.info().project.name !== 'chromium',

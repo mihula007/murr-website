@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { SMALL_LIST_LIMIT } from './paging.ts'
+import type { CharacterStatFields } from './character-stats.ts'
 
 /** Ограничения групп и шаблонов групп (GRP-03, GRP-12, GRP-13). */
 export const GROUP_LIMITS = {
@@ -7,6 +8,8 @@ export const GROUP_LIMITS = {
   templateName: 60,
   /** Группы события и шаблона — малый список (реестр списков). */
   groups: SMALL_LIST_LIMIT,
+  /** Участники одной группы шаблона — малый список. */
+  members: SMALL_LIST_LIMIT,
   /** Не больше 20 шаблонов групп (GRP-12). */
   templates: 20,
 } as const
@@ -83,6 +86,7 @@ export type SetLeaderRequest = z.input<typeof setLeaderSchema>
  */
 export const saveGroupTemplateSchema = z
   .object({
+    id: z.guid('not_found').optional(),
     name: z
       .string('required')
       .trim()
@@ -99,7 +103,7 @@ export const saveGroupTemplateSchema = z
                 isLeader: z.boolean(),
               }),
             )
-            .max(500, 'too_many'),
+            .max(GROUP_LIMITS.members, 'too_many'),
         }),
         'required',
       )
@@ -150,7 +154,7 @@ export type EventGroup = {
 /** Группы события после изменения — без повторного чтения участников. */
 export type EventGroupsResponse = { groups: EventGroup[] }
 
-export type GroupTemplateMember = {
+export type GroupTemplateMember = CharacterStatFields & {
   userId: string
   gameNickname: string
   classId: number
@@ -166,3 +170,15 @@ export type GroupTemplate = {
 }
 
 export type GroupTemplatesResponse = { items: GroupTemplate[] }
+
+export type GroupTemplateCatalogItem = {
+  id: string
+  name: string
+  createdBy: { gameNickname: string } | null
+  groupCount: number
+  memberCount: number
+}
+
+export type GroupTemplateCatalogResponse = {
+  items: GroupTemplateCatalogItem[]
+}

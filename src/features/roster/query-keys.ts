@@ -7,6 +7,8 @@ export const rosterKeys = {
   list: ['roster', 'list'] as const,
   page: (filters: { classIds: number[] }) =>
     ['roster', 'page', filters] as const,
+  templatePage: (filters: { classId: number | null; search: string }) =>
+    ['roster', 'template-page', filters] as const,
   readers: ['roster', 'readers'] as const,
   dynamics: (userId: string, period: string, fields: string[]) =>
     ['roster', 'dynamics', userId, period, fields] as const,

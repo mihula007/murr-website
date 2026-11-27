@@ -1,7 +1,18 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 import type { EventDetails, EventParticipant } from '@contracts/events'
-import type { EventGroup, GroupTemplatesResponse } from '@contracts/groups'
+import type {
+  EventGroup,
+  GroupTemplateCatalogResponse,
+} from '@contracts/groups'
 import { finalPosition } from '@/features/events/groups/event-groups'
 import { AppError } from '@/lib/errors'
 import { renderApp } from './support/render-app'
@@ -11,6 +22,26 @@ const callApi = vi.hoisted(() =>
 )
 const toast = vi.hoisted(() => vi.fn<(message: string) => void>())
 const sessionUserId = vi.hoisted(() => ({ current: null as string | null }))
+
+// jsdom не вычисляет высоту прокручиваемой области из CSS-классов; задаём
+// размеры, чтобы TanStack Virtual мог отрисовать видимые строки.
+beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    configurable: true,
+    get: () => 600,
+  })
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+    configurable: true,
+    get: () => 800,
+  })
+  HTMLElement.prototype.scrollIntoView = vi.fn<HTMLElement['scrollIntoView']>()
+})
+
+afterAll(() => {
+  Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight')
+  Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth')
+  Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
+})
 
 vi.mock('@/components/ui/toaster', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -35,6 +66,26 @@ const EVENT_ID = '33333333-3333-4333-8333-333333333333'
 const GROUP_ID = '55555555-5555-4555-8555-555555555555'
 const ANNA = '66666666-6666-4666-8666-666666666661'
 const BORIS = '66666666-6666-4666-8666-666666666662'
+const CLASS_CATALOG = {
+  classes: [
+    { id: 7, slug: 'mage', name: 'Маг' },
+    { id: 8, slug: 'warrior', name: 'Воин' },
+  ],
+}
+
+const ANNA_ROSTER = {
+  id: ANNA,
+  gameNickname: 'Анна',
+  classId: 7,
+  className: 'Маг',
+  avatarUrl: null,
+  role: 'member' as const,
+  pa: 125,
+  pz: 80,
+  bu: null,
+  hp: 1000,
+  bd: 25,
+}
 
 function person(
   id: string,
@@ -319,26 +370,14 @@ describe('closing (EVT-08)', () => {
 })
 
 describe('group templates (GRP-12, GRP-15)', () => {
-  const templates: GroupTemplatesResponse = {
+  const templates: GroupTemplateCatalogResponse = {
     items: [
       {
         id: '77777777-7777-4777-8777-777777777777',
         name: 'Основа',
         createdBy: { gameNickname: 'Офицер' },
-        groups: [
-          {
-            name: 'Пати 1',
-            members: [
-              {
-                userId: ANNA,
-                gameNickname: 'Анна',
-                classId: 7,
-                className: 'Маг',
-                isLeader: true,
-              },
-            ],
-          },
-        ],
+        groupCount: 1,
+        memberCount: 1,
       },
     ],
   }
@@ -346,7 +385,7 @@ describe('group templates (GRP-12, GRP-15)', () => {
   it('asks before replacing existing groups with a template', async () => {
     respond({
       'events/get': () => manager({ groups: [group()] }),
-      'group-templates/list': () => templates,
+      'group-templates/catalog': () => templates,
       'group-templates/apply': () => ({ groups: [group()] }),
     })
     await renderApp({ role: 'officer', path: `/events/${EVENT_ID}` })
@@ -368,6 +407,223 @@ describe('group templates (GRP-12, GRP-15)', () => {
         templateId: templates.items[0]!.id,
       }),
     )
+  })
+
+  it('loads and updates a shared template in place; cancel leaves it unchanged', async () => {
+    const templateId = templates.items[0]!.id
+    let name = 'Основа'
+    const detail = {
+      id: templateId,
+      name: 'Основа',
+      createdBy: { gameNickname: 'Офицер' },
+      groups: [
+        {
+          name: 'Передовая',
+          members: [
+            {
+              userId: ANNA,
+              gameNickname: 'Анна',
+              classId: 7,
+              className: 'Маг',
+              isLeader: true,
+              pa: 125,
+              pz: 80,
+              bu: null,
+              hp: 1000,
+              bd: 25,
+            },
+          ],
+        },
+      ],
+    }
+    respond({
+      'events/get': () => manager(),
+      'group-templates/catalog': () => ({
+        items: [{ ...templates.items[0]!, name }],
+      }),
+      'group-templates/get': () => ({ ...detail, name }),
+      'catalog/classes': () => CLASS_CATALOG,
+      'roster/page': () => ({ items: [], nextCursor: null }),
+      'group-templates/save': (body) => {
+        const input = body as { id?: string; name: string }
+        expect(input.id).toBe(templateId)
+        name = input.name
+        return { item: { ...detail, name } }
+      },
+    })
+    await renderApp({ role: 'officer', path: `/events/${EVENT_ID}` })
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Шаблоны групп' }),
+    )
+    const library = within(await screen.findByRole('dialog'))
+    fireEvent.click(await library.findByRole('button', { name: 'Изменить' }))
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith('group-templates/get', {
+        id: templateId,
+      }),
+    )
+    await screen.findByLabelText('Название шаблона', {}, { timeout: 5_000 })
+    const loadedEditor = within(
+      screen.getByRole('dialog', { name: 'Редактировать шаблон групп' }),
+    )
+    expect(
+      await loadedEditor.findByDisplayValue('Основа', {}, { timeout: 5_000 }),
+    ).toBeVisible()
+    expect(
+      await loadedEditor.findByLabelText('Группа 1', {}, { timeout: 5_000 }),
+    ).toHaveValue('Передовая')
+    expect(
+      loadedEditor.getByRole('list', { name: 'Участники группы Передовая' }),
+    ).toHaveTextContent('Анна')
+
+    fireEvent.change(loadedEditor.getByLabelText('Название шаблона'), {
+      target: { value: 'Основа обновлённая' },
+    })
+    fireEvent.click(
+      loadedEditor.getByRole('button', { name: 'Сохранить шаблон' }),
+    )
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith(
+        'group-templates/save',
+        expect.objectContaining({ id: templateId, name: 'Основа обновлённая' }),
+      ),
+    )
+    expect(await screen.findByText('Основа обновлённая')).toBeVisible()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Изменить' }))
+    await screen.findByLabelText('Название шаблона', {}, { timeout: 5_000 })
+    const loadedCancelled = within(
+      screen.getByRole('dialog', { name: 'Редактировать шаблон групп' }),
+    )
+    await loadedCancelled.findByDisplayValue('Основа обновлённая')
+    fireEvent.change(loadedCancelled.getByLabelText('Название шаблона'), {
+      target: { value: 'Черновик, который отменят' },
+    })
+    fireEvent.click(loadedCancelled.getByRole('button', { name: 'Отмена' }))
+    expect(await screen.findByText('Основа обновлённая')).toBeVisible()
+    expect(screen.queryByText('Черновик, который отменят')).toBeNull()
+  })
+
+  it('shows five stats, filters one class with server search, and adds a participant', async () => {
+    const page = vi.fn<(body: unknown) => unknown>((body: unknown) => {
+      const request = body as { classId?: number; search?: string }
+      if (request.search || request.classId) {
+        return { items: [ANNA_ROSTER], nextCursor: null }
+      }
+      return { items: [ANNA_ROSTER], nextCursor: null }
+    })
+    respond({
+      'events/get': () => manager(),
+      'group-templates/catalog': () => ({ items: [] }),
+      'catalog/classes': () => CLASS_CATALOG,
+      'roster/page': page,
+      'group-templates/save': () => ({ items: [] }),
+    })
+    await renderApp({ role: 'officer', path: `/events/${EVENT_ID}` })
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Шаблоны групп' }),
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Новый шаблон' }))
+
+    const builder = within(await screen.findByRole('dialog'))
+    const pool = await builder.findByRole('list', {
+      name: 'Свободные участники',
+    })
+    const anna = within(pool).getByText('Анна').closest('li')!
+    for (const value of ['125', '80', '—', '25']) {
+      expect(within(anna).getByText(value)).toBeVisible()
+    }
+    expect(within(anna).getByText('ХП').parentElement).toHaveTextContent(
+      '1 000',
+    )
+
+    fireEvent.click(builder.getByRole('button', { name: 'Добавить группу' }))
+    const addAnna = builder.getByRole('button', {
+      name: 'Добавить Анна в группу',
+    })
+    fireEvent.keyDown(addAnna, { key: 'Enter' })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Пати 1' }))
+    expect(await builder.findByText('Анна')).toBeVisible()
+    expect(
+      builder.getByText('ХП').parentElement?.querySelector('strong'),
+    ).toHaveTextContent(/1\s000/)
+
+    fireEvent.change(
+      builder.getByRole('searchbox', { name: 'Поиск в составе' }),
+      {
+        target: { value: 'Анна' },
+      },
+    )
+    const classFilter = builder.getByRole('combobox', {
+      name: 'Фильтр по классу',
+    })
+    fireEvent.click(classFilter)
+    fireEvent.click(await screen.findByRole('option', { name: 'Маг' }))
+    await waitFor(
+      () =>
+        expect(page).toHaveBeenCalledWith(
+          expect.objectContaining({ classId: 7, search: 'Анна', cursor: null }),
+        ),
+      { timeout: 2000 },
+    )
+  })
+
+  it('loads the next participant page and prevents adding a 51st group member', async () => {
+    const members = Array.from({ length: 50 }, (_, index) => ({
+      userId: `66666666-6666-4666-8666-${String(index + 1).padStart(12, '0')}`,
+      isLeader: false,
+    }))
+    const participants = members.map((member, index) =>
+      person(member.userId, `Состав${index + 1}`),
+    )
+    const page = vi.fn<(body: unknown) => unknown>((body: unknown) => {
+      const request = body as { cursor?: string | null }
+      return request.cursor
+        ? {
+            items: [
+              {
+                ...ANNA_ROSTER,
+                id: BORIS,
+                gameNickname: 'Борис',
+                classId: 8,
+                className: 'Воин',
+              },
+            ],
+            nextCursor: null,
+          }
+        : { items: [ANNA_ROSTER], nextCursor: 'следующая' }
+    })
+    respond({
+      'events/get': () =>
+        manager({
+          participants: [...participants, person(ANNA, 'Анна')],
+          groups: [group(members)],
+        }),
+      'group-templates/catalog': () => ({ items: [] }),
+      'catalog/classes': () => CLASS_CATALOG,
+      'roster/page': page,
+    })
+    await renderApp({ role: 'officer', path: `/events/${EVENT_ID}` })
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Шаблоны групп' }),
+    )
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Сохранить как шаблон' }),
+    )
+    const builder = within(await screen.findByRole('dialog'))
+    expect(
+      await builder.findByRole('list', { name: 'Свободные участники' }),
+    ).toHaveTextContent('Анна')
+    expect(await builder.findByText('Борис')).toBeVisible()
+    await waitFor(() =>
+      expect(page).toHaveBeenLastCalledWith({ cursor: 'следующая' }),
+    )
+
+    const add = builder.getByRole('button', { name: 'Добавить Анна в группу' })
+    fireEvent.keyDown(add, { key: 'Enter' })
+    expect(
+      await screen.findByRole('menuitem', { name: 'Пати 1 · максимум 50' }),
+    ).toHaveAttribute('aria-disabled', 'true')
   })
 })
 
