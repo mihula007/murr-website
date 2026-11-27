@@ -537,16 +537,18 @@ describe('group templates (GRP-12, GRP-15)', () => {
       '1 000',
     )
 
-    fireEvent.click(builder.getByRole('button', { name: 'Добавить группу' }))
+    fireEvent.click(builder.getByRole('button', { name: 'Создать группу' }))
     const addAnna = builder.getByRole('button', {
-      name: 'Добавить Анна в группу',
+      name: 'Действия: Анна',
     })
     fireEvent.keyDown(addAnna, { key: 'Enter' })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Пати 1' }))
     expect(await builder.findByText('Анна')).toBeVisible()
     expect(
-      builder.getByText('ХП').parentElement?.querySelector('strong'),
-    ).toHaveTextContent(/1\s000/)
+      within(
+        builder.getByRole('list', { name: 'Участники группы Пати 1' }),
+      ).queryByText(/1\s000/),
+    ).toBeNull()
 
     fireEvent.change(
       builder.getByRole('searchbox', { name: 'Поиск в составе' }),
@@ -619,7 +621,7 @@ describe('group templates (GRP-12, GRP-15)', () => {
       expect(page).toHaveBeenLastCalledWith({ cursor: 'следующая' }),
     )
 
-    const add = builder.getByRole('button', { name: 'Добавить Анна в группу' })
+    const add = builder.getByRole('button', { name: 'Действия: Анна' })
     fireEvent.keyDown(add, { key: 'Enter' })
     expect(
       await screen.findByRole('menuitem', { name: 'Пати 1 · максимум 50' }),

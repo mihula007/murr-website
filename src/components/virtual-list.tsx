@@ -443,8 +443,12 @@ type ScrollableVirtualListProps<T> = {
   paging: Paging
   /** Высота области в примерных строках. */
   viewportRows: number
+  /** Максимальная высота прокручиваемой области; по умолчанию — строки × оценка. */
+  viewportHeight?: string
   /** Автоматически загружать продолжение при прокрутке к концу списка. */
   autoLoadMore?: boolean
+  /** Скрыть обычную кнопку продолжения, сохранив кнопку повтора при ошибке. */
+  showLoadMore?: boolean
   /** Измерять ли высоту строк при появлении в прокручиваемом списке. */
   measureRows?: boolean
   /** Запас после последней строки, чтобы она не упиралась в край прокрутки. */
@@ -466,7 +470,9 @@ export function ScrollableVirtualList<T>({
   estimateSize,
   paging,
   viewportRows,
+  viewportHeight,
   autoLoadMore = true,
+  showLoadMore = true,
   measureRows = true,
   endPadding = 0,
   columns: columnCounts = { base: 1, sm: 1, lg: 1 },
@@ -518,7 +524,9 @@ export function ScrollableVirtualList<T>({
         data-viewport-rows={viewportRows}
         style={
           {
-            '--virtual-height': `calc(${viewportRows} * ${estimateSize}px + ${viewportRows - 1} * ${GAP[gap]}px)`,
+            '--virtual-height':
+              viewportHeight ??
+              `calc(${viewportRows} * ${estimateSize}px + ${viewportRows - 1} * ${GAP[gap]}px)`,
           } as CSSProperties
         }
         className={cn(
@@ -560,7 +568,9 @@ export function ScrollableVirtualList<T>({
           )}
         </ul>
       </section>
-      <LoadMore paging={paging} />
+      {showLoadMore || loadingMore || loadError ? (
+        <LoadMore paging={paging} />
+      ) : null}
     </div>
   )
 }

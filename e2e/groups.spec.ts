@@ -287,10 +287,14 @@ test('шаблон редактируется, фильтруется по кл�
 
   await editor.getByLabel('Название шаблона').fill('Шаблон после правки')
   await editor
-    .getByRole('button', { name: `Добавить ${free.nickname} в группу` })
+    .getByRole('button', { name: `Действия: ${free.nickname}` })
     .click()
   await page.getByRole('menuitem', { name: 'Событийная группа' }).click()
-  await editor.getByRole('button', { name: `Лидер: ${free.nickname}` }).click()
+  const leaderPicker = editor.getByRole('combobox', {
+    name: 'Лидер группы «Событийная группа»',
+  })
+  await leaderPicker.click()
+  await page.getByRole('option', { name: free.nickname }).click()
   await editor.getByRole('button', { name: 'Сохранить шаблон' }).click()
 
   const library = page.getByRole('dialog', { name: 'Шаблоны групп' })
@@ -303,8 +307,10 @@ test('шаблон редактируется, фильтруется по кл�
     'Шаблон после правки',
   )
   await expect(
-    editDialog.getByRole('button', { name: `Лидер: ${free.nickname}` }),
-  ).toHaveAttribute('aria-pressed', 'true')
+    editDialog.getByRole('combobox', {
+      name: 'Лидер группы «Событийная группа»',
+    }),
+  ).toHaveText(free.nickname)
   await expect(
     page.getByRole('list', { name: 'Состав «Событийная группа»' }),
   ).toContainText(assigned.nickname)
