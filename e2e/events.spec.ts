@@ -118,6 +118,21 @@ test('событие: создание, правка, ответы и удале
   // Правка сохраняет тот же объект и его ответы (приёмка 1).
   await page.goto(`./#/events/${id}`)
   await expect(page.getByText(/, 21:30 МСК$/)).toBeVisible()
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await expect(
+    page.getByRole('heading', { name: 'Обсуждение ивента (0)' }),
+  ).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  const discussionButton = page.getByRole('button', {
+    name: 'Обсуждение ивента (0)',
+  })
+  await expect(discussionButton).toBeVisible()
+  await discussionButton.click()
+  const discussion = page.getByRole('dialog')
+  await expect(discussion).toBeVisible()
+  await expect(discussion.getByText('Сообщений пока нет.')).toBeVisible()
+  expect(await hasHorizontalScroll(page)).toBe(false)
+  await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('./#/events?tab=active')
   await choose(page, title, 'Приду')
   await expect(count(page, title, 'Приду')).toHaveText('Приду: 1')

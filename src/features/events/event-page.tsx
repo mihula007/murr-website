@@ -6,9 +6,9 @@ import { LoadingState } from '@/components/states/loading-state'
 import { PageHeader } from '@/components/states/page-header'
 import { linkButtonClass } from '@/components/ui/button'
 import { Card } from '@/components/ui/surfaces'
-import { DiscussionDialog } from '@/features/discussions/discussion-dialog'
 import { cn } from '@/lib/utils'
 import { useEvent } from './api'
+import { EventDiscussion } from './event-discussion'
 import {
   EventActions,
   EventAnswers,
@@ -18,14 +18,14 @@ import {
 } from './event-card'
 import { EventGroupsSection } from './groups/event-groups'
 
-/** Участники и группы события (GRP); обсуждение — отдельным окном. */
+/** Участники и группы события (GRP). */
 function GroupsAndDiscussion({ event }: { event: EventDetails }) {
   return <EventGroupsSection event={event} />
 }
 
 /**
- * Компактная шапка события и панель участника: свой ответ и «Обсуждение
- * ивента» (EVT-04, DSC-01) — сюда ведут уведомления о событии и его чате.
+ * Компактная шапка, ответ участника и обсуждение события (EVT-04, DSC-01).
+ * Ссылки уведомлений об упоминаниях и ответах продолжают вести сюда.
  */
 function EventOverview({
   event,
@@ -35,8 +35,8 @@ function EventOverview({
   onDeleted: () => void
 }) {
   return (
-    <div className="mb-4 grid items-start gap-x-4 gap-y-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]">
-      <header className="grid min-w-0 gap-3">
+    <div className="mb-4 grid items-start gap-x-4 gap-y-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)_minmax(300px,0.9fr)]">
+      <header className="order-1 grid min-w-0 gap-3">
         <div className="flex items-start justify-between gap-3">
           <EventBadges event={event} />
           <EventActions event={event} onDeleted={onDeleted} />
@@ -54,16 +54,16 @@ function EventOverview({
           Автор: {eventAuthor(event)}
         </p>
       </header>
-      <Card className="grid gap-3 p-4">
+      <Card className="order-2 grid gap-3 p-4 lg:order-3">
         <EventAnswers event={event} />
-        <DiscussionDialog
+      </Card>
+      <div className="order-3 min-w-0 lg:order-2">
+        <EventDiscussion
           thread={{ parent: 'event', parentId: event.id }}
           title={event.title}
           messageCount={event.messageCount}
-          triggerLabel="Обсуждение ивента"
-          className="w-full"
         />
-      </Card>
+      </div>
     </div>
   )
 }
