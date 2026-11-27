@@ -89,7 +89,10 @@ function EventOverview({
         </Card>
         <div className="grid min-h-24 content-center justify-items-center gap-2 lg:min-h-0">
           <EventGroupCount event={event} />
-          <div ref={onEventToolbarTarget} className="grid justify-items-center" />
+          <div
+            ref={onEventToolbarTarget}
+            className="grid justify-items-center"
+          />
         </div>
       </div>
       <div className="order-3 min-w-0 lg:order-2">
@@ -115,12 +118,10 @@ export function EventPage({
 }) {
   const navigate = useNavigate()
   const event = useEvent(id)
-  const [groupToolbarTarget, setGroupToolbarTarget] = useState<
-    HTMLDivElement | null
-  >(null)
-  const [eventToolbarTarget, setEventToolbarTarget] = useState<
-    HTMLDivElement | null
-  >(null)
+  const [groupToolbarTarget, setGroupToolbarTarget] =
+    useState<HTMLDivElement | null>(null)
+  const [eventToolbarTarget, setEventToolbarTarget] =
+    useState<HTMLDivElement | null>(null)
 
   let content
   if (event.isPending) {

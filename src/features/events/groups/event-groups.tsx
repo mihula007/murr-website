@@ -49,11 +49,7 @@ import {
 import { Select } from '@/components/ui/select'
 import { Card } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from '@/components/ui/popover'
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { toast } from '@/components/ui/toaster'
 import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
@@ -345,15 +341,17 @@ function PersonRow({
               <span className="text-muted-foreground">
                 {CHARACTER_STAT_LABELS[field]}
               </span>
-            <strong>
-              {formatCharacterStat(field, person[field]) ?? '—'}
-            </strong>
+              <strong>
+                {formatCharacterStat(field, person[field]) ?? '—'}
+              </strong>
             </span>
           ))}
         </span>
       </PopoverContent>
     </Popover>
-  ) : row
+  ) : (
+    row
+  )
 }
 
 type PoolTab = {
@@ -1063,9 +1061,7 @@ export function EventGroupsSection({
           'lg:sticky lg:top-4 lg:h-[calc(100svh-2rem)] lg:grid-rows-[minmax(0,1fr)]',
       )}
     >
-      {isMember ? (
-        <h2 className={sectionTitleClass}>Ваша группа</h2>
-      ) : null}
+      {isMember ? <h2 className={sectionTitleClass}>Ваша группа</h2> : null}
       {groupToolbarTarget === undefined && board.editable ? (
         <GroupToolbar board={board} />
       ) : null}
