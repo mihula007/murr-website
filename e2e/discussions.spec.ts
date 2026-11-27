@@ -64,13 +64,16 @@ async function createVote(officer: Person) {
   return { id: created.body.id as string, title }
 }
 
-/**
- * Обсуждение события — отдельное окно; кнопка есть на странице события, куда
- * ведут уведомления (DSC-01).
- */
+/** Открывает чат события в месте, предусмотренном для ширины экрана. */
 async function openEventDiscussion(page: Page, id: string) {
   await page.goto(`./#/events/${id}`)
-  await page.getByRole('button', { name: /Обсуждение ивента/ }).click()
+  if ((page.viewportSize()?.width ?? 1024) < 1024) {
+    await page.getByRole('button', { name: /Обсуждение ивента/ }).click()
+  } else {
+    await expect(
+      page.getByRole('heading', { name: /Обсуждение ивента/ }),
+    ).toBeVisible()
+  }
   return page.getByRole('list', { name: 'Сообщения обсуждения' })
 }
 
