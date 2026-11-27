@@ -14,6 +14,10 @@ vi.mock('@/lib/supabase/api', async (importOriginal) => ({
   callApi,
 }))
 
+vi.mock('@/features/discussions/discussion-thread', () => ({
+  DiscussionThread: () => <p>Обсуждение открыто</p>,
+}))
+
 const ID = '33333333-3333-4333-8333-333333333333'
 
 function material(extra: Partial<MaterialView> = {}): MaterialView {
@@ -184,6 +188,27 @@ describe('material page (PUB-06, PUB-07)', () => {
     await renderApp({ role: 'member', path: `/market/${ID}` })
     expect(await screen.findByText('Пользователь удалён')).toBeInTheDocument()
     expect(screen.getByText('Продажа')).toBeInTheDocument()
+  })
+})
+
+describe('market listing discussion (MKT-10)', () => {
+  it('shows an enabled discussion expanded below the listing', async () => {
+    respond({
+      'market/get': () =>
+        material({
+          category: 'buy',
+          title: 'Куплю хэви чара',
+          discussionEnabled: true,
+          messageCount: 1,
+        }),
+    })
+
+    await renderApp({ role: 'member', path: `/market/${ID}` })
+
+    expect(await screen.findByText('Обсуждение открыто')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Обсуждение \(1\)/ }),
+    ).toBeNull()
   })
 })
 

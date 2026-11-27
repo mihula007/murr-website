@@ -12,6 +12,7 @@ import type { AppError } from '@/lib/errors'
 import { formatDateTimeMsk } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
 import { DiscussionDialog } from '@/features/discussions/discussion-dialog'
+import { DiscussionThread } from '@/features/discussions/discussion-thread'
 import { Gallery } from './gallery'
 import { authorLabel } from './material-card'
 import {
@@ -137,8 +138,19 @@ export function MaterialPage({
       <Card className="grid gap-4 p-4 sm:p-6">
         <MaterialContent section={section} material={data} />
       </Card>
-      {/* Обсуждение — при включённом флаге или если история уже есть (DSC-14). */}
-      {data.discussionEnabled || (data.messageCount ?? 0) > 0 ? (
+      {/* Обсуждение объявления раскрыто сразу, когда автор его разрешил. */}
+      {section.kind === 'market' && data.discussionEnabled ? (
+        <Card className="flex h-[min(60svh,520px)] min-h-[340px] flex-col gap-3 p-4 sm:p-6">
+          <h2 className="m-0 text-xl font-bold">
+            Обсуждение ({data.messageCount ?? 0})
+          </h2>
+          <DiscussionThread
+            thread={{ parent: 'market', parentId: data.id }}
+            className="min-h-0 flex-1"
+            listClassName="min-h-0 flex-1"
+          />
+        </Card>
+      ) : data.discussionEnabled || (data.messageCount ?? 0) > 0 ? (
         <div>
           <DiscussionDialog
             thread={{
