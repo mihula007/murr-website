@@ -39,7 +39,10 @@ import { MEMBER_LIST_LIMIT } from '@contracts/paging'
 import { AppError, formErrorMessage, fieldMessage } from '@/lib/errors'
 import { formatDateTimeMsk } from '@/lib/format-date'
 import { cn } from '@/lib/utils'
-import { SubscriptionsPanel } from './subscriptions-panel'
+import {
+  SubscriptionAnalytics,
+  SubscriptionsPanel,
+} from './subscriptions-panel'
 import {
   RecipientExclusions,
   type ExcludedRecipient,
@@ -52,6 +55,7 @@ import {
   usePrefill,
   useSaveBroadcastTemplate,
   useFetchRecipients,
+  useBroadcastSubscriptions,
   useSaveDraft,
   useSendAnnouncement,
 } from './api'
@@ -933,6 +937,10 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
   const canSend = hasOfficerPermission('broadcasts.send')
   const canManageTemplates = hasOfficerPermission('broadcasts.templates')
   const canViewSubscriptions = hasOfficerPermission('broadcasts.subscriptions')
+  const subscriptions = useBroadcastSubscriptions(
+    unlinkedOnly,
+    canViewSubscriptions,
+  )
   const target = source && id ? { source, id } : null
   const prefill = usePrefill(target)
   // Черновик сохранён — форма чистая: переход без вопроса о потере данных.
@@ -1003,6 +1011,14 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
       <PageHeader
         title="Рассылка"
         description="Анонсы клана в Telegram, ВКонтакте и MAX: отдельные, событий и голосований с кнопками ответа."
+        actions={
+          canViewSubscriptions ? (
+            <SubscriptionAnalytics
+              summary={subscriptions.data?.summary ?? null}
+            />
+          ) : undefined
+        }
+        actionsClassName="w-full min-[900px]:w-[58%]"
       />
       <div
         className={cn(
@@ -1023,6 +1039,7 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
               <SubscriptionsPanel
                 unlinkedOnly={unlinkedOnly}
                 onUnlinkedOnlyChange={changeUnlinkedOnly}
+                subscriptions={subscriptions}
               />
             </Card>
           ) : null}

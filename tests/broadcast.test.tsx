@@ -127,6 +127,14 @@ describe('broadcast page (BRC, E2E-07)', () => {
         },
       ],
       nextCursor: null,
+      summary: {
+        total: 2,
+        any: 1,
+        none: 1,
+        telegram: 1,
+        vk: 1,
+        max: 0,
+      },
     })
     await renderApp({ role: 'officer', path: '/broadcast' })
     expect(screen.queryByRole('tab', { name: 'Подписки' })).toBeNull()
@@ -137,6 +145,24 @@ describe('broadcast page (BRC, E2E-07)', () => {
       name: 'Исключения получателей',
     })
     expect(subscriptions).toBeVisible()
+    const analytics = await screen.findByRole('region', {
+      name: 'Аналитика подписок',
+    })
+    expect(
+      within(analytics).getByRole('group', { name: 'Есть хотя бы одна' }),
+    ).toHaveTextContent('1 из 2')
+    expect(
+      within(analytics).getByRole('group', { name: 'Без подписки' }),
+    ).toHaveTextContent('1')
+    expect(
+      within(analytics).getByRole('group', { name: 'Telegram' }),
+    ).toHaveTextContent('1')
+    expect(
+      within(analytics).getByRole('group', { name: 'ВКонтакте' }),
+    ).toHaveTextContent('1')
+    expect(
+      within(analytics).getByRole('group', { name: 'MAX' }),
+    ).toHaveTextContent('0')
     expect(recipients).toBeVisible()
     expect(within(subscriptions).queryByLabelText('Поиск по нику')).toBeNull()
     expect(within(recipients).queryByLabelText('Поиск по нику')).toBeNull()

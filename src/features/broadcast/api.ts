@@ -48,7 +48,10 @@ export function useBroadcastSubscriptions(
     getNextPageParam: (last) => last.nextCursor,
     enabled,
     placeholderData: keepPreviousData,
-    select: (data) => data.pages.flatMap((page) => page.items),
+    select: (data) => ({
+      items: data.pages.flatMap((page) => page.items),
+      summary: data.pages[0]?.summary ?? null,
+    }),
   })
 }
 

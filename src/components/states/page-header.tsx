@@ -5,6 +5,7 @@ type PageHeaderProps = {
   title: ReactNode
   description?: ReactNode
   actions?: ReactNode
+  actionsClassName?: string
   className?: string
 }
 
@@ -16,6 +17,7 @@ export function PageHeader({
   title,
   description,
   actions,
+  actionsClassName,
   className,
 }: PageHeaderProps) {
   return (
@@ -33,7 +35,11 @@ export function PageHeader({
           <p className="max-w-2xl text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : null}
+      {actions ? (
+        <div className={cn('flex flex-wrap gap-3', actionsClassName)}>
+          {actions}
+        </div>
+      ) : null}
     </header>
   )
 }

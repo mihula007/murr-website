@@ -224,7 +224,18 @@ export type BroadcastSubscription = {
   vk: MessengerLinkStatus
   max: MessengerLinkStatus
 }
-export type BroadcastSubscriptionsResponse = Page<BroadcastSubscription>
+export type BroadcastSubscriptionSummary = {
+  total: number
+  any: number
+  none: number
+  telegram: number
+  vk: number
+  max: number
+}
+export type BroadcastSubscriptionsResponse = Page<BroadcastSubscription> & {
+  /** Included on the first page; counts cover the full internal roster. */
+  summary?: BroadcastSubscriptionSummary
+}
 
 export type BroadcastRecipient = { gameNickname: string; isLeader: boolean }
 

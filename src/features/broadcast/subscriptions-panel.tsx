@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AlertTriangle, Check } from 'lucide-react'
 import type {
   BroadcastSubscription,
+  BroadcastSubscriptionSummary,
   MessengerLinkStatus,
 } from '@contracts/broadcasts'
 import { EmptyState } from '@/components/states/empty-state'
@@ -10,7 +11,7 @@ import { LoadingState } from '@/components/states/loading-state'
 import { MessengerIcon, type Messenger } from '@/components/ui/messenger-icon'
 import { pagingOf, ScrollableVirtualList } from '@/components/virtual-list'
 import { cn } from '@/lib/utils'
-import { useBroadcastSubscriptions } from './api'
+import type { useBroadcastSubscriptions } from './api'
 
 const CHANNELS: {
   key: Messenger
@@ -99,21 +100,62 @@ function SubscriptionRow({ member }: { member: BroadcastSubscription }) {
 }
 
 /** Read-only messenger link overview for officers and administrators (BRC-15). */
+export function SubscriptionAnalytics({
+  summary,
+}: {
+  summary: BroadcastSubscriptionSummary | null
+}) {
+  if (!summary) {
+    return null
+  }
+
+  const metrics = [
+    { label: 'Есть хотя бы одна', value: `${summary.any} из ${summary.total}` },
+    { label: 'Без подписки', value: String(summary.none) },
+    { label: 'Telegram', value: String(summary.telegram) },
+    { label: 'ВКонтакте', value: String(summary.vk) },
+    { label: 'MAX', value: String(summary.max) },
+  ]
+
+  return (
+    <section
+      aria-label="Аналитика подписок"
+      className="grid w-full min-w-0 grid-cols-2 gap-2 min-[560px]:grid-cols-3 min-[1000px]:grid-cols-5"
+    >
+      {metrics.map(({ label, value }) => (
+        <fieldset
+          key={label}
+          aria-label={label}
+          className="m-0 grid min-w-0 gap-1 rounded-lg border border-border bg-card px-3 py-2"
+        >
+          <span className="truncate text-xs text-muted-foreground">
+            {label}
+          </span>
+          <strong className="text-lg leading-tight tabular-nums">
+            {value}
+          </strong>
+        </fieldset>
+      ))}
+    </section>
+  )
+}
+
 export function SubscriptionsPanel({
   unlinkedOnly,
   onUnlinkedOnlyChange,
+  subscriptions,
 }: {
   unlinkedOnly: boolean
   onUnlinkedOnlyChange: (unlinkedOnly: boolean) => void
+  subscriptions: ReturnType<typeof useBroadcastSubscriptions>
 }) {
-  const subscriptions = useBroadcastSubscriptions(unlinkedOnly)
   const [lastGoodItems, setLastGoodItems] = useState<BroadcastSubscription[]>(
     [],
   )
-  const members = subscriptions.data ?? lastGoodItems
+  const members = subscriptions.data?.items ?? lastGoodItems
 
   const handleUnlinkedOnlyChange = (value: boolean) => {
-    setLastGoodItems(subscriptions.data ?? lastGoodItems)
+    setLastGoodItems(subscriptions.data?.items ?? lastGoodItems)
     onUnlinkedOnlyChange(value)
   }
 

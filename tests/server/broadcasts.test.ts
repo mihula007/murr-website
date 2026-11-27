@@ -150,6 +150,42 @@ describe('officer permissions', () => {
 })
 
 describe('broadcasts/subscriptions (BRC-15, Q-112)', () => {
+  it('returns whole-clan subscription counts including stopped links', async () => {
+    const manager = await roleActor('officer')
+    const linked = await createProfiledUser(db, 'member')
+    await createProfiledUser(db, 'reader')
+    await db
+      .insertInto('app.telegram_links')
+      .values({
+        user_id: linked.id,
+        telegram_user_id: 81000,
+        chat_id: 81000,
+        display_name: 'Linked Telegram',
+      })
+      .execute()
+    await db
+      .insertInto('app.vk_links')
+      .values({
+        user_id: linked.id,
+        vk_user_id: 81001,
+        chat_id: 81001,
+        display_name: 'Stopped VK',
+        blocked_at: new Date().toISOString(),
+      })
+      .execute()
+
+    const result = await listBroadcastSubscriptions(deps, manager.actor, {})
+
+    expect(result.summary).toEqual({
+      total: 2,
+      any: 1,
+      none: 1,
+      telegram: 1,
+      vk: 1,
+      max: 0,
+    })
+  })
+
   it('returns only nick, role and messenger link states to managers', async () => {
     const manager = await roleActor('officer')
     const member = await createProfiledUser(db, 'member')

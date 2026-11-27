@@ -77,6 +77,9 @@ export async function listBroadcastSubscriptions(
   const page = splitPage(rows, input.limit, (row) =>
     nicknameKey(row.game_nickname, row.id),
   )
+  const summary = input.cursor
+    ? undefined
+    : await broadcastRepository.subscriptionSummary(deps.db)
   const status = (linkedId: string | null, blockedAt: string | null) => ({
     linked: linkedId !== null,
     blocked: linkedId !== null && blockedAt !== null,
@@ -91,6 +94,7 @@ export async function listBroadcastSubscriptions(
       max: status(row.max_linked, row.max_blocked_at),
     })),
     nextCursor: page.nextCursor,
+    ...(summary ? { summary } : {}),
   }
 }
 

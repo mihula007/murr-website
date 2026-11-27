@@ -50,6 +50,36 @@ function containsPattern(search: string) {
 }
 
 export const broadcastRepository = {
+  /** Whole-roster link counts, independent of cursor and filters (BRC-20). */
+  async subscriptionSummary(db: Executor) {
+    const row = await db
+      .selectFrom('app.profiles as p')
+      .leftJoin('app.telegram_links as t', 't.user_id', 'p.id')
+      .leftJoin('app.vk_links as v', 'v.user_id', 'p.id')
+      .leftJoin('app.max_links as m', 'm.user_id', 'p.id')
+      .select([
+        sql<number>`count(*)::int`.as('total'),
+        sql<number>`count(*) filter (where t.user_id is not null or v.user_id is not null or m.user_id is not null)::int`.as(
+          'any',
+        ),
+        sql<number>`count(*) filter (where t.user_id is null and v.user_id is null and m.user_id is null)::int`.as(
+          'none',
+        ),
+        sql<number>`count(*) filter (where t.user_id is not null)::int`.as(
+          'telegram',
+        ),
+        sql<number>`count(*) filter (where v.user_id is not null)::int`.as(
+          'vk',
+        ),
+        sql<number>`count(*) filter (where m.user_id is not null)::int`.as(
+          'max',
+        ),
+      ])
+      .where('p.access_role', 'in', INTERNAL_ROLES)
+      .executeTakeFirstOrThrow()
+    return row
+  },
+
   /** Страница состава и только признаков наличия привязок (BRC-15). */
   subscriptions(db: Executor, options: SubscriptionPageOptions) {
     let query = db
