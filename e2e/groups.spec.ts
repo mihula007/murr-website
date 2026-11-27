@@ -262,6 +262,11 @@ test('шаблон редактируется, фильтруется по кл�
   await page.goto(`./#/events/${event.id}`)
   await createGroup(page, 'Событийная группа')
   await moveToGroup(page, assigned.nickname, 'Событийная группа')
+  const eventGroup = page.getByRole('list', {
+    name: 'Состав «Событийная группа»',
+  })
+  await expect(eventGroup).toContainText(assigned.nickname)
+  await expect(eventGroup).not.toContainText(free.nickname)
 
   await page.getByRole('button', { name: 'Шаблоны групп' }).click()
   await page.getByRole('button', { name: 'Сохранить как шаблон' }).click()
@@ -299,7 +304,11 @@ test('шаблон редактируется, фильтруется по кл�
 
   const library = page.getByRole('dialog', { name: 'Шаблоны групп' })
   await expect(library).toContainText('Шаблон после правки')
-  await library.getByRole('button', { name: 'Изменить' }).click()
+  const updatedTemplate = library
+    .getByRole('list', { name: 'Шаблоны групп' })
+    .getByRole('listitem')
+    .filter({ hasText: 'Шаблон после правки' })
+  await updatedTemplate.getByRole('button', { name: 'Изменить' }).click()
   const editDialog = page.getByRole('dialog', {
     name: 'Редактировать шаблон групп',
   })
@@ -311,15 +320,16 @@ test('шаблон редактируется, фильтруется по кл�
       name: 'Лидер группы «Событийная группа»',
     }),
   ).toHaveText(free.nickname)
-  await expect(
-    page.getByRole('list', { name: 'Состав «Событийная группа»' }),
-  ).toContainText(assigned.nickname)
 
   await page.setViewportSize({ width: 375, height: 812 })
   await expect(editDialog).toBeVisible()
   expect(await hasHorizontalScroll(page)).toBe(false)
   const mobileBox = await editDialog.boundingBox()
   expect(mobileBox?.width).toBeLessThanOrEqual(375)
+  await editDialog.getByRole('button', { name: 'Отмена' }).click()
+  await library.getByRole('button', { name: 'Закрыть' }).click()
+  await expect(eventGroup).toContainText(assigned.nickname)
+  await expect(eventGroup).not.toContainText(free.nickname)
 })
 
 test('прямые запрещённые вызовы групп и учёта отклоняются', async () => {
