@@ -140,7 +140,45 @@ const group = (members: EventGroup['members'] = []): EventGroup => ({
 
 function respond(routes: Record<string, (body: unknown) => unknown>) {
   callApi.mockImplementation((route, body) => {
-    const handler = routes[route]
+    const handler =
+      routes[route] ??
+      (route === 'catalog/classes'
+        ? () => CLASS_CATALOG
+        : route === 'groups/pool-page'
+          ? (input: unknown) => {
+              const event = routes['events/get']?.({
+                id: EVENT_ID,
+              }) as EventDetails
+              const request = input as { tab: string; classIds?: number[] }
+              const free = event.participants.filter(
+                (person) =>
+                  !event.groups.some((item) =>
+                    item.members.some((member) => member.userId === person.id),
+                  ),
+              )
+              const counts = {
+                yes: free.filter((item) => item.answer === 'yes').length,
+                no: free.filter((item) => item.answer === 'no').length,
+                maybe: free.filter((item) => item.answer === 'maybe').length,
+                none: free.filter((item) => item.answer === null).length,
+              }
+              return {
+                items: free
+                  .filter((item) =>
+                    request.tab === 'none'
+                      ? item.answer === null
+                      : item.answer === request.tab,
+                  )
+                  .filter(
+                    (item) =>
+                      !request.classIds?.length ||
+                      request.classIds.includes(item.classId),
+                  ),
+                counts,
+                nextCursor: null,
+              }
+            }
+          : undefined)
     if (!handler) {
       return Promise.reject(new AppError('not_found'))
     }
@@ -190,8 +228,8 @@ describe('event groups: reading (GRP-01, GRP-16)', () => {
       path: `/events/${EVENT_ID}`,
     })
     const pool = await screen.findByRole('list', { name: 'Придут' })
-    const annaInPool = within(pool).getByText('Анна').closest('li')!
-    const borisInPool = within(pool).getByText('Борис').closest('li')!
+    const annaInPool = within(pool).getByText('Анна').closest('div.relative')!
+    const borisInPool = within(pool).getByText('Борис').closest('div.relative')!
     expect(annaInPool).toHaveClass(/bg-item-highlight!?/)
     expect(borisInPool).not.toHaveClass(/bg-item-highlight!?/)
 
@@ -208,6 +246,61 @@ describe('event groups: reading (GRP-01, GRP-16)', () => {
       /bg-item-highlight!?/,
     )
     sessionUserId.current = null
+  })
+
+  it('uses class icons and exposes group stats from the row menu', async () => {
+    respond({
+      'events/get': () =>
+        manager({
+          groups: [
+            group([
+              {
+                userId: ANNA,
+                isLeader: false,
+                profile: {
+                  gameNickname: 'Анна',
+                  classId: 7,
+                  className: 'Маг',
+                  avatarUrl: null,
+                  pa: 125,
+                  pz: 80,
+                  bu: null,
+                  hp: 1000,
+                  bd: 25,
+                },
+              },
+            ]),
+          ],
+        }),
+    })
+    await renderApp({ role: 'officer', path: `/events/${EVENT_ID}` })
+    expect(
+      screen.queryByRole('searchbox', { name: 'Поиск по нику' }),
+    ).toBeNull()
+    expect(
+      screen.queryByRole('combobox', { name: 'Фильтр по классу' }),
+    ).toBeNull()
+    expect(await screen.findByText('Людей в группах: 1')).toBeVisible()
+    const classFilter = await screen.findByRole('button', {
+      name: 'Фильтр по классу Маг',
+    })
+    fireEvent.click(classFilter)
+    await waitFor(() =>
+      expect(callApi).toHaveBeenCalledWith(
+        'groups/pool-page',
+        expect.objectContaining({ classIds: [7] }),
+      ),
+    )
+    fireEvent.keyDown(
+      await screen.findByRole('button', { name: 'Действия: Анна' }),
+      { key: 'Enter' },
+    )
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'Характеристики' }),
+    )
+    expect(
+      await screen.findByRole('dialog', { name: 'Характеристики: Анна' }),
+    ).toBeVisible()
   })
 
   it('shows groups to a member without any management', async () => {

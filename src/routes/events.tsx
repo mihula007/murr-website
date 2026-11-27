@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { z } from 'zod'
 import { createRoute } from '@tanstack/react-router'
 import { MANAGER_ROLES } from '@/app/access'
 import { sectionRoles } from '@/app/navigation'
@@ -24,9 +25,25 @@ function EventsRoute(): ReactNode {
 
 function EventRoute(): ReactNode {
   const { id } = eventRoute.useParams()
+  const { classIds } = eventRoute.useSearch()
+  const navigate = eventRoute.useNavigate()
   return (
     <RouteGate roles={roles}>
-      <EventPage key={id} id={id} />
+      <EventPage
+        key={id}
+        id={id}
+        classIds={classIds ?? []}
+        onClassIdsChange={(next) =>
+          void navigate({
+            search: (previous) => ({
+              ...previous,
+              ...(next.length ? { classIds: next } : { classIds: undefined }),
+            }),
+            replace: true,
+            resetScroll: false,
+          })
+        }
+      />
     </RouteGate>
   )
 }
@@ -65,6 +82,9 @@ export const createEventRoute = createRoute({
 export const eventRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/events/$id',
+  validateSearch: z.object({
+    classIds: z.array(z.number().int().positive()).max(17).catch([]).optional(),
+  }),
   component: EventRoute,
 })
 

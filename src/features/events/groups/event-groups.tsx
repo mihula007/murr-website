@@ -28,10 +28,15 @@ import {
   type CharacterStatNumberField,
 } from '@contracts/character-stats'
 import type { EventGroup } from '@contracts/groups'
-import { MEMBER_LIST_LIMIT } from '@contracts/paging'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 import { useAccess } from '@/app/access'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,13 +45,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Badge, Card } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
 import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
+import { ScrollableVirtualList, pagingOf } from '@/components/virtual-list'
+import { useClasses } from '@/features/catalog/use-classes'
 import { formatCharacterStat } from '@/features/roster/character-stats'
 import { errorMessage, fieldMessage, type AppError } from '@/lib/errors'
 import { cn } from '@/lib/utils'
@@ -58,6 +64,7 @@ import {
   useRenameGroup,
   useSetGroupLeader,
 } from '../groups-api'
+import { useGroupPoolPages } from '../api'
 import { PrepareBroadcastLink } from '@/features/broadcast/prepare-broadcast-link'
 import { GroupNameDialog } from './group-name-dialog'
 import { GroupTemplatesDialog } from './group-templates-dialog'
@@ -101,6 +108,7 @@ export function finalPosition(
 type PersonRowProps = {
   board: Board
   person: EventParticipant
+  virtual?: boolean
   /** Группа и номер строки; нет — строка свободного списка. */
   group?: EventGroup
   index?: number
@@ -108,7 +116,15 @@ type PersonRowProps = {
 }
 
 /** Строка участника: перетаскивание за маркер и меню переноса (GRP-04, GRP-07). */
-function PersonRow({ board, person, group, index, isLeader }: PersonRowProps) {
+function PersonRow({
+  board,
+  person,
+  group,
+  index,
+  isLeader,
+  virtual = false,
+}: PersonRowProps) {
+  const [statsOpen, setStatsOpen] = useState(false)
   const {
     setNodeRef: dragRef,
     listeners,
@@ -122,14 +138,18 @@ function PersonRow({ board, person, group, index, isLeader }: PersonRowProps) {
     id: group ? `slot:${group.id}:${index}` : `pool-row:${person.id}`,
     disabled: !board.editable || !group,
   })
-  const others = board.event.groups.filter((item) => item.id !== group?.id)
+  const others = board.editable
+    ? board.event.groups.filter((item) => item.id !== group?.id)
+    : []
   const size = group?.members.length ?? 0
+  const Row = virtual ? 'div' : 'li'
 
   return (
-    <li
+    <Row
       ref={dropRef}
       className={cn(
-        'flex min-w-0 items-center border border-border bg-surface-inset',
+        'relative flex min-w-0 items-center border border-border bg-surface-inset',
+        group && board.event.closedAt === null && 'group/person',
         group ? 'gap-1.5 rounded-md px-1.5 py-1' : 'gap-2 rounded-lg px-2 py-1',
         person.id === board.currentUserId && 'bg-item-highlight!',
         isDragging && 'opacity-40',
@@ -187,7 +207,7 @@ function PersonRow({ board, person, group, index, isLeader }: PersonRowProps) {
           </span>
         ) : null}
       </span>
-      {board.editable ? (
+      {board.editable || (group && board.event.closedAt === null) ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -201,6 +221,12 @@ function PersonRow({ board, person, group, index, isLeader }: PersonRowProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {group && board.event.closedAt === null ? (
+              <DropdownMenuItem onSelect={() => setStatsOpen(true)}>
+                Характеристики
+              </DropdownMenuItem>
+            ) : null}
+            {group && board.editable ? <DropdownMenuSeparator /> : null}
             {others.length > 0 ? (
               <DropdownMenuLabel>В группу</DropdownMenuLabel>
             ) : null}
@@ -217,7 +243,7 @@ function PersonRow({ board, person, group, index, isLeader }: PersonRowProps) {
             {others.length === 0 && !group ? (
               <DropdownMenuLabel>Сначала создайте группу</DropdownMenuLabel>
             ) : null}
-            {group && index !== undefined ? (
+            {group && index !== undefined && board.editable ? (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -255,7 +281,45 @@ function PersonRow({ board, person, group, index, isLeader }: PersonRowProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
-    </li>
+      {group && board.event.closedAt === null ? (
+        <span
+          role="tooltip"
+          className="pointer-events-none absolute top-full left-1/2 z-30 hidden w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-border-accent bg-surface-menu p-2 shadow-popover group-hover/person:block group-focus-within/person:block"
+        >
+          <span className="grid grid-cols-5 gap-2 text-xs">
+            {CHARACTER_STAT_FIELDS.map((field) => (
+              <span key={field} className="grid">
+                <span className="text-muted-foreground">
+                  {CHARACTER_STAT_LABELS[field]}
+                </span>
+                <strong>
+                  {formatCharacterStat(field, person[field]) ?? '—'}
+                </strong>
+              </span>
+            ))}
+          </span>
+        </span>
+      ) : null}
+      <Dialog open={statsOpen} onOpenChange={setStatsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Характеристики: {person.gameNickname}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-5 gap-2 text-sm">
+            {CHARACTER_STAT_FIELDS.map((field) => (
+              <div key={field} className="grid">
+                <span className="text-muted-foreground">
+                  {CHARACTER_STAT_LABELS[field]}
+                </span>
+                <strong>
+                  {formatCharacterStat(field, person[field]) ?? '—'}
+                </strong>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </Row>
   )
 }
 
@@ -286,12 +350,20 @@ const STATUS_TABS: PoolTab[] = [
  * Свободные участники по ответам с поиском (GRP-01, GRP-02); назначенные в
  * группы скрыты. У закрытого события — итог посещения по всем участникам.
  */
-function PoolPanel({ board }: { board: Board }) {
+function PoolPanel({
+  board,
+  classIds,
+  onClassIdsChange,
+}: {
+  board: Board
+  classIds: number[]
+  onClassIdsChange: (ids: number[]) => void
+}) {
   const closed = board.event.closedAt !== null
+  const { hasOfficerPermission } = useAccess()
+  const canViewAll = hasOfficerPermission('events.view_full_roster')
   const tabs = closed ? STATUS_TABS : ANSWER_TABS
   const [tab, setTab] = useState(tabs[0]!.value)
-  const [search, setSearch] = useState('')
-  const [classFilter, setClassFilter] = useState('__all__')
   const [statSort, setStatSort] = useState<{
     field: CharacterStatNumberField
     direction: 'asc' | 'desc'
@@ -300,6 +372,15 @@ function PoolPanel({ board }: { board: Board }) {
     id: 'pool',
     disabled: !board.editable,
   })
+  const poolQuery = useGroupPoolPages({
+    eventId: board.event.id,
+    tab: tab as 'yes' | 'no' | 'maybe' | 'none',
+    classIds,
+    sortBy: statSort?.field ?? null,
+    direction: statSort?.direction ?? 'desc',
+    enabled: !closed && canViewAll,
+  })
+  const classes = useClasses()
   const assigned = new Set(
     board.event.groups.flatMap((group) => group.members.map((m) => m.userId)),
   )
@@ -307,46 +388,32 @@ function PoolPanel({ board }: { board: Board }) {
     ? board.event.participants
     : board.event.participants.filter((person) => !assigned.has(person.id))
   const current = tabs.find((item) => item.value === tab) ?? tabs[0]!
-  const query = search.trim().toLocaleLowerCase('ru-RU')
-  const classOptions = [
-    { value: '__all__', label: 'Все классы' },
-    ...[...new Set(board.event.participants.map((person) => person.className))]
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b, 'ru-RU'))
-      .map((className) => ({ value: className, label: className })),
-  ]
-  const filtered = free
-    .filter(current.test)
-    .filter(
-      (person) => classFilter === '__all__' || person.className === classFilter,
-    )
-    .filter(
-      (person) =>
-        !query ||
-        person.gameNickname.toLocaleLowerCase('ru-RU').includes(query),
-    )
-  const shown = statSort
-    ? [...filtered].sort((left, right) => {
-        const leftValue = left[statSort.field]
-        const rightValue = right[statSort.field]
-        if (leftValue == null && rightValue == null) {
-          return left.gameNickname.localeCompare(right.gameNickname, 'ru-RU')
-        }
-        if (leftValue == null) {
-          return 1
-        }
-        if (rightValue == null) {
-          return -1
-        }
-        const difference =
-          (Number(leftValue) - Number(rightValue)) *
-          (statSort.direction === 'asc' ? 1 : -1)
-        return (
-          difference ||
-          left.gameNickname.localeCompare(right.gameNickname, 'ru-RU')
-        )
-      })
-    : filtered
+  const filtered = closed
+    ? free.filter(current.test)
+    : (poolQuery.data?.pages.flatMap((page) => page.items) ?? [])
+  const shown =
+    closed && statSort
+      ? [...filtered].sort((left, right) => {
+          const leftValue = left[statSort.field]
+          const rightValue = right[statSort.field]
+          if (leftValue == null && rightValue == null) {
+            return left.gameNickname.localeCompare(right.gameNickname, 'ru-RU')
+          }
+          if (leftValue == null) {
+            return 1
+          }
+          if (rightValue == null) {
+            return -1
+          }
+          const difference =
+            (Number(leftValue) - Number(rightValue)) *
+            (statSort.direction === 'asc' ? 1 : -1)
+          return (
+            difference ||
+            left.gameNickname.localeCompare(right.gameNickname, 'ru-RU')
+          )
+        })
+      : filtered
 
   function toggleStatSort(field: CharacterStatNumberField) {
     setStatSort((currentSort) =>
@@ -387,27 +454,53 @@ function PoolPanel({ board }: { board: Board }) {
             >
               {item.label}
               <span className="text-xs text-muted-foreground tabular-nums">
-                {free.filter(item.test).length}
+                {closed
+                  ? free.filter(item.test).length
+                  : (poolQuery.data?.pages[0]?.counts[
+                      item.value as 'yes' | 'no' | 'maybe' | 'none'
+                    ] ?? 0)}
               </span>
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
-      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)] lg:flex-none">
-        <Input
-          type="search"
-          aria-label="Поиск по нику"
-          placeholder="Поиск по нику"
-          value={search}
-          onChange={(change) => setSearch(change.target.value)}
-        />
-        <Select
-          aria-label="Фильтр по классу"
-          value={classFilter}
-          onValueChange={setClassFilter}
-          options={classOptions}
-        />
-      </div>
+      {!closed ? (
+        <ul
+          aria-label="Фильтр по классам"
+          className="m-0 flex list-none flex-wrap gap-1 p-0 lg:flex-none"
+        >
+          {(classes.data ?? []).map((item) => {
+            const active = classIds.includes(item.id)
+            return (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  aria-label={`Фильтр по классу ${item.name}`}
+                  aria-pressed={active}
+                  title={item.name}
+                  onClick={() =>
+                    onClassIdsChange(
+                      active
+                        ? classIds.filter((id) => id !== item.id)
+                        : [...classIds, item.id].sort((a, b) => a - b),
+                    )
+                  }
+                  className={cn(
+                    'rounded-full border border-border p-1 hover:border-primary',
+                    active && 'border-highlight bg-highlight',
+                  )}
+                >
+                  <ClassIcon
+                    classId={item.id}
+                    className={item.name}
+                    wrapperClassName="size-7"
+                  />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      ) : null}
       {board.editable ? (
         <p className="m-0 text-xs text-muted-foreground lg:flex-none">
           Назначенные в группы скрываются из вкладок. Перетащите человека за
@@ -462,20 +555,35 @@ function PoolPanel({ board }: { board: Board }) {
                 ) : null}
               </div>
             )}
-            <ul
-              aria-label={current.label}
-              className="m-0 grid list-none gap-1.5 p-0"
-            >
-              {shown.map((person) => (
-                <PersonRow key={person.id} board={board} person={person} />
-              ))}
-            </ul>
+            {closed ? (
+              <ul
+                aria-label={current.label}
+                className="m-0 grid list-none gap-1.5 p-0"
+              >
+                {shown.map((person) => (
+                  <PersonRow key={person.id} board={board} person={person} />
+                ))}
+              </ul>
+            ) : (
+              <ScrollableVirtualList
+                items={shown}
+                getKey={(person) => person.id}
+                renderItem={(person) => (
+                  <PersonRow board={board} person={person} virtual />
+                )}
+                label={current.label}
+                estimateSize={52}
+                viewportRows={8}
+                paging={pagingOf(poolQuery)}
+                gridClassName="grid-cols-1"
+              />
+            )}
           </>
         )}
-        {board.event.participantsTruncated ? (
-          <output className="text-sm text-muted-foreground">
-            Показаны первые {MEMBER_LIST_LIMIT} участников по нику.
-          </output>
+        {!closed && poolQuery.isError ? (
+          <p className="text-sm text-destructive">
+            Не удалось загрузить список.
+          </p>
         ) : null}
       </div>
     </Card>
@@ -823,9 +931,18 @@ function DragPreview({
  * распределяют людей до закрытия; остальные и закрытое событие — только
  * чтение (GRP-16).
  */
-export function EventGroupsSection({ event }: { event: EventDetails }) {
-  const { role } = useAccess()
-  const isMember = role === 'member'
+export function EventGroupsSection({
+  event,
+  classIds,
+  onClassIdsChange,
+}: {
+  event: EventDetails
+  classIds: number[]
+  onClassIdsChange: (ids: number[]) => void
+}) {
+  const { hasOfficerPermission } = useAccess()
+  const canViewAll = hasOfficerPermission('events.view_full_roster')
+  const isMember = !canViewAll
   const currentUserId = useSession().session?.user.id
   const moveMember = useMoveMember()
   const [dragging, setDragging] = useState<string | null>(null)
@@ -835,9 +952,24 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
       activationConstraint: { delay: 200, tolerance: 6 },
     }),
   )
+  const people = new Map(
+    event.participants.map((person) => [person.id, person]),
+  )
+  for (const group of event.groups) {
+    for (const member of group.members) {
+      if (!people.has(member.userId) && member.profile) {
+        people.set(member.userId, {
+          id: member.userId,
+          ...member.profile,
+          answer: null,
+          status: null,
+        })
+      }
+    }
+  }
   const board: Board = {
     event,
-    people: new Map(event.participants.map((person) => [person.id, person])),
+    people,
     currentUserId,
     editable: event.canManageGroups,
     move: (userId, target) =>
@@ -887,8 +1019,19 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
           </Badge>
         ) : null}
         {board.editable ? <GroupToolbar board={board} /> : null}
-        {event.canClose ? (
-          <EventToolbar board={board} className="ml-auto" />
+        {canViewAll || event.canClose ? (
+          <div className="ml-auto grid justify-items-end gap-1">
+            {canViewAll ? (
+              <span className="text-sm font-semibold text-highlight">
+                Людей в группах:{' '}
+                {event.groups.reduce(
+                  (sum, group) => sum + group.members.length,
+                  0,
+                )}
+              </span>
+            ) : null}
+            {event.canClose ? <EventToolbar board={board} /> : null}
+          </div>
         ) : null}
       </div>
       {event.groups.length === 0 ? (
@@ -937,7 +1080,11 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
           groupsPanel
         ) : (
           <div className="grid items-start gap-3 lg:grid-cols-[minmax(18rem,23rem)_minmax(0,1fr)]">
-            <PoolPanel board={board} />
+            <PoolPanel
+              board={board}
+              classIds={classIds}
+              onClassIdsChange={onClassIdsChange}
+            />
             {groupsPanel}
           </div>
         )}

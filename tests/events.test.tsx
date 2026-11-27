@@ -1,5 +1,14 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 import type {
   EventDetails,
   EventListResponse,
@@ -27,6 +36,22 @@ vi.mock('@/lib/supabase/api', async (importOriginal) => ({
 
 const EVENT_ID = '33333333-3333-4333-8333-333333333333'
 const TEMPLATE_ID = '44444444-4444-4444-8444-444444444444'
+
+beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    configurable: true,
+    get: () => 600,
+  })
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+    configurable: true,
+    get: () => 800,
+  })
+})
+
+afterAll(() => {
+  Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight')
+  Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth')
+})
 
 function summary(extra: Partial<EventSummary> = {}): EventSummary {
   return {
@@ -95,7 +120,39 @@ function list(
 
 function respond(routes: Record<string, (body: unknown) => unknown>) {
   callApi.mockImplementation((route, body) => {
-    const handler = routes[route]
+    const handler =
+      routes[route] ??
+      (route === 'catalog/classes'
+        ? () => ({ classes: [] })
+        : route === 'groups/pool-page'
+          ? (input) => {
+              const tab = (input as { tab: string }).tab
+              const event = routes['events/get']?.({
+                id: EVENT_ID,
+              }) as EventDetails
+              const free = event.participants.filter(
+                (person) =>
+                  !event.groups.some((item) =>
+                    item.members.some((member) => member.userId === person.id),
+                  ),
+              )
+              return {
+                items: free.filter((person) =>
+                  tab === 'none'
+                    ? person.answer === null
+                    : person.answer === tab,
+                ),
+                nextCursor: null,
+                counts: {
+                  yes: free.filter((person) => person.answer === 'yes').length,
+                  no: free.filter((person) => person.answer === 'no').length,
+                  maybe: free.filter((person) => person.answer === 'maybe')
+                    .length,
+                  none: free.filter((person) => person.answer === null).length,
+                },
+              }
+            }
+          : undefined)
     if (!handler) {
       return Promise.reject(new AppError('not_found'))
     }

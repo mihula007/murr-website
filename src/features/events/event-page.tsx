@@ -19,8 +19,22 @@ import {
 import { EventGroupsSection } from './groups/event-groups'
 
 /** Участники и группы события (GRP). */
-function GroupsAndDiscussion({ event }: { event: EventDetails }) {
-  return <EventGroupsSection event={event} />
+function GroupsAndDiscussion({
+  event,
+  classIds,
+  onClassIdsChange,
+}: {
+  event: EventDetails
+  classIds: number[]
+  onClassIdsChange: (ids: number[]) => void
+}) {
+  return (
+    <EventGroupsSection
+      event={event}
+      classIds={classIds}
+      onClassIdsChange={onClassIdsChange}
+    />
+  )
 }
 
 /**
@@ -69,7 +83,15 @@ function EventOverview({
 }
 
 /** Страница события: шапка с ответом, участники и группы (EVT-06, GRP). */
-export function EventPage({ id }: { id: string }) {
+export function EventPage({
+  id,
+  classIds,
+  onClassIdsChange,
+}: {
+  id: string
+  classIds: number[]
+  onClassIdsChange: (ids: number[]) => void
+}) {
   const navigate = useNavigate()
   const event = useEvent(id)
 
@@ -105,7 +127,11 @@ export function EventPage({ id }: { id: string }) {
             void navigate({ to: '/events', search: { tab: 'active' } })
           }
         />
-        <GroupsAndDiscussion event={data} />
+        <GroupsAndDiscussion
+          event={data}
+          classIds={classIds}
+          onClassIdsChange={onClassIdsChange}
+        />
       </>
     )
   }

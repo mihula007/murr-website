@@ -42,8 +42,10 @@ function useGroupsMutation<T extends object>(route: string) {
   return useMutation({
     mutationFn: ({ input }: { eventId: string; input: T }) =>
       callApi<EventGroupsResponse>(route, input),
-    onSuccess: (result, { eventId }) =>
-      storeGroups(queryClient, eventId, result),
+    onSuccess: async (result, { eventId }) => {
+      storeGroups(queryClient, eventId, result)
+      await queryClient.invalidateQueries({ queryKey: eventKeys.groupPoolAll })
+    },
   })
 }
 

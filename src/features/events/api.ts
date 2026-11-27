@@ -17,6 +17,7 @@ import type {
   TemplateNextResponse,
   UpdateEventRequest,
 } from '@contracts/events'
+import type { GroupPoolPageResponse } from '@contracts/groups'
 import { callApi } from '@/lib/supabase/api'
 import { eventKeys } from './query-keys'
 
@@ -48,6 +49,28 @@ export function useEvent(id: string) {
   return useQuery({
     queryKey: eventKeys.detail(id),
     queryFn: () => callApi<EventDetails>('events/get', { id }),
+  })
+}
+
+export function useGroupPoolPages(input: {
+  eventId: string
+  tab: 'yes' | 'no' | 'maybe' | 'none'
+  classIds: number[]
+  sortBy: 'pa' | 'pz' | 'bu' | 'hp' | 'bd' | null
+  direction: 'asc' | 'desc'
+  enabled: boolean
+}) {
+  const { enabled, ...filters } = input
+  return useInfiniteQuery({
+    queryKey: eventKeys.groupPool(filters),
+    queryFn: ({ pageParam }) =>
+      callApi<GroupPoolPageResponse>('groups/pool-page', {
+        ...filters,
+        cursor: pageParam,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+    enabled,
   })
 }
 

@@ -9,4 +9,12 @@ export const eventKeys = {
   groupTemplates: ['events', 'group-templates'] as const,
   groupTemplateCatalog: ['events', 'group-template-catalog'] as const,
   groupTemplate: (id: string) => ['events', 'group-template', id] as const,
+  groupPool: (input: {
+    eventId: string
+    tab: string
+    classIds: number[]
+    sortBy: string | null
+    direction: string
+  }) => ['events', 'group-pool', input] as const,
+  groupPoolAll: ['events', 'group-pool'] as const,
 }
