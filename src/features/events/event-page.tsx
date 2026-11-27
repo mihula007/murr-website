@@ -35,7 +35,7 @@ function EventOverview({
   onDeleted: () => void
 }) {
   return (
-    <div className="mb-4 grid items-start gap-x-4 gap-y-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)_minmax(300px,0.9fr)]">
+    <div className="mb-2 grid items-start gap-x-4 gap-y-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)_minmax(300px,380px)]">
       <header className="order-1 grid min-w-0 gap-3">
         <div className="flex items-start justify-between gap-3">
           <EventBadges event={event} />
@@ -54,7 +54,7 @@ function EventOverview({
           Автор: {eventAuthor(event)}
         </p>
       </header>
-      <Card className="order-2 grid gap-3 p-4 lg:order-3">
+      <Card className="order-2 grid gap-2 p-3 lg:order-3">
         <EventAnswers event={event} />
       </Card>
       <div className="order-3 min-w-0 lg:order-2">

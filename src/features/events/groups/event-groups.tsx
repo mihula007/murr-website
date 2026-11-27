@@ -651,15 +651,21 @@ function GroupCard({ board, group }: { board: Board; group: EventGroup }) {
   )
 }
 
-/** Завершение события остаётся в правой части общей верхней панели. */
-function EventToolbar({ board }: { board: Board }) {
+/** Завершение события рядом с заголовком списка групп. */
+function EventToolbar({
+  board,
+  className,
+}: {
+  board: Board
+  className?: string
+}) {
   const { event } = board
   const close = useCloseEvent()
   const [closing, setClosing] = useState(false)
   const hasGroups = event.groups.length > 0
 
   return (
-    <div className="flex justify-end">
+    <div className={cn('flex justify-end', className)}>
       {event.canClose ? (
         <Button
           type="button"
@@ -881,6 +887,9 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
           </Badge>
         ) : null}
         {board.editable ? <GroupToolbar board={board} /> : null}
+        {event.canClose ? (
+          <EventToolbar board={board} className="ml-auto" />
+        ) : null}
       </div>
       {event.groups.length === 0 ? (
         <div className="min-h-0 rounded-xl border border-dashed border-border p-4 lg:overflow-y-auto">
@@ -923,8 +932,7 @@ export function EventGroupsSection({ event }: { event: EventDetails }) {
       onDragCancel={() => setDragging(null)}
       onDragEnd={onDragEnd}
     >
-      <div className="grid gap-4">
-        {event.canClose ? <EventToolbar board={board} /> : null}
+      <div className="grid">
         {isMember ? (
           groupsPanel
         ) : (
