@@ -142,8 +142,20 @@ export const applyGroupTemplateSchema = z.object({
 })
 export type ApplyGroupTemplateRequest = z.input<typeof applyGroupTemplateSchema>
 
+/** Краткий профиль участника группы для строки и подсказки. */
+export type EventGroupMemberProfile = CharacterStatFields & {
+  gameNickname: string
+  classId: number
+  className: string
+  avatarUrl: string | null
+}
+
 /** Участник группы события по порядку (GRP-07). */
-export type EventGroupMember = { userId: string; isLeader: boolean }
+export type EventGroupMember = {
+  userId: string
+  isLeader: boolean
+  profile?: EventGroupMemberProfile | null
+}
 
 export type EventGroup = {
   id: string

@@ -42,6 +42,15 @@ export type GroupMemberRow = {
   group_id: string
   user_id: string
   is_leader: boolean
+  game_nickname: string
+  class_id: number
+  class_name: string
+  avatar_path: string | null
+  pa: number | string | null
+  pz: number | string | null
+  bu: number | string | null
+  hp: number | string | null
+  bd: number | string | null
 }
 
 export const groupRepository = {
@@ -59,11 +68,17 @@ export const groupRepository = {
   /** Участники групп события по порядку в группе. */
   members(db: Executor, eventId: string): Promise<GroupMemberRow[]> {
     return db
-      .selectFrom('app.event_group_members')
-      .select(['group_id', 'user_id', 'is_leader'])
-      .where('event_id', '=', eventId)
-      .orderBy('group_id')
-      .orderBy('position')
+      .selectFrom('app.event_group_members as m')
+      .innerJoin('app.profiles as p', 'p.id', 'm.user_id')
+      .innerJoin('app.character_classes as c', 'c.id', 'p.class_id')
+      .select([
+        'm.group_id', 'm.user_id', 'm.is_leader', 'p.game_nickname',
+        'p.class_id', 'c.name as class_name', 'p.avatar_path',
+        'p.pa', 'p.pz', 'p.bu', 'p.hp', 'p.bd',
+      ])
+      .where('m.event_id', '=', eventId)
+      .orderBy('m.group_id')
+      .orderBy('m.position')
       .execute()
   },
 

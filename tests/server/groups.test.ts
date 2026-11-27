@@ -193,6 +193,39 @@ describe('groups: access (GRP, ACL)', () => {
   })
 })
 
+describe('group member profile', () => {
+  it('includes current profile stats for members in active event groups', async () => {
+    const { officer, event, a } = await setup()
+    await db
+      .updateTable('app.profiles')
+      .set({ pa: 317, pz: 127, bu: 2, hp: 86100, bd: 8273 })
+      .where('id', '=', a.user.id)
+      .execute()
+    const { groups: created } = await createGroup(deps, officer.actor, {
+      eventId: event.id,
+      name: 'Пати',
+    })
+    await moveMember(deps, officer.actor, {
+      eventId: event.id,
+      userId: a.user.id,
+      groupId: created[0]!.id,
+    })
+
+    const result = await getEvent(deps, officer.actor, { id: event.id })
+    expect(result.groups[0]!.members[0]).toMatchObject({
+      userId: a.user.id,
+      profile: {
+        gameNickname: a.user.nickname,
+        pa: 317,
+        pz: 127,
+        bu: 2,
+        hp: 86100,
+        bd: 8273,
+      },
+    })
+  })
+})
+
 describe('groups: moves, order and leader (GRP-04–09)', () => {
   it('moves a member between groups and back to the pool without duplicates', async () => {
     const { officer, event, a, b } = await setup()
