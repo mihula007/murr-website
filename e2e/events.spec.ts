@@ -452,7 +452,7 @@ test('member sees only their assigned group while managers retain the full event
   await signInUi(page, officer.email)
   await expectSignedIn(page)
   await page.goto(`./#/events/${id}`)
-  await expect(page.getByRole('heading', { name: 'Группы' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Группы' })).toHaveCount(0)
   await expect(page.getByText('Группа члена')).toBeVisible()
   await expect(page.getByText('Чужая группа')).toBeVisible()
   await expect(page.getByRole('tab', { name: /Придут/ })).toBeVisible()

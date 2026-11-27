@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { hasHorizontalScroll, skipSplash } from './helpers'
 import {
   accessToken,
@@ -214,30 +214,37 @@ test('перетаскивание участника в группу и обр�
   await page.goto(`./#/events/${event.id}`)
   await createGroup(page, 'Танки')
 
-  const drag = async (from: string, to: string) => {
+  const drag = async (from: string, target: Locator) => {
     const handle = page.getByRole('button', { name: `Перетащить ${from}` })
     await handle.scrollIntoViewIfNeeded()
     const source = (await handle.boundingBox())!
-    const target = (await page
-      .getByText(to, { exact: false })
-      .first()
-      .boundingBox())!
+    const targetBox = (await target.first().boundingBox())!
     await page.mouse.move(
       source.x + source.width / 2,
       source.y + source.height / 2,
     )
     await page.mouse.down()
-    await page.mouse.move(target.x + 20, target.y + target.height / 2, {
-      steps: 12,
-    })
+    await page.mouse.move(
+      targetBox.x + 20,
+      targetBox.y + targetBox.height / 2,
+      {
+        steps: 12,
+      },
+    )
     await page.mouse.up()
   }
 
-  await drag(member.nickname, 'Перетащите участников сюда')
+  await drag(
+    member.nickname,
+    page.getByText('Перетащите участников сюда', { exact: false }),
+  )
   await expect(
     page.getByRole('list', { name: 'Состав «Танки»' }),
   ).toContainText(member.nickname)
-  await drag(member.nickname, 'Назначенные в группы скрываются')
+  await drag(
+    member.nickname,
+    page.getByRole('region', { name: 'Прокручиваемый список: Придут' }),
+  )
   await expect(page.getByRole('list', { name: 'Состав «Танки»' })).toHaveCount(
     0,
   )
@@ -363,15 +370,15 @@ test('длинный свободный список групп, счётчик 
   )
   await sql(
     (db) =>
-      db`update app.profiles set class_id = 2 where id in ${db(people.filter((_, index) => index % 2 === 1).map((person) => [person.id]))}`,
+      db`update app.profiles set class_id = 2 where id in ${db(people.filter((_, index) => index % 2 === 1).map((person) => person.id))}`,
   )
   const [lastPerson] = await sql(
     (db) =>
-      db`select game_nickname as nickname from app.profiles where id in ${db(people.map((person) => [person.id]))} order by game_nickname desc, id desc limit 1`,
+      db`select game_nickname as nickname from app.profiles where id in ${db(people.map((person) => person.id))} order by game_nickname desc, id desc limit 1`,
   )
   const [firstPersonRow] = await sql(
     (db) =>
-      db`select id from app.profiles where id in ${db(people.map((person) => [person.id]))} order by game_nickname asc, id asc limit 1`,
+      db`select id from app.profiles where id in ${db(people.map((person) => person.id))} order by game_nickname asc, id asc limit 1`,
   )
   const firstPerson = people.find((person) => person.id === firstPersonRow!.id)!
   await page.setViewportSize({ width: 375, height: 812 })
@@ -395,7 +402,9 @@ test('длинный свободный список групп, счётчик 
   })
   await createGroup(page, 'Длинная пати')
   await moveToGroup(page, firstPerson.nickname, 'Длинная пати')
-  await expect(page.getByText('Людей в группах: 1')).toBeVisible()
+  const countLabel = page.getByText('Людей в группе')
+  await expect(countLabel).toBeVisible()
+  await expect(countLabel.locator('..').getByText('1')).toBeVisible()
   await page
     .getByRole('button', { name: `Действия: ${firstPerson.nickname}` })
     .press('Enter')

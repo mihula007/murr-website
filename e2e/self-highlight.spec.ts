@@ -78,12 +78,18 @@ test('E2E-12: участник находит себя в основных сп�
     await page.goto(`./#/events/${eventId}`)
     if (width === 1240) {
       const pool = page.getByRole('list', { name: 'Придут' })
-      const currentPoolRow = pool.getByRole('listitem').filter({
-        hasText: current.nickname,
-      })
-      const otherPoolRow = pool.getByRole('listitem').filter({
-        hasText: other.nickname,
-      })
+      const currentPoolRow = pool
+        .getByRole('listitem')
+        .filter({
+          hasText: current.nickname,
+        })
+        .locator(':scope > div')
+      const otherPoolRow = pool
+        .getByRole('listitem')
+        .filter({
+          hasText: other.nickname,
+        })
+        .locator(':scope > div')
       await expect(currentPoolRow).toHaveClass(/bg-item-highlight/)
       await expect(otherPoolRow).not.toHaveClass(/bg-item-highlight/)
 
