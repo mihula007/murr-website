@@ -33,10 +33,12 @@
 ### Task 1: Совместимое чтение и изменение шаблона на сервере
 
 **Файлы:**
+
 - Изменить: `supabase/functions/_shared/contracts/groups.ts`, `supabase/functions/_shared/groups/repository.ts`, `supabase/functions/_shared/groups/service.ts`, `supabase/functions/_shared/app.ts`.
 - Проверки: `tests/server/groups.test.ts`, `tests/server/http.test.ts`.
 
 **Интерфейсы:**
+
 - Добавить `group-templates/catalog` с элементами `{ id, name, createdBy, groupCount, memberCount }`.
 - Добавить `group-templates/get` с одним шаблоном, группами, участниками, порядком, лидерами и пятью текущими характеристиками.
 - Сохранить существующий ответ `group-templates/list` для старых клиентов.
@@ -51,10 +53,12 @@
 ### Task 2: Пагинация, характеристики и фильтр в конструкторе
 
 **Файлы:**
+
 - Изменить: `src/features/roster/api.ts`, `src/features/roster/query-keys.ts`, `src/features/events/groups-api.ts`, `src/features/events/query-keys.ts`, `src/features/events/groups/group-template-builder.tsx`, `src/features/events/groups/group-templates-dialog.tsx`.
 - Проверки: `tests/event-groups.test.tsx`, `tests/virtual-list.test.tsx` (только если меняется общий компонент списка).
 
 **Интерфейсы:**
+
 - Добавить отдельные хуки каталога и выбранного шаблона, не меняя форму существующего `useGroupTemplates` для потребителей старого списка.
 - Добавить хук страниц состава по `{ classId: number | null, search: string }`, используя `roster/page`; поиск с задержкой 350 мс.
 - Конструктор принимает исходное сохранение, ID редактируемого шаблона (если есть) и карточки уже назначенных участников для показа характеристик.
@@ -67,9 +71,11 @@
 ### Task 3: Действие редактирования и сквозная проверка
 
 **Файлы:**
+
 - Изменить: `src/features/events/groups-api.ts`, `src/features/events/query-keys.ts`, `src/features/events/groups/group-templates-dialog.tsx`, `src/features/events/groups/group-template-builder.tsx`, `tests/event-groups.test.tsx`, `e2e/groups.spec.ts`.
 
 **Интерфейсы:**
+
 - В библиотеке у каждого шаблона есть действие «Изменить» для пользователя с `groups.templates`.
 - Выбранная карточка загружается через `group-templates/get`, редактор сохраняет с прежним ID.
 
