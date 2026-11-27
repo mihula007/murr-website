@@ -247,10 +247,7 @@ test('перетаскивание участника в группу и обр�
       .getByRole('listitem')
       .filter({ hasText: member.nickname }),
   ).toHaveCount(0)
-  await drag(
-    member.nickname,
-    page.getByRole('region', { name: 'Прокручиваемый список: Придут' }),
-  )
+  await drag(member.nickname, page.getByText('Никого нет.', { exact: true }))
   await expect(page.getByRole('list', { name: 'Состав «Танки»' })).toHaveCount(
     0,
   )
@@ -420,7 +417,7 @@ test('длинный свободный список групп, счётчик 
   await page
     .getByRole('list', { name: 'Состав «Длинная пати»' })
     .getByRole('button', { name: `Действия: ${firstPerson.nickname}` })
-    .press('Enter')
+    .click()
   await page.getByRole('menuitem', { name: 'Характеристики' }).click()
   await expect(
     page.getByRole('dialog', {
