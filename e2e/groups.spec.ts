@@ -241,6 +241,12 @@ test('перетаскивание участника в группу и обр�
   await expect(
     page.getByRole('list', { name: 'Состав «Танки»' }),
   ).toContainText(member.nickname)
+  await expect(
+    page
+      .getByRole('list', { name: 'Придут' })
+      .getByRole('listitem')
+      .filter({ hasText: member.nickname }),
+  ).toHaveCount(0)
   await drag(
     member.nickname,
     page.getByRole('region', { name: 'Прокручиваемый список: Придут' }),
@@ -402,10 +408,17 @@ test('длинный свободный список групп, счётчик 
   })
   await createGroup(page, 'Длинная пати')
   await moveToGroup(page, firstPerson.nickname, 'Длинная пати')
+  await expect(
+    page
+      .getByRole('list', { name: 'Придут' })
+      .getByRole('listitem')
+      .filter({ hasText: firstPerson.nickname }),
+  ).toHaveCount(0)
   const countLabel = page.getByText('Людей в группе')
   await expect(countLabel).toBeVisible()
   await expect(countLabel.locator('..').getByText('1')).toBeVisible()
   await page
+    .getByRole('list', { name: 'Состав «Длинная пати»' })
     .getByRole('button', { name: `Действия: ${firstPerson.nickname}` })
     .press('Enter')
   await page.getByRole('menuitem', { name: 'Характеристики' }).click()
