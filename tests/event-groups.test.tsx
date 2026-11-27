@@ -248,10 +248,19 @@ describe('event groups: reading (GRP-01, GRP-16)', () => {
     sessionUserId.current = null
   })
 
-  it('uses class icons and exposes group stats from the row menu', async () => {
+  it('uses class icons and shows group stats on hover', async () => {
     respond({
       'events/get': () =>
         manager({
+          participants: [
+            person(ANNA, 'Анна', {
+              pa: 125,
+              pz: 80,
+              bu: null,
+              hp: 1000,
+              bd: 25,
+            }),
+          ],
           groups: [
             group([
               {
@@ -280,7 +289,15 @@ describe('event groups: reading (GRP-01, GRP-16)', () => {
     expect(
       screen.queryByRole('combobox', { name: 'Фильтр по классу' }),
     ).toBeNull()
-    expect(await screen.findByText('Людей в группах: 1')).toBeVisible()
+    const countLabel = await screen.findByText('Людей в группе')
+    expect(countLabel).toBeVisible()
+    const countArea = countLabel.parentElement?.parentElement
+    expect(countArea).not.toBeNull()
+    expect(within(countArea!).getByText('1')).toBeVisible()
+    expect(
+      within(countArea!).getByRole('button', { name: 'Завершить событие' }),
+    ).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Группы' })).toBeNull()
     const classFilter = await screen.findByRole('button', {
       name: 'Фильтр по классу Маг',
     })
@@ -291,16 +308,13 @@ describe('event groups: reading (GRP-01, GRP-16)', () => {
         expect.objectContaining({ classIds: [7] }),
       ),
     )
-    fireEvent.keyDown(
-      await screen.findByRole('button', { name: 'Действия: Анна' }),
-      { key: 'Enter' },
-    )
-    fireEvent.click(
-      await screen.findByRole('menuitem', { name: 'Характеристики' }),
-    )
-    expect(
-      await screen.findByRole('dialog', { name: 'Характеристики: Анна' }),
-    ).toBeVisible()
+    const member = await screen
+      .findByText('Анна')
+      .then((node) => node.closest('li'))
+    expect(member).not.toBeNull()
+    fireEvent.mouseEnter(member!)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('ПА')
+    expect(screen.getByRole('tooltip')).toHaveTextContent('125')
   })
 
   it('shows groups to a member without any management', async () => {
