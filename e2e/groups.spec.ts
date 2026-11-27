@@ -369,6 +369,11 @@ test('длинный свободный список групп, счётчик 
     (db) =>
       db`select game_nickname as nickname from app.profiles where id in ${db(people.map((person) => [person.id]))} order by game_nickname desc, id desc limit 1`,
   )
+  const [firstPersonRow] = await sql(
+    (db) =>
+      db`select id from app.profiles where id in ${db(people.map((person) => [person.id]))} order by game_nickname asc, id asc limit 1`,
+  )
+  const firstPerson = people.find((person) => person.id === firstPersonRow!.id)!
   await page.setViewportSize({ width: 375, height: 812 })
   await signInUi(page, officer.email)
   await expectSignedIn(page)
@@ -385,16 +390,19 @@ test('длинный свободный список групп, счётчик 
   await expect(page.getByRole('list', { name: 'Придут' })).toContainText(
     lastPerson!.nickname,
   )
+  await poolViewport.evaluate((element) => {
+    element.scrollTop = 0
+  })
   await createGroup(page, 'Длинная пати')
-  await moveToGroup(page, people[0]!.nickname, 'Длинная пати')
+  await moveToGroup(page, firstPerson.nickname, 'Длинная пати')
   await expect(page.getByText('Людей в группах: 1')).toBeVisible()
   await page
-    .getByRole('button', { name: `Действия: ${people[0]!.nickname}` })
+    .getByRole('button', { name: `Действия: ${firstPerson.nickname}` })
     .press('Enter')
   await page.getByRole('menuitem', { name: 'Характеристики' }).click()
   await expect(
     page.getByRole('dialog', {
-      name: new RegExp(`Характеристики: ${people[0]!.nickname}`),
+      name: new RegExp(`Характеристики: ${firstPerson.nickname}`),
     }),
   ).toBeVisible()
   expect(await hasHorizontalScroll(page)).toBe(false)

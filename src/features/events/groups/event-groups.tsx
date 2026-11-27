@@ -509,7 +509,9 @@ function PoolPanel({
         </p>
       ) : null}
       <div className="min-h-0 lg:flex-1 lg:overflow-y-auto">
-        {shown.length === 0 ? (
+        {!closed && poolQuery.isPending ? (
+          <p className="m-0 text-muted-foreground">Загружаем участников…</p>
+        ) : shown.length === 0 ? (
           <p className="m-0 text-muted-foreground">Никого нет.</p>
         ) : (
           <>

@@ -140,11 +140,10 @@ export async function groupPoolPage(
 }
 
 async function groupsResponse(
-  deps: AppDeps,
   db: Executor,
   eventId: string,
 ): Promise<EventGroupsResponse> {
-  return { groups: await eventGroups(deps, db, eventId) }
+  return { groups: await eventGroups(db, eventId) }
 }
 
 /** Группа незакрытого события под блокировкой события. */
@@ -181,7 +180,7 @@ export async function createGroup(
       eventId: input.eventId,
       name: input.name,
     })
-    return groupsResponse(deps, tx, input.eventId)
+    return groupsResponse(tx, input.eventId)
   })
 }
 
@@ -196,7 +195,7 @@ export async function renameGroup(
   return withTransaction(deps.db, async (tx) => {
     const { group } = await lockGroup(tx, input.groupId)
     await groupRepository.renameGroup(tx, group.id, input.name)
-    return groupsResponse(deps, tx, group.event_id)
+    return groupsResponse(tx, group.event_id)
   })
 }
 
@@ -211,7 +210,7 @@ export async function deleteGroup(
   return withTransaction(deps.db, async (tx) => {
     const { group } = await lockGroup(tx, groupId)
     await groupRepository.deleteGroup(tx, group.id)
-    return groupsResponse(deps, tx, group.event_id)
+    return groupsResponse(tx, group.event_id)
   })
 }
 
@@ -281,7 +280,7 @@ export async function moveMember(
         )
       }
     }
-    return groupsResponse(deps, tx, input.eventId)
+    return groupsResponse(tx, input.eventId)
   })
 }
 
@@ -316,7 +315,7 @@ export async function setGroupLeader(
         group.name,
       )
     }
-    return groupsResponse(deps, tx, group.event_id)
+    return groupsResponse(tx, group.event_id)
   })
 }
 
@@ -608,6 +607,6 @@ export async function applyGroupTemplate(
         }
       }
     }
-    return groupsResponse(deps, tx, input.eventId)
+    return groupsResponse(tx, input.eventId)
   })
 }

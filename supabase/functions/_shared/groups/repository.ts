@@ -45,7 +45,6 @@ export type GroupMemberRow = {
   game_nickname: string
   class_id: number
   class_name: string
-  avatar_path: string | null
   pa: number | string | null
   pz: number | string | null
   bu: number | string | null
@@ -85,7 +84,6 @@ export const groupRepository = {
         sql<string>`coalesce(r.nickname, p.game_nickname)`.as('game_nickname'),
         sql<number>`coalesce(r.class_id, p.class_id)`.as('class_id'),
         'c.name as class_name',
-        'p.avatar_path',
         'p.pa',
         'p.pz',
         'p.bu',

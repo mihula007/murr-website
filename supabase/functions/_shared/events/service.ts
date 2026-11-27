@@ -187,7 +187,6 @@ export async function listEvents(
 
 /** Группы события по порядку с участниками по порядку (GRP-03, GRP-07). */
 export async function eventGroups(
-  deps: AppDeps,
   db: Executor,
   eventId: string,
   closed = false,
@@ -196,10 +195,6 @@ export async function eventGroups(
     groupRepository.groups(db, eventId),
     groupRepository.members(db, eventId),
   ])
-  const urls = await avatarUrls(
-    deps.storage,
-    members.map((member) => member.avatar_path),
-  )
   return groups.map((group) => ({
     id: group.id,
     name: group.name,
@@ -212,9 +207,7 @@ export async function eventGroups(
           gameNickname: member.game_nickname,
           classId: member.class_id,
           className: member.class_name,
-          avatarUrl: member.avatar_path
-            ? (urls.get(member.avatar_path) ?? null)
-            : null,
+          avatarUrl: null,
           pa: closed || member.pa == null ? null : Number(member.pa),
           pz: closed || member.pz == null ? null : Number(member.pz),
           bu: closed || member.bu == null ? null : Number(member.bu),
@@ -294,7 +287,7 @@ async function loadEventDetails(
   const [[summary], people, groups] = await Promise.all([
     summarize(deps, deps.db, [row], viewer),
     loadPeople(deps, id, closed),
-    eventGroups(deps, deps.db, id, closed),
+    eventGroups(deps.db, id, closed),
   ])
   const canViewFullRoster = await hasOfficerPermission(
     deps,
