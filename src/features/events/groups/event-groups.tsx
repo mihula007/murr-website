@@ -160,16 +160,6 @@ function PersonRow({
           ? () => setStatsHoverOpen(false)
           : undefined
       }
-      onFocusCapture={
-        group && board.event.closedAt === null
-          ? () => setStatsHoverOpen(true)
-          : undefined
-      }
-      onBlurCapture={
-        group && board.event.closedAt === null
-          ? () => setStatsHoverOpen(false)
-          : undefined
-      }
       className={cn(
         'relative flex min-w-0 items-center border border-border bg-surface-inset',
         group ? 'gap-1.5 rounded-md px-1.5 py-1' : 'gap-2 rounded-lg px-2 py-1',
@@ -238,6 +228,8 @@ function PersonRow({
               size="icon"
               className={cn('flex-none', group ? 'size-6' : 'size-8')}
               aria-label={`Действия: ${person.gameNickname}`}
+              onMouseEnter={() => setStatsHoverOpen(false)}
+              onFocus={() => setStatsHoverOpen(false)}
             >
               <EllipsisVertical size={16} aria-hidden="true" />
             </Button>

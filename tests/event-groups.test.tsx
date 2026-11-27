@@ -315,6 +315,16 @@ describe('event groups: reading (GRP-01, GRP-16)', () => {
     fireEvent.mouseEnter(member!)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('ПА')
     expect(screen.getByRole('tooltip')).toHaveTextContent('125')
+    const actions = screen.getByRole('button', { name: 'Действия: Анна' })
+    fireEvent.mouseEnter(actions)
+    fireEvent.pointerDown(actions, {
+      button: 0,
+      ctrlKey: false,
+      pointerType: 'mouse',
+    })
+    expect(
+      await screen.findByRole('menuitem', { name: 'Характеристики' }),
+    ).toBeVisible()
   })
 
   it('shows groups to a member without any management', async () => {
