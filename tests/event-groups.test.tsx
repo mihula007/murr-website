@@ -470,7 +470,11 @@ describe('group templates (GRP-12, GRP-15)', () => {
       await loadedEditor.findByDisplayValue('Основа', {}, { timeout: 5_000 }),
     ).toBeVisible()
     expect(
-      await loadedEditor.findByLabelText('Группа 1', {}, { timeout: 5_000 }),
+      await loadedEditor.findByLabelText(
+        'Название группы 1',
+        {},
+        { timeout: 5_000 },
+      ),
     ).toHaveValue('Передовая')
     expect(
       loadedEditor.getByRole('list', { name: 'Участники группы Передовая' }),
@@ -533,9 +537,8 @@ describe('group templates (GRP-12, GRP-15)', () => {
     for (const value of ['125', '80', '—', '25']) {
       expect(within(anna).getByText(value)).toBeVisible()
     }
-    expect(within(anna).getByText('ХП').parentElement).toHaveTextContent(
-      '1 000',
-    )
+    expect(builder.getByText('ХП')).toBeVisible()
+    expect(within(anna).getByText(/1\s000/)).toBeVisible()
 
     fireEvent.click(builder.getByRole('button', { name: 'Создать группу' }))
     const addAnna = builder.getByRole('button', {
@@ -543,12 +546,11 @@ describe('group templates (GRP-12, GRP-15)', () => {
     })
     fireEvent.keyDown(addAnna, { key: 'Enter' })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Пати 1' }))
-    expect(await builder.findByText('Анна')).toBeVisible()
-    expect(
-      within(
-        builder.getByRole('list', { name: 'Участники группы Пати 1' }),
-      ).queryByText(/1\s000/),
-    ).toBeNull()
+    const assigned = builder.getByRole('list', {
+      name: 'Участники группы Пати 1',
+    })
+    expect(within(assigned).getByText('Анна')).toBeVisible()
+    expect(within(assigned).queryByText(/1\s000/)).toBeNull()
 
     fireEvent.change(
       builder.getByRole('searchbox', { name: 'Поиск в составе' }),
