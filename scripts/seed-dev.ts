@@ -954,6 +954,33 @@ for (let i = 0; i < 140; i += 1) {
     }
   }
 }
+
+// Активное событие для ручной проверки длинного свободного списка групп.
+const groupPoolDemoId = randomUUID()
+events.push({
+  id: groupPoolDemoId,
+  title: 'Проверка длинного списка групп',
+  event_type: 'clan',
+  description: 'Демо: свободный состав больше 50 человек.',
+  starts_at: iso(NOW + 5 * DAY),
+  recurring_preset: null,
+  created_by: staff[0]!.id,
+  closed_at: null,
+  closed_by: null,
+  created_at: iso(NOW - HOUR),
+  updated_at: iso(NOW - HOUR),
+})
+clan.slice(0, 72).forEach((user, index) => {
+  if (index >= 60 && index % 4 === 3) {
+    return
+  }
+  attendance.push({
+    event_id: groupPoolDemoId,
+    user_id: user.id,
+    answer: index < 60 ? 'yes' : index % 4 === 0 ? 'maybe' : 'no',
+    answered_at: iso(NOW - HOUR),
+  })
+})
 await insert('events', events)
 await insert('event_attendance', attendance)
 await insert('event_groups', groups)

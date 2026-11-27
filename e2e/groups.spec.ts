@@ -346,6 +346,60 @@ test('шаблон редактируется, фильтруется по кл�
   await expect(eventGroup).not.toContainText(free.nickname)
 })
 
+test('длинный свободный список групп, счётчик и характеристики на телефоне', async ({
+  page,
+}) => {
+  test.skip(
+    test.info().project.name !== 'chromium',
+    'Сквозной сценарий интерфейса',
+  )
+  const officer = await createMember('officer')
+  const people = await Promise.all(
+    Array.from({ length: 55 }, () => createMember('member')),
+  )
+  const event = await eventWithAnswers(
+    officer,
+    people.map((person) => [person, 'yes'] as [Person, 'yes' | 'maybe' | 'no']),
+  )
+  await sql(
+    (db) =>
+      db`update app.profiles set class_id = 2 where id in ${db(people.filter((_, index) => index % 2 === 1).map((person) => [person.id]))}`,
+  )
+  const [lastPerson] = await sql(
+    (db) =>
+      db`select game_nickname as nickname from app.profiles where id in ${db(people.map((person) => [person.id]))} order by game_nickname desc, id desc limit 1`,
+  )
+  await page.setViewportSize({ width: 375, height: 812 })
+  await signInUi(page, officer.email)
+  await expectSignedIn(page)
+  await page.goto(`./#/events/${event.id}`)
+  await expect(page.getByRole('tab', { name: /Придут/ })).toContainText('55')
+  await page.getByRole('button', { name: 'Фильтр по классу Оборотень' }).click()
+  await page.getByRole('button', { name: 'Фильтр по классу Друид' }).click()
+  const poolViewport = page.getByRole('region', {
+    name: 'Прокручиваемый список: Придут',
+  })
+  await poolViewport.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  await expect(page.getByRole('list', { name: 'Придут' })).toContainText(
+    lastPerson!.nickname,
+  )
+  await createGroup(page, 'Длинная пати')
+  await moveToGroup(page, people[0]!.nickname, 'Длинная пати')
+  await expect(page.getByText('Людей в группах: 1')).toBeVisible()
+  await page
+    .getByRole('button', { name: `Действия: ${people[0]!.nickname}` })
+    .press('Enter')
+  await page.getByRole('menuitem', { name: 'Характеристики' }).click()
+  await expect(
+    page.getByRole('dialog', {
+      name: new RegExp(`Характеристики: ${people[0]!.nickname}`),
+    }),
+  ).toBeVisible()
+  expect(await hasHorizontalScroll(page)).toBe(false)
+})
+
 test('прямые запрещённые вызовы групп и учёта отклоняются', async () => {
   test.skip(
     test.info().project.name !== 'chromium',
