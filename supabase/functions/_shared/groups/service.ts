@@ -1,4 +1,5 @@
 import type { AppDeps } from '../app.ts'
+import { avatarUrls } from '../account/avatars.ts'
 import { auditPerson, writeAudit } from '../audit/service.ts'
 import type { Actor } from '../auth/actor.ts'
 import {
@@ -15,6 +16,9 @@ import {
   renameGroupSchema,
   saveGroupTemplateSchema,
   setLeaderSchema,
+  groupPoolPageRequestSchema,
+  groupPoolCursorSchema,
+  type GroupPoolPageResponse,
   type EventGroupsResponse,
   type GroupTemplateCatalogResponse,
   type GroupTemplate,
@@ -22,7 +26,9 @@ import {
 } from '../contracts/groups.ts'
 import { withTransaction, type Executor } from '../db/client.ts'
 import { eventGroups, lockOpen } from '../events/service.ts'
+import { eventRepository } from '../events/repository.ts'
 import { ApiError } from '../http/errors.ts'
+import { decodeCursor, splitPage } from '../http/cursor.ts'
 import { parseBody } from '../http/validation.ts'
 import { INTERNAL_ROLES } from '../membership.ts'
 import { notify } from '../notifications/service.ts'
@@ -68,6 +74,70 @@ async function notifyGroup(
 
 const isInternal = (role: string | undefined) =>
   role !== undefined && (INTERNAL_ROLES as readonly string[]).includes(role)
+
+const poolCursor = groupPoolCursorSchema
+
+/** Курсорный свободный список актуального события с полными числами вкладок. */
+export async function groupPoolPage(
+  deps: AppDeps,
+  actor: Actor,
+  body: unknown,
+): Promise<GroupPoolPageResponse> {
+  await requireOfficerPermission(deps, actor, 'events.view_full_roster')
+  const input = parseBody(groupPoolPageRequestSchema, body)
+  const event = await eventRepository.find(deps.db, input.eventId)
+  if (!event) {
+    throw new ApiError('not_found')
+  }
+  if (event.closed_at) {
+    throw new ApiError('state_conflict')
+  }
+  const after = input.cursor ? decodeCursor(poolCursor, input.cursor) : null
+  const [rows, counts] = await Promise.all([
+    groupRepository.poolPage(deps.db, {
+      eventId: input.eventId,
+      roles: INTERNAL_ROLES,
+      tab: input.tab,
+      ...(input.classIds ? { classIds: input.classIds } : {}),
+      sortBy: input.sortBy,
+      direction: input.direction,
+      after: after as [string | null, string, string] | null,
+      limit: input.limit + 1,
+    }),
+    groupRepository.poolCounts(deps.db, input.eventId, INTERNAL_ROLES),
+  ])
+  const page = splitPage(rows, input.limit, (row) =>
+    input.sortBy
+      ? [
+          row[input.sortBy] == null ? null : String(row[input.sortBy]),
+          row.game_nickname,
+          row.id,
+        ]
+      : [null, row.game_nickname, row.id],
+  )
+  const urls = await avatarUrls(
+    deps.storage,
+    page.rows.map((row) => row.avatar_path),
+  )
+  return {
+    items: page.rows.map((row) => ({
+      id: row.id,
+      gameNickname: row.game_nickname,
+      classId: row.class_id,
+      className: row.class_name,
+      avatarUrl: row.avatar_path ? (urls.get(row.avatar_path) ?? null) : null,
+      pa: row.pa == null ? null : Number(row.pa),
+      pz: row.pz == null ? null : Number(row.pz),
+      bu: row.bu == null ? null : Number(row.bu),
+      hp: row.hp == null ? null : Number(row.hp),
+      bd: row.bd == null ? null : Number(row.bd),
+      answer: (row.answer as 'yes' | 'no' | 'maybe' | null) ?? null,
+      status: null,
+    })),
+    nextCursor: page.nextCursor,
+    counts,
+  }
+}
 
 async function groupsResponse(
   deps: AppDeps,

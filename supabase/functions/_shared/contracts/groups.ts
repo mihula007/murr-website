@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { SMALL_LIST_LIMIT } from './paging.ts'
+import { pageRequestShape, SMALL_LIST_LIMIT, type Page } from './paging.ts'
 import type { CharacterStatFields } from './character-stats.ts'
 
 /** Ограничения групп и шаблонов групп (GRP-03, GRP-12, GRP-13). */
@@ -155,6 +155,38 @@ export type EventGroupMember = {
   userId: string
   isLeader: boolean
   profile?: EventGroupMemberProfile | null
+}
+
+export const GROUP_POOL_TABS = ['yes', 'no', 'maybe', 'none'] as const
+export const GROUP_POOL_SORT_FIELDS = ['pa', 'pz', 'bu', 'hp', 'bd'] as const
+export const groupPoolPageRequestSchema = z.object({
+  ...pageRequestShape,
+  eventId: z.guid('not_found'),
+  tab: z.enum(GROUP_POOL_TABS),
+  classIds: z.array(z.number().int().positive()).max(17).optional(),
+  sortBy: z.enum(GROUP_POOL_SORT_FIELDS).nullable().default(null),
+  direction: z.enum(['asc', 'desc']).default('desc'),
+})
+export const groupPoolCursorSchema = z.tuple([
+  z
+    .string()
+    .regex(/^-?\d+(?:\.\d+)?$/, 'invalid')
+    .nullable(),
+  z.string(),
+  z.string(),
+])
+export type GroupPoolPageRequest = z.input<typeof groupPoolPageRequestSchema>
+export type GroupPoolMember = CharacterStatFields & {
+  id: string
+  gameNickname: string
+  classId: number
+  className: string
+  avatarUrl: string | null
+  answer: 'yes' | 'no' | 'maybe' | null
+  status: null
+}
+export type GroupPoolPageResponse = Page<GroupPoolMember> & {
+  counts: Record<(typeof GROUP_POOL_TABS)[number], number>
 }
 
 export type EventGroup = {

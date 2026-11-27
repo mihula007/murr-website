@@ -86,6 +86,7 @@ import {
 import {
   applyGroupTemplate,
   createGroup,
+  groupPoolPage,
   deleteGroup,
   deleteGroupTemplate,
   getGroupTemplate,
@@ -325,6 +326,7 @@ export function createRoutes(deps: AppDeps): Record<string, Route> {
     'groups/rename': ({ actor, body }) => renameGroup(deps, actor, body),
     'groups/delete': ({ actor, body }) => deleteGroup(deps, actor, body),
     'groups/move': ({ actor, body }) => moveMember(deps, actor, body),
+    'groups/pool-page': ({ actor, body }) => groupPoolPage(deps, actor, body),
     'groups/set-leader': ({ actor, body }) => setGroupLeader(deps, actor, body),
     'group-templates/list': ({ actor }) => listGroupTemplates(deps, actor),
     'group-templates/catalog': ({ actor }) =>

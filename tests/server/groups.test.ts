@@ -28,6 +28,7 @@ import {
   renameGroup,
   saveGroupTemplate,
   setGroupLeader,
+  groupPoolPage,
 } from '../../supabase/functions/_shared/groups/service.ts'
 import {
   actorOf,
@@ -223,6 +224,131 @@ describe('group member profile', () => {
         bd: 8273,
       },
     })
+  })
+
+  it('uses archived nickname and class without exposing current stats after close', async () => {
+    const { officer, event, a } = await setup()
+    await db
+      .updateTable('app.profiles')
+      .set({ pa: 999 })
+      .where('id', '=', a.user.id)
+      .execute()
+    const { groups } = await createGroup(deps, officer.actor, {
+      eventId: event.id,
+      name: 'Пати',
+    })
+    await moveMember(deps, officer.actor, {
+      eventId: event.id,
+      userId: a.user.id,
+      groupId: groups[0]!.id,
+    })
+    await closeEvent(deps, officer.actor, { id: event.id })
+    await db
+      .updateTable('app.profiles')
+      .set({ game_nickname: 'Новый ник', pa: 12345 })
+      .where('id', '=', a.user.id)
+      .execute()
+
+    const result = await getEvent(deps, officer.actor, { id: event.id })
+    expect(result.groups[0]!.members[0]!.profile).toMatchObject({
+      gameNickname: a.user.nickname,
+      pa: null,
+    })
+  })
+})
+
+describe('group pool page', () => {
+  it('returns class filtered free members with full answer counts', async () => {
+    const { officer, event, a, b, c } = await setup()
+    await respondToEvent(deps, a.actor, { eventId: event.id, answer: 'yes' })
+    await respondToEvent(deps, b.actor, { eventId: event.id, answer: 'no' })
+    await respondToEvent(deps, c.actor, { eventId: event.id, answer: 'maybe' })
+
+    const page = await groupPoolPage(deps, officer.actor, {
+      eventId: event.id,
+      tab: 'yes',
+      classIds: [1],
+      limit: 50,
+    })
+    expect(page.items.map((person) => person.id)).toEqual([a.user.id])
+    expect(page.counts).toEqual({ yes: 1, no: 1, maybe: 1, none: 1 })
+    expect(page.nextCursor).toBeNull()
+  })
+
+  it('paginates beyond 50 members without dropping or repeating people', async () => {
+    const { officer, event } = await setup()
+    const ids: string[] = []
+    for (let index = 0; index < 55; index += 1) {
+      ids.push((await createProfiledUser(db, 'member')).id)
+    }
+    const seen: string[] = []
+    let cursor: string | null = null
+    do {
+      const page = await groupPoolPage(deps, officer.actor, {
+        eventId: event.id,
+        tab: 'none',
+        cursor,
+      })
+      seen.push(...page.items.map((person) => person.id))
+      cursor = page.nextCursor
+    } while (cursor)
+    expect(seen).toHaveLength(59)
+    expect(new Set(seen).size).toBe(59)
+    expect(ids.every((id) => seen.includes(id))).toBe(true)
+  })
+
+  it('denies the full pool to officers without full roster permission', async () => {
+    const { event } = await setup()
+    const restrictedUser = await createProfiledUser(db, 'officer', {
+      officerPermissions: ['groups.manage'],
+    })
+    const restricted = await actorOf(db, restrictedUser.id)
+    await rejects(
+      groupPoolPage(deps, restricted, {
+        eventId: event.id,
+        tab: 'none',
+      }),
+      'forbidden',
+    )
+  })
+
+  it('sorts all pages by a profile stat and keeps missing stats last', async () => {
+    const { officer, event, a, b, c } = await setup()
+    await db
+      .updateTable('app.profiles')
+      .set({ pa: 5 })
+      .where('id', '=', a.user.id)
+      .execute()
+    await db
+      .updateTable('app.profiles')
+      .set({ pa: 20 })
+      .where('id', '=', b.user.id)
+      .execute()
+    await db
+      .updateTable('app.profiles')
+      .set({ pa: null })
+      .where('id', '=', c.user.id)
+      .execute()
+    const first = await groupPoolPage(deps, officer.actor, {
+      eventId: event.id,
+      tab: 'none',
+      sortBy: 'pa',
+      direction: 'desc',
+      limit: 2,
+    })
+    const second = await groupPoolPage(deps, officer.actor, {
+      eventId: event.id,
+      tab: 'none',
+      sortBy: 'pa',
+      direction: 'desc',
+      limit: 2,
+      cursor: first.nextCursor,
+    })
+    expect(first.items.map((item) => item.id)).toEqual([b.user.id, a.user.id])
+    expect(new Set(second.items.map((item) => item.id))).toEqual(
+      new Set([c.user.id, officer.user.id]),
+    )
+    expect(second.items.map((item) => item.pa)).toEqual([null, null])
   })
 })
 

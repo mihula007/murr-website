@@ -70,16 +70,174 @@ export const groupRepository = {
     return db
       .selectFrom('app.event_group_members as m')
       .innerJoin('app.profiles as p', 'p.id', 'm.user_id')
-      .innerJoin('app.character_classes as c', 'c.id', 'p.class_id')
+      .leftJoin('app.event_activity_records as r', (join) =>
+        join
+          .onRef('r.user_id', '=', 'm.user_id')
+          .onRef('r.event_id', '=', 'm.event_id'),
+      )
+      .innerJoin('app.character_classes as c', (join) =>
+        join.on('c.id', '=', sql`coalesce(r.class_id, p.class_id)`),
+      )
       .select([
-        'm.group_id', 'm.user_id', 'm.is_leader', 'p.game_nickname',
-        'p.class_id', 'c.name as class_name', 'p.avatar_path',
-        'p.pa', 'p.pz', 'p.bu', 'p.hp', 'p.bd',
+        'm.group_id',
+        'm.user_id',
+        'm.is_leader',
+        sql<string>`coalesce(r.nickname, p.game_nickname)`.as('game_nickname'),
+        sql<number>`coalesce(r.class_id, p.class_id)`.as('class_id'),
+        'c.name as class_name',
+        'p.avatar_path',
+        'p.pa',
+        'p.pz',
+        'p.bu',
+        'p.hp',
+        'p.bd',
       ])
       .where('m.event_id', '=', eventId)
       .orderBy('m.group_id')
       .orderBy('m.position')
       .execute()
+  },
+
+  poolPage(
+    db: Executor,
+    input: {
+      eventId: string
+      roles: readonly string[]
+      tab: 'yes' | 'no' | 'maybe' | 'none'
+      classIds?: number[]
+      sortBy?: 'pa' | 'pz' | 'bu' | 'hp' | 'bd' | null
+      direction?: 'asc' | 'desc'
+      after?: [string | null, string, string] | null
+      limit: number
+    },
+  ) {
+    let query = db
+      .selectFrom('app.profiles as p')
+      .leftJoin('app.event_attendance as a', (join) =>
+        join
+          .onRef('a.user_id', '=', 'p.id')
+          .on('a.event_id', '=', input.eventId),
+      )
+      .innerJoin('app.character_classes as c', 'c.id', 'p.class_id')
+      .select([
+        'p.id',
+        'p.game_nickname',
+        'p.class_id',
+        'c.name as class_name',
+        'p.avatar_path',
+        'p.pa',
+        'p.pz',
+        'p.bu',
+        'p.hp',
+        'p.bd',
+        'a.answer',
+      ])
+      .where((eb) =>
+        eb.or([
+          eb('p.access_role', 'in', input.roles),
+          eb('a.event_id', 'is not', null),
+        ]),
+      )
+      .where((eb) =>
+        eb.not(
+          eb.exists(
+            eb
+              .selectFrom('app.event_group_members as m')
+              .select('m.user_id')
+              .whereRef('m.user_id', '=', 'p.id')
+              .where('m.event_id', '=', input.eventId),
+          ),
+        ),
+      )
+    query =
+      input.tab === 'none'
+        ? query.where('a.answer', 'is', null)
+        : query.where('a.answer', '=', input.tab)
+    if (input.classIds?.length) {
+      query = query.where('p.class_id', 'in', input.classIds)
+    }
+    if (input.after) {
+      if (!input.sortBy) {
+        query = query.where((eb) =>
+          eb.or([
+            eb('p.game_nickname', '>', input.after![1]),
+            eb.and([
+              eb('p.game_nickname', '=', input.after![1]),
+              eb('p.id', '>', input.after![2]),
+            ]),
+          ]),
+        )
+      } else if (input.after[0] === null) {
+        query = query
+          .where(input.sortBy, 'is', null)
+          .where((eb) =>
+            eb.or([
+              eb('p.game_nickname', '>', input.after![1]!),
+              eb.and([
+                eb('p.game_nickname', '=', input.after![1]!),
+                eb('p.id', '>', input.after![2]!),
+              ]),
+            ]),
+          )
+      } else {
+        const direction = input.direction === 'asc' ? '>' : '<'
+        const stat = sql.ref(`p.${input.sortBy}`)
+        query = query.where(
+          sql<boolean>`(${stat} is null or ${stat} ${sql.raw(direction)} ${input.after[0]}::numeric or (${stat} = ${input.after[0]}::numeric and (p.game_nickname, p.id) > (${input.after[1]}, ${input.after[2]})))`,
+        )
+      }
+    }
+    if (input.sortBy) {
+      const direction = input.direction ?? 'desc'
+      query = query.orderBy(sql.ref(`p.${input.sortBy}`), (order) =>
+        (direction === 'asc' ? order.asc() : order.desc()).nullsLast(),
+      )
+    }
+    return query
+      .orderBy('p.game_nickname')
+      .orderBy('p.id')
+      .limit(input.limit)
+      .execute()
+  },
+
+  async poolCounts(db: Executor, eventId: string, roles: readonly string[]) {
+    const count = async (answer: 'yes' | 'no' | 'maybe' | null) => {
+      let query = db
+        .selectFrom('app.profiles as p')
+        .leftJoin('app.event_attendance as a', (join) =>
+          join.onRef('a.user_id', '=', 'p.id').on('a.event_id', '=', eventId),
+        )
+        .select((eb) => eb.fn.countAll<string>().as('count'))
+        .where((eb) =>
+          eb.or([
+            eb('p.access_role', 'in', roles),
+            eb('a.event_id', 'is not', null),
+          ]),
+        )
+        .where((eb) =>
+          eb.not(
+            eb.exists(
+              eb
+                .selectFrom('app.event_group_members as m')
+                .select('m.user_id')
+                .whereRef('m.user_id', '=', 'p.id')
+                .where('m.event_id', '=', eventId),
+            ),
+          ),
+        )
+      query =
+        answer === null
+          ? query.where('a.answer', 'is', null)
+          : query.where('a.answer', '=', answer)
+      const row = await query.executeTakeFirstOrThrow()
+      return Number(row.count)
+    }
+    return Promise.all([
+      count('yes'),
+      count('no'),
+      count('maybe'),
+      count(null),
+    ]).then(([yes, no, maybe, none]) => ({ yes, no, maybe, none }))
   },
 
   async countGroups(db: Executor, eventId: string) {
