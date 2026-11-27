@@ -1018,7 +1018,7 @@ export function BroadcastPage(searchParams: Partial<BroadcastSearch>) {
             />
           ) : undefined
         }
-        actionsClassName="w-full min-[900px]:w-[58%]"
+        actionsClassName="w-full justify-end min-[900px]:w-[58%]"
       />
       <div
         className={cn(

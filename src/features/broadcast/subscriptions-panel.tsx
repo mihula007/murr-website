@@ -120,18 +120,18 @@ export function SubscriptionAnalytics({
   return (
     <section
       aria-label="Аналитика подписок"
-      className="grid w-full min-w-0 grid-cols-2 gap-1 min-[560px]:grid-cols-3 min-[1000px]:grid-cols-5"
+      className="grid w-full min-w-0 grid-cols-2 gap-2 min-[560px]:grid-cols-3 min-[1000px]:w-fit min-[1000px]:grid-flow-col min-[1000px]:grid-cols-none min-[1000px]:auto-cols-max"
     >
       {metrics.map(({ label, value }) => (
         <fieldset
           key={label}
           aria-label={label}
-          className="m-0 grid min-w-0 gap-0.5 rounded-lg border border-border bg-card px-2 py-1"
+          className="m-0 grid min-w-0 gap-1 rounded-lg border border-border bg-card px-3 py-2"
         >
-          <span className="truncate text-[11px] leading-tight text-muted-foreground">
+          <span className="truncate text-xs text-muted-foreground">
             {label}
           </span>
-          <strong className="text-base leading-tight tabular-nums">
+          <strong className="text-lg leading-tight tabular-nums">
             {value}
           </strong>
         </fieldset>
