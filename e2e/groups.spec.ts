@@ -308,6 +308,7 @@ test('шаблон редактируется, фильтруется по кл�
     .getByRole('list', { name: 'Шаблоны групп' })
     .getByRole('listitem')
     .filter({ hasText: 'Шаблон после правки' })
+    .first()
   await updatedTemplate.getByRole('button', { name: 'Изменить' }).click()
   const editDialog = page.getByRole('dialog', {
     name: 'Редактировать шаблон групп',
@@ -321,13 +322,25 @@ test('шаблон редактируется, фильтруется по кл�
     }),
   ).toHaveText(free.nickname)
 
-  await page.setViewportSize({ width: 375, height: 812 })
-  await expect(editDialog).toBeVisible()
-  expect(await hasHorizontalScroll(page)).toBe(false)
-  const mobileBox = await editDialog.boundingBox()
-  expect(mobileBox?.width).toBeLessThanOrEqual(375)
-  await editDialog.getByRole('button', { name: 'Отмена' }).click()
   await library.getByRole('button', { name: 'Закрыть' }).click()
+  await page.setViewportSize({ width: 375, height: 812 })
+  await page.getByRole('button', { name: 'Шаблоны групп' }).click()
+  const mobileLibrary = page.getByRole('dialog', { name: 'Шаблоны групп' })
+  const mobileTemplate = mobileLibrary
+    .getByRole('list', { name: 'Шаблоны групп' })
+    .getByRole('listitem')
+    .filter({ hasText: 'Шаблон после правки' })
+    .first()
+  await mobileTemplate.getByRole('button', { name: 'Изменить' }).click()
+  const mobileEditDialog = page.getByRole('dialog', {
+    name: 'Редактировать шаблон групп',
+  })
+  await expect(mobileEditDialog).toBeVisible()
+  expect(await hasHorizontalScroll(page)).toBe(false)
+  const mobileBox = await mobileEditDialog.boundingBox()
+  expect(mobileBox?.width).toBeLessThanOrEqual(375)
+  await mobileEditDialog.getByRole('button', { name: 'Отмена' }).click()
+  await mobileLibrary.getByRole('button', { name: 'Закрыть' }).click()
   await expect(eventGroup).toContainText(assigned.nickname)
   await expect(eventGroup).not.toContainText(free.nickname)
 })
