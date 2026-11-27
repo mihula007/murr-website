@@ -30,7 +30,7 @@
 
 ---
 
-### Задача 1: Совместимое чтение и изменение шаблона на сервере
+### Task 1: Совместимое чтение и изменение шаблона на сервере
 
 **Файлы:**
 - Изменить: `supabase/functions/_shared/contracts/groups.ts`, `supabase/functions/_shared/groups/repository.ts`, `supabase/functions/_shared/groups/service.ts`, `supabase/functions/_shared/app.ts`.
@@ -48,7 +48,7 @@
 - [ ] **Шаг 3: добавить серверную реализацию.** Каталог агрегирует число групп и людей без вложенных списков. Детальная операция проверяет `groups.templates` и возвращает характеристики текущего профиля. Обновление блокирует запись шаблона, проверяет существование и принадлежность каждого участника текущему составу, затем в одной транзакции меняет заголовок и полностью пересоздаёт группы/участников; ID, `created_by` и `created_at` сохраняются. Создание и обновление имеют разные действия аудита.
 - [ ] **Шаг 4: повторить серверные тесты.** `npm run test:server` должен пройти полностью.
 
-### Задача 2: Пагинация, характеристики и фильтр в конструкторе
+### Task 2: Пагинация, характеристики и фильтр в конструкторе
 
 **Файлы:**
 - Изменить: `src/features/roster/api.ts`, `src/features/roster/query-keys.ts`, `src/features/events/groups-api.ts`, `src/features/events/query-keys.ts`, `src/features/events/groups/group-template-builder.tsx`, `src/features/events/groups/group-templates-dialog.tsx`.
@@ -64,7 +64,7 @@
 - [ ] **Шаг 3: подключить выборку и интерфейс.** Запрос состава использует курсор `(game_nickname, id)`, класс и поиск на сервере. Для free pool показать виртуализированные строки; строка включает ник, иконку класса и ПА/ПЗ/БУ/ХП/БД, пустые показатели — тире. Кнопки добавления отключены для полной группы с пояснением. На компьютере редактор занимает почти всю ширину окна и показывает группы/состав рядом; на узком экране колонки складываются вертикально.
 - [ ] **Шаг 4: запустить компонентные проверки.** `npx vitest run tests/event-groups.test.tsx` должен пройти; общий виртуализатор не менять без необходимости.
 
-### Задача 3: Действие редактирования и сквозная проверка
+### Task 3: Действие редактирования и сквозная проверка
 
 **Файлы:**
 - Изменить: `src/features/events/groups-api.ts`, `src/features/events/query-keys.ts`, `src/features/events/groups/group-templates-dialog.tsx`, `src/features/events/groups/group-template-builder.tsx`, `tests/event-groups.test.tsx`, `e2e/groups.spec.ts`.
@@ -80,7 +80,7 @@
 - [ ] **Шаг 5: выполнить быстрые проверки.** `npm run check:quick` и `npm run test:server` должны пройти. Схема базы данных не меняется, поэтому `npm run supabase:test` не нужен.
 - [ ] **Шаг 6: сохранить реализацию отдельным Conventional Commit.** Перед коммитом проверить подготовленные файлы и выполнить `npm run security:check`.
 
-### Задача 4: Локальный показ
+### Task 4: Локальный показ
 
 - [ ] Выполнить `npm run review:prepare`, дождаться локального Supabase, пересоздать тестовые данные.
 - [ ] Убедиться, что фоновые `npm run e2e:functions` и `npm run dev` доступны.
