@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import {
   DndContext,
   DragOverlay,
@@ -46,8 +47,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Select } from '@/components/ui/select'
-import { Badge, Card } from '@/components/ui/surfaces'
+import { Card } from '@/components/ui/surfaces'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+} from '@/components/ui/popover'
 import { toast } from '@/components/ui/toaster'
 import { useSession } from '@/features/auth/session'
 import { ClassIcon } from '@/features/catalog/class-icon'
@@ -125,6 +131,7 @@ function PersonRow({
   virtual = false,
 }: PersonRowProps) {
   const [statsOpen, setStatsOpen] = useState(false)
+  const [statsHoverOpen, setStatsHoverOpen] = useState(false)
   const {
     setNodeRef: dragRef,
     listeners,
@@ -144,12 +151,31 @@ function PersonRow({
   const size = group?.members.length ?? 0
   const Row = virtual ? 'div' : 'li'
 
-  return (
+  const row = (
     <Row
       ref={dropRef}
+      onMouseEnter={
+        group && board.event.closedAt === null
+          ? () => setStatsHoverOpen(true)
+          : undefined
+      }
+      onMouseLeave={
+        group && board.event.closedAt === null
+          ? () => setStatsHoverOpen(false)
+          : undefined
+      }
+      onFocusCapture={
+        group && board.event.closedAt === null
+          ? () => setStatsHoverOpen(true)
+          : undefined
+      }
+      onBlurCapture={
+        group && board.event.closedAt === null
+          ? () => setStatsHoverOpen(false)
+          : undefined
+      }
       className={cn(
         'relative flex min-w-0 items-center border border-border bg-surface-inset',
-        group && board.event.closedAt === null && 'group/person',
         group ? 'gap-1.5 rounded-md px-1.5 py-1' : 'gap-2 rounded-lg px-2 py-1',
         person.id === board.currentUserId && 'bg-item-highlight!',
         isDragging && 'opacity-40',
@@ -281,25 +307,6 @@ function PersonRow({
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
-      {group && board.event.closedAt === null ? (
-        <span
-          role="tooltip"
-          className="pointer-events-none absolute top-full left-1/2 z-30 hidden w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-border-accent bg-surface-menu p-2 shadow-popover group-hover/person:block group-focus-within/person:block"
-        >
-          <span className="grid grid-cols-5 gap-2 text-xs">
-            {CHARACTER_STAT_FIELDS.map((field) => (
-              <span key={field} className="grid">
-                <span className="text-muted-foreground">
-                  {CHARACTER_STAT_LABELS[field]}
-                </span>
-                <strong>
-                  {formatCharacterStat(field, person[field]) ?? '—'}
-                </strong>
-              </span>
-            ))}
-          </span>
-        </span>
-      ) : null}
       <Dialog open={statsOpen} onOpenChange={setStatsOpen}>
         <DialogContent>
           <DialogHeader>
@@ -321,6 +328,32 @@ function PersonRow({
       </Dialog>
     </Row>
   )
+
+  return group && board.event.closedAt === null ? (
+    <Popover open={statsHoverOpen} onOpenChange={setStatsHoverOpen}>
+      <PopoverAnchor asChild>{row}</PopoverAnchor>
+      <PopoverContent
+        role="tooltip"
+        side="bottom"
+        align="center"
+        sideOffset={4}
+        className="pointer-events-none w-[min(20rem,calc(100vw-2rem))] p-2"
+      >
+        <span className="grid grid-cols-5 gap-2 text-xs">
+          {CHARACTER_STAT_FIELDS.map((field) => (
+            <span key={field} className="grid">
+              <span className="text-muted-foreground">
+                {CHARACTER_STAT_LABELS[field]}
+              </span>
+            <strong>
+              {formatCharacterStat(field, person[field]) ?? '—'}
+            </strong>
+            </span>
+          ))}
+        </span>
+      </PopoverContent>
+    </Popover>
+  ) : row
 }
 
 type PoolTab = {
@@ -430,13 +463,15 @@ function PoolPanel({
     <Card
       ref={dropRef}
       className={cn(
-        'grid content-start gap-2 p-3 lg:sticky lg:top-4 lg:flex lg:h-[calc(100svh-2rem)] lg:flex-col lg:overflow-hidden',
+        'grid content-start gap-1.5 p-2.5 lg:sticky lg:top-4 lg:flex lg:h-[calc(100svh-2rem)] lg:flex-col lg:overflow-hidden',
         isOver && 'border-primary',
       )}
     >
-      <h2 className={cn(sectionTitleClass, 'lg:flex-none')}>
-        {closed ? 'Итог посещения' : 'Участники'}
-      </h2>
+      {closed ? (
+        <h2 className={cn(sectionTitleClass, 'lg:flex-none')}>
+          Итог посещения
+        </h2>
+      ) : null}
       <Tabs
         value={current.value}
         onValueChange={setTab}
@@ -467,7 +502,7 @@ function PoolPanel({
       {!closed ? (
         <ul
           aria-label="Фильтр по классам"
-          className="m-0 flex list-none flex-wrap gap-1 p-0 lg:flex-none"
+          className="m-0 flex list-none flex-wrap gap-0.5 p-0 lg:flex-none"
         >
           {(classes.data ?? []).map((item) => {
             const active = classIds.includes(item.id)
@@ -486,27 +521,20 @@ function PoolPanel({
                     )
                   }
                   className={cn(
-                    'rounded-full border border-border p-1 hover:border-primary',
+                    'rounded-full border border-border p-0.5 hover:border-primary',
                     active && 'border-highlight bg-highlight',
                   )}
                 >
                   <ClassIcon
                     classId={item.id}
                     className={item.name}
-                    wrapperClassName="size-7"
+                    wrapperClassName="size-6"
                   />
                 </button>
               </li>
             )
           })}
         </ul>
-      ) : null}
-      {board.editable ? (
-        <p className="m-0 text-xs text-muted-foreground lg:flex-none">
-          Назначенные в группы скрываются из вкладок. Перетащите человека за
-          маркер или выберите группу в меню «⋮»; перенос сюда снимает его с
-          группы.
-        </p>
       ) : null}
       <div className="min-h-0 lg:flex-1 lg:overflow-y-auto">
         {!closed && poolQuery.isPending ? (
@@ -780,7 +808,6 @@ function EventToolbar({
         <Button
           type="button"
           variant="outline"
-          className="ml-auto max-xs:ml-0"
           onClick={() => setClosing(true)}
         >
           Завершить событие
@@ -928,6 +955,27 @@ function DragPreview({
   )
 }
 
+/** Счётчик полного состава групп для тех, кто видит все группы. */
+export function EventGroupCount({ event }: { event: EventDetails }) {
+  const { hasOfficerPermission } = useAccess()
+  if (!hasOfficerPermission('events.view_full_roster')) {
+    return null
+  }
+  const total = event.groups.reduce(
+    (sum, group) => sum + group.members.length,
+    0,
+  )
+
+  return (
+    <div className="grid justify-items-center gap-1 text-center text-highlight">
+      <strong className="text-4xl leading-none font-bold tabular-nums">
+        {total}
+      </strong>
+      <span className="text-sm font-semibold">Людей в группе</span>
+    </div>
+  )
+}
+
 /**
  * Участники и группы события (EVT-06, GRP): офицер и администратор
  * распределяют людей до закрытия; остальные и закрытое событие — только
@@ -937,10 +985,14 @@ export function EventGroupsSection({
   event,
   classIds,
   onClassIdsChange,
+  groupToolbarTarget,
+  eventToolbarTarget,
 }: {
   event: EventDetails
   classIds: number[]
   onClassIdsChange: (ids: number[]) => void
+  groupToolbarTarget?: HTMLDivElement | null
+  eventToolbarTarget?: HTMLDivElement | null
 }) {
   const { hasOfficerPermission } = useAccess()
   const canViewAll = hasOfficerPermission('events.view_full_roster')
@@ -1004,38 +1056,22 @@ export function EventGroupsSection({
 
   const groupsPanel = (
     <section
-      aria-labelledby="event-groups-title"
+      aria-label={isMember ? 'Ваша группа' : 'Группы события'}
       className={cn(
         'grid min-h-0 gap-3',
         !isMember &&
-          'lg:sticky lg:top-4 lg:h-[calc(100svh-2rem)] lg:grid-rows-[auto_minmax(0,1fr)]',
+          'lg:sticky lg:top-4 lg:h-[calc(100svh-2rem)] lg:grid-rows-[minmax(0,1fr)]',
       )}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 id="event-groups-title" className={sectionTitleClass}>
-          {isMember ? 'Ваша группа' : 'Группы'}
-        </h2>
-        {!isMember ? (
-          <Badge className="border-border text-muted-foreground">
-            {event.groups.length}
-          </Badge>
-        ) : null}
-        {board.editable ? <GroupToolbar board={board} /> : null}
-        {canViewAll || event.canClose ? (
-          <div className="ml-auto grid justify-items-end gap-1">
-            {canViewAll ? (
-              <span className="text-sm font-semibold text-highlight">
-                Людей в группах:{' '}
-                {event.groups.reduce(
-                  (sum, group) => sum + group.members.length,
-                  0,
-                )}
-              </span>
-            ) : null}
-            {event.canClose ? <EventToolbar board={board} /> : null}
-          </div>
-        ) : null}
-      </div>
+      {isMember ? (
+        <h2 className={sectionTitleClass}>Ваша группа</h2>
+      ) : null}
+      {groupToolbarTarget === undefined && board.editable ? (
+        <GroupToolbar board={board} />
+      ) : null}
+      {eventToolbarTarget === undefined && event.canClose ? (
+        <EventToolbar board={board} />
+      ) : null}
       {event.groups.length === 0 ? (
         <div className="min-h-0 rounded-xl border border-dashed border-border p-4 lg:overflow-y-auto">
           <p className="m-0 text-muted-foreground">
@@ -1094,6 +1130,15 @@ export function EventGroupsSection({
       <DragOverlay>
         {dragging ? <DragPreview person={board.people.get(dragging)} /> : null}
       </DragOverlay>
+      {groupToolbarTarget && board.editable
+        ? createPortal(<GroupToolbar board={board} />, groupToolbarTarget)
+        : null}
+      {eventToolbarTarget && event.canClose
+        ? createPortal(
+            <EventToolbar board={board} className="justify-center" />,
+            eventToolbarTarget,
+          )
+        : null}
     </DndContext>
   )
 }
