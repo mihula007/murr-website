@@ -357,6 +357,7 @@ function MembersList({
       columns={1}
       gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
       paging={paging}
+      showLoadMore={false}
       gap="md"
     />
   ) : (
@@ -371,6 +372,7 @@ function MembersList({
       stableScrollbarGutter
       gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 px-3"
       paging={paging}
+      showLoadMore={false}
       gap="md"
     />
   )
